@@ -65,18 +65,28 @@ export default function GroupDetail() {
 
   // -----------------------------------------------------------
 
-  if (loading || !group) {
+  if (loading) {
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg text-center">
-        {loading ? <p className="text-gray-600">Laden...</p> : <p className="text-red-600">Groep niet gevonden.</p>}
+        <p className="text-gray-600">Laden...</p>
+      </div>
+    </div>
+  );
+}
+
+if (!group) {
+  return (
+    <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg text-center">
+        <p className="text-red-600">Groep niet gevonden.</p>
       </div>
     </div>
   );
 }
 
   return (
-    <div className="max-w-4xl mx-auto px-2 sm:px-4 lg:px-6 py-10">
+    <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <Link to="/groepsbeheer" className="flex items-center text-sm text-gray-600 hover:text-purple-700 mb-4">
   <ArrowLeftIcon className="h-4 w-4 mr-1" />
   Terug naar groepenoverzicht
