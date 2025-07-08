@@ -89,30 +89,52 @@ export default function Layout() {
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50">
-                <div className="mb-2">
-                  <p className="text-sm text-gray-500">Ingelogd als</p>
-                  <p className="font-semibold">{profile?.naam || profile?.email}</p>
-                  {/* Laat de echte rol zien, niet de geswitchte */}
-                  {profile?.rol === 'administrator' && (
-                    <p className="text-xs text-gray-400 mt-1">Rol: {profile?.rol}</p>
-                  )}
-                </div>
-                <hr className="my-2" />
-                <Link
-                  to="/wachtwoord-wijzigen"
-                  className="w-full block px-2 py-1 text-sm text-purple-700 hover:bg-purple-50 rounded-md"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Wachtwoord wijzigen
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-2 py-1 text-sm text-red-600 hover:bg-red-50 rounded-md mt-1"
-                >
-                  Uitloggen
-                </button>
-              </div>
+  <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50">
+    <div className="mb-2">
+      <p className="text-sm text-gray-500">Ingelogd als</p>
+      <p className="font-semibold">{profile?.naam || profile?.email}</p>
+      {/* Laat de echte rol zien, niet de geswitchte */}
+      {profile?.rol === 'administrator' && (
+        <p className="text-xs text-gray-400 mt-1">Rol: {profile?.rol}</p>
+      )}
+    </div>
+
+    {/* Rol-switcher alleen voor admins */}
+    {profile?.rol === 'administrator' && (
+      <div className="mb-4">
+        <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">
+          Wissel rol
+        </label>
+        <select
+          id="role-switcher"
+          className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+          value={activeRole}
+          onChange={(e) => setActiveRole(e.target.value)}
+          title="Switch rol"
+        >
+          <option value="administrator">Administrator</option>
+          <option value="leerkracht">Leerkracht</option>
+          <option value="leerling">Leerling</option>
+        </select>
+      </div>
+    )}
+
+    <hr className="my-2" />
+    <Link
+      to="/wachtwoord-wijzigen"
+      className="w-full block px-2 py-1 text-sm text-purple-700 hover:bg-purple-50 rounded-md"
+      onClick={() => setMenuOpen(false)}
+    >
+      Wachtwoord wijzigen
+    </Link>
+    <button
+      onClick={handleLogout}
+      className="w-full text-left px-2 py-1 text-sm text-red-600 hover:bg-red-50 rounded-md mt-1"
+    >
+      Uitloggen
+    </button>
+  </div>
+
             )}
           </div>
         </nav>
