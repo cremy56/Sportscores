@@ -80,7 +80,7 @@ export default function GroupDetail() {
           <h1 className="text-2xl font-bold text-gray-800">{group.groep_naam}</h1>
           <button 
   onClick={() => setIsAddStudentModalOpen(true)} 
-  className="text-green-600 hover:text-green-800 flex items-center font-semibold"
+  className="text-green-600 bg-transparent hover:text-green-800 flex items-center font-semibold"
   aria-label="Leerling Toevoegen"
 >
   <PlusCircleIcon className="h-7 w-7" />
