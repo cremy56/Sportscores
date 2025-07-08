@@ -25,7 +25,7 @@ export default function StudentSearch({ onStudentSelect }) {
   }, [searchTerm]);
 
   const handleSelect = (student) => {
-    onStudentSelect(student); // Geef het hele object door
+    onStudentSelect(student.id, student.naam); // Geef het hele object door
     setSearchTerm('');
     setResults([]);
   };

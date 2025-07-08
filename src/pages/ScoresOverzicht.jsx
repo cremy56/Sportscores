@@ -85,7 +85,7 @@ export default function ScoresOverzicht() {
         setSelectedItem(item);
         setShowConfirm(true);
       }}
-      className="p-2 text-red-600 hover:text-red-800"
+      className="p-2 text-red-600 bg-transparent hover:text-red-800"
       title="Verwijder testafname"
     >
       <TrashIcon className="h-5 w-5" />
