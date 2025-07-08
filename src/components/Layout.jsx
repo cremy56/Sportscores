@@ -83,7 +83,7 @@ export default function Layout() {
           <div className="relative ml-4" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((prev) => !prev)}
-              className="text-purple-700 hover:text-purple-900 transition-colors"
+              className="text-purple-700 bg-transparent hover:text-purple-900 transition-colors"
             >
               <UserCircleIcon className="h-8 w-8" />
             </button>
