@@ -61,7 +61,7 @@ export default function Evolutie() {
     }, {});
   
     // Bepaal de titel op basis van de rol uit het profiel
-    const pageTitle = (profile?.rol === 'leerkracht' || profile?.rol === 'administrator') ? 'Portfolio' : 'Mijn Evolutie';
+    //const pageTitle = (profile?.rol === 'leerkracht' || profile?.rol === 'administrator') ? 'Portfolio' : 'Mijn Evolutie';
 
     return (
         <div className="max-w-7xl mx-auto">

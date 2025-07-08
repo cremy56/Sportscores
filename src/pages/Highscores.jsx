@@ -34,7 +34,7 @@ export default function Highscores() {
     return (
     <>
         <h1 className="text-4xl md:text-5xl font-extrabold text-gray-800 mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-purple-700">
-            Highscores KA Beveren
+            KA Beveren
         </h1>
 
         {/* --- NIEUWE WRAPPER HIERONDER --- */}

@@ -59,9 +59,9 @@ const currentTest = tests[currentIndex];
     <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg flex flex-col h-full">
       <h2 className="text-2xl font-bold text-gray-800">{categoryName}</h2>
       <div className="flex justify-between items-center mt-2 border-b border-gray-200 pb-3">
-        <button onClick={handlePrev} className="p-2 rounded-full hover:bg-white/50 transition-colors"><ChevronLeftIcon className="h-6 w-6 text-purple-700" /></button>
+        <button onClick={handlePrev} className="p-2 rounded-full bg-transparent hover:bg-white/50 transition-colors"><ChevronLeftIcon className="h-6 w-6 text-purple-700" /></button>
         <h3 className="font-semibold text-lg text-green-700 text-center">{currentTest.test_naam}</h3>
-        <button onClick={handleNext} className="p-2 rounded-full hover:bg-white/50 transition-colors"><ChevronRightIcon className="h-6 w-6 text-purple-700" /></button>
+        <button onClick={handleNext} className="p-2 rounded-full bg-transparent hover:bg-white/50 transition-colors"><ChevronRightIcon className="h-6 w-6 text-purple-700" /></button>
       </div>
 
       <div className="grid grid-cols-3 text-center my-4">

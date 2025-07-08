@@ -44,9 +44,28 @@ export default function Groepsbeheer() {
             <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-gray-800">Mijn Groepen</h2>
-                    <button onClick={() => setIsCreateGroupModalOpen(true)} className="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg">
-                        + Nieuwe Groep
-                    </button>
+                    <button
+  onClick={() => setIsCreateGroupModalOpen(true)}
+  className="flex items-center justify-center bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-lg
+             p-2 md:px-4 md:py-2"
+  aria-label="Nieuwe groep toevoegen"
+  title="Nieuwe groep"
+>
+  {/* Plus icoon */}
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-6 w-6 md:mr-2"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+  </svg>
+
+  {/* Tekst alleen op md en groter tonen */}
+  <span className="hidden md:inline">Nieuwe Groep</span>
+</button>
                 </div>
                 
                 {loading ? <p>Groepen laden...</p> : (
