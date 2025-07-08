@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient';
 import { Toaster } from 'react-hot-toast';
 import { useState, useRef, useEffect } from 'react';
 import { UserCircleIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon } from '@heroicons/react/24/solid';
 
 export default function Layout() {
   const { profile } = useOutletContext();
@@ -34,7 +35,7 @@ export default function Layout() {
   };
 
   return (
-    <div>
+   <div>
       <Toaster position="top-center" />
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20">
         <nav className="container mx-auto px-4 py-2 flex items-center justify-between">
@@ -43,21 +44,10 @@ export default function Layout() {
             {/* Hamburger knop mobiel */}
             <button
               onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="md:hidden p-2 text-gray-700 hover:text-purple-700"
+              className="md:hidden p-2 text-black hover:text-purple-700 bg-white rounded" // wit achtergrondje en zwarte tekst
               aria-label="Toggle menu"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
+              <Bars3Icon className="w-6 h-6 text-black" />
             </button>
 
             {/* Logo */}
