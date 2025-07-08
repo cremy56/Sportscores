@@ -19,7 +19,7 @@ const generateSchoolYears = () => {
 export default function Evolutie() {
     // Stap 2: Haal het profiel op uit de context
     const { profile } = useOutletContext();
-
+    const [showTitle, setShowTitle] = useState(false);
     // Stap 3: De oude 'userRole' state is verwijderd
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [evolutionData, setEvolutionData] = useState([]);
@@ -61,14 +61,16 @@ export default function Evolutie() {
     }, {});
   
     // Bepaal de titel op basis van de rol uit het profiel
-    //const pageTitle = (profile?.rol === 'leerkracht' || profile?.rol === 'administrator') ? 'Portfolio' : 'Mijn Evolutie';
+    const pageTitle = (profile?.rol === 'leerkracht' || profile?.rol === 'administrator') ? 'Portfolio' : 'Mijn Evolutie';
 
     return (
         <div className="max-w-7xl mx-auto">
-             <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6 text-center">
-                {/* Titel weer dynamisch gemaakt */}
-                {selectedStudent ? selectedStudent.naam : pageTitle}
-            </h1>
+            {/* Titel alleen tonen als showTitle true is */}
+            {showTitle && (
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6 text-center">
+                    {selectedStudent ? selectedStudent.naam : pageTitle}
+                </h1>
+            )}
             <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg min-h-[60vh]">
                 
                 {/* Stap 4: Gebruik hier 'profile.rol' voor de check */}
