@@ -47,7 +47,7 @@ export default function CategoryCard({ categoryName, tests }) {
         {/* Terug naar een grotere letter voor de testnaam */}
         <h3 className="font-semibold text-lg text-green-700 text-center">{currentTest.naam}</h3>
         <button onClick={handleNext} className="p-2 rounded-full hover:bg-white/50 transition-colors">
-          <ChevronRightIcon className="h-6 w-6 text-purple-700" />
+          <ChevronRightIcon className="h-6 w-6 text-red-500" />
         </button>
       </div>
       
