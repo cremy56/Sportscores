@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
-import { XCircleIcon, PlusCircleIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
+import { TrashIcon, PlusCircleIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
 import AddStudentToGroupModal from '../components/AddStudentToGroupModal';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -78,9 +78,15 @@ export default function GroupDetail() {
       <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-gray-800">{group.groep_naam}</h1>
-          <button onClick={() => setIsAddStudentModalOpen(true)} className="text-green-600 hover:text-green-800 flex items-center font-semibold">
-            <PlusCircleIcon className="h-7 w-7 mr-1" /> Leerling Toevoegen
-          </button>
+          <button 
+  onClick={() => setIsAddStudentModalOpen(true)} 
+  className="text-green-600 hover:text-green-800 flex items-center font-semibold"
+  aria-label="Leerling Toevoegen"
+>
+  <PlusCircleIcon className="h-7 w-7" />
+  {/* Tekst alleen zichtbaar vanaf md-scherm */}
+  <span className="hidden md:inline ml-2">Leerling Toevoegen</span>
+</button>
         </div>
         
         <h2 className="font-bold text-lg mb-2">Groepsleden</h2>
@@ -89,9 +95,9 @@ export default function GroupDetail() {
             <li key={lid.leerling_id} className="bg-white flex justify-between items-center p-3 rounded-md shadow-sm">
               <span className="font-medium">{lid.naam}</span>
               {/* De knop roept nu de juiste functie aan */}
-              <button onClick={() => handleRemoveClick(lid)} className="text-red-500 hover:text-red-700">
-                <XCircleIcon className="h-6 w-6" />
-              </button>
+             <button onClick={() => handleRemoveClick(lid)} className="text-red-500 bg-transparent hover:text-red-700">
+  <TrashIcon className="h-6 w-6" />
+</button>
             </li>
           )) : (
             <p className="text-center text-gray-500 py-4">Klik op '+ Leerling Toevoegen' om te beginnen.</p>
