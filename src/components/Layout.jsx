@@ -116,8 +116,9 @@ export default function Layout() {
 
           {/* Mobiele navigatie dropdown */}
           <ul
-  className={`md:hidden absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
+  className={`md:hidden absolute top-full left-0 right-0 border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
     ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
+    bg-white dark:bg-white
   `}
             onClick={() => setMobileMenuOpen(false)}
           >
