@@ -69,7 +69,7 @@ export default function GroupDetail() {
   if (!group) return <p>Groep niet gevonden.</p>;
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <Link to="/groepsbeheer" className="flex items-center text-sm text-gray-600 hover:text-purple-700 mb-4">
   <ArrowLeftIcon className="h-4 w-4 mr-1" />
   Terug naar groepenoverzicht
