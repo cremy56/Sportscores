@@ -116,7 +116,7 @@ export default function Layout() {
 
           {/* Mobiele navigatie dropdown */}
           <ul
-            className={`md:hidden absolute top-full left-0 right-0 bg-white shadow-md bg-transparent border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
+            className={`md:hidden absolute top-full left-0 right-0 bg-white shadow-md  border border-gray-200 bg-transparent rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
               ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
             `}
             onClick={() => setMobileMenuOpen(false)}
@@ -177,7 +177,7 @@ export default function Layout() {
               <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50">
                 <div className="mb-2">
                   <p className="text-sm text-gray-500">Ingelogd als</p>
-                  <p className="font-semibold">{profile?.naam || profile?.email}</p>
+                  <p className="font-semibold text-gray-900">{profile?.naam || profile?.email}</p>
                   {profile?.rol === 'administrator' && (
                     <p className="text-xs text-gray-400 mt-1">Rol: {profile?.rol}</p>
                   )}
