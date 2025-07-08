@@ -6,7 +6,7 @@ import { UserCircleIcon } from '@heroicons/react/24/outline';
 
 export default function Layout() {
   const { profile } = useOutletContext();
-  
+
   // State voor actieve rol (default = echte rol van profiel)
   const [activeRole, setActiveRole] = useState(profile?.rol || 'leerling');
 
@@ -18,6 +18,7 @@ export default function Layout() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -39,33 +40,118 @@ export default function Layout() {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20">
         <nav className="container mx-auto px-4 py-2 flex items-center">
           <NavLink to="/" className="block h-8 mr-8">
-            <img 
-              src="/logo.png" 
-              alt="Sportscores Logo" 
+            <img
+              src="/logo.png"
+              alt="Sportscores Logo"
               className="h-full w-auto object-contain"
             />
           </NavLink>
 
+          {/* Desktop navigatie */}
           <ul className="hidden md:flex items-center space-x-8 flex-grow">
-            <li><NavLink to="/" className={({isActive}) => isActive ? activeLinkStyle : inactiveLinkStyle}>Highscores</NavLink></li>
-            <li><NavLink to="/evolutie" className={({isActive}) => isActive ? activeLinkStyle : inactiveLinkStyle}>{evolutieLinkText}</NavLink></li>
-            
+            <li>
+              <NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                Highscores
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                {evolutieLinkText}
+              </NavLink>
+            </li>
+
             {isTeacherOrAdmin && (
               <>
-                <li><NavLink to="/groepsbeheer" className={({isActive}) => isActive ? activeLinkStyle : inactiveLinkStyle}>Groepsbeheer</NavLink></li>
-                <li><NavLink to="/scores" className={({isActive}) => isActive ? activeLinkStyle : inactiveLinkStyle}>Scores</NavLink></li>
+                <li>
+                  <NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                    Groepsbeheer
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                    Scores
+                  </NavLink>
+                </li>
               </>
             )}
 
             {activeRole === 'administrator' && (
               <>
-                <li><NavLink to="/leerlingbeheer" className={({isActive}) => isActive ? activeLinkStyle : inactiveLinkStyle}>Leerlingbeheer</NavLink></li>
-                <li><NavLink to="/testbeheer" className={({isActive}) => isActive ? activeLinkStyle : inactiveLinkStyle}>Testbeheer</NavLink></li>
+                <li>
+                  <NavLink to="/leerlingbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                    Leerlingbeheer
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                    Testbeheer
+                  </NavLink>
+                </li>
               </>
             )}
           </ul>
 
-        
+          {/* Hamburger knop mobiel */}
+          <button
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            className="md:hidden p-2 text-gray-700 hover:text-purple-700"
+            aria-label="Toggle menu"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+
+          {/* Mobiele navigatie dropdown */}
+          <ul
+            className={`md:hidden absolute top-full left-0 right-0 bg-white shadow-md border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
+              ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
+            `}
+            onClick={() => setMobileMenuOpen(false)} // Sluit menu als je op een link klikt
+          >
+            <li>
+              <NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                Highscores
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                {evolutieLinkText}
+              </NavLink>
+            </li>
+
+            {isTeacherOrAdmin && (
+              <>
+                <li>
+                  <NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                    Groepsbeheer
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                    Scores
+                  </NavLink>
+                </li>
+              </>
+            )}
+
+            {activeRole === 'administrator' && (
+              <>
+                <li>
+                  <NavLink to="/leerlingbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                    Leerlingbeheer
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                    Testbeheer
+                  </NavLink>
+                </li>
+              </>
+            )}
+          </ul>
 
           {/* Gebruikersicoon + menu */}
           <div className="relative ml-4" ref={menuRef}>
@@ -77,52 +163,51 @@ export default function Layout() {
             </button>
 
             {menuOpen && (
-  <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50">
-    <div className="mb-2">
-      <p className="text-sm text-gray-500">Ingelogd als</p>
-      <p className="font-semibold">{profile?.naam || profile?.email}</p>
-      {/* Laat de echte rol zien, niet de geswitchte */}
-      {profile?.rol === 'administrator' && (
-        <p className="text-xs text-gray-400 mt-1">Rol: {profile?.rol}</p>
-      )}
-    </div>
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50">
+                <div className="mb-2">
+                  <p className="text-sm text-gray-500">Ingelogd als</p>
+                  <p className="font-semibold">{profile?.naam || profile?.email}</p>
+                  {/* Laat de echte rol zien, niet de geswitchte */}
+                  {profile?.rol === 'administrator' && (
+                    <p className="text-xs text-gray-400 mt-1">Rol: {profile?.rol}</p>
+                  )}
+                </div>
 
-    {/* Rol-switcher alleen voor admins */}
-    {profile?.rol === 'administrator' && (
-      <div className="mb-4">
-        <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">
-          Wissel rol
-        </label>
-        <select
-          id="role-switcher"
-          className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-          value={activeRole}
-          onChange={(e) => setActiveRole(e.target.value)}
-          title="Switch rol"
-        >
-          <option value="administrator">Administrator</option>
-          <option value="leerkracht">Leerkracht</option>
-          <option value="leerling">Leerling</option>
-        </select>
-      </div>
-    )}
+                {/* Rol-switcher alleen voor admins */}
+                {profile?.rol === 'administrator' && (
+                  <div className="mb-4">
+                    <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">
+                      Wissel rol
+                    </label>
+                    <select
+                      id="role-switcher"
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                      value={activeRole}
+                      onChange={(e) => setActiveRole(e.target.value)}
+                      title="Switch rol"
+                    >
+                      <option value="administrator">Administrator</option>
+                      <option value="leerkracht">Leerkracht</option>
+                      <option value="leerling">Leerling</option>
+                    </select>
+                  </div>
+                )}
 
-    <hr className="my-2" />
-    <Link
-      to="/wachtwoord-wijzigen"
-      className="w-full block px-2 py-1 text-sm text-purple-700 hover:bg-purple-50 rounded-md"
-      onClick={() => setMenuOpen(false)}
-    >
-      Wachtwoord wijzigen
-    </Link>
-    <button
-      onClick={handleLogout}
-      className="w-full text-left px-2 py-1 text-sm text-red-600 hover:bg-red-50 rounded-md mt-1"
-    >
-      Uitloggen
-    </button>
-  </div>
-
+                <hr className="my-2" />
+                <Link
+                  to="/wachtwoord-wijzigen"
+                  className="w-full block px-2 py-1 text-sm text-purple-700 hover:bg-purple-50 rounded-md"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Wachtwoord wijzigen
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-2 py-1 text-sm text-red-600 hover:bg-red-50 rounded-md mt-1"
+                >
+                  Uitloggen
+                </button>
+              </div>
             )}
           </div>
         </nav>
