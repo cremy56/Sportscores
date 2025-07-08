@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useOutletContext, Link } from 'react-router-dom';
+import { Outlet, NavLink, useOutletContext, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { Toaster } from 'react-hot-toast';
 import { useState, useRef, useEffect } from 'react';
@@ -7,7 +7,7 @@ import { Bars3Icon } from '@heroicons/react/24/solid';
 
 export default function Layout() {
   const { profile } = useOutletContext();
-
+  const location = useLocation();
   const [activeRole, setActiveRole] = useState(profile?.rol || 'leerling');
 
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator';
@@ -19,6 +19,20 @@ export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const routeTitles = {
+    '/': 'Highscores',
+    '/evolutie': profile?.rol === 'leerkracht' || profile?.rol === 'administrator' ? 'Portfolio' : 'Mijn Evolutie',
+    '/groepsbeheer': 'Groepsbeheer',
+    '/scores': 'Scores',
+    '/leerlingbeheer': 'Leerlingbeheer',
+    '/testbeheer': 'Testbeheer',
+    '/wachtwoord-wijzigen': 'Wachtwoord wijzigen',
+  };
+
+  // Bepaal de titel van de huidige route
+  const currentTitle = routeTitles[location.pathname] || '';
+
 
   useEffect(() => {
     function handleClickOutside(event) {
