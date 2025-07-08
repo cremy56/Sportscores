@@ -106,7 +106,7 @@ export default function GroupDetail() {
         <h2 className="font-bold text-lg mb-2">Groepsleden</h2>
         <ul className="space-y-2">
           {group.leden && group.leden.length > 0 ? group.leden.map(lid => (
-            <li key={lid.leerling_id} className="bg-white flex justify-between items-center p-3 rounded-md shadow-sm">
+            <li key={lid.leerling_id} className="bg-white flex justify-between items-center flex-wrap gap-2 p-3 rounded-md shadow-sm">
               <span className="font-medium">{lid.naam}</span>
               {/* De knop roept nu de juiste functie aan */}
              <button onClick={() => handleRemoveClick(lid)} className="text-red-500 bg-transparent hover:text-red-700">
