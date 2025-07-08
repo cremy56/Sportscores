@@ -7,7 +7,6 @@ import { UserCircleIcon } from '@heroicons/react/24/outline';
 export default function Layout() {
   const { profile } = useOutletContext();
 
-  // State voor actieve rol (default = echte rol van profiel)
   const [activeRole, setActiveRole] = useState(profile?.rol || 'leerling');
 
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator';
@@ -38,17 +37,41 @@ export default function Layout() {
     <div>
       <Toaster position="top-center" />
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20">
-        <nav className="container mx-auto px-4 py-2 flex items-center">
-          <NavLink to="/" className="block h-8 mr-8">
-            <img
-              src="/logo.png"
-              alt="Sportscores Logo"
-              className="h-full w-auto object-contain"
-            />
-          </NavLink>
+        <nav className="container mx-auto px-4 py-2 flex items-center justify-between">
+          {/* Links: hamburger + logo */}
+          <div className="flex items-center space-x-4">
+            {/* Hamburger knop mobiel */}
+            <button
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              className="md:hidden p-2 text-gray-700 hover:text-purple-700"
+              aria-label="Toggle menu"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+
+            {/* Logo */}
+            <NavLink to="/" className="block h-8">
+              <img
+                src="/logo.png"
+                alt="Sportscores Logo"
+                className="h-full w-auto object-contain"
+              />
+            </NavLink>
+          </div>
 
           {/* Desktop navigatie */}
-          <ul className="hidden md:flex items-center space-x-8 flex-grow">
+          <ul className="hidden md:flex items-center space-x-8 flex-grow mx-8">
             <li>
               <NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
                 Highscores
@@ -90,26 +113,13 @@ export default function Layout() {
               </>
             )}
           </ul>
-
-          {/* Hamburger knop mobiel */}
-          <button
-            onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="md:hidden p-2 text-gray-700 hover:text-purple-700"
-            aria-label="Toggle menu"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
 
           {/* Mobiele navigatie dropdown */}
           <ul
             className={`md:hidden absolute top-full left-0 right-0 bg-white shadow-md border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
               ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
             `}
-            onClick={() => setMobileMenuOpen(false)} // Sluit menu als je op een link klikt
+            onClick={() => setMobileMenuOpen(false)}
           >
             <li>
               <NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
@@ -153,11 +163,12 @@ export default function Layout() {
             )}
           </ul>
 
-          {/* Gebruikersicoon + menu */}
-          <div className="relative ml-4" ref={menuRef}>
+          {/* Gebruikersicoon + menu helemaal rechts */}
+          <div className="relative ml-4 flex-shrink-0" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((prev) => !prev)}
               className="text-purple-700 bg-transparent hover:text-purple-900 transition-colors"
+              aria-label="User menu"
             >
               <UserCircleIcon className="h-8 w-8" />
             </button>
@@ -167,13 +178,11 @@ export default function Layout() {
                 <div className="mb-2">
                   <p className="text-sm text-gray-500">Ingelogd als</p>
                   <p className="font-semibold">{profile?.naam || profile?.email}</p>
-                  {/* Laat de echte rol zien, niet de geswitchte */}
                   {profile?.rol === 'administrator' && (
                     <p className="text-xs text-gray-400 mt-1">Rol: {profile?.rol}</p>
                   )}
                 </div>
 
-                {/* Rol-switcher alleen voor admins */}
                 {profile?.rol === 'administrator' && (
                   <div className="mb-4">
                     <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">
@@ -214,7 +223,6 @@ export default function Layout() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Geef ook activeRole door zodat child components het kunnen gebruiken */}
         <Outlet context={{ profile, activeRole }} />
       </main>
     </div>
