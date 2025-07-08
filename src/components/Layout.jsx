@@ -73,7 +73,10 @@ export default function Layout() {
               />
             </NavLink>
           </div>
-
+            {/* Titel midden op mobiel */}
+               <div className="flex-grow text-center md:hidden">
+                  <h1 className="text-lg font-semibold text-gray-800">{currentTitle}</h1>
+               </div>
           {/* Desktop navigatie */}
           <ul className="hidden md:flex items-center space-x-8 flex-grow mx-8">
             <li>
