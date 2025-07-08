@@ -79,17 +79,18 @@ export default function ScoresOverzicht() {
     <p className="text-sm text-gray-500 whitespace-nowrap">
       {new Date(item.datum).toLocaleDateString()}
     </p>
-    <button
-      onClick={(e) => {
-        e.preventDefault(); // voorkom navigatie bij klikken op prullenbak
-        setSelectedItem(item);
-        setShowConfirm(true);
-      }}
-      className="p-2 text-red-600 bg-transparent hover:text-red-800"
-      title="Verwijder testafname"
-    >
-      <TrashIcon className="h-5 w-5" />
-    </button>
+   <button
+  onClick={(e) => {
+    e.preventDefault();
+    setSelectedItem(item);
+    setShowConfirm(true);
+  }}
+  className="p-2 text-red-600 bg-transparent hover:text-red-800 focus:outline-none focus:ring-0 active:bg-transparent"
+  style={{ WebkitTapHighlightColor: 'transparent' }}
+  title="Verwijder testafname"
+>
+  <TrashIcon className="h-5 w-5" />
+</button>
   </div>
 </Link>
             )) : (
