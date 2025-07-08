@@ -78,15 +78,29 @@ export default function GroupDetail() {
       <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold text-gray-800">{group.groep_naam}</h1>
-          <button 
-  onClick={() => setIsAddStudentModalOpen(true)} 
-  className="text-green-600 bg-transparent hover:text-green-800 flex items-center font-semibold"
-  aria-label="Leerling Toevoegen"
+         <button
+  onClick={() => setIsAddStudentModalOpen(true)}
+  className="flex items-center justify-center bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-lg
+             p-2 md:px-4 md:py-2"
+  aria-label="Leerling toevoegen"
+  title="Leerling toevoegen"
 >
-  <PlusCircleIcon className="h-7 w-7" />
-  {/* Tekst alleen zichtbaar vanaf md-scherm */}
-  <span className="hidden md:inline ml-2">Leerling Toevoegen</span>
+  {/* Plus icoon */}
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-6 w-6 md:mr-2"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+  </svg>
+
+  {/* Tekst alleen op md en groter tonen */}
+  <span className="hidden md:inline">Leerling Toevoegen</span>
 </button>
+
         </div>
         
         <h2 className="font-bold text-lg mb-2">Groepsleden</h2>
