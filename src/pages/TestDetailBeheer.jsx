@@ -148,7 +148,18 @@ export default function TestDetailBeheer() {
         });
         event.target.value = null;
     };
+const normsToInsert = results.data.map(row => {
+  const geslachtUpper = row.geslacht?.toUpperCase();
+  const finalGeslacht = geslachtUpper === 'J' ? 'M' : geslachtUpper;
 
+  return {
+    test_id: testId,
+    leeftijd: Number(row.leeftijd),
+    geslacht: finalGeslacht,
+    score_min: parseScoreMin(row.score_min),
+    punt: Number(row.punt)
+  };
+});
     if (loading) return <p>Laden...</p>;
 
     return (
@@ -310,4 +321,11 @@ export default function TestDetailBeheer() {
             </div>
         </>
     );
+    function parseScoreMin(scoreStr) {
+  const match = scoreStr.match(/^(\d{1,2})[’'](\d{2})$/); // voorbeeld: "23’30"
+  if (!match) return NaN;
+  const minutes = parseInt(match[1], 10);
+  const seconds = parseInt(match[2], 10);
+  return minutes * 60 + seconds;
+}
 }
