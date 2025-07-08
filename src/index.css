@@ -14,10 +14,6 @@ body {
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -79,7 +75,11 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
-ul.md\:hidden {
+.mobile-menu {
   background-color: white !important;
+  color: black !important;
+}
+
+.mobile-menu a {
   color: black !important;
 }
