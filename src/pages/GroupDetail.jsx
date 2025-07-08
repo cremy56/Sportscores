@@ -112,18 +112,17 @@ export default function GroupDetail() {
         
         <h2 className="font-bold text-lg mb-2">Groepsleden</h2>
         <ul className="space-y-2">
-          {group.leden && group.leden.length > 0 ? (
-  group.leden.map((lid) => (
-    <li key={lid.leerling_id} className="bg-white flex justify-between items-center flex-wrap gap-2 p-3 rounded-md shadow-sm">
-      <span className="font-medium">{lid.naam}</span>
-      <button onClick={() => handleRemoveClick(lid)} className="text-red-500 hover:text-red-700">
-        <TrashIcon className="h-6 w-6" />
-      </button>
-    </li>
-  ))
-) : (
-  <li className="text-center text-gray-500 py-4 w-full">Klik op '+ Leerling Toevoegen' om te beginnen.</li>
-)}
+          {group.leden && group.leden.length > 0 ? group.leden.map(lid => (
+            <li key={lid.leerling_id} className="bg-white flex justify-between items-center flex-wrap gap-2 p-3 rounded-md shadow-sm">
+              <span className="font-medium">{lid.naam}</span>
+              {/* De knop roept nu de juiste functie aan */}
+             <button onClick={() => handleRemoveClick(lid)} className="text-red-500 bg-transparent hover:text-red-700">
+  <TrashIcon className="h-6 w-6" />
+</button>
+            </li>
+          )) : (
+            <p className="text-center text-gray-500 py-4">Klik op '+ Leerling Toevoegen' om te beginnen.</p>
+          )}
         </ul>
         
         
