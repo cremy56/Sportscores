@@ -65,19 +65,7 @@ export default function Layout() {
             )}
           </ul>
 
-          {/* Rol-switcher alleen zichtbaar voor echte admins */}
-          {profile?.rol === 'administrator' && (
-            <select
-              className="ml-4 border border-gray-300 rounded px-2 py-1 text-sm"
-              value={activeRole}
-              onChange={(e) => setActiveRole(e.target.value)}
-              title="Switch rol"
-            >
-              <option value="administrator">Administrator</option>
-              <option value="leerkracht">Leerkracht</option>
-              <option value="leerling">Leerling</option>
-            </select>
-          )}
+        
 
           {/* Gebruikersicoon + menu */}
           <div className="relative ml-4" ref={menuRef}>
