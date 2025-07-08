@@ -59,6 +59,7 @@ function App() {
                 <Route path="/evolutie" element={<Evolutie />} />
                 <Route path="/leerlingbeheer" element={<Leerlingbeheer />} />
                 <Route path="/groepsbeheer" element={<Groepsbeheer />} />
+                <Route path="/groep/:groepId" element={<GroupDetail />} />
                 <Route path="/scores" element={<ScoresOverzicht />} />
                 <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
                  <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
