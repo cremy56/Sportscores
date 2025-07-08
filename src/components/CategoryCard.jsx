@@ -41,13 +41,13 @@ export default function CategoryCard({ categoryName, tests }) {
       </h2>
       
       <div className="flex justify-between items-center mt-2 border-t border-gray-200 pt-3">
-        <button onClick={handlePrev}   className="p-2 rounded-full hover:border hover:border-blue-500 hover:bg-blue-100 transition-colors"
+        <button onClick={handlePrev}   className="p-2 rounded-full bg-transparent hover:border hover:border-blue-500 hover:bg-blue-100 transition-colors"
 >
           <ChevronLeftIcon className="h-6 w-6 text-purple-700" />
         </button>
         {/* Terug naar een grotere letter voor de testnaam */}
         <h3 className="font-semibold text-lg text-green-700 text-center">{currentTest.naam}</h3>
-        <button onClick={handleNext}   className="p-2 rounded-full hover:border hover:border-blue-500 hover:bg-blue-100 transition-colors"
+        <button onClick={handleNext}   className="p-2 rounded-full bg-transparent hover:border hover:border-blue-500 hover:bg-blue-100 transition-colors"
 >
           <ChevronRightIcon className="h-6 w-6 text-purple-700" />
         </button>
