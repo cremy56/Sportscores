@@ -65,11 +65,18 @@ export default function GroupDetail() {
 
   // -----------------------------------------------------------
 
-  if (loading) return <p>Laden...</p>;
-  if (!group) return <p>Groep niet gevonden.</p>;
+  if (loading || !group) {
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg text-center">
+        {loading ? <p className="text-gray-600">Laden...</p> : <p className="text-red-600">Groep niet gevonden.</p>}
+      </div>
+    </div>
+  );
+}
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <Link to="/groepsbeheer" className="flex items-center text-sm text-gray-600 hover:text-purple-700 mb-4">
   <ArrowLeftIcon className="h-4 w-4 mr-1" />
   Terug naar groepenoverzicht
@@ -105,17 +112,18 @@ export default function GroupDetail() {
         
         <h2 className="font-bold text-lg mb-2">Groepsleden</h2>
         <ul className="space-y-2">
-          {group.leden && group.leden.length > 0 ? group.leden.map(lid => (
-            <li key={lid.leerling_id} className="bg-white flex justify-between items-center flex-wrap gap-2 p-3 rounded-md shadow-sm">
-              <span className="font-medium">{lid.naam}</span>
-              {/* De knop roept nu de juiste functie aan */}
-             <button onClick={() => handleRemoveClick(lid)} className="text-red-500 bg-transparent hover:text-red-700">
-  <TrashIcon className="h-6 w-6" />
-</button>
-            </li>
-          )) : (
-            <p className="text-center text-gray-500 py-4">Klik op '+ Leerling Toevoegen' om te beginnen.</p>
-          )}
+          {group.leden && group.leden.length > 0 ? (
+  group.leden.map((lid) => (
+    <li key={lid.leerling_id} className="bg-white flex justify-between items-center flex-wrap gap-2 p-3 rounded-md shadow-sm">
+      <span className="font-medium">{lid.naam}</span>
+      <button onClick={() => handleRemoveClick(lid)} className="text-red-500 hover:text-red-700">
+        <TrashIcon className="h-6 w-6" />
+      </button>
+    </li>
+  ))
+) : (
+  <li className="text-center text-gray-500 py-4 w-full">Klik op '+ Leerling Toevoegen' om te beginnen.</li>
+)}
         </ul>
         
         
