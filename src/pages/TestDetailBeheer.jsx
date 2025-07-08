@@ -10,6 +10,14 @@ import TestFormModal from '../components/TestFormModal';
 // Importeer uw bestaande, gedeelde modal component
 import ConfirmModal from '../components/ConfirmModal'; 
 
+function parseScoreMin(scoreStr) {
+  const match = scoreStr.match(/^(\d{1,2})[’'](\d{2})$/); // voorbeeld: "23’30"
+  if (!match) return NaN;
+  const minutes = parseInt(match[1], 10);
+  const seconds = parseInt(match[2], 10);
+  return minutes * 60 + seconds;
+}
+
 export default function TestDetailBeheer() {
     const { testId } = useParams();
     const [test, setTest] = useState(null);
@@ -59,17 +67,35 @@ export default function TestDetailBeheer() {
     };
 
     const handleSaveNewNorm = async () => {
-        if (!newNorm.leeftijd || !newNorm.score_min || !newNorm.punt) {
-            toast.error("Vul alle velden in (leeftijd, score, punt).");
-            return;
-        }
-        const promise = supabase.from('normen').insert({ test_id: testId, ...newNorm }).select();
-        toast.promise(promise, {
-            loading: 'Nieuwe norm opslaan...',
-            success: (res) => { if (res.error) throw res.error; fetchData(); setIsAdding(false); return "Norm succesvol opgeslagen!"; },
-            error: (err) => `Fout: ${err.message}`
-        });
-    };
+    if (!newNorm.leeftijd || !newNorm.score_min || !newNorm.punt) {
+        toast.error("Vul alle velden in (leeftijd, score, punt).");
+        return;
+    }
+    // Score_min omzetten naar seconden
+    let scoreMinValue = parseScoreMin(newNorm.score_min);
+    if (isNaN(scoreMinValue)) {
+        // Probeer gewoon als getal
+        scoreMinValue = Number(newNorm.score_min);
+    }
+    if (isNaN(scoreMinValue)) {
+        toast.error("Ongeldige waarde voor Min. Score.");
+        return;
+    }
+
+    const promise = supabase.from('normen').insert({ 
+        test_id: testId, 
+        leeftijd: Number(newNorm.leeftijd), 
+        geslacht: newNorm.geslacht, 
+        score_min: scoreMinValue, 
+        punt: Number(newNorm.punt) 
+    }).select();
+
+    toast.promise(promise, {
+        loading: 'Nieuwe norm opslaan...',
+        success: (res) => { if (res.error) throw res.error; fetchData(); setIsAdding(false); return "Norm succesvol opgeslagen!"; },
+        error: (err) => `Fout: ${err.message}`
+    });
+};
 
     const handleEditClick = (norm) => {
         setEditingNorm({ ...norm });
@@ -77,14 +103,29 @@ export default function TestDetailBeheer() {
     };
 
     const handleUpdateNorm = async () => {
-        const { id, test_id, ...updateData } = editingNorm;
-        const promise = supabase.from('normen').update(updateData).eq('id', id).select();
-        toast.promise(promise, {
-            loading: 'Norm bijwerken...',
-            success: (res) => { if (res.error) throw res.error; fetchData(); setEditingNorm(null); return "Norm succesvol bijgewerkt!"; },
-            error: (err) => `Fout: ${err.message}`
-        });
-    };
+    const { id, test_id, ...updateData } = editingNorm;
+
+    let scoreMinValue = parseScoreMin(updateData.score_min);
+    if (isNaN(scoreMinValue)) {
+        scoreMinValue = Number(updateData.score_min);
+    }
+    if (isNaN(scoreMinValue)) {
+        toast.error("Ongeldige waarde voor Min. Score.");
+        return;
+    }
+    updateData.score_min = scoreMinValue;
+    updateData.leeftijd = Number(updateData.leeftijd);
+    updateData.punt = Number(updateData.punt);
+
+    const promise = supabase.from('normen').update(updateData).eq('id', id).select();
+
+    toast.promise(promise, {
+        loading: 'Norm bijwerken...',
+        success: (res) => { if (res.error) throw res.error; fetchData(); setEditingNorm(null); return "Norm succesvol bijgewerkt!"; },
+        error: (err) => `Fout: ${err.message}`
+    });
+};
+
 
     const promptDeleteNorm = (normId) => {
         setNormToDelete(normId);
@@ -124,6 +165,9 @@ export default function TestDetailBeheer() {
                 const normsToInsert = results.data.map(row => {
                     const geslachtUpper = row.geslacht?.toUpperCase();
                     const finalGeslacht = geslachtUpper === 'J' ? 'M' : geslachtUpper;
+
+                    let parsedScoreMin = parseScoreMin(row.score_min);
+    if (isNaN(parsedScoreMin)) parsedScoreMin = Number(row.score_min);
                     return {
                         test_id: testId,
                         leeftijd: Number(row.leeftijd),
@@ -149,13 +193,7 @@ export default function TestDetailBeheer() {
         event.target.value = null;
     };
 
-function parseScoreMin(scoreStr) {
-  const match = scoreStr.match(/^(\d{1,2})[’'](\d{2})$/); // voorbeeld: "23’30"
-  if (!match) return NaN;
-  const minutes = parseInt(match[1], 10);
-  const seconds = parseInt(match[2], 10);
-  return minutes * 60 + seconds;
-}
+
     if (loading) return <p>Laden...</p>;
 
     return (
