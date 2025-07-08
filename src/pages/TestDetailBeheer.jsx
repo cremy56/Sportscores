@@ -172,7 +172,7 @@ export default function TestDetailBeheer() {
                         test_id: testId,
                         leeftijd: Number(row.leeftijd),
                         geslacht: finalGeslacht,
-                        score_min: Number(row.score_min),
+                        score_min: parsedScoreMin,
                         punt: Number(row.punt)
                     };
                 });
