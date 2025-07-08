@@ -67,7 +67,7 @@ export default function Testbeheer() {
             <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Testbeheer</h1>
-                    <button onClick={() => setModal({ type: 'form', data: null })} className="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg">
+                    <button onClick={() => setModal({ type: 'form', data: null })} className="bg-purple-700 bg-transparent hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg">
                         + Nieuwe Test
                     </button>
                 </div>
