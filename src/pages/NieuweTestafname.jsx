@@ -133,34 +133,40 @@ const { isMinutenTest, isSecondenTest, isAantalTest, isAfstandTest, isTijdTest }
     };
 
     const handleSaveScores = async () => {
-        if (!selectedGroupId || !selectedTestId) {
-            toast.error("Selecteer eerst een groep en een test.");
-            return;
-        }
-        const scoresToInsert = Object.entries(scores)
-            .filter(([_, score]) => score !== '' && score !== null && !isNaN(parseFloat(score.replace(',', '.'))))
-            .map(([leerlingId, score]) => ({
-                leerling_id: leerlingId,
-                test_id: selectedTestId,
-                score: isTijdTest ? parseTijdScore(score) : parseFloat(score.replace(',', '.')),
-                groep_id: selectedGroupId
-            }));
-        if (scoresToInsert.length === 0) {
-            toast.error("Geen geldige scores ingevuld om op te slaan.");
-            return;
-        }
-        const promise = supabase.rpc('bulk_insert_scores', { scores_data: scoresToInsert });
-        toast.promise(promise, {
-            loading: 'Scores opslaan...',
-            success: () => {
-                navigate('/scores');
-                return 'Scores succesvol opgeslagen!';
-            },
-            error: (err) => `Fout bij opslaan: ${err.message}`
-        });
-    };
+    if (!selectedGroupId || !selectedTestId) {
+        toast.error("Selecteer eerst een groep en een test.");
+        return;
+    }
 
-    
+    const now = new Date().toISOString();
+
+    const scoresToInsert = Object.entries(scores)
+        .filter(([_, score]) => score !== '' && score !== null && !isNaN(parseFloat(score.replace(',', '.'))))
+        .map(([leerlingId, score]) => ({
+            leerling_id: leerlingId,
+            test_id: selectedTestId,
+            score: isTijdTest ? parseTijdScore(score) : parseFloat(score.replace(',', '.')),
+            groep_id: selectedGroupId,
+            //created_at: now,
+            //updated_at: now
+        }));
+
+    if (scoresToInsert.length === 0) {
+        toast.error("Geen geldige scores ingevuld om op te slaan.");
+        return;
+    }
+
+    const promise = supabase.rpc('bulk_insert_scores', { scores_data: scoresToInsert });
+    toast.promise(promise, {
+        loading: 'Scores opslaan...',
+        success: () => {
+            navigate('/scores');
+            return 'Scores succesvol opgeslagen!';
+        },
+        error: (err) => `Fout bij opslaan: ${err.message}`
+    });
+};
+
 
 
 

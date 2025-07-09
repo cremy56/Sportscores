@@ -23,7 +23,13 @@ export default function ScoresOverzicht() {
     if (error) {
       toast.error("Kon recente testafnames niet laden.");
     } else {
-      setEvaluaties(data || []);
+      // Sorteer op datum + tijd (nieuwste eerst)
+      const sortedData = (data || []).sort((a, b) => {
+        const aDateTime = new Date(`${a.datum}T${a.tijd}`);
+        const bDateTime = new Date(`${b.datum}T${b.tijd}`);
+        return bDateTime - aDateTime;
+      });
+      setEvaluaties(sortedData);
     }
     setLoading(false);
   };
@@ -67,32 +73,35 @@ export default function ScoresOverzicht() {
           <ul className="space-y-1">
             {evaluaties.length > 0 ? evaluaties.map((item, index) => (
               <Link
-  key={index}
-  to={`/testafname/${item.groep_id}/${item.test_id}/${item.datum}`}
-  className="flex justify-between items-center bg-white p-2 rounded-lg shadow-sm hover:bg-gray-50 transition-colors w-full"
->
-  <div className="flex flex-col">
-    <p className="font-semibold text-purple-800">{item.test_naam}</p>
-    <p className="text-sm text-gray-600">{item.groep_naam}</p>
-  </div>
-  <div className="flex items-center gap-4">
-    <p className="text-sm text-gray-500 whitespace-nowrap">
-      {new Date(item.datum).toLocaleDateString()}
-    </p>
-   <button
-  onClick={(e) => {
-    e.preventDefault();
-    setSelectedItem(item);
-    setShowConfirm(true);
-  }}
-  className="p-2 text-red-600 bg-transparent hover:text-red-800 focus:outline-none focus:ring-0 active:bg-transparent"
-  style={{ WebkitTapHighlightColor: 'transparent' }}
-  title="Verwijder testafname"
->
-  <TrashIcon className="h-5 w-5" />
-</button>
-  </div>
-</Link>
+                key={index}
+                to={`/testafname/${item.groep_id}/${item.test_id}/${item.datum}`}
+                className="flex justify-between items-center bg-white p-2 rounded-lg shadow-sm hover:bg-gray-50 transition-colors w-full"
+              >
+                <div className="flex flex-col">
+                  <p className="font-semibold text-purple-800">{item.test_naam}</p>
+                  <p className="text-sm text-gray-600">{item.groep_naam}</p>
+                </div>
+                <div className="flex items-center gap-4 text-right">
+                  <p className="text-sm text-gray-500 whitespace-nowrap">
+                    {new Date(item.datum).toLocaleDateString()}<br />
+                    <span className="text-xs text-gray-400">
+                      {item.tijd?.slice(0, 5)} u
+                    </span>
+                  </p>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedItem(item);
+                      setShowConfirm(true);
+                    }}
+                    className="p-2 text-red-600 bg-transparent hover:text-red-800 focus:outline-none focus:ring-0 active:bg-transparent"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                    title="Verwijder testafname"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              </Link>
             )) : (
               <p className="text-center text-gray-500 py-8">Er zijn nog geen scores ingevoerd.</p>
             )}
