@@ -5,6 +5,13 @@ import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { TrashIcon, PencilSquareIcon, CheckIcon, XMarkIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
 
+function formatSecondsToMinutes(seconds) {
+  if (seconds == null) return '-';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}'${secs.toString().padStart(2, '0')}`;
+}
+
 export default function TestafnameDetail() {
     const { groepId, testId, datum } = useParams();
     const navigate = useNavigate();
@@ -169,13 +176,24 @@ const handleUpdateEvaluationDate = async () => {
                             <span className="font-medium truncate">{lid.naam}</span>
                             <div className="text-center">
                                 {editingScore.leerling_id === lid.leerling_id ? (
-                                    <input type="number" step="any" value={editingScore.score} onChange={e => setEditingScore({...editingScore, score: e.target.value})} className="w-24 p-1 border-purple-500 border-2 rounded-md text-right mx-auto" autoFocus />
+                                    <input
+                                    type="number"
+                                    step="any"
+                                    value={editingScore.score}
+                                    onChange={e => setEditingScore({...editingScore, score: e.target.value})}
+                                    className="w-24 p-1 border-purple-500 border-2 rounded-md text-right mx-auto"
+                                    autoFocus
+                                    />
                                 ) : (
                                     <span className="font-bold text-lg text-purple-700">
-                                        {lid.score ?? '-'} {lid.score !== null ? details.eenheid : ''}
+                                    {lid.score !== null
+                                        ? details.test_naam === '5km loop'
+                                        ? formatSecondsToMinutes(lid.score)
+                                        : lid.score
+                                        : '-'} {lid.score !== null ? details.eenheid : ''}
                                     </span>
                                 )}
-                            </div>
+                                </div>
                             <div className="flex items-center justify-end gap-3">
                                 <span className="font-bold text-gray-600 w-16 text-center">
                                     {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
