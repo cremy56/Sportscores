@@ -44,22 +44,7 @@ export default function NieuweTestafname() {
     const [scores, setScores] = useState({});
     const [calculatedPoints, setCalculatedPoints] = useState({});
     const [pointLoading, setPointLoading] = useState({});
-// Detectie van testtypes op basis van naam
-const { isMinutenTest, isSecondenTest, isAantalTest, isAfstandTest, isTijdTest } = useMemo(() => {
-    const name = selectedTest?.naam?.toLowerCase() || '';
-    const minuten = name.includes('5km');
-    const seconden = name.includes('shuttle');
-    const aantal = name.includes('push-up') || name.includes('sit-up');
-    const afstand = name.includes('cooper') || name.includes('springen');
 
-    return {
-        isMinutenTest: minuten,
-        isSecondenTest: seconden,
-        isAantalTest: aantal,
-        isAfstandTest: afstand,
-        isTijdTest: minuten || seconden
-    };
-}, [selectedTest]);
 
 
     useEffect(() => {
@@ -151,7 +136,22 @@ const { isMinutenTest, isSecondenTest, isAantalTest, isAfstandTest, isTijdTest }
 
     const selectedGroup = useMemo(() => groepen.find(g => g.groep_id === selectedGroupId), [groepen, selectedGroupId]);
     const selectedTest = useMemo(() => testen.find(t => t.id === selectedTestId), [testen, selectedTestId]);
+// Detectie van testtypes op basis van naam
+const { isMinutenTest, isSecondenTest, isAantalTest, isAfstandTest, isTijdTest } = useMemo(() => {
+    const name = selectedTest?.naam?.toLowerCase() || '';
+    const minuten = name.includes('5km');
+    const seconden = name.includes('shuttle');
+    const aantal = name.includes('push-up') || name.includes('sit-up');
+    const afstand = name.includes('cooper') || name.includes('springen');
 
+    return {
+        isMinutenTest: minuten,
+        isSecondenTest: seconden,
+        isAantalTest: aantal,
+        isAfstandTest: afstand,
+        isTijdTest: minuten || seconden
+    };
+}, [selectedTest]);
 
 
    
