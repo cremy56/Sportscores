@@ -152,8 +152,9 @@ const scoresToInsert = Object.entries(scores)
         rapportpunt: calculatedPoints[leerlingId] || null,
     }));
 
-const { data, error } = await supabase.rpc('bulk_insert_scores', { scores_data: JSON.stringify(scoresToInsert) });
-
+const { data, error } = await supabase.rpc('bulk_insert_scores', {
+  scores_data: JSON.stringify(scoresToInsert)
+});
 if (error) {
   toast.error(`Fout bij opslaan: ${error.message}`);
 } else {
