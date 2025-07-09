@@ -8,11 +8,12 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 function parseTijdScore(input) {
     if (!input) return NaN;
 
-    // Vorm: 28'10 of 30'00
+    // Vorm: 28'10 of 30'00 of 28' (waarbij sec leeg kan zijn)
     if (input.includes("'")) {
         const [min, sec] = input.split("'");
         const minNum = parseInt(min, 10);
-        const secNum = parseInt(sec, 10);
+        // sec kan leeg zijn, als dat zo is, secNum = 0
+        const secNum = sec === "" ? 0 : parseInt(sec, 10);
         if (isNaN(minNum) || isNaN(secNum)) return NaN;
         return minNum * 60 + secNum;
     }
@@ -29,6 +30,7 @@ function parseTijdScore(input) {
     // Als gebruiker 1530 intypt, gewoon gebruiken
     return parseInt(input, 10);
 }
+
 
 
 
