@@ -156,7 +156,8 @@ const { isMinutenTest, isSecondenTest, isAantalTest, isAfstandTest, isTijdTest }
         return;
     }
 
-    const promise = supabase.rpc('bulk_insert_scores', { scores_data: scoresToInsert });
+    const promise = supabase.rpc('bulk_insert_scores', { scores_data: JSON.stringify(scoresToInsert) });
+
     toast.promise(promise, {
         loading: 'Scores opslaan...',
         success: () => {
