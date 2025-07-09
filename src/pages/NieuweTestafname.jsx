@@ -4,6 +4,30 @@ import { useOutletContext, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+function parseTijdScore(input) {
+    // Ondersteunt notaties als 28'10 of 5:30 of 4.5
+    if (!input) return NaN;
+
+    if (input.includes("'")) {
+        const [min, sec] = input.split("'");
+        const minNum = parseInt(min, 10);
+        const secNum = parseInt(sec, 10);
+        if (isNaN(minNum) || isNaN(secNum)) return NaN;
+        return minNum + secNum / 60;
+    }
+
+    if (input.includes(":")) {
+        const [min, sec] = input.split(":");
+        const minNum = parseInt(min, 10);
+        const secNum = parseInt(sec, 10);
+        if (isNaN(minNum) || isNaN(secNum)) return NaN;
+        return minNum + secNum / 60;
+    }
+
+    // Anders: probeer gewone float
+    return parseFloat(input.replace(',', '.'));
+}
+
 
 export default function NieuweTestafname() {
     const navigate = useNavigate();
@@ -39,7 +63,8 @@ export default function NieuweTestafname() {
             return;
         }
 
-        const numericScore = parseFloat(score.replace(',', '.'));
+        const numericScore = isTijdTest ? parseTijdScore(score) : parseFloat(score.replace(',', '.'));
+
         if (isNaN(numericScore)) {
             setCalculatedPoints(prev => ({ ...prev, [leerlingId]: null }));
             return;
@@ -77,7 +102,8 @@ export default function NieuweTestafname() {
             .map(([leerlingId, score]) => ({
                 leerling_id: leerlingId,
                 test_id: selectedTestId,
-                score: parseFloat(score.replace(',', '.'))
+                score: isTijdTest ? parseTijdScore(score) : parseFloat(score.replace(',', '.'))
+
             }));
         if (scoresToInsert.length === 0) {
             toast.error("Geen geldige scores ingevuld om op te slaan.");
