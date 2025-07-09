@@ -11,14 +11,13 @@ export default function NieuweTestafname() {
     const [groepen, setGroepen] = useState([]);
     const [testen, setTesten] = useState([]);
     const [loading, setLoading] = useState(true);
-    
+
     const [selectedGroupId, setSelectedGroupId] = useState('');
     const [selectedTestId, setSelectedTestId] = useState('');
     const [scores, setScores] = useState({});
     const [calculatedPoints, setCalculatedPoints] = useState({});
     const [pointLoading, setPointLoading] = useState({});
 
-    // Haal groepen en testen op
     useEffect(() => {
         if (!profile) return;
         setLoading(true);
@@ -34,9 +33,14 @@ export default function NieuweTestafname() {
         fetchData();
     }, [profile]);
 
-    // Functie om het punt voor een specifieke score te berekenen
     const getPointForScore = useCallback(async (leerlingId, score) => {
-        if (score === '' || isNaN(Number(score))) {
+        if (score === '') {
+            setCalculatedPoints(prev => ({ ...prev, [leerlingId]: null }));
+            return;
+        }
+
+        const numericScore = parseFloat(score.replace(',', '.'));
+        if (isNaN(numericScore)) {
             setCalculatedPoints(prev => ({ ...prev, [leerlingId]: null }));
             return;
         }
@@ -46,7 +50,7 @@ export default function NieuweTestafname() {
         const { data, error } = await supabase.rpc('get_punt_for_score', {
             p_leerling_id: leerlingId,
             p_test_id: selectedTestId,
-            p_score: Number(score),
+            p_score: numericScore,
             p_test_datum: new Date().toISOString().split('T')[0]
         });
 
@@ -58,7 +62,6 @@ export default function NieuweTestafname() {
         setPointLoading(prev => ({ ...prev, [leerlingId]: false }));
     }, [selectedTestId]);
 
-    // Past de score aan EN roept de puntberekening aan
     const handleScoreChange = (leerlingId, score) => {
         setScores(prevScores => ({ ...prevScores, [leerlingId]: score }));
         getPointForScore(leerlingId, score);
@@ -70,11 +73,11 @@ export default function NieuweTestafname() {
             return;
         }
         const scoresToInsert = Object.entries(scores)
-            .filter(([_, score]) => score !== '' && score !== null && !isNaN(score))
+            .filter(([_, score]) => score !== '' && score !== null && !isNaN(parseFloat(score.replace(',', '.'))))
             .map(([leerlingId, score]) => ({
                 leerling_id: leerlingId,
                 test_id: selectedTestId,
-                score: Number(score)
+                score: parseFloat(score.replace(',', '.'))
             }));
         if (scoresToInsert.length === 0) {
             toast.error("Geen geldige scores ingevuld om op te slaan.");
@@ -93,6 +96,13 @@ export default function NieuweTestafname() {
 
     const selectedGroup = useMemo(() => groepen.find(g => g.groep_id === selectedGroupId), [groepen, selectedGroupId]);
     const selectedTest = useMemo(() => testen.find(t => t.id === selectedTestId), [testen, selectedTestId]);
+
+    // Hulpfunctie om te bepalen of het een tijdstest is
+    const isTijdTest = useMemo(() => {
+        if (!selectedTest) return false;
+        const tijdEenheden = ['s', 'min', 'sec'];
+        return tijdEenheden.some(eenheid => selectedTest.eenheid?.toLowerCase().includes(eenheid));
+    }, [selectedTest]);
 
     return (
         <div className="max-w-4xl mx-auto">
@@ -133,8 +143,8 @@ export default function NieuweTestafname() {
                                         <li key={lid.leerling_id} className="grid grid-cols-3 items-center gap-4 p-2 bg-white rounded-md shadow-sm">
                                             <span className="font-medium truncate">{lid.naam}</span>
                                             <input
-                                                type="number"
-                                                step="any"
+                                                type={isTijdTest ? "text" : "number"}
+                                                step={isTijdTest ? undefined : "any"}
                                                 placeholder="Score"
                                                 onChange={(e) => handleScoreChange(lid.leerling_id, e.target.value)}
                                                 className="w-full p-1 border rounded-md text-right"
