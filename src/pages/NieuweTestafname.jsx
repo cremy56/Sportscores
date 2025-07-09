@@ -142,8 +142,8 @@ const { isMinutenTest, isSecondenTest, isAantalTest, isAfstandTest, isTijdTest }
             .map(([leerlingId, score]) => ({
                 leerling_id: leerlingId,
                 test_id: selectedTestId,
-                score: isTijdTest ? parseTijdScore(score) : parseFloat(score.replace(',', '.'))
-
+                score: isTijdTest ? parseTijdScore(score) : parseFloat(score.replace(',', '.')),
+                groep_id: selectedGroupId
             }));
         if (scoresToInsert.length === 0) {
             toast.error("Geen geldige scores ingevuld om op te slaan.");
@@ -210,7 +210,7 @@ const { isMinutenTest, isSecondenTest, isAantalTest, isAfstandTest, isTijdTest }
                                                     isMinutenTest ? "bv. 28'10 of 28:10" :
                                                     isSecondenTest ? "bv. 6.45 seconden" :
                                                     isAantalTest ? "Aantal" :
-                                                    isAfstandTest ? "bv. 2.45 meter" :
+                                                    isAfstandTest ? "bv. 2400 meter" :
                                                     "Score"
                                                 }
                                                 onChange={(e) => handleScoreChange(lid.leerling_id, e.target.value)}
