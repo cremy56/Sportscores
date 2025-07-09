@@ -151,7 +151,8 @@ const scoresToInsert = Object.entries(scores)
         leerkracht_id: profile.id,
         rapportpunt: calculatedPoints[leerlingId] || null,
     }));
-
+console.log('scoresToInsert:', scoresToInsert);
+console.log('scoresToInsert JSON:', JSON.stringify(scoresToInsert));
 const { data, error } = await supabase.rpc('bulk_insert_scores', {
   scores_data: JSON.stringify(scoresToInsert)
 });
