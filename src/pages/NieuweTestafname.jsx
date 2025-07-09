@@ -45,26 +45,21 @@ export default function NieuweTestafname() {
     const [calculatedPoints, setCalculatedPoints] = useState({});
     const [pointLoading, setPointLoading] = useState({});
 // Detectie van testtypes op basis van naam
-const testName = selectedTest?.naam?.toLowerCase() || '';
+const { isMinutenTest, isSecondenTest, isAantalTest, isAfstandTest, isTijdTest } = useMemo(() => {
+    const name = selectedTest?.naam?.toLowerCase() || '';
+    const minuten = name.includes('5km');
+    const seconden = name.includes('shuttle');
+    const aantal = name.includes('push-up') || name.includes('sit-up');
+    const afstand = name.includes('cooper') || name.includes('springen');
 
-const isMinutenTest = useMemo(() => {
-    return testName.includes('5km');
-}, [testName]);
-
-const isSecondenTest = useMemo(() => {
-    return testName.includes('shuttle');
-}, [testName]);
-
-const isAantalTest = useMemo(() => {
-    return testName.includes("push-up") || testName.includes("sit-up");
-}, [testName]);
-
-const isAfstandTest = useMemo(() => {
-    return testName.includes('cooper') ||
-           testName.includes('springen');
-}, [testName]);
-
-const isTijdTest = isMinutenTest || isSecondenTest;
+    return {
+        isMinutenTest: minuten,
+        isSecondenTest: seconden,
+        isAantalTest: aantal,
+        isAfstandTest: afstand,
+        isTijdTest: minuten || seconden
+    };
+}, [selectedTest]);
 
 
     useEffect(() => {
