@@ -30,6 +30,20 @@ function parseTijdScore(input) {
     return parseInt(input, 10);
 }
 
+
+
+export default function NieuweTestafname() {
+    const navigate = useNavigate();
+    const { profile } = useOutletContext();
+    const [groepen, setGroepen] = useState([]);
+    const [testen, setTesten] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const [selectedGroupId, setSelectedGroupId] = useState('');
+    const [selectedTestId, setSelectedTestId] = useState('');
+    const [scores, setScores] = useState({});
+    const [calculatedPoints, setCalculatedPoints] = useState({});
+    const [pointLoading, setPointLoading] = useState({});
 // Detectie van testtypes op basis van naam
 const testName = selectedTest?.naam?.toLowerCase() || '';
 
@@ -51,20 +65,6 @@ const isAfstandTest = useMemo(() => {
 }, [testName]);
 
 const isTijdTest = isMinutenTest || isSecondenTest;
-
-export default function NieuweTestafname() {
-    const navigate = useNavigate();
-    const { profile } = useOutletContext();
-    const [groepen, setGroepen] = useState([]);
-    const [testen, setTesten] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    const [selectedGroupId, setSelectedGroupId] = useState('');
-    const [selectedTestId, setSelectedTestId] = useState('');
-    const [scores, setScores] = useState({});
-    const [calculatedPoints, setCalculatedPoints] = useState({});
-    const [pointLoading, setPointLoading] = useState({});
-
 
 
     useEffect(() => {
