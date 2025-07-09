@@ -5,28 +5,30 @@ import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 function parseTijdScore(input) {
-    // Ondersteunt notaties als 28'10 of 5:30 of 4.5
     if (!input) return NaN;
 
+    // Vorm: 28'10 of 30'00
     if (input.includes("'")) {
         const [min, sec] = input.split("'");
         const minNum = parseInt(min, 10);
         const secNum = parseInt(sec, 10);
         if (isNaN(minNum) || isNaN(secNum)) return NaN;
-        return minNum + secNum / 60;
+        return minNum * 60 + secNum;
     }
 
+    // Vorm: 28:10
     if (input.includes(":")) {
         const [min, sec] = input.split(":");
         const minNum = parseInt(min, 10);
         const secNum = parseInt(sec, 10);
         if (isNaN(minNum) || isNaN(secNum)) return NaN;
-        return minNum + secNum / 60;
+        return minNum * 60 + secNum;
     }
 
-    // Anders: probeer gewone float
-    return parseFloat(input.replace(',', '.'));
+    // Als gebruiker 1530 intypt, gewoon gebruiken
+    return parseInt(input, 10);
 }
+
 
 
 export default function NieuweTestafname() {
@@ -75,7 +77,7 @@ export default function NieuweTestafname() {
         const { data, error } = await supabase.rpc('get_punt_for_score', {
             p_leerling_id: leerlingId,
             p_test_id: selectedTestId,
-            p_score: numericScore,
+            p_score: isTijdTest ? parseTijdScore(score) : Number(score),
             p_test_datum: new Date().toISOString().split('T')[0]
         });
 
