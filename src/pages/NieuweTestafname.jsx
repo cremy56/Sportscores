@@ -173,10 +173,10 @@ export default function NieuweTestafname() {
                                             <input
                                                 type={isTijdTest ? "text" : "number"}
                                                 step={isTijdTest ? undefined : "any"}
-                                                placeholder="Score"
+                                                placeholder={isTijdTest ? "bv. 28'10 of 28:10" : "bv. 6.45"}
                                                 onChange={(e) => handleScoreChange(lid.leerling_id, e.target.value)}
                                                 className="w-full p-1 border rounded-md text-right"
-                                            />
+                                                />
                                             <div className="text-center font-bold text-lg text-purple-700 w-16 mx-auto">
                                                 {pointLoading[lid.leerling_id] ? '...' : (
                                                     calculatedPoints[lid.leerling_id] ?? '-'
