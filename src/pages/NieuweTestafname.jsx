@@ -4,6 +4,7 @@ import { useOutletContext, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+
 function parseTijdScore(input) {
     if (!input) return NaN;
 
@@ -29,7 +30,27 @@ function parseTijdScore(input) {
     return parseInt(input, 10);
 }
 
+// Detectie van testtypes op basis van naam
+const testName = selectedTest?.naam?.toLowerCase() || '';
 
+const isMinutenTest = useMemo(() => {
+    return testName.includes('5km');
+}, [testName]);
+
+const isSecondenTest = useMemo(() => {
+    return testName.includes('shuttle');
+}, [testName]);
+
+const isAantalTest = useMemo(() => {
+    return testName.includes("push-up") || testName.includes("sit-up");
+}, [testName]);
+
+const isAfstandTest = useMemo(() => {
+    return testName.includes('cooper') ||
+           testName.includes('springen');
+}, [testName]);
+
+const isTijdTest = isMinutenTest || isSecondenTest;
 
 export default function NieuweTestafname() {
     const navigate = useNavigate();
@@ -43,6 +64,8 @@ export default function NieuweTestafname() {
     const [scores, setScores] = useState({});
     const [calculatedPoints, setCalculatedPoints] = useState({});
     const [pointLoading, setPointLoading] = useState({});
+
+
 
     useEffect(() => {
         if (!profile) return;
@@ -60,34 +83,43 @@ export default function NieuweTestafname() {
     }, [profile]);
 
     const getPointForScore = useCallback(async (leerlingId, score) => {
-        if (score === '') {
-            setCalculatedPoints(prev => ({ ...prev, [leerlingId]: null }));
-            return;
-        }
+    if (score === '') {
+        setCalculatedPoints(prev => ({ ...prev, [leerlingId]: null }));
+        return;
+    }
 
-        const numericScore = isTijdTest ? parseTijdScore(score) : parseFloat(score.replace(',', '.'));
+    let numericScore;
+    if (isMinutenTest) {
+        numericScore = parseTijdScore(score);
+    } else if (isAantalTest) {
+        numericScore = parseInt(score, 10);
+    } else {
+        numericScore = parseFloat(score.replace(',', '.'));
+    }
 
-        if (isNaN(numericScore)) {
-            setCalculatedPoints(prev => ({ ...prev, [leerlingId]: null }));
-            return;
-        }
+    if (isNaN(numericScore)) {
+        setCalculatedPoints(prev => ({ ...prev, [leerlingId]: null }));
+        return;
+    }
 
-        setPointLoading(prev => ({ ...prev, [leerlingId]: true }));
+    setPointLoading(prev => ({ ...prev, [leerlingId]: true }));
 
-        const { data, error } = await supabase.rpc('get_punt_for_score', {
-            p_leerling_id: leerlingId,
-            p_test_id: selectedTestId,
-            p_score: isTijdTest ? parseTijdScore(score) : Number(score),
-            p_test_datum: new Date().toISOString().split('T')[0]
-        });
+    const { data, error } = await supabase.rpc('get_punt_for_score', {
+        p_leerling_id: leerlingId,
+        p_test_id: selectedTestId,
+        p_score: numericScore,
+        p_test_datum: new Date().toISOString().split('T')[0]
+    });
 
-        if (error) {
-            console.error("Fout bij berekenen punt:", error);
-        } else {
-            setCalculatedPoints(prev => ({ ...prev, [leerlingId]: data }));
-        }
-        setPointLoading(prev => ({ ...prev, [leerlingId]: false }));
-    }, [selectedTestId]);
+    if (error) {
+        console.error("Fout bij berekenen punt:", error);
+    } else {
+        setCalculatedPoints(prev => ({ ...prev, [leerlingId]: data }));
+    }
+    setPointLoading(prev => ({ ...prev, [leerlingId]: false }));
+}, [selectedTestId, isMinutenTest, isAantalTest, isSecondenTest]);
+
+
 
     const handleScoreChange = (leerlingId, score) => {
         setScores(prevScores => ({ ...prevScores, [leerlingId]: score }));
@@ -125,13 +157,9 @@ export default function NieuweTestafname() {
     const selectedGroup = useMemo(() => groepen.find(g => g.groep_id === selectedGroupId), [groepen, selectedGroupId]);
     const selectedTest = useMemo(() => testen.find(t => t.id === selectedTestId), [testen, selectedTestId]);
 
-    // Hulpfunctie om te bepalen of het een tijdstest is
-    const isTijdTest = useMemo(() => {
-        if (!selectedTest) return false;
-        const tijdEenheden = ['s', 'min', 'sec'];
-        return tijdEenheden.some(eenheid => selectedTest.eenheid?.toLowerCase().includes(eenheid));
-    }, [selectedTest]);
 
+
+   
     return (
         <div className="max-w-4xl mx-auto">
             <Link to="/scores" className="flex items-center text-sm text-gray-600 hover:text-purple-700 mb-4 font-semibold">
@@ -172,8 +200,14 @@ export default function NieuweTestafname() {
                                             <span className="font-medium truncate">{lid.naam}</span>
                                             <input
                                                 type={isTijdTest ? "text" : "number"}
-                                                step={isTijdTest ? undefined : "any"}
-                                                placeholder={isTijdTest ? "bv. 28'10 of 28:10" : "bv. 6.45"}
+                                                step={isAantalTest ? "1" : "any"}
+                                                placeholder={
+                                                    isMinutenTest ? "bv. 28'10 of 28:10" :
+                                                    isSecondenTest ? "bv. 6.45 seconden" :
+                                                    isAantalTest ? "Aantal" :
+                                                    isAfstandTest ? "bv. 2.45 meter" :
+                                                    "Score"
+                                                }
                                                 onChange={(e) => handleScoreChange(lid.leerling_id, e.target.value)}
                                                 className="w-full p-1 border rounded-md text-right"
                                                 />
