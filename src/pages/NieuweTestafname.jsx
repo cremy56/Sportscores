@@ -12,7 +12,6 @@ function parseTijdScore(input) {
     if (input.includes("'")) {
         const [min, sec] = input.split("'");
         const minNum = parseInt(min, 10);
-        // sec kan leeg zijn, als dat zo is, secNum = 0
         const secNum = sec === "" ? 0 : parseInt(sec, 10);
         if (isNaN(minNum) || isNaN(secNum)) return NaN;
         return minNum * 60 + secNum;
@@ -27,9 +26,16 @@ function parseTijdScore(input) {
         return minNum * 60 + secNum;
     }
 
-    // Als gebruiker 1530 intypt, gewoon gebruiken
-    return parseInt(input, 10);
+    // Vorm: enkel een getal (zoals 28), interpreteer als minuten + 0 seconden
+    const num = parseInt(input, 10);
+    if (!isNaN(num)) {
+        return num * 60; // 28 wordt 28 minuten = 1680 seconden
+    }
+
+    // Anders geen geldige score
+    return NaN;
 }
+
 
 
 
