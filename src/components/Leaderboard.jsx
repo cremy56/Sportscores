@@ -2,6 +2,20 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
+
+function formatSeconds(seconds) {
+  if (typeof seconds !== 'number' || isNaN(seconds)) return seconds;
+
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+
+  // Format met voorloopnullen
+  const minsStr = mins.toString();
+  const secsStr = secs < 10 ? `0${secs}` : secs.toString();
+
+  return `${minsStr}:${secsStr}`;
+}
+
 export default function Leaderboard({ testId }) { 
   const [scores, setScores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +60,8 @@ export default function Leaderboard({ testId }) {
             </span>
           </div>
           <span className="font-bold text-[clamp(0.85rem,2vw,1.25rem)] text-purple-700">
-            {entry.score} {entry.eenheid}
+            {entry.eenheid === 'seconden' ? formatSeconds(entry.score) : entry.score} {entry.eenheid}
+
           </span>
         </li>
       ))}
