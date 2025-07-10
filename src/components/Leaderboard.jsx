@@ -2,6 +2,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
+function formatScore(score, eenheid) {
+  if (eenheid === 'min') {
+    // score is in seconden, toon als mm:ss
+    return formatSeconds(score);
+  }
+  return score;
+} 
 
 function formatSeconds(seconds) {
   if (typeof seconds !== 'number' || isNaN(seconds)) return seconds;
@@ -64,10 +71,10 @@ export default function Leaderboard({ testId }) {
               {entry.leerling_naam || 'Onbekende leerling'} ({entry.score_jaar})
             </span>
           </div>
-          <span className="font-bold text-[clamp(0.85rem,2vw,1.25rem)] text-purple-700">
-            {entry.eenheid === 'seconden' ? formatSeconds(entry.score) : entry.score} {entry.eenheid}
+         <span className="font-bold text-[clamp(0.85rem,2vw,1.25rem)] text-purple-700">
+ {formatScore(entry.score, entry.eenheid)} {entry.eenheid}
+</span>
 
-          </span>
         </li>
       ))}
     </ol>
