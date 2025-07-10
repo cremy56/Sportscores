@@ -72,8 +72,11 @@ export default function Leaderboard({ testId }) {
             </span>
           </div>
          <span className="font-bold text-[clamp(0.85rem,2vw,1.25rem)] text-purple-700">
- {formatScore(entry.score, entry.eenheid)} {entry.eenheid}
+  {entry.eenheid === 'min'
+    ? formatSeconds(entry.score)
+    : `${entry.score} ${entry.eenheid}`}
 </span>
+
 
         </li>
       ))}
