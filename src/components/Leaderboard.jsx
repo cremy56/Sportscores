@@ -20,7 +20,7 @@ function formatSeconds(seconds) {
   const minsStr = mins.toString();
   const secsStr = secs < 10 ? `0${secs}` : secs.toString();
 
-  return `${minsStr}:${secsStr}`;
+  return `${minsStr}'${secsStr}`;
 }
 
 export default function Leaderboard({ testId }) { 
