@@ -34,6 +34,10 @@ export default function Leaderboard({ testId }) {
         setError('Kon de scores niet laden.');
       } else {
         setScores(data);
+        console.log('Fetched scores:', data);
+        data.forEach((entry, i) => {
+          console.log(`Entry ${i}: score =`, entry.score, typeof entry.score, 'eenheid =', entry.eenheid);
+        });
       }
       setLoading(false);
     };
@@ -43,6 +47,7 @@ export default function Leaderboard({ testId }) {
   if (loading) return <div className="text-center text-gray-500 pt-4">Laden...</div>;
   if (error) return <div className="text-center text-red-500 pt-4">{error}</div>;
   if (scores.length === 0) return <div className="text-center text-gray-500 pt-4">Nog geen scores ingevoerd voor deze test.</div>;
+
 
   return (
     <ol className="space-y-1 text-gray-700 max-w-md mx-auto">
