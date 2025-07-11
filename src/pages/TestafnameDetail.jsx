@@ -136,7 +136,8 @@ const handleUpdateEvaluationDate = async () => {
     if (!details.groep_naam) return <div><p>Testafname niet gevonden.</p><Link to="/scores">Terug</Link></div>;
 
     return (
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full max-w-4xl mx-auto px-2 sm:px-4">
+
             <Link to="/scores" className="flex items-center text-sm text-gray-600 hover:text-purple-700 mb-4 font-semibold">
                 <ArrowLeftIcon className="h-4 w-4 mr-2" />
                 Terug naar score overzicht
@@ -172,82 +173,80 @@ const handleUpdateEvaluationDate = async () => {
                 {/* ----------------------------- */}
                 <ul className="space-y-2">
                     {details.leerlingen?.map(lid => (
-                        <li key={lid.leerling_id} className="bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 rounded-md shadow-sm min-h-[56px] gap-2"
->                            <span className="font-medium truncate w-full sm:w-1/3">{lid.naam}</span>
+                        <li className="bg-white p-3 rounded-md shadow-sm flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between min-h-[56px]">
+  <div className="flex justify-between items-center sm:w-1/3">
+    <span className="font-medium truncate">{lid.naam}</span>
+    <span className="font-bold text-gray-600 text-sm sm:hidden">{lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}</span>
+  </div>
 
-                            <div className="text-center w-full sm:w-1/3">
-                                {editingScore.leerling_id === lid.leerling_id ? (
-                                    <input
-                                    type="number"
-                                    step="any"
-                                    value={editingScore.score}
-                                    onChange={e => setEditingScore({...editingScore, score: e.target.value})}
-                                    className="w-24 p-1 border-purple-500 c border-2 rounded-md text-right mx-auto"
-                                    autoFocus
-                                    />
-                                ) : (
-                                    <span className="font-bold text-lg text-purple-700">
-                                    {lid.score !== null
-                                        ? details.test_naam === '5km loop'
-                                        ? formatSecondsToMinutes(lid.score)
-                                        : lid.score
-                                        : '-'} {lid.score !== null ? details.eenheid : ''}
-                                    </span>
-                                )}
-                                </div>
-
-                                {/* Punt + Acties */}
-                         <div className="w-full sm:w-1/3 flex justify-between items-center">
-                            <span className="font-bold text-gray-600 text-sm whitespace-nowrap">
-                                {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
-                            </span>
-
-                          {/* Acties */}   
-                            <div className="flex items-center space-x-1">
-                             {editingScore.leerling_id === lid.leerling_id ? (
-                               <>
-                                <button
-                                onClick={handleUpdateScore}
-                                title="Opslaan"
-                                className="p-0 m-0 text-green-600 bg-transparent hover:text-green-800"
-                                >
-                                <CheckIcon className="h-5 w-5" />
-                                </button>
-                                <button
-                                onClick={() => setEditingScore({ leerling_id: null, score: '' })}
-                                title="Annuleren"
-                                className="p-0 m-0 text-red-600 bg-transparent hover:text-red-800"
-                                >
-                                <XMarkIcon className="h-5 w-5" />
-                                </button>
-                            </>
-                            ) : (
-                            <>
-                                <button
-                                onClick={() =>
-                                    setEditingScore({ leerling_id: lid.leerling_id, score: lid.score ?? '' })
-                                }
-                                title="Wijzigen"
-                                className="p-0 m-0 text-blue-600 bg-transparent hover:text-blue-800"
-                                >
-                                <PencilSquareIcon className="h-5 w-5" />
-                                </button>
-                                {lid.score !== null && (
-                                <button
-                                    onClick={() => handleDeleteScore(lid.leerling_id)}
-                                    title="Verwijderen"
-                                    className="p-0 m-0 text-red-500 bg-transparent hover:text-red-700"
-                                >
-                                    <TrashIcon className="h-5 w-5" />
-                                </button>
-        )}
-      </>
+  <div className="text-center sm:w-1/3">
+    {editingScore.leerling_id === lid.leerling_id ? (
+      <input
+        type="number"
+        step="any"
+        value={editingScore.score}
+        onChange={e => setEditingScore({...editingScore, score: e.target.value})}
+        className="w-24 p-1 border-purple-500 border-2 rounded-md text-right mx-auto"
+        autoFocus
+      />
+    ) : (
+      <span className="font-bold text-lg text-purple-700">
+        {lid.score !== null
+          ? details.test_naam === '5km loop'
+            ? formatSecondsToMinutes(lid.score)
+            : lid.score
+          : '-'} {lid.score !== null ? details.eenheid : ''}
+      </span>
     )}
   </div>
-</div>
 
+  <div className="flex justify-between items-center sm:justify-end sm:w-1/3">
+    <span className="font-bold text-gray-600 text-sm whitespace-nowrap hidden sm:inline-block">
+      {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
+    </span>
 
-                        </li>
+    <div className="flex items-center space-x-1">
+      {editingScore.leerling_id === lid.leerling_id ? (
+        <>
+          <button
+            onClick={handleUpdateScore}
+            title="Opslaan"
+            className="p-0 m-0 text-green-600 bg-transparent hover:text-green-800"
+          >
+            <CheckIcon className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => setEditingScore({ leerling_id: null, score: '' })}
+            title="Annuleren"
+            className="p-0 m-0 text-red-600 bg-transparent hover:text-red-800"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            onClick={() => setEditingScore({ leerling_id: lid.leerling_id, score: lid.score ?? '' })}
+            title="Wijzigen"
+            className="p-0 m-0 text-blue-600 bg-transparent hover:text-blue-800"
+          >
+            <PencilSquareIcon className="h-5 w-5" />
+          </button>
+          {lid.score !== null && (
+            <button
+              onClick={() => handleDeleteScore(lid.leerling_id)}
+              title="Verwijderen"
+              className="p-0 m-0 text-red-500 bg-transparent hover:text-red-700"
+            >
+              <TrashIcon className="h-5 w-5" />
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  </div>
+</li>
+
                     ))}
                 </ul>
             </div>
