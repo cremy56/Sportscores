@@ -136,7 +136,7 @@ const handleUpdateEvaluationDate = async () => {
     if (!details.groep_naam) return <div><p>Testafname niet gevonden.</p><Link to="/scores">Terug</Link></div>;
 
     return (
-        <div className="w-full max-w-4xl mx-auto px-2 sm:px-4">
+        <div class="w-full px-4 sm:px-6 md:px-8">
 
             <Link to="/scores" className="flex items-center text-sm text-gray-600 hover:text-purple-700 mb-4 font-semibold">
                 <ArrowLeftIcon className="h-4 w-4 mr-2" />
@@ -173,19 +173,23 @@ const handleUpdateEvaluationDate = async () => {
                 {/* ----------------------------- */}
                 <ul className="space-y-2">
                     {details.leerlingen?.map(lid => (
-                        <li className="bg-white p-3 rounded-md shadow-sm flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between min-h-[56px]">
+                        <li className="bg-white p-3 rounded-md shadow-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between min-h-[56px] w-full">
+  {/* Naam + punten (mobiel) */}
   <div className="flex justify-between items-center sm:w-1/3">
     <span className="font-medium truncate">{lid.naam}</span>
-    <span className="font-bold text-gray-600 text-sm sm:hidden">{lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}</span>
+    <span className="font-bold text-gray-600 text-sm sm:hidden">
+      {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
+    </span>
   </div>
 
+  {/* Score */}
   <div className="text-center sm:w-1/3">
     {editingScore.leerling_id === lid.leerling_id ? (
       <input
         type="number"
         step="any"
         value={editingScore.score}
-        onChange={e => setEditingScore({...editingScore, score: e.target.value})}
+        onChange={e => setEditingScore({ ...editingScore, score: e.target.value })}
         className="w-24 p-1 border-purple-500 border-2 rounded-md text-right mx-auto"
         autoFocus
       />
@@ -200,6 +204,7 @@ const handleUpdateEvaluationDate = async () => {
     )}
   </div>
 
+  {/* Punten + knoppen (desktop) */}
   <div className="flex justify-between items-center sm:justify-end sm:w-1/3">
     <span className="font-bold text-gray-600 text-sm whitespace-nowrap hidden sm:inline-block">
       {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
@@ -246,6 +251,7 @@ const handleUpdateEvaluationDate = async () => {
     </div>
   </div>
 </li>
+
 
                     ))}
                 </ul>
