@@ -194,34 +194,53 @@ const handleUpdateEvaluationDate = async () => {
                                     </span>
                                 )}
                                 </div>
-                          <div className="flex justify-end items-center pr-1">
-    <span className="font-bold text-gray-600 w-16 text-center mr-2">
-        {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
-    </span>
-    <div className="flex items-center space-x-1">
-        {editingScore.leerling_id === lid.leerling_id ? (
-            <>
-                <button onClick={handleUpdateScore} title="Opslaan" className="text-green-600 bg-transparent hover:text-green-800">
-                    <CheckIcon className="h-5 w-5" />
-                </button>
-                <button onClick={() => setEditingScore({ leerling_id: null, score: '' })} title="Annuleren" className="text-red-600 bg-transparent hover:text-red-800">
-                    <XMarkIcon className="h-5 w-5" />
-                </button>
-            </>
-        ) : (
-            <>
-                <button onClick={() => setEditingScore({ leerling_id: lid.leerling_id, score: lid.score ?? '' })} title="Wijzigen" className="text-blue-600 bg-transparent hover:text-blue-800">
-                    <PencilSquareIcon className="h-5 w-5" />
-                </button>
-                {lid.score !== null && (
-                    <button onClick={() => handleDeleteScore(lid.leerling_id)} title="Verwijderen" className="text-red-500 bg-transparent hover:text-red-700">
-                        <TrashIcon className="h-5 w-5" />
-                    </button>
-                )}
-            </>
+                         <div className="flex items-center justify-end gap-2 pr-2 w-full max-w-[180px] ml-auto">
+  <span className="font-bold text-gray-600 text-sm whitespace-nowrap">
+    {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
+  </span>
+  <div className="flex items-center gap-1">
+    {editingScore.leerling_id === lid.leerling_id ? (
+      <>
+        <button
+          onClick={handleUpdateScore}
+          title="Opslaan"
+          className="text-green-600 bg-transparent hover:text-green-800"
+        >
+          <CheckIcon className="h-5 w-5" />
+        </button>
+        <button
+          onClick={() => setEditingScore({ leerling_id: null, score: '' })}
+          title="Annuleren"
+          className="text-red-600 bg-transparent hover:text-red-800"
+        >
+          <XMarkIcon className="h-5 w-5" />
+        </button>
+      </>
+    ) : (
+      <>
+        <button
+          onClick={() =>
+            setEditingScore({ leerling_id: lid.leerling_id, score: lid.score ?? '' })
+          }
+          title="Wijzigen"
+          className="text-blue-600 bg-transparent hover:text-blue-800"
+        >
+          <PencilSquareIcon className="h-5 w-5" />
+        </button>
+        {lid.score !== null && (
+          <button
+            onClick={() => handleDeleteScore(lid.leerling_id)}
+            title="Verwijderen"
+            className="text-red-500 bg-transparent hover:text-red-700"
+          >
+            <TrashIcon className="h-5 w-5" />
+          </button>
         )}
-    </div>
+      </>
+    )}
+  </div>
 </div>
+
 
                         </li>
                     ))}
