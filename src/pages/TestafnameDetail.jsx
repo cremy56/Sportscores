@@ -195,10 +195,14 @@ const handleUpdateEvaluationDate = async () => {
                                     </span>
                                 )}
                                 </div>
-                         <div className="flex justify-end items-center gap-2 w-full sm:w-1/3 sm:justify-end">
+
+                                {/* Punt + Acties */}
+                         <div className="flex justify-between items-center w-full">
                             <span className="font-bold text-gray-600 text-sm whitespace-nowrap mr-2">
                                 {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
                             </span>
+
+                          {/* Acties */}   
                             <div className="flex items-center space-x-1">
                              {editingScore.leerling_id === lid.leerling_id ? (
                                <>
