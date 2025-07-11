@@ -194,7 +194,7 @@ const handleUpdateEvaluationDate = async () => {
                                     </span>
                                 )}
                                 </div>
-                            <div className="flex items-center justify-end gap-3">
+                           <div className="flex justify-end items-center space-x-1 pr-1">
                                 <span className="font-bold text-gray-600 w-16 text-center">
                                     {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
                                 </span>
