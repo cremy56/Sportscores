@@ -173,20 +173,19 @@ const handleUpdateEvaluationDate = async () => {
                 {/* ----------------------------- */}
                 <ul className="space-y-2">
                     {details.leerlingen?.map(lid => (
-                       <li className="bg-white p-3 rounded-md shadow-sm w-full">
-  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
-    
-    {/* Naam */}
-    <div className="flex justify-between items-center sm:w-1/3">
+                     <li className="bg-white p-3 rounded-md shadow-sm w-full">
+  <div className="grid grid-cols-1 sm:grid-cols-3 sm:items-center gap-y-2 sm:gap-y-0 sm:gap-x-4">
+
+    {/* Naam + punten op mobiel */}
+    <div className="flex justify-between items-center">
       <span className="font-medium truncate">{lid.naam}</span>
-      {/* Punten op mobiel zichtbaar */}
       <span className="font-bold text-gray-600 text-sm sm:hidden">
         {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
       </span>
     </div>
 
-    {/* Score */}
-    <div className="text-center sm:w-1/3">
+    {/* Score (centraal) */}
+    <div className="text-center">
       {editingScore.leerling_id === lid.leerling_id ? (
         <input
           type="number"
@@ -207,10 +206,10 @@ const handleUpdateEvaluationDate = async () => {
       )}
     </div>
 
-    {/* Punten + acties */}
-    <div className="flex justify-between items-center sm:justify-end sm:w-1/3 sm:space-x-4">
-      {/* Punten desktop */}
-      <span className="font-bold text-gray-600 text-sm whitespace-nowrap hidden sm:inline-block">
+    {/* Punten + knoppen */}
+    <div className="flex justify-between sm:justify-end items-center gap-2">
+      {/* Punten op desktop */}
+      <span className="font-bold text-gray-600 text-sm hidden sm:inline-block whitespace-nowrap">
         {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
       </span>
 
@@ -257,6 +256,7 @@ const handleUpdateEvaluationDate = async () => {
     </div>
   </div>
 </li>
+
 
 
 
