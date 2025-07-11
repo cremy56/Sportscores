@@ -172,9 +172,10 @@ const handleUpdateEvaluationDate = async () => {
                 {/* ----------------------------- */}
                 <ul className="space-y-2">
                     {details.leerlingen?.map(lid => (
-                        <li key={lid.leerling_id} className="bg-white grid grid-cols-3 items-center p-3 rounded-md shadow-sm min-h-[56px]">
-                            <span className="font-medium truncate">{lid.naam}</span>
-                            <div className="text-center">
+                        <li key={lid.leerling_id} className="bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 rounded-md shadow-sm min-h-[56px] gap-2"
+>                            <span className="font-medium truncate w-full sm:w-1/3">{lid.naam}</span>
+
+                            <div className="text-center w-full sm:w-1/3">
                                 {editingScore.leerling_id === lid.leerling_id ? (
                                     <input
                                     type="number"
@@ -194,47 +195,47 @@ const handleUpdateEvaluationDate = async () => {
                                     </span>
                                 )}
                                 </div>
-                         <div className="flex items-center justify-end gap-2 pr-2 w-full max-w-[180px] ml-auto">
-  <span className="font-bold text-gray-600 text-sm whitespace-nowrap">
-    {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
-  </span>
-  <div className="flex items-center gap-1">
-    {editingScore.leerling_id === lid.leerling_id ? (
-      <>
-        <button
-          onClick={handleUpdateScore}
-          title="Opslaan"
-          className="text-green-600 bg-transparent hover:text-green-800"
-        >
-          <CheckIcon className="h-5 w-5" />
-        </button>
-        <button
-          onClick={() => setEditingScore({ leerling_id: null, score: '' })}
-          title="Annuleren"
-          className="text-red-600 bg-transparent hover:text-red-800"
-        >
-          <XMarkIcon className="h-5 w-5" />
-        </button>
-      </>
-    ) : (
-      <>
-        <button
-          onClick={() =>
-            setEditingScore({ leerling_id: lid.leerling_id, score: lid.score ?? '' })
-          }
-          title="Wijzigen"
-          className="text-blue-600 bg-transparent hover:text-blue-800"
-        >
-          <PencilSquareIcon className="h-5 w-5" />
-        </button>
-        {lid.score !== null && (
-          <button
-            onClick={() => handleDeleteScore(lid.leerling_id)}
-            title="Verwijderen"
-            className="text-red-500 bg-transparent hover:text-red-700"
-          >
-            <TrashIcon className="h-5 w-5" />
-          </button>
+                         <div className="flex justify-end items-center gap-2 w-full sm:w-1/3 sm:justify-end">
+                            <span className="font-bold text-gray-600 text-sm whitespace-nowrap">
+                                {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
+                            </span>
+                            <div className="flex items-center gap-1">
+                             {editingScore.leerling_id === lid.leerling_id ? (
+                               <>
+                                <button
+                                onClick={handleUpdateScore}
+                                title="Opslaan"
+                                className="text-green-600 bg-transparent hover:text-green-800"
+                                >
+                                <CheckIcon className="h-5 w-5" />
+                                </button>
+                                <button
+                                onClick={() => setEditingScore({ leerling_id: null, score: '' })}
+                                title="Annuleren"
+                                className="text-red-600 bg-transparent hover:text-red-800"
+                                >
+                                <XMarkIcon className="h-5 w-5" />
+                                </button>
+                            </>
+                            ) : (
+                            <>
+                                <button
+                                onClick={() =>
+                                    setEditingScore({ leerling_id: lid.leerling_id, score: lid.score ?? '' })
+                                }
+                                title="Wijzigen"
+                                className="text-blue-600 bg-transparent hover:text-blue-800"
+                                >
+                                <PencilSquareIcon className="h-5 w-5" />
+                                </button>
+                                {lid.score !== null && (
+                                <button
+                                    onClick={() => handleDeleteScore(lid.leerling_id)}
+                                    title="Verwijderen"
+                                    className="text-red-500 bg-transparent hover:text-red-700"
+                                >
+                                    <TrashIcon className="h-5 w-5" />
+                                </button>
         )}
       </>
     )}
