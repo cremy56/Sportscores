@@ -173,31 +173,30 @@ const handleUpdateEvaluationDate = async () => {
                 {/* ----------------------------- */}
                 <ul className="space-y-2">
                     {details.leerlingen?.map(lid => (
-                    <li className="bg-white p-3 rounded-md shadow-sm w-full">
-  <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-2 sm:gap-y-0 items-center">
+                     <li className="bg-white p-3 rounded-md shadow-sm w-full">
+  <div className="grid grid-cols-1 sm:grid-cols-3 sm:items-center gap-y-2 sm:gap-y-0 sm:gap-x-4">
 
-    {/* Naam */}
-    <div className="flex justify-between items-center w-full">
+    {/* Naam + punten op mobiel */}
+    <div className="flex justify-between items-center">
       <span className="font-medium truncate">{lid.naam}</span>
-      {/* Punten op mobiel rechts */}
       <span className="font-bold text-gray-600 text-sm sm:hidden">
         {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
       </span>
     </div>
 
-    {/* Score */}
-    <div className="flex justify-center w-full">
+    {/* Score (centraal) */}
+    <div className="text-center">
       {editingScore.leerling_id === lid.leerling_id ? (
         <input
           type="number"
           step="any"
           value={editingScore.score}
           onChange={e => setEditingScore({ ...editingScore, score: e.target.value })}
-          className="w-24 p-1 border-purple-500 border-2 rounded-md text-right"
+          className="w-24 p-1 border-purple-500 border-2 rounded-md text-right mx-auto"
           autoFocus
         />
       ) : (
-        <span className="font-bold text-lg text-purple-700 text-center">
+        <span className="font-bold text-lg text-purple-700">
           {lid.score !== null
             ? details.test_naam === '5km loop'
               ? formatSecondsToMinutes(lid.score)
@@ -208,26 +207,27 @@ const handleUpdateEvaluationDate = async () => {
     </div>
 
     {/* Punten + knoppen */}
-    <div className="flex justify-between sm:justify-end items-center w-full">
+    <div className="flex justify-between sm:justify-end items-center gap-2">
       {/* Punten op desktop */}
-      <span className="font-bold text-gray-600 text-sm hidden sm:inline-block whitespace-nowrap mr-2">
+      <span className="font-bold text-gray-600 text-sm hidden sm:inline-block whitespace-nowrap">
         {lid.punt !== null ? `${lid.punt}/${details.max_punten || 20}` : '-'}
       </span>
 
+      {/* Actieknoppen */}
       <div className="flex items-center space-x-1">
         {editingScore.leerling_id === lid.leerling_id ? (
           <>
             <button
               onClick={handleUpdateScore}
               title="Opslaan"
-              className="text-green-600 hover:text-green-800"
+              className="p-0 m-0 text-green-600 bg-transparent hover:text-green-800"
             >
               <CheckIcon className="h-5 w-5" />
             </button>
             <button
               onClick={() => setEditingScore({ leerling_id: null, score: '' })}
               title="Annuleren"
-              className="text-red-600 hover:text-red-800"
+              className="p-0 m-0 text-red-600 bg-transparent hover:text-red-800"
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -237,7 +237,7 @@ const handleUpdateEvaluationDate = async () => {
             <button
               onClick={() => setEditingScore({ leerling_id: lid.leerling_id, score: lid.score ?? '' })}
               title="Wijzigen"
-              className="text-blue-600 hover:text-blue-800"
+              className="p-0 m-0 text-blue-600 bg-transparent hover:text-blue-800"
             >
               <PencilSquareIcon className="h-5 w-5" />
             </button>
@@ -245,7 +245,7 @@ const handleUpdateEvaluationDate = async () => {
               <button
                 onClick={() => handleDeleteScore(lid.leerling_id)}
                 title="Verwijderen"
-                className="text-red-500 hover:text-red-700"
+                className="p-0 m-0 text-red-500 bg-transparent hover:text-red-700"
               >
                 <TrashIcon className="h-5 w-5" />
               </button>
@@ -254,10 +254,8 @@ const handleUpdateEvaluationDate = async () => {
         )}
       </div>
     </div>
-
   </div>
 </li>
-
 
 
 
