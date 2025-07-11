@@ -139,7 +139,7 @@ const handleUpdateEvaluationDate = async () => {
         <div className="max-w-4xl mx-auto">
             <Link to="/scores" className="flex items-center text-sm text-gray-600 hover:text-purple-700 mb-4 font-semibold">
                 <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                Terug naar overzicht
+                Terug naar score overzicht
             </Link>
             <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg">
                 
@@ -147,7 +147,7 @@ const handleUpdateEvaluationDate = async () => {
                 <div className="flex justify-between items-center mb-2">
                     <h1 className="text-2xl font-bold">{details.test_naam}</h1>
                     {!isEditingDate && (
-                        <button onClick={() => { setIsEditingDate(true); setNewDate(datum); }} title="Datum wijzigen" className="text-blue-600 hover:text-blue-800">
+                        <button onClick={() => { setIsEditingDate(true); setNewDate(datum); }} title="Datum wijzigen" className="text-blue-600 bg-transparent hover:text-blue-800">
                             <PencilSquareIcon className="h-5 w-5"/>
                         </button>
                     )}
