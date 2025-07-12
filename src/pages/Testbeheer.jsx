@@ -6,11 +6,14 @@ import toast from 'react-hot-toast';
 import TestFormModal from '../components/TestFormModal';
 import ConfirmModal from '../components/ConfirmModal';
 import { TrashIcon } from '@heroicons/react/24/solid';
+import { useNavigate } from 'react-router-dom';
+
 
 export default function Testbeheer() {
     const [testen, setTesten] = useState([]);
     const [loading, setLoading] = useState(true);
-    
+    const navigate = useNavigate();
+
     const [modal, setModal] = useState({ type: null, data: null });
 
     const fetchTesten = useCallback(async () => {
@@ -84,21 +87,27 @@ export default function Testbeheer() {
                             </thead>
                             <tbody className="bg-white">
                                 {testen.map(test => (
-                                    <tr key={test.id} className="border-t hover:bg-gray-50">
-                                        <td className="px-4 py-3 font-medium">
-                                            <Link to={`/testbeheer/${test.id}`} className="text-purple-700 hover:underline">
-                                                {test.naam}
-                                            </Link>
-                                        </td>
-                                        <td className="px-4 py-3 text-gray-600">{test.categorie}</td>
-                                        <td className="px-4 py-3 text-gray-600 text-right">
-                                            <button onClick={() => setModal({ type: 'confirm', data: test })} className="text-red-500 hover:text-red-700 p-1 rounded-full">
-                                                <TrashIcon className="h-5 w-5"/>
-                                            </button>
-                                        </td>
+                                    <tr
+                                    key={test.id}
+                                    className="border-t hover:bg-gray-50 cursor-pointer"
+                                    onClick={() => navigate(`/testbeheer/${test.id}`)}
+                                    >
+                                    <td className="px-4 py-3 font-medium text-purple-700">{test.naam}</td>
+                                    <td className="px-4 py-3 text-gray-600">{test.categorie}</td>
+                                    <td
+                                        className="px-4 py-3 text-gray-600 text-right"
+                                        onClick={(e) => {
+                                        e.stopPropagation(); // voorkomt dat de rij-navigatie gebeurt
+                                        setModal({ type: 'confirm', data: test });
+                                        }}
+                                    >
+                                        <button className="text-red-500 hover:text-red-700 p-1 rounded-full">
+                                        <TrashIcon className="h-5 w-5" />
+                                        </button>
+                                    </td>
                                     </tr>
                                 ))}
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
                 )}
