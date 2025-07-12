@@ -53,46 +53,52 @@ useEffect(() => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Geen gebruiker gevonden.");
 
-      // Haal de rol van de gebruiker op uit de public.users tabel
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('rol')
-        .eq('id', user.id)
-        .single();
-      if (userError) throw userError;
+      // ✅ 1a. Koppel auth.user.id aan de users-tabel op basis van e-mailadres
+    await supabase
+      .from('users')
+      .update({ id: user.id })
+      .eq('email', user.email)
+      .is('id', null);  // alleen koppelen als er nog geen id is
 
-      // 2. Update het wachtwoord van de gebruiker
-      const { error: updateError } = await supabase.auth.updateUser({ password });
-      if (updateError) throw updateError;
-      
-      // 3. Update de toestemming ALLEEN als de gebruiker een leerling is
-      if (userData.rol === 'leerling') {
-        const { error: consentError } = await supabase
-          .from('leerlingen')
-          .update({ toestemming_leaderboard: consent })
-          .eq('user_id', user.id);
-        if (consentError) throw consentError;
-      }
+    // 2. Haal de rol van de gebruiker op uit de public.users tabel
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('rol')
+      .eq('id', user.id)
+      .single();
+    if (userError) throw userError;
 
-      // 4. Markeer de onboarding als voltooid in de 'users' tabel
-      const { error: onboardingError } = await supabase
-        .from('users')
-        .update({ onboarding_complete: true })
-        .eq('id', user.id);
-      if (onboardingError) throw onboardingError;
+    // 3. Update het wachtwoord van de gebruiker
+    const { error: updateError } = await supabase.auth.updateUser({ password });
+    if (updateError) throw updateError;
 
-      // 5. Stuur de gebruiker door naar de hoofdpagina
-      alert('Je account is succesvol ingesteld!');
-      navigate('/');
-      window.location.reload(); // Forceer een refresh om de app state te vernieuwen
-
-    } catch (error) {
-      setError(error.message);
-      console.error(error);
-    } finally {
-      setLoading(false);
+    // 4. Update de toestemming ALLEEN als de gebruiker een leerling is
+    if (userData.rol === 'leerling') {
+      const { error: consentError } = await supabase
+        .from('leerlingen')
+        .update({ toestemming_leaderboard: consent })
+        .eq('user_id', user.id);
+      if (consentError) throw consentError;
     }
-  };
+
+    // 5. Markeer de onboarding als voltooid in de 'users' tabel
+    const { error: onboardingError } = await supabase
+      .from('users')
+      .update({ onboarding_complete: true })
+      .eq('id', user.id);
+    if (onboardingError) throw onboardingError;
+
+    alert('Je account is succesvol ingesteld!');
+    navigate('/');
+    window.location.reload();
+
+  } catch (error) {
+    setError(error.message);
+    console.error(error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="flex items-center justify-center min-h-screen">

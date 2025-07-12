@@ -1,14 +1,14 @@
 // src/components/ProtectedRoute.jsx
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 export default function ProtectedRoute() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const checkUser = async () => {
@@ -35,8 +35,29 @@ export default function ProtectedRoute() {
     checkUser();
   }, []);
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login'); // Pas aan naar jouw login route of '/' als je geen login pagina hebt
+    window.location.reload();
+  };
+
   if (loading) return <div>Laden...</div>;
-  if (error) return <div className="text-red-500 bg-white text-center p-8">{error}</div>;
+
+  if (error) {
+    return (
+      <div className="text-red-500 bg-white text-center p-8">
+        <p>{error}</p>
+        {error === "Geen actieve sessie." && (
+          <button
+            onClick={handleLogout}
+            className="mt-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+          >
+            Uitloggen / Reset sessie
+          </button>
+        )}
+      </div>
+    );
+  }
 
   // 🔒 Blokkeer toegang als onboarding nog niet voltooid is
   if (!profile?.onboarding_complete && location.pathname !== '/setup-account') {
@@ -50,16 +71,15 @@ export default function ProtectedRoute() {
 
   // 🎯 Rolgebaseerde toegangscontrole
   const toegestaneRoutesPerRol = {
-  leerling: [/^\/$/, /^\/evolutie/],
-  leerkracht: [/^\/$/, /^\/evolutie/, /^\/groepsbeheer/, /^\/groep/, /^\/scores/, /^\/testafname/],
-  administrator: [/^\/$/, /^\/evolutie/, /^\/groepsbeheer/, /^\/groep/, /^\/scores/, /^\/leerlingbeheer/, /^\/testbeheer/, /^\/testafname/]
-};
+    leerling: [/^\/$/, /^\/evolutie/],
+    leerkracht: [/^\/$/, /^\/evolutie/, /^\/groepsbeheer/, /^\/groep/, /^\/scores/, /^\/testafname/],
+    administrator: [/^\/$/, /^\/evolutie/, /^\/groepsbeheer/, /^\/groep/, /^\/scores/, /^\/leerlingbeheer/, /^\/testbeheer/, /^\/testafname/]
+  };
 
-const rol = profile.rol;
-const pad = location.pathname;
+  const rol = profile.rol;
+  const pad = location.pathname;
 
-const heeftToegang = toegestaneRoutesPerRol[rol]?.some(pattern => pattern.test(pad));
-
+  const heeftToegang = toegestaneRoutesPerRol[rol]?.some(pattern => pattern.test(pad));
 
   if (!heeftToegang) {
     return <Navigate to="/" replace />;
