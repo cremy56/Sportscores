@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
+
 export default function ProtectedRoute() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);

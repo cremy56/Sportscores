@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { TrashIcon } from '@heroicons/react/24/solid';
 import ConfirmModal from '../components/ConfirmModal';
+import { useNavigate } from 'react-router-dom';
 
 export default function ScoresOverzicht() {
   const { profile } = useOutletContext();
