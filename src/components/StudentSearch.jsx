@@ -25,10 +25,10 @@ export default function StudentSearch({ onStudentSelect }) {
   }, [searchTerm]);
 
   const handleSelect = (student) => {
-    onStudentSelect(student.id, student.naam); // Geef het hele object door
-    setSearchTerm('');
-    setResults([]);
-  };
+  onStudentSelect(student); // <-- Geef het hele object door
+  setSearchTerm('');
+  setResults([]);
+};
 
   return (
     <div className="relative">

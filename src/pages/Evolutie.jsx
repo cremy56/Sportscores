@@ -77,10 +77,12 @@ export default function Evolutie() {
                 {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator') && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2 mb-6 items-end">
                         <div className="md:col-span-2">
-                            <label htmlFor="student-search" className="block text-sm font-medium text-gray-700">Zoek Leerling</label>
-                           <div id="student-search">
-                                <StudentSearch onStudentSelect={(student) => setSelectedStudent(student)} />
-                            </div>
+                           <label className="block text-sm font-medium text-gray-700">Zoek Leerling</label>
+                            <StudentSearch onStudentSelect={(student) => {
+                                console.log('Geselecteerde student:', student);
+                                setSelectedStudent(student);
+                            }} />
+
                         </div>
                         <div>
                             <label htmlFor="school-year-select" className="block text-sm font-medium text-gray-700">Schooljaar</label>
