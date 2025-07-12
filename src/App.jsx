@@ -36,6 +36,26 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const koppelUuidAanGebruiker = async () => {
+      if (!session?.user) return;
+
+      const user = session.user;
+
+      const { error } = await supabase
+        .from('users')
+        .update({ id: user.id })
+        .eq('email', user.email)
+        .is('id', null); // Alleen als id nog niet ingevuld is
+
+      if (error) {
+        console.error('Fout bij koppelen uuid aan users-tabel:', error.message);
+      }
+    };
+
+    koppelUuidAanGebruiker();
+  }, [session]);
+
   if (loading) {
     return <div></div>; // Toon niets of een laad-indicator tijdens de eerste sessie-check
     
