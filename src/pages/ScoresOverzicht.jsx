@@ -11,6 +11,7 @@ export default function ScoresOverzicht() {
   const [loading, setLoading] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!profile) return;
@@ -61,9 +62,12 @@ export default function ScoresOverzicht() {
     <div className="max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Recente Testafnames</h1>
-        <Link to="/nieuwe-testafname" className="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-5 rounded-lg">
+        <button
+          onClick={() => navigate('/nieuwe-testafname')}
+          className="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-5 rounded-lg"
+        >
           + Nieuwe Testafname
-        </Link>
+        </button>
       </div>
 
       <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg">
@@ -73,33 +77,33 @@ export default function ScoresOverzicht() {
           <ul className="space-y-1">
             {evaluaties.length > 0 ? evaluaties.map((item, index) => (
              <li
-  key={index}
-  onClick={() =>
-    window.location.href = `/testafname/${item.groep_id}/${item.test_id}/${item.datum}`
-  }
-  className="cursor-pointer flex justify-between items-center bg-white p-2 rounded-lg shadow-sm hover:bg-gray-50 transition-colors w-full"
->
-  <div className="flex flex-col">
-    <p className="font-semibold text-purple-800">{item.test_naam}</p>
-    <p className="text-sm text-gray-600">{item.groep_naam}</p>
-  </div>
-  <div className="flex items-center gap-4 text-right">
-    <p className="text-sm text-gray-500 whitespace-nowrap">
-      {new Date(item.datum).toLocaleDateString()}<br />
-      <span className="text-xs text-gray-400">
-        {item.tijd?.slice(0, 5)} u
-      </span>
-    </p>
-    <button
-      onClick={(e) => {
-        e.stopPropagation(); // BELANGRIJK!
-        setSelectedItem(item);
-        setShowConfirm(true);
-      }}
-      className="p-2 text-red-600 hover:text-red-800"
-      title="Verwijder testafname"
-    >
-      <TrashIcon className="h-5 w-5" />
+                key={index}
+                onClick={() =>
+               navigate(`/testafname/${item.groep_id}/${item.test_id}/${item.datum}`)
+                }
+                    className="cursor-pointer flex justify-between items-center bg-white p-2 rounded-lg shadow-sm hover:bg-gray-50 transition-colors w-full"
+                    >
+                    <div className="flex flex-col">
+                        <p className="font-semibold text-purple-800">{item.test_naam}</p>
+                        <p className="text-sm text-gray-600">{item.groep_naam}</p>
+                    </div>
+                    <div className="flex items-center gap-4 text-right">
+                        <p className="text-sm text-gray-500 whitespace-nowrap">
+                        {new Date(item.datum).toLocaleDateString()}<br />
+                        <span className="text-xs text-gray-400">
+                            {item.tijd?.slice(0, 5)} u
+                        </span>
+                        </p>
+                        <button
+                        onClick={(e) => {
+                            e.stopPropagation(); // BELANGRIJK!
+                            setSelectedItem(item);
+                            setShowConfirm(true);
+                        }}
+                        className="p-2 text-red-600 hover:text-red-800"
+                        title="Verwijder testafname"
+                        >
+                        <TrashIcon className="h-5 w-5" />
     </button>
   </div>
 </li>

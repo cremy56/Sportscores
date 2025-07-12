@@ -49,17 +49,16 @@ export default function ProtectedRoute() {
 
   // 🎯 Rolgebaseerde toegangscontrole
   const toegestaneRoutesPerRol = {
-    leerling: ['/', '/evolutie'],
-    leerkracht: ['/', '/evolutie', '/groepsbeheer', '/groep', '/scores'],
-    administrator: ['/', '/evolutie', '/groepsbeheer', '/groep', '/scores', '/leerlingbeheer', '/testbeheer']
-  };
+  leerling: [/^\/$/, /^\/evolutie/],
+  leerkracht: [/^\/$/, /^\/evolutie/, /^\/groepsbeheer/, /^\/groep/, /^\/scores/, /^\/testafname/],
+  administrator: [/^\/$/, /^\/evolutie/, /^\/groepsbeheer/, /^\/groep/, /^\/scores/, /^\/leerlingbeheer/, /^\/testbeheer/, /^\/testafname/]
+};
 
-  const pad = location.pathname;
-  const rol = profile.rol;
+const rol = profile.rol;
+const pad = location.pathname;
 
-  const heeftToegang = toegestaneRoutesPerRol[rol]?.some(route =>
-    pad === route || pad.startsWith(route + '/')
-  );
+const heeftToegang = toegestaneRoutesPerRol[rol]?.some(pattern => pattern.test(pad));
+
 
   if (!heeftToegang) {
     return <Navigate to="/" replace />;
