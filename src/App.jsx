@@ -6,15 +6,15 @@ import Login from './Login';
 import Layout from './components/Layout';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
-import SetupAccount from './pages/SetupAccount'; // Importeer de nieuwe pagina
-import ProtectedRoute from './components/ProtectedRoute'; // Importeer de nieuwe route-beschermer
+import SetupAccount from './pages/SetupAccount';
+import ProtectedRoute from './components/ProtectedRoute';
 import Leerlingbeheer from './pages/Leerlingbeheer';
 import Groepsbeheer from './pages/Groepsbeheer';
 import Testbeheer from './pages/Testbeheer';
 import TestDetailBeheer from './pages/TestDetailBeheer';
-import ScoresOverzicht from './pages/ScoresOverzicht';   // Nieuw
-import TestafnameDetail from './pages/TestafnameDetail'; // Nieuw
-import NieuweTestafname from './pages/NieuweTestafname'; // Hernoemd
+import ScoresOverzicht from './pages/ScoresOverzicht';
+import TestafnameDetail from './pages/TestafnameDetail';
+import NieuweTestafname from './pages/NieuweTestafname';
 import GroupDetail from './pages/GroupDetail';
 import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
 
@@ -23,6 +23,7 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Haal de initiële sessie op
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
@@ -30,35 +31,20 @@ function App() {
     };
     getSession();
 
+    // Luister naar veranderingen in de authenticatiestatus
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
+
+    // Zorg ervoor dat de subscription wordt opgeruimd
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const koppelUuidAanGebruiker = async () => {
-      if (!session?.user) return;
-
-      const user = session.user;
-
-      const { error } = await supabase
-        .from('users')
-        .update({ id: user.id })
-        .eq('email', user.email)
-        .is('id', null); // Alleen als id nog niet ingevuld is
-
-      if (error) {
-        console.error('Fout bij koppelen uuid aan users-tabel:', error.message);
-      }
-    };
-
-    koppelUuidAanGebruiker();
-  }, [session]);
+  // De logica om de UUID te koppelen is hier verwijderd.
+  // Dit wordt nu afgehandeld in de SetupAccount pagina.
 
   if (loading) {
-    return <div></div>; // Toon niets of een laad-indicator tijdens de eerste sessie-check
-    
+    return <div></div>; // Toon een lege pagina of laad-indicator
   }
 
   return (
@@ -69,10 +55,11 @@ function App() {
           <Route path="*" element={<Login />} />
         ) : (
           <>
-            {/* De Setup-pagina is een speciale, openbare route voor ingelogde gebruikers */}
+            {/* De Setup-pagina is een openbare route voor ingelogde gebruikers die hun account nog moeten instellen */}
             <Route path="/setup-account" element={<SetupAccount />} />
+            <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
 
-            {/* Alle normale app-routes worden nu beschermd */}
+            {/* Alle normale app-routes worden beschermd door ProtectedRoute */}
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<Highscores />} />
@@ -82,12 +69,9 @@ function App() {
                 <Route path="/groep/:groepId" element={<GroupDetail />} />
                 <Route path="/scores" element={<ScoresOverzicht />} />
                 <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
-                 <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
-                 <Route path="/testbeheer" element={<Testbeheer />} />
-                 <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
-                <Route path="/groep/:groepId" element={<GroupDetail />} />
-                <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
-                {/* Voeg hier later andere beschermde routes toe */}
+                <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
+                <Route path="/testbeheer" element={<Testbeheer />} />
+                <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
               </Route>
             </Route>
           </>

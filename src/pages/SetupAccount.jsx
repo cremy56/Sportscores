@@ -2,110 +2,117 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function SetupAccount() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [userEmail, setUserEmail] = useState('');
   const [userRole, setUserRole] = useState(null);
   const navigate = useNavigate();
 
-useEffect(() => {
-    const fetchUserEmail = async () => {
+  // Haal de gebruikersrol op via e-mail, omdat de ID-koppeling nog niet bestaat.
+  useEffect(() => {
+    const fetchUserData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserEmail(user.email);
-      const { data: profile, error: profileError } = await supabase
+        
+        // Haal profiel op basis van e-mailadres
+        const { data: profile, error } = await supabase
           .from('users')
           .select('rol')
-          .eq('id', user.id)
+          .eq('email', user.email)
           .single();
         
-        if (profile) {
+        if (error) {
+            console.error("Fout bij ophalen profiel:", error);
+            toast.error("Kon je gebruikersprofiel niet vinden.");
+        } else if (profile) {
           setUserRole(profile.rol);
         }
       }
     };
-    fetchUserEmail();
+    fetchUserData();
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
 
     if (password.length < 6) {
-      setError('Wachtwoord moet minstens 6 tekens lang zijn.');
+      toast.error('Wachtwoord moet minstens 6 tekens lang zijn.');
       return;
     }
-
     if (password !== confirmPassword) {
-      setError('De wachtwoorden komen niet overeen.');
+      toast.error('De wachtwoorden komen niet overeen.');
       return;
     }
 
     setLoading(true);
 
     try {
-      // 1. Haal de huidige gebruiker op
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Geen gebruiker gevonden.");
+      if (!user) throw new Error("Geen actieve gebruiker gevonden. Log opnieuw in.");
 
-      // ✅ 1a. Koppel auth.user.id aan de users-tabel op basis van e-mailadres
-    await supabase
-      .from('users')
-      .update({ id: user.id })
-      .eq('email', user.email)
-      .is('id', null);  // alleen koppelen als er nog geen id is
+      // STAP 3: Koppel auth.users.id aan de bestaande rij in public.users
+      const { error: linkError } = await supabase
+        .from('users')
+        .update({ id: user.id })
+        .eq('email', user.email)
+        .is('id', null); // Extra veiligheid: koppel alleen als het nog niet gekoppeld is.
 
-    // 2. Haal de rol van de gebruiker op uit de public.users tabel
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('rol')
-      .eq('id', user.id)
-      .single();
-    if (userError) throw userError;
+      if (linkError) throw new Error(`Fout bij koppelen account: ${linkError.message}`);
 
-    // 3. Update het wachtwoord van de gebruiker
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) throw updateError;
+      // STAP 4: Update het wachtwoord in Supabase Auth
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) throw new Error(`Fout bij instellen wachtwoord: ${updateError.message}`);
 
-    // 4. Update de toestemming ALLEEN als de gebruiker een leerling is
-    if (userData.rol === 'leerling') {
-      const { error: consentError } = await supabase
-        .from('leerlingen')
-        .update({ toestemming_leaderboard: consent })
-        .eq('user_id', user.id);
-      if (consentError) throw consentError;
+      // STAP 5: Registreer toestemming indien de gebruiker een leerling is
+      if (userRole === 'leerling') {
+        const { error: consentError } = await supabase
+          .from('leerlingen')
+          .update({ toestemming_leaderboard: consent })
+          .eq('user_id', user.id); // Gaat ervan uit dat 'leerlingen.user_id' nu gekoppeld is.
+
+        // Een fout hier is niet fataal voor de login, dus we loggen het alleen.
+        if (consentError) {
+          console.error("Fout bij opslaan toestemming: ", consentError.message);
+          toast.error("Kon toestemming niet opslaan, maar account is wel ingesteld.");
+        }
+      }
+
+      // STAP 6: Markeer de onboarding als voltooid
+      const { error: onboardingError } = await supabase
+        .from('users')
+        .update({ onboarding_complete: true })
+        .eq('id', user.id);
+
+      if (onboardingError) throw new Error(`Fout bij afronden installatie: ${onboardingError.message}`);
+
+      // STAP 7: Alles is klaar!
+      toast.success('Je account is succesvol ingesteld! Je wordt doorgestuurd.');
+      setTimeout(() => {
+        navigate('/');
+        window.location.reload(); // Zorgt voor een schone state na de setup.
+      }, 2000);
+
+    } catch (error) {
+      toast.error(error.message);
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
-
-    // 5. Markeer de onboarding als voltooid in de 'users' tabel
-    const { error: onboardingError } = await supabase
-      .from('users')
-      .update({ onboarding_complete: true })
-      .eq('id', user.id);
-    if (onboardingError) throw onboardingError;
-
-    alert('Je account is succesvol ingesteld!');
-    navigate('/');
-    window.location.reload();
-
-  } catch (error) {
-    setError(error.message);
-    console.error(error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <Toaster position="top-center" />
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-lg">
         <h2 className="text-2xl font-bold text-center">Account Instellen</h2>
         <p className="text-center text-gray-600">
-          Welkom <span className="font-bold">{userEmail}</span>! Stel hier je wachtwoord in om je account te activeren.
+          Welkom <span className="font-bold">{userEmail}</span>! Stel een wachtwoord in om je account te activeren.
         </p>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -129,31 +136,27 @@ useEffect(() => {
             />
           </div>
 
-          {/* --- DE CONDITIONELE WEERGAVE --- */}
-          {/* Toon dit blok alleen als de rol van de gebruiker 'leerling' is */}
           {userRole === 'leerling' && (
-            <div className="flex items-center">
+            <div className="flex items-center pt-2">
               <input
                 id="consent"
                 type="checkbox"
                 checked={consent}
                 onChange={(e) => setConsent(e.target.checked)}
-                className="h-4 w-4 rounded"
+                className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
               />
-              <label htmlFor="consent" className="ml-2 block text-sm">
-                Ja, mijn volledige naam mag op de highscore-lijsten getoond worden.
+              <label htmlFor="consent" className="ml-2 block text-sm text-gray-900">
+                Ja, mijn naam mag op de highscore-lijsten getoond worden.
               </label>
             </div>
           )}
-          {/* ----------------------------- */}
           
-          {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             type="submit"
             disabled={loading}
             className="w-full px-4 py-2 font-bold text-white bg-purple-700 rounded-md hover:bg-purple-800 disabled:bg-gray-400"
           >
-            {loading ? 'Opslaan...' : 'Account Instellen'}
+            {loading ? 'Bezig...' : 'Account Activeren'}
           </button>
         </form>
       </div>
