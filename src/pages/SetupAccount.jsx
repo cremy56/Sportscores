@@ -13,24 +13,17 @@ export default function SetupAccount() {
   const [userRole, setUserRole] = useState(null);
   const navigate = useNavigate();
 
-  // Haal de gebruikersrol op via e-mail, omdat de ID-koppeling nog niet bestaat.
   useEffect(() => {
     const fetchUserData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserEmail(user.email);
-        
-        // Haal profiel op basis van e-mailadres
-        const { data: profile, error } = await supabase
+        const { data: profile } = await supabase
           .from('users')
           .select('rol')
           .eq('email', user.email)
           .single();
-        
-        if (error) {
-            console.error("Fout bij ophalen profiel:", error);
-            toast.error("Kon je gebruikersprofiel niet vinden.");
-        } else if (profile) {
+        if (profile) {
           setUserRole(profile.rol);
         }
       }
@@ -56,47 +49,20 @@ export default function SetupAccount() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Geen actieve gebruiker gevonden. Log opnieuw in.");
 
-      // STAP 3: Koppel auth.users.id aan de bestaande rij in public.users
-      const { error: linkError } = await supabase
-        .from('users')
-        .update({ id: user.id })
-        .eq('email', user.email)
-        .is('id', null); // Extra veiligheid: koppel alleen als het nog niet gekoppeld is.
+      await supabase.from('users').update({ id: user.id }).eq('email', user.email).is('id', null);
+      await supabase.auth.updateUser({ password });
 
-      if (linkError) throw new Error(`Fout bij koppelen account: ${linkError.message}`);
-
-      // STAP 4: Update het wachtwoord in Supabase Auth
-      const { error: updateError } = await supabase.auth.updateUser({ password });
-      if (updateError) throw new Error(`Fout bij instellen wachtwoord: ${updateError.message}`);
-
-      // STAP 5: Registreer toestemming indien de gebruiker een leerling is
       if (userRole === 'leerling') {
-        const { error: consentError } = await supabase
-          .from('leerlingen')
-          .update({ toestemming_leaderboard: consent })
-          .eq('user_id', user.id); // Gaat ervan uit dat 'leerlingen.user_id' nu gekoppeld is.
-
-        // Een fout hier is niet fataal voor de login, dus we loggen het alleen.
-        if (consentError) {
-          console.error("Fout bij opslaan toestemming: ", consentError.message);
-          toast.error("Kon toestemming niet opslaan, maar account is wel ingesteld.");
-        }
+        await supabase.from('leerlingen').update({ toestemming_leaderboard: consent }).eq('user_id', user.id);
       }
 
-      // STAP 6: Markeer de onboarding als voltooid
-      const { error: onboardingError } = await supabase
-        .from('users')
-        .update({ onboarding_complete: true })
-        .eq('id', user.id);
+      await supabase.from('users').update({ onboarding_complete: true }).eq('id', user.id);
 
-      if (onboardingError) throw new Error(`Fout bij afronden installatie: ${onboardingError.message}`);
-
-      // STAP 7: Alles is klaar!
-      toast.success('Je account is succesvol ingesteld! Je wordt doorgestuurd.');
+      toast.success('Je account is succesvol ingesteld!');
       setTimeout(() => {
         navigate('/');
-        window.location.reload(); // Zorgt voor een schone state na de setup.
-      }, 2000);
+        window.location.reload();
+      }, 1500);
 
     } catch (error) {
       toast.error(error.message);
@@ -107,31 +73,35 @@ export default function SetupAccount() {
   };
 
   return (
+    // Verbeterde layout: gecentreerd, met achtergrondkleur en een mooie 'card' voor de content.
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <Toaster position="top-center" />
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-lg">
-        <h2 className="text-2xl font-bold text-center">Account Instellen</h2>
-        <p className="text-center text-gray-600">
-          Welkom <span className="font-bold">{userEmail}</span>! Stel een wachtwoord in om je account te activeren.
-        </p>
+        <div className="text-center">
+            <img src="/logo.png" alt="Sportscores Logo" className="mx-auto h-12 w-auto"/>
+            <h2 className="mt-6 text-2xl font-bold text-gray-900">Account Instellen</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Welkom <span className="font-medium">{userEmail}</span>! Kies een wachtwoord.
+            </p>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium">Nieuw Wachtwoord</label>
+            <label className="block text-sm font-medium text-gray-700">Nieuw Wachtwoord</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 mt-1 border rounded-md"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium">Bevestig Wachtwoord</label>
+            <label className="block text-sm font-medium text-gray-700">Bevestig Wachtwoord</label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3 py-2 mt-1 border rounded-md"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
               required
             />
           </div>
@@ -145,8 +115,8 @@ export default function SetupAccount() {
                 onChange={(e) => setConsent(e.target.checked)}
                 className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
               />
-              <label htmlFor="consent" className="ml-2 block text-sm text-gray-900">
-                Ja, mijn naam mag op de highscore-lijsten getoond worden.
+              <label htmlFor="consent" className="ml-3 block text-sm text-gray-900">
+                Ja, mijn naam mag op de highscore-lijsten.
               </label>
             </div>
           )}
@@ -154,7 +124,7 @@ export default function SetupAccount() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-2 font-bold text-white bg-purple-700 rounded-md hover:bg-purple-800 disabled:bg-gray-400"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:bg-gray-400"
           >
             {loading ? 'Bezig...' : 'Account Activeren'}
           </button>

@@ -23,28 +23,25 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Haal de initiële sessie op
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setLoading(false);
-    };
-    getSession();
-
-    // Luister naar veranderingen in de authenticatiestatus
+    setLoading(true);
+    // Deze listener is de enige bron van waarheid voor de auth-status.
+    // Hij wordt aangeroepen bij de eerste laadbeurt en bij elke wijziging.
+    // setLoading(false) wordt pas aangeroepen NADAT de eerste status bekend is.
+    // Dit lost het timingprobleem op na de redirect van de magic link.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      setLoading(false);
     });
 
-    // Zorg ervoor dat de subscription wordt opgeruimd
-    return () => subscription.unsubscribe();
+    // Ruim de listener op als de component verdwijnt.
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
-
-  // De logica om de UUID te koppelen is hier verwijderd.
-  // Dit wordt nu afgehandeld in de SetupAccount pagina.
-
+  
+  // Toon een laadindicator (of niets) zolang de auth-status wordt gecontroleerd.
   if (loading) {
-    return <div></div>; // Toon een lege pagina of laad-indicator
+    return <div></div>; 
   }
 
   return (
