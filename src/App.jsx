@@ -1,8 +1,7 @@
 // src/App.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-// We hebben supabase hier niet meer nodig voor de authenticatie-check.
-// import { supabase } from './supabaseClient'; 
+import { supabase } from './supabaseClient'; // Opnieuw ingeschakeld
 import Layout from './components/Layout';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
@@ -17,27 +16,25 @@ import NieuweTestafname from './pages/NieuweTestafname';
 import GroupDetail from './pages/GroupDetail';
 import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
 
-// Dit is de hardgecodeerde "wachtwoordkluis"
-const SITE_PASSWORD = 'geheim'; // Verander dit naar een eigen, sterk wachtwoord
+// --- CONFIGURATIE ---
+const SITE_PASSWORD = 'geheim'; // Het wachtwoord voor de "kluis"
 
-// Dit is de component die de gebruiker te zien krijgt bij het openen van de site.
-function PasswordGate({ onLogin }) {
+// VUL HIER DE GEGEVENS IN VAN EEN ECHTE, WERKENDE GEBRUIKER IN UW NIEUWE SUPABASE PROJECT
+// U moet eerst een gebruiker aanmaken en het onboarding proces (wachtwoord instellen) voltooien.
+const TEST_USER_EMAIL = 'uw-test-gebruiker@email.com';
+const TEST_USER_PASSWORD = 'wachtwoord-van-test-gebruiker';
+// --------------------
+
+
+// --- Wachtwoordkluis Component (onveranderd) ---
+function PasswordGate({ onCorrectPassword }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (password === SITE_PASSWORD) {
-      // Creëer een "nep" profiel om de rest van de app te laten werken.
-      // U kunt de rol aanpassen naar 'leerkracht' of 'leerling' om die weergave te testen.
-      const mockProfile = {
-        id: 'mock-user-id-123',
-        naam: 'Test Gebruiker',
-        email: 'test@sportscores.be',
-        rol: 'administrator',
-        onboarding_complete: true,
-      };
-      onLogin(mockProfile);
+      onCorrectPassword();
     } else {
       setError('Incorrect wachtwoord');
     }
@@ -49,45 +46,65 @@ function PasswordGate({ onLogin }) {
         <form onSubmit={handleSubmit}>
           <h2 className="text-2xl font-bold text-center mb-6">Toegang Beveiligd</h2>
           <div className="mb-4">
-            <label className="block text-gray-700 mb-2" htmlFor="password">
-              Wachtwoord
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="Voer het wachtwoord in"
-            />
+            <label className="block text-gray-700 mb-2" htmlFor="password">Wachtwoord</label>
+            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Voer het wachtwoord in"/>
           </div>
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-          <button
-            type="submit"
-            className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            Inloggen
-          </button>
+          <button type="submit" className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition-colors">Inloggen</button>
         </form>
       </div>
     </div>
   );
 }
 
-function App() {
-  // We gebruiken nu een 'profile' state in plaats van een 'session' state.
+// --- De daadwerkelijke applicatie die de Supabase-sessie beheert ---
+function AuthenticatedApp() {
   const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Als er geen profiel is (dus nog niet ingelogd), toon de wachtwoordkluis.
-  if (!profile) {
-    return <PasswordGate onLogin={setProfile} />;
+  useEffect(() => {
+    // Luister naar veranderingen in de authenticatiestatus
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const { data } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+        setProfile(data);
+      } else {
+        setProfile(null);
+      }
+      setLoading(false);
+    });
+
+    // Probeer direct in te loggen met de testgebruiker
+    const loginTestUser = async () => {
+      await supabase.auth.signInWithPassword({
+        email: TEST_USER_EMAIL,
+        password: TEST_USER_PASSWORD,
+      });
+    };
+    loginTestUser();
+
+    return () => subscription?.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Authenticeren met Supabase...</div>;
   }
 
-  // Zodra het juiste wachtwoord is ingevoerd, wordt het profiel ingesteld en wordt de app getoond.
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="p-8 bg-white rounded-lg shadow-md text-center">
+          <h2 className="text-xl font-bold text-red-600">Supabase Login Mislukt</h2>
+          <p className="mt-2 text-gray-700">Kon niet inloggen met de testgebruiker.</p>
+          <p className="mt-1 text-sm text-gray-500">Controleer de `TEST_USER_EMAIL` en `TEST_USER_PASSWORD` in `App.jsx`.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
       <Routes>
-        {/* We hebben de /setup-account en /wachtwoord-wijzigen routes hier even niet nodig */}
         <Route element={<ProtectedRoute profile={profile} />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Highscores />} />
@@ -100,12 +117,23 @@ function App() {
             <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
             <Route path="/testbeheer" element={<Testbeheer />} />
             <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
-             <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
+            <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
           </Route>
         </Route>
       </Routes>
     </BrowserRouter>
   );
+}
+
+// --- Hoofdcomponent die schakelt tussen de kluis en de app ---
+function App() {
+  const [siteUnlocked, setSiteUnlocked] = useState(false);
+
+  if (!siteUnlocked) {
+    return <PasswordGate onCorrectPassword={() => setSiteUnlocked(true)} />;
+  }
+
+  return <AuthenticatedApp />;
 }
 
 export default App;
