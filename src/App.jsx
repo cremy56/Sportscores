@@ -23,7 +23,7 @@ import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
 const REAL_USER_CREDENTIALS = {
   administrator: {
     email: 'cremy56@gmail.com',
-    password: 'KASporttesten',
+    password: 'KASporttesten!',
   },
   leerkracht: {
     email: 'uw-leerkracht-email@adres.com',
