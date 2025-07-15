@@ -1,7 +1,7 @@
 // src/App.jsx
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { supabase } from './supabaseClient'; // Opnieuw ingeschakeld
+import { supabase } from './supabaseClient'; // We hebben Supabase weer nodig
 import Layout from './components/Layout';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
@@ -21,8 +21,8 @@ const SITE_PASSWORD = 'geheim'; // Het wachtwoord voor de "kluis"
 
 // VUL HIER DE GEGEVENS IN VAN EEN ECHTE, WERKENDE GEBRUIKER IN UW NIEUWE SUPABASE PROJECT
 // U moet eerst een gebruiker aanmaken en het onboarding proces (wachtwoord instellen) voltooien.
-const TEST_USER_EMAIL = 'uw-test-gebruiker@email.com';
-const TEST_USER_PASSWORD = 'wachtwoord-van-test-gebruiker';
+const TEST_USER_EMAIL = 'cremy56@gmail.com';
+const TEST_USER_PASSWORD = 'KASporttesten!';
 // --------------------
 
 
@@ -66,6 +66,7 @@ function AuthenticatedApp() {
     // Luister naar veranderingen in de authenticatiestatus
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
+        // Zodra de gebruiker is ingelogd, halen we het ECHTE profiel op uit de database.
         const { data } = await supabase.from('users').select('*').eq('id', session.user.id).single();
         setProfile(data);
       } else {
@@ -76,10 +77,14 @@ function AuthenticatedApp() {
 
     // Probeer direct in te loggen met de testgebruiker
     const loginTestUser = async () => {
-      await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: TEST_USER_EMAIL,
         password: TEST_USER_PASSWORD,
       });
+      if (error) {
+        console.error("Supabase login error:", error);
+        setLoading(false); // Stop met laden als de login mislukt
+      }
     };
     loginTestUser();
 
