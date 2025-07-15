@@ -22,8 +22,8 @@ import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
 // al heeft voltooid.
 const REAL_USER_CREDENTIALS = {
   administrator: {
-    email: 'uw-admin-email@adres.com',
-    password: 'admin-wachtwoord',
+    email: 'cremy56@gmail.com',
+    password: 'KASporttesten',
   },
   leerkracht: {
     email: 'uw-leerkracht-email@adres.com',
