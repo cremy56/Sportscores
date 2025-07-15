@@ -1,7 +1,8 @@
 // src/App.jsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { supabase } from './supabaseClient'; // We hebben Supabase weer nodig
+// We hebben supabaseClient hier niet meer nodig voor de authenticatie.
+// import { supabase } from './supabaseClient'; 
 import Layout from './components/Layout';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
@@ -16,97 +17,78 @@ import NieuweTestafname from './pages/NieuweTestafname';
 import GroupDetail from './pages/GroupDetail';
 import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
 
-// --- CONFIGURATIE ---
-const SITE_PASSWORD = 'geheim'; // Het wachtwoord voor de "kluis"
+// --- LOKALE TESTGEBRUIKERS ---
+// We gebruiken deze hardgecodeerde profielen om de app te testen zonder Supabase Auth.
+const MOCK_PROFILES = {
+  administrator: {
+    id: '11111111-1111-1111-1111-111111111111',
+    naam: 'Admin Gebruiker',
+    email: 'admin@sportscores.be',
+    rol: 'administrator',
+    onboarding_complete: true,
+  },
+  leerkracht: {
+    id: '22222222-2222-2222-2222-222222222222',
+    naam: 'Test Leerkracht',
+    email: 'leerkracht@sportscores.be',
+    rol: 'leerkracht',
+    onboarding_complete: true,
+  },
+  leerling: {
+    id: '33333333-3333-3333-3333-333333333333',
+    naam: 'Test Leerling',
+    email: 'leerling@sportscores.be',
+    rol: 'leerling',
+    onboarding_complete: true,
+  },
+};
+// -----------------------------
 
-// VUL HIER DE GEGEVENS IN VAN EEN ECHTE, WERKENDE GEBRUIKER IN UW NIEUWE SUPABASE PROJECT
-// U moet eerst een gebruiker aanmaken en het onboarding proces (wachtwoord instellen) voltooien.
-const TEST_USER_EMAIL = 'cremy56@gmail.com';
-const TEST_USER_PASSWORD = 'KASporttesten!';
-// --------------------
 
-
-// --- Wachtwoordkluis Component (onveranderd) ---
-function PasswordGate({ onCorrectPassword }) {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (password === SITE_PASSWORD) {
-      onCorrectPassword();
-    } else {
-      setError('Incorrect wachtwoord');
-    }
-  };
-
+// --- Gebruikers-Selector Component ---
+// Deze component vervangt de wachtwoordkluis en de Supabase login.
+function UserSelector({ onLogin }) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-sm">
-        <form onSubmit={handleSubmit}>
-          <h2 className="text-2xl font-bold text-center mb-6">Toegang Beveiligd</h2>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2" htmlFor="password">Wachtwoord</label>
-            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Voer het wachtwoord in"/>
-          </div>
-          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-          <button type="submit" className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition-colors">Inloggen</button>
-        </form>
+      <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-sm text-center">
+        <h2 className="text-2xl font-bold mb-6">Selecteer een Rol</h2>
+        <p className="text-gray-600 mb-6">Log in als een testgebruiker om de applicatie te bekijken. De Supabase login is tijdelijk uitgeschakeld.</p>
+        <div className="space-y-4">
+          <button
+            onClick={() => onLogin(MOCK_PROFILES.administrator)}
+            className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Login als Administrator
+          </button>
+          <button
+            onClick={() => onLogin(MOCK_PROFILES.leerkracht)}
+            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Login als Leerkracht
+          </button>
+          <button
+            onClick={() => onLogin(MOCK_PROFILES.leerling)}
+            className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Login als Leerling
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// --- De daadwerkelijke applicatie die de Supabase-sessie beheert ---
-function AuthenticatedApp() {
+
+// --- Hoofdcomponent ---
+function App() {
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Luister naar veranderingen in de authenticatiestatus
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        // Zodra de gebruiker is ingelogd, halen we het ECHTE profiel op uit de database.
-        const { data } = await supabase.from('users').select('*').eq('id', session.user.id).single();
-        setProfile(data);
-      } else {
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-
-    // Probeer direct in te loggen met de testgebruiker
-    const loginTestUser = async () => {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: TEST_USER_EMAIL,
-        password: TEST_USER_PASSWORD,
-      });
-      if (error) {
-        console.error("Supabase login error:", error);
-        setLoading(false); // Stop met laden als de login mislukt
-      }
-    };
-    loginTestUser();
-
-    return () => subscription?.unsubscribe();
-  }, []);
-
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Authenticeren met Supabase...</div>;
-  }
-
+  // Als er geen profiel is (dus nog niet "ingelogd"), toon de gebruikers-selector.
   if (!profile) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="p-8 bg-white rounded-lg shadow-md text-center">
-          <h2 className="text-xl font-bold text-red-600">Supabase Login Mislukt</h2>
-          <p className="mt-2 text-gray-700">Kon niet inloggen met de testgebruiker.</p>
-          <p className="mt-1 text-sm text-gray-500">Controleer de `TEST_USER_EMAIL` en `TEST_USER_PASSWORD` in `App.jsx`.</p>
-        </div>
-      </div>
-    );
+    return <UserSelector onLogin={setProfile} />;
   }
 
+  // Zodra een rol is gekozen, wordt het profiel ingesteld en wordt de app getoond.
   return (
     <BrowserRouter>
       <Routes>
@@ -128,17 +110,6 @@ function AuthenticatedApp() {
       </Routes>
     </BrowserRouter>
   );
-}
-
-// --- Hoofdcomponent die schakelt tussen de kluis en de app ---
-function App() {
-  const [siteUnlocked, setSiteUnlocked] = useState(false);
-
-  if (!siteUnlocked) {
-    return <PasswordGate onCorrectPassword={() => setSiteUnlocked(true)} />;
-  }
-
-  return <AuthenticatedApp />;
 }
 
 export default App;
