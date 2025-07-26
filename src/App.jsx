@@ -20,7 +20,7 @@ import TestafnameDetail from './pages/TestafnameDetail';
 import NieuweTestafname from './pages/NieuweTestafname';
 import GroupDetail from './pages/GroupDetail';
 import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
-
+// Forceer een update voor de deployment
 // Een helper-component om de magic link-login af te handelen
 function HandleAuthRedirect() {
     const [loading, setLoading] = useState(true);
