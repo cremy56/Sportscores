@@ -9,6 +9,12 @@ export default defineConfig({
     historyApiFallback: true,
   },
 
+  resolve: {
+    alias: {
+      firebase: path.resolve(__dirname, 'node_modules/firebase'),
+    },
+  },
+
   optimizeDeps: {
     include: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
   },
