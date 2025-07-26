@@ -1,10 +1,15 @@
 // src/App.jsx
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { supabase } from './supabaseClient'; // We hebben Supabase weer nodig
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { auth, db } from './firebase';
+import { onAuthStateChanged, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+
+import Login from './Login';
 import Layout from './components/Layout';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
+import SetupAccount from './pages/SetupAccount';
 import ProtectedRoute from './components/ProtectedRoute';
 import Leerlingbeheer from './pages/Leerlingbeheer';
 import Groepsbeheer from './pages/Groepsbeheer';
@@ -16,129 +21,112 @@ import NieuweTestafname from './pages/NieuweTestafname';
 import GroupDetail from './pages/GroupDetail';
 import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
 
-// --- CONFIGURATIE ---
-// Vul hier de gegevens in van ECHTE, WERKENDE gebruikers in uw Supabase-project.
-// Voor elke rol die u wilt testen, heeft u een account nodig dat het onboarding-proces
-// al heeft voltooid.
-const REAL_USER_CREDENTIALS = {
-  administrator: {
-    email: 'cremy56@gmail.com',
-    password: '20_KAsporttesten_25?',
-  },
-  leerkracht: {
-    email: 'uw-leerkracht-email@adres.com',
-    password: 'leerkracht-wachtwoord',
-  },
-  leerling: {
-    email: 'uw-leerling-email@adres.com',
-    password: 'leerling-wachtwoord',
-  },
-};
-// --------------------
+// Een helper-component om de magic link-login af te handelen
+function HandleAuthRedirect() {
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+    const location = useLocation();
 
+    useEffect(() => {
+        const completeSignIn = async () => {
+            if (isSignInWithEmailLink(auth, window.location.href)) {
+                let email = window.localStorage.getItem('emailForSignIn');
+                if (!email) {
+                    email = window.prompt('Geef uw e-mailadres op ter bevestiging');
+                }
+                try {
+                    await signInWithEmailLink(auth, email, window.location.href);
+                    window.localStorage.removeItem('emailForSignIn');
+                } catch (error) {
+                    console.error("Fout bij inloggen met magic link:", error);
+                }
+            }
+            // Na de poging tot inloggen, navigeer naar de hoofdpagina
+            // De onAuthStateChanged listener zal de rest afhandelen.
+            navigate('/');
+        };
+        
+        completeSignIn();
+    }, [navigate, location]);
 
-// --- Gebruikers-Selector Component ---
-// Deze component start de ECHTE login-poging.
-function UserSelector({ onLoginAttempt }) {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-sm text-center">
-        <h2 className="text-2xl font-bold mb-6">Selecteer een Rol</h2>
-        <p className="text-gray-600 mb-6">Klik op een rol om te proberen in te loggen bij Supabase met een vooraf ingesteld testaccount.</p>
-        <div className="space-y-4">
-          <button
-            onClick={() => onLoginAttempt(REAL_USER_CREDENTIALS.administrator)}
-            className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            Login als Administrator
-          </button>
-          <button
-            onClick={() => onLoginAttempt(REAL_USER_CREDENTIALS.leerkracht)}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Login als Leerkracht
-          </button>
-          <button
-            onClick={() => onLoginAttempt(REAL_USER_CREDENTIALS.leerling)}
-            className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Login als Leerling
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    return <div>Bezig met inloggen...</div>;
 }
 
 
-// --- Hoofdcomponent ---
 function App() {
+  const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Functie om de login-poging te starten
-  const handleLoginAttempt = async (credentials) => {
-    setLoading(true);
-    setError(null);
-    const { data: { session }, error: loginError } = await supabase.auth.signInWithPassword(credentials);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        // Gebruiker is ingelogd, haal het profiel op
+        const userRef = doc(db, 'users', currentUser.uid);
+        const userSnap = await getDoc(userRef);
 
-    if (loginError) {
-      setError(loginError);
+        if (userSnap.exists()) {
+          // Profiel bestaat al
+          setProfile(userSnap.data());
+        } else {
+          // EERSTE LOGIN: Profiel bestaat nog niet, maak het aan.
+          const allowedUserRef = doc(db, 'toegestane_gebruikers', currentUser.email);
+          const allowedUserSnap = await getDoc(allowedUserRef);
+
+          if (allowedUserSnap.exists()) {
+            const initialProfileData = allowedUserSnap.data();
+            initialProfileData.email = currentUser.email; // Voeg e-mail toe
+            initialProfileData.onboarding_complete = false; // Zet onboarding op false
+            
+            // Maak het nieuwe document aan in de 'users' collectie
+            await setDoc(doc(db, 'users', currentUser.uid), initialProfileData);
+            setProfile(initialProfileData);
+          }
+        }
+      } else {
+        setProfile(null);
+      }
       setLoading(false);
-      return;
-    }
+    });
 
-    if (session?.user) {
-      const { data: profileData } = await supabase.from('users').select('*').eq('id', session.user.id).single();
-      setProfile(profileData);
-    }
-    setLoading(false);
-  };
+    return () => unsubscribe();
+  }, []);
 
-  // Als we aan het laden zijn na een klik
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Bezig met inloggen bij Supabase...</div>;
+    return <div></div>; // Toon een lege pagina tijdens het laden
   }
 
-  // Als er een fout is opgetreden
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="p-8 bg-white rounded-lg shadow-md text-center">
-          <h2 className="text-xl font-bold text-red-600">Supabase Login Mislukt</h2>
-          <p className="mt-2 text-gray-700">De bekende fout is opgetreden:</p>
-          <p className="mt-2 text-sm text-red-500 bg-red-50 p-2 rounded">{error.message}</p>
-          <button onClick={() => setError(null)} className="mt-4 px-4 py-2 bg-gray-200 rounded">Opnieuw proberen</button>
-        </div>
-      </div>
-    );
-  }
-
-  // Als er nog geen profiel is, toon de selector
-  if (!profile) {
-    return <UserSelector onLoginAttempt={handleLoginAttempt} />;
-  }
-
-  // Zodra de login succesvol is, toon de app
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<ProtectedRoute profile={profile} />}>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Highscores />} />
-            <Route path="/evolutie" element={<Evolutie />} />
-            <Route path="/leerlingbeheer" element={<Leerlingbeheer />} />
-            <Route path="/groepsbeheer" element={<Groepsbeheer />} />
-            <Route path="/groep/:groepId" element={<GroupDetail />} />
-            <Route path="/scores" element={<ScoresOverzicht />} />
-            <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
-            <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
-            <Route path="/testbeheer" element={<Testbeheer />} />
-            <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
+        {/* Een speciale route om de redirect van de magic link op te vangen */}
+        {window.location.pathname === '/' && isSignInWithEmailLink(auth, window.location.href) && <Route path="*" element={<HandleAuthRedirect />} />}
+
+        {/* Als er geen gebruiker is, toon de Login pagina */}
+        {!user ? (
+          <Route path="*" element={<Login />} />
+        ) : (
+          <>
+            <Route path="/setup-account" element={<SetupAccount />} />
             <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
-          </Route>
-        </Route>
+
+            <Route element={<ProtectedRoute profile={profile} />}>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Highscores />} />
+                <Route path="/evolutie" element={<Evolutie />} />
+                <Route path="/leerlingbeheer" element={<Leerlingbeheer />} />
+                <Route path="/groepsbeheer" element={<Groepsbeheer />} />
+                <Route path="/groep/:groepId" element={<GroupDetail />} />
+                <Route path="/scores" element={<ScoresOverzicht />} />
+                <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
+                <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
+                <Route path="/testbeheer" element={<Testbeheer />} />
+                <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
+              </Route>
+            </Route>
+          </>
+        )}
       </Routes>
     </BrowserRouter>
   );
