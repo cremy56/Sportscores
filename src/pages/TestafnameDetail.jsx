@@ -1,7 +1,7 @@
 // src/pages/TestafnameDetail.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import toast from 'react-hot-toast';
 import { TrashIcon, PencilSquareIcon, CheckIcon, XMarkIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
 

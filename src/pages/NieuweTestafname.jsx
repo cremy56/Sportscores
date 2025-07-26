@@ -1,7 +1,7 @@
 // src/pages/NieuweTestafname.jsx
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useOutletContext, useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 

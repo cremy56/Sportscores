@@ -1,7 +1,7 @@
 // src/components/TestFormModal.jsx
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import toast from 'react-hot-toast';
 
 export default function TestFormModal({ isOpen, onClose, onTestSaved, testData }) {

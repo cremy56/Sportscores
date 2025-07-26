@@ -1,6 +1,6 @@
 // src/components/StudentSearch.jsx
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 
 export default function StudentSearch({ onStudentSelect }) {
   const [searchTerm, setSearchTerm] = useState('');

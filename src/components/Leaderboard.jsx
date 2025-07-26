@@ -1,6 +1,6 @@
 // src/components/Leaderboard.jsx
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 
 function formatScore(score, eenheid) {
   if (eenheid === 'min') {

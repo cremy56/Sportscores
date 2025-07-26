@@ -3,7 +3,7 @@ import AddStudentForm from '../components/AddStudentForm';
 import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import toast from 'react-hot-toast';
 import Papa from 'papaparse';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 
 export default function Leerlingbeheer() {
   const [formKey, setFormKey] = useState(0);

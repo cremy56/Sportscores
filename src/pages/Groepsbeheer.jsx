@@ -1,7 +1,7 @@
 // src/pages/Groepsbeheer.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import GroupCard from '../components/GroupCard'; 
 import CreateGroupModal from '../components/CreateGroupModal';
 import toast from 'react-hot-toast';

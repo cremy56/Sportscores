@@ -1,6 +1,6 @@
 // src/components/EvolutionCard.jsx
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient'; 
+import { db } from '../firebase';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import EvolutionChart from './EvolutionChart';
 import { formatDate } from '../utils/formatters'; // <-- Importeer de nieuwe functie

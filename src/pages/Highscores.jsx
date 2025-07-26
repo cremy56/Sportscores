@@ -1,6 +1,6 @@
 // src/pages/Highscores.jsx
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import CategoryCard from '../components/CategoryCard'; // Importeer de nieuwe component
 
 export default function Highscores() {

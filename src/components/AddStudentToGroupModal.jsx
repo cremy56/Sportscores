@@ -1,6 +1,6 @@
 // src/components/AddStudentToGroupModal.jsx
 import Modal from 'react-modal';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import toast from 'react-hot-toast';
 import StudentSearch from './StudentSearch';
 

@@ -1,7 +1,7 @@
 // src/components/CreateGroupModal.jsx
 import { useState } from 'react';
 import Modal from 'react-modal';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import toast from 'react-hot-toast';
 
 export default function CreateGroupModal({ isOpen, onRequestClose, onGroupCreated, profile }) {

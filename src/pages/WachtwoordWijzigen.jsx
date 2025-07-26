@@ -1,6 +1,6 @@
 // src/pages/WachtwoordWijzigen.jsx
 import { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 

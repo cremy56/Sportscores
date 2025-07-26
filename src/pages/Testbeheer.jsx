@@ -1,7 +1,7 @@
 // src/pages/Testbeheer.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import toast from 'react-hot-toast';
 import TestFormModal from '../components/TestFormModal';
 import ConfirmModal from '../components/ConfirmModal';

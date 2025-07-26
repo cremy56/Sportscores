@@ -1,7 +1,7 @@
 // src/components/StudentImport.jsx
 import React, { useState } from 'react';
 import Papa from 'papaparse';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import toast from 'react-hot-toast';
 
 export default function StudentImport({ onImportComplete }) {

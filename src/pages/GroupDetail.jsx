@@ -1,7 +1,7 @@
 // src/pages/GroupDetail.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import toast from 'react-hot-toast';
 import { TrashIcon, PlusCircleIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
 import AddStudentToGroupModal from '../components/AddStudentToGroupModal';

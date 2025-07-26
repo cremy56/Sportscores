@@ -1,7 +1,7 @@
 // src/pages/Evolutie.jsx
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom'; // <-- Stap 1: Belangrijke import
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import StudentSearch from '../components/StudentSearch';
 import EvolutionCard from '../components/EvolutionCard';
 

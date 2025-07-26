@@ -1,5 +1,7 @@
+// src/components/Layout.jsx
 import { Outlet, NavLink, useOutletContext, Link, useLocation } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { auth } from '../firebase'; // Importeer Firebase auth
+import { signOut } from 'firebase/auth'; // Importeer de signOut functie
 import { Toaster } from 'react-hot-toast';
 import { useState, useRef, useEffect } from 'react';
 import { UserCircleIcon } from '@heroicons/react/24/outline';
@@ -30,9 +32,7 @@ export default function Layout() {
     '/wachtwoord-wijzigen': 'Wachtwoord wijzigen',
   };
 
-  // Bepaal de titel van de huidige route
   const currentTitle = routeTitles[location.pathname] || '';
-
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -44,8 +44,14 @@ export default function Layout() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // De uitlog-functie is nu aangepast voor Firebase.
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await signOut(auth);
+      // De onAuthStateChanged listener in App.jsx zal de rest afhandelen.
+    } catch (error) {
+      console.error("Fout bij uitloggen:", error);
+    }
   };
 
   return (
@@ -58,7 +64,7 @@ export default function Layout() {
             {/* Hamburger knop mobiel */}
             <button
               onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="md:hidden p-2 text-black hover:text-purple-700 bg-white rounded" // wit achtergrondje en zwarte tekst
+              className="md:hidden p-2 text-black hover:text-purple-700 bg-white rounded"
               aria-label="Toggle menu"
             >
               <Bars3Icon className="w-6 h-6 text-black" />
@@ -128,44 +134,20 @@ export default function Layout() {
           `}
             onClick={() => setMobileMenuOpen(false)}
           >
-            <li>
-              <NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
-                Highscores
-              </NavLink>
-            </li>
-            <li>
-              <NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
-                {evolutieLinkText}
-              </NavLink>
-            </li>
+            <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
+            <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
 
             {isTeacherOrAdmin && (
               <>
-                <li>
-                  <NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
-                    Groepsbeheer
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
-                    Scores
-                  </NavLink>
-                </li>
+                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+                <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
               </>
             )}
 
             {activeRole === 'administrator' && (
               <>
-                <li>
-                  <NavLink to="/leerlingbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
-                    Leerlingbeheer
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
-                    Testbeheer
-                  </NavLink>
-                </li>
+                <li><NavLink to="/leerlingbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Leerlingbeheer</NavLink></li>
+                <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Testbeheer</NavLink></li>
               </>
             )}
           </ul>
@@ -192,16 +174,8 @@ export default function Layout() {
 
                 {profile?.rol === 'administrator' && (
                   <div className="mb-4">
-                    <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">
-                      Wissel rol
-                    </label>
-                    <select
-                      id="role-switcher"
-                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                      value={activeRole}
-                      onChange={(e) => setActiveRole(e.target.value)}
-                      title="Switch rol"
-                    >
+                    <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">Wissel rol</label>
+                    <select id="role-switcher" className="w-full border border-gray-300 rounded px-2 py-1 text-sm" value={activeRole} onChange={(e) => setActiveRole(e.target.value)} title="Switch rol">
                       <option value="administrator">Administrator</option>
                       <option value="leerkracht">Leerkracht</option>
                       <option value="leerling">Leerling</option>
@@ -210,11 +184,7 @@ export default function Layout() {
                 )}
 
                 <hr className="my-2" />
-                <Link
-                  to="/wachtwoord-wijzigen"
-                  className="w-full block px-2 py-1 text-sm text-purple-700 hover:bg-purple-50 rounded-md"
-                  onClick={() => setMenuOpen(false)}
-                >
+                <Link to="/wachtwoord-wijzigen" className="w-full block px-2 py-1 text-sm text-purple-700 hover:bg-purple-50 rounded-md" onClick={() => setMenuOpen(false)}>
                   Wachtwoord wijzigen
                 </Link>
                 <button

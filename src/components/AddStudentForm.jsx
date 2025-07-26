@@ -1,6 +1,6 @@
 // src/components/AddStudentForm.jsx
 import { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import toast from 'react-hot-toast';
 
 export default function AddStudentForm({ onStudentAdded }) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { db } from '../firebase';
 import toast from 'react-hot-toast';
 import { TrashIcon } from '@heroicons/react/24/solid';
 import ConfirmModal from '../components/ConfirmModal';
