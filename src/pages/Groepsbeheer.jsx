@@ -83,18 +83,14 @@ export default function Groepsbeheer() {
     <>
       <Toaster position="top-center" />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
-        {/* Header Section - Same style as Highscores */}
+        {/* Header Section */}
         <div className="max-w-7xl mx-auto mb-12">
           <div className="text-center">
-          
-            {/* Subtitle */}
             <p className="text-xl text-gray-600 font-medium">
               Mijn groepen
             </p>
-            
-            {/* Decorative Line */}
-            <div className="mt-8 flex justify-center">
-              <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+            <div className="mt-6 flex justify-center">
+              <div className="w-20 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
             </div>
           </div>
         </div>
@@ -102,17 +98,13 @@ export default function Groepsbeheer() {
         {/* Content Section */}
         <div className="max-w-7xl mx-auto">
           {/* Action Button */}
-          <div className="flex justify-right mb-12">
+          <div className="flex justify-end mb-8">
             <button
               onClick={() => setShowModal(true)}
-              className="group bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-2xl shadow-1xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 border border-white/20 backdrop-blur-lg"
+              className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full sm:px-5 sm:py-3 sm:rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
             >
-              <div className="flex items-center space-x-3">
-                <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
-                  <PlusIcon className="h-6 w-6" />
-                </div>
-                <span className="text-lg font-semibold">Nieuwe Groep Aanmaken</span>
-              </div>
+              <PlusIcon className="h-6 w-6" />
+              <span className="hidden sm:inline sm:ml-2">Nieuwe Groep Aanmaken</span>
             </button>
           </div>
 
@@ -142,48 +134,22 @@ export default function Groepsbeheer() {
                   className="group block transform transition-all duration-300 hover:scale-105"
                 >
                   <div className="bg-white/70 backdrop-blur-lg rounded-3xl shadow-lg border border-white/20 overflow-hidden group-hover:shadow-2xl transition-all duration-300">
-                    {/* Card Header */}
-                    <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-6 border-b border-white/10">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h2 className="text-xl font-bold text-gray-900 group-hover:text-purple-700 transition-colors duration-300 line-clamp-2">
-                            {groep.naam}
-                          </h2>
-                        </div>
+                    {/* Card Content */}
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-gray-900 group-hover:text-purple-700 transition-colors duration-300 line-clamp-2 flex-1">
+                          {groep.naam}
+                        </h2>
                         <div className="bg-gradient-to-br from-purple-100 to-blue-100 p-3 rounded-2xl ml-4">
                           <AcademicCapIcon className="h-6 w-6 text-purple-600" />
                         </div>
                       </div>
-                    </div>
-                    
-                    {/* Card Content */}
-                    <div className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2 text-gray-600">
-                          <UsersIcon className="h-5 w-5" />
-                          <span className="text-sm font-medium">
-                            {groep.leerling_ids.length} {groep.leerling_ids.length === 1 ? 'leerling' : 'leerlingen'}
-                          </span>
-                        </div>
-                        
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-gray-800">
-                            {groep.leerling_ids.length}
-                          </div>
-                          <div className="text-xs text-gray-500 uppercase tracking-wide">
-                            Actief
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Card Action */}
-                    <div className="px-6 pb-6">
-                      <div className="flex items-center text-purple-600 group-hover:text-purple-700 transition-colors">
-                        <span className="text-sm font-semibold">Groep beheren</span>
-                        <svg className="ml-2 h-4 w-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                      
+                      <div className="flex items-center space-x-2 text-gray-600">
+                        <UsersIcon className="h-5 w-5" />
+                        <span className="text-sm font-medium">
+                          {groep.leerling_ids.length} {groep.leerling_ids.length === 1 ? 'leerling' : 'leerlingen'}
+                        </span>
                       </div>
                     </div>
                   </div>
