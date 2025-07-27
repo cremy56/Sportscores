@@ -4,11 +4,12 @@ import { auth } from '../firebase'; // Importeer Firebase auth
 import { signOut } from 'firebase/auth'; // Importeer de signOut functie
 import { Toaster } from 'react-hot-toast';
 import { useState, useRef, useEffect } from 'react';
-import { UserCircleIcon } from '@heroicons/react/24/outline';
+import { UserCircleIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'; // Cog6ToothIcon toegevoegd
 import { Bars3Icon } from '@heroicons/react/24/solid';
 
 export default function Layout() {
-  const { profile } = useOutletContext();
+  // Haal nu ook 'school' op uit de context die door ProtectedRoute wordt geleverd
+  const { profile, school } = useOutletContext();
   const location = useLocation();
   const [activeRole, setActiveRole] = useState(profile?.rol || 'leerling');
 
@@ -29,6 +30,7 @@ export default function Layout() {
     '/scores': 'Scores',
     '/leerlingbeheer': 'Leerlingbeheer',
     '/testbeheer': 'Testbeheer',
+    '/schoolbeheer': 'Schoolbeheer', // <-- TOEGEVOEGD
     '/wachtwoord-wijzigen': 'Wachtwoord wijzigen',
   };
 
@@ -44,11 +46,9 @@ export default function Layout() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // De uitlog-functie is nu aangepast voor Firebase.
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // De onAuthStateChanged listener in App.jsx zal de rest afhandelen.
     } catch (error) {
       console.error("Fout bij uitloggen:", error);
     }
@@ -59,9 +59,7 @@ export default function Layout() {
       <Toaster position="top-center" />
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20">
         <nav className="container mx-auto px-4 py-2 flex items-center justify-between">
-          {/* Links: hamburger + logo */}
           <div className="flex items-center space-x-4">
-            {/* Hamburger knop mobiel */}
             <button
               onClick={() => setMobileMenuOpen((prev) => !prev)}
               className="md:hidden p-2 text-black hover:text-purple-700 bg-white rounded"
@@ -70,20 +68,17 @@ export default function Layout() {
               <Bars3Icon className="w-6 h-6 text-black" />
             </button>
 
-            {/* Logo */}
             <NavLink to="/" className="block h-8">
               <img
-                src="/logo.png"
-                alt="Sportscores Logo"
+                src={school?.logo_url || "/logo.png"} // Gebruik het schoollogo als het bestaat
+                alt={`${school?.naam || 'Sportscores'} Logo`}
                 className="h-full w-auto object-contain"
               />
             </NavLink>
           </div>
-            {/* Titel midden op mobiel */}
-               <div className="flex-grow text-center md:hidden">
-                  <h1 className="text-lg font-semibold text-gray-800">{currentTitle}</h1>
-               </div>
-          {/* Desktop navigatie */}
+          <div className="flex-grow text-center md:hidden">
+            <h1 className="text-lg font-semibold text-gray-800">{currentTitle}</h1>
+          </div>
           <ul className="hidden md:flex items-center space-x-8 flex-grow mx-8">
             <li>
               <NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
@@ -123,11 +118,16 @@ export default function Layout() {
                     Testbeheer
                   </NavLink>
                 </li>
+                {/* --- NIEUWE LINK --- */}
+                <li>
+                  <NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                    Schoolbeheer
+                  </NavLink>
+                </li>
               </>
             )}
           </ul>
 
-          {/* Mobiele navigatie dropdown */}
         <ul
           className={`mobile-menu bg-white text-black dark:bg-white dark:text-black md:hidden absolute top-full left-0 right-0 border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
            ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
@@ -148,11 +148,12 @@ export default function Layout() {
               <>
                 <li><NavLink to="/leerlingbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Leerlingbeheer</NavLink></li>
                 <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Testbeheer</NavLink></li>
+                {/* --- NIEUWE LINK --- */}
+                <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
               </>
             )}
           </ul>
 
-          {/* Gebruikersicoon + menu helemaal rechts */}
           <div className="relative ml-4 flex-shrink-0" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((prev) => !prev)}
@@ -167,9 +168,7 @@ export default function Layout() {
                 <div className="mb-2">
                   <p className="text-sm text-gray-500">Ingelogd als</p>
                   <p className="font-semibold text-gray-900">{profile?.naam || profile?.email}</p>
-                  {profile?.rol === 'administrator' && (
-                    <p className="text-xs text-gray-400 mt-1">Rol: {profile?.rol}</p>
-                  )}
+                  <p className="text-xs text-gray-400 mt-1">School: {school?.naam || 'Niet gevonden'}</p>
                 </div>
 
                 {profile?.rol === 'administrator' && (
@@ -200,7 +199,8 @@ export default function Layout() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Outlet context={{ profile, activeRole }} />
+        {/* Geef nu ook 'school' door aan de onderliggende paginas */}
+        <Outlet context={{ profile, school, activeRole }} />
       </main>
     </div>
   );
