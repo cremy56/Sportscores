@@ -80,25 +80,42 @@ export default function Groepsbeheer() {
       <Toaster position="top-center" />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
         
-        {/* --- AANGEPASTE HEADER SECTIE --- */}
-        <div className="max-w-7xl mx-auto mb-8">
+        {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
+        <div className="lg:hidden max-w-7xl mx-auto mb-8">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-              Mijn groepen
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-800">Mijn groepen</h1>
             <button
               onClick={() => setShowModal(true)}
-              className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full sm:px-5 sm:py-3 sm:rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+              className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg"
             >
               <PlusIcon className="h-6 w-6" />
-              <span className="hidden sm:inline sm:ml-2">Nieuwe Groep</span>
             </button>
           </div>
         </div>
 
-        {/* --- Content Sectie --- */}
+        {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
+        <div className="hidden lg:block max-w-7xl mx-auto mb-12">
+          <div className="text-center">
+            <p className="text-xl text-gray-600 font-medium">
+              Mijn groepen
+            </p>
+            <div className="mt-6 flex justify-center">
+              <div className="w-20 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+            </div>
+          </div>
+        </div>
+
         <div className="max-w-7xl mx-auto">
-          {/* De knop is hierboven verplaatst, dus deze sectie is leeg */}
+          {/* --- DESKTOP BUTTON: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
+          <div className="hidden lg:flex justify-end mb-8">
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+            >
+              <PlusIcon className="h-6 w-6" />
+              <span className="ml-2">Nieuwe Groep Aanmaken</span>
+            </button>
+          </div>
 
           {groepen.length === 0 ? (
             <div className="bg-white/80 backdrop-blur-lg text-center p-12 rounded-3xl shadow-2xl border border-white/20 max-w-2xl mx-auto">
@@ -149,7 +166,7 @@ export default function Groepsbeheer() {
           )}
           
           {groepen.length > 0 && (
-            <div className="mt-12 lg:mt-16 text-center">
+            <div className="mt-16 text-center">
               <div className="bg-white/60 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block">
                 <div className="flex items-center space-x-8 text-sm text-gray-600">
                   <div className="flex items-center space-x-2">
