@@ -6,7 +6,7 @@ import { onAuthStateChanged, isSignInWithEmailLink, signInWithEmailLink } from '
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 import Login from './Login';
-import Register from './pages/Register'; // Importeer de nieuwe pagina
+import Register from './Register'; // CORRECTIE: Pad aangepast
 import Layout from './components/Layout';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
