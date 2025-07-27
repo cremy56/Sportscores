@@ -1,11 +1,12 @@
 // src/App.jsx
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 import Login from './Login';
+import Register from './pages/Register'; // Importeer de nieuwe pagina
 import Layout from './components/Layout';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
@@ -20,12 +21,10 @@ import TestafnameDetail from './pages/TestafnameDetail';
 import NieuweTestafname from './pages/NieuweTestafname';
 import GroupDetail from './pages/GroupDetail';
 import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
-// Forceer een update voor de deployment
+
 // Een helper-component om de magic link-login af te handelen
 function HandleAuthRedirect() {
-    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
-    const location = useLocation();
 
     useEffect(() => {
         const completeSignIn = async () => {
@@ -34,20 +33,22 @@ function HandleAuthRedirect() {
                 if (!email) {
                     email = window.prompt('Geef uw e-mailadres op ter bevestiging');
                 }
-                try {
-                    await signInWithEmailLink(auth, email, window.location.href);
-                    window.localStorage.removeItem('emailForSignIn');
-                } catch (error) {
-                    console.error("Fout bij inloggen met magic link:", error);
+                if (email) {
+                    try {
+                        await signInWithEmailLink(auth, email, window.location.href);
+                        window.localStorage.removeItem('emailForSignIn');
+                    } catch (error) {
+                        console.error("Fout bij inloggen met magic link:", error);
+                    }
                 }
             }
-            // Na de poging tot inloggen, navigeer naar de hoofdpagina
+            // Na de poging tot inloggen, navigeer naar de hoofdpagina.
             // De onAuthStateChanged listener zal de rest afhandelen.
             navigate('/');
         };
         
         completeSignIn();
-    }, [navigate, location]);
+    }, [navigate]);
 
     return <div>Bezig met inloggen...</div>;
 }
@@ -100,32 +101,43 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Een speciale route om de redirect van de magic link op te vangen */}
-        {window.location.pathname === '/' && isSignInWithEmailLink(auth, window.location.href) && <Route path="*" element={<HandleAuthRedirect />} />}
-
-        {/* Als er geen gebruiker is, toon de Login pagina */}
+        {/* De routes voor niet-ingelogde gebruikers */}
         {!user ? (
-          <Route path="*" element={<Login />} />
+            <>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                {/* Een speciale route om de redirect van de magic link op te vangen */}
+                {isSignInWithEmailLink(auth, window.location.href) ? (
+                    <Route path="*" element={<HandleAuthRedirect />} />
+                ) : (
+                    /* Stuur alle andere routes naar de login pagina */
+                    <Route path="*" element={<Navigate to="/login" />} />
+                )}
+            </>
         ) : (
-          <>
-            <Route path="/setup-account" element={<SetupAccount />} />
-            <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
+            /* De routes voor ingelogde gebruikers */
+            <>
+                <Route path="/setup-account" element={<SetupAccount />} />
+                <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
 
-            <Route element={<ProtectedRoute profile={profile} />}>
-              <Route element={<Layout />}>
-                <Route path="/" element={<Highscores />} />
-                <Route path="/evolutie" element={<Evolutie />} />
-                <Route path="/leerlingbeheer" element={<Leerlingbeheer />} />
-                <Route path="/groepsbeheer" element={<Groepsbeheer />} />
-                <Route path="/groep/:groepId" element={<GroupDetail />} />
-                <Route path="/scores" element={<ScoresOverzicht />} />
-                <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
-                <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
-                <Route path="/testbeheer" element={<Testbeheer />} />
-                <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
-              </Route>
-            </Route>
-          </>
+                <Route element={<ProtectedRoute profile={profile} />}>
+                    <Route element={<Layout />}>
+                        <Route path="/" element={<Highscores />} />
+                        <Route path="/evolutie" element={<Evolutie />} />
+                        <Route path="/leerlingbeheer" element={<Leerlingbeheer />} />
+                        <Route path="/groepsbeheer" element={<Groepsbeheer />} />
+                        <Route path="/groep/:groepId" element={<GroupDetail />} />
+                        <Route path="/scores" element={<ScoresOverzicht />} />
+                        <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
+                        <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
+                        <Route path="/testbeheer" element={<Testbeheer />} />
+                        <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
+                    </Route>
+                </Route>
+                {/* Stuur een ingelogde gebruiker die naar /login of /register gaat naar de homepagina */}
+                <Route path="/login" element={<Navigate to="/" />} />
+                <Route path="/register" element={<Navigate to="/" />} />
+            </>
         )}
       </Routes>
     </BrowserRouter>
