@@ -89,7 +89,7 @@ export default function Groepsbeheer() {
           
             {/* Subtitle */}
             <p className="text-xl text-gray-600 font-medium">
-              Beheer uw klassen en leerlingengroepen
+              Mijn groepen
             </p>
             
             {/* Decorative Line */}
@@ -102,7 +102,7 @@ export default function Groepsbeheer() {
         {/* Content Section */}
         <div className="max-w-7xl mx-auto">
           {/* Action Button */}
-          <div className="flex justify-center mb-12">
+          <div className="flex justify-right mb-12">
             <button
               onClick={() => setShowModal(true)}
               className="group bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-2xl shadow-1xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 border border-white/20 backdrop-blur-lg"
