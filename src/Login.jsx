@@ -34,7 +34,7 @@ export default function Login() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <Toaster position="top-center" />
       
-      <div className="p-8 space-y-8 bg-red-100 border-4 border-red-500 rounded-2xl shadow-lg" style={{ width: '600px', maxWidth: '90vw' }}>
+      <div className="p-8 space-y-8 bg-white rounded-2xl shadow-lg" style={{ width: '600px', maxWidth: '90vw' }}>
         <div>
           <img
             src="/logo.png"
