@@ -1,8 +1,8 @@
+/* Verwijder de beperkende CSS voor #root */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  /* Laat de root het hele scherm vullen zonder beperkingen */
+  width: 100%;
+  height: 100vh;
 }
 
 .logo {
