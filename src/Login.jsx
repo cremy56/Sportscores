@@ -34,7 +34,7 @@ export default function Login() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <Toaster position="top-center" />
       
-      <div className="w-full max-w-sm sm:max-w-md md:max-w-3xl lg:max-w-4xl xl:max-w-5xl p-8 space-y-8 bg-red-100 border-4 border-red-500 rounded-2xl shadow-lg">
+      <div className="w-full max-w-3xl p-8 space-y-8 bg-red-100 border-4 border-red-500 rounded-2xl shadow-lg">
         <div>
           <img
             src="/logo.png"
