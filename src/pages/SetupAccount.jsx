@@ -1,14 +1,14 @@
 // src/pages/SetupAccount.jsx
 import { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
-import { updatePassword } from 'firebase/auth';
+import { updatePassword, sendSignInLinkToEmail } from 'firebase/auth'; // sendSignInLinkToEmail toegevoegd
 import { doc, updateDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
-// Een aparte component voor de popup
-function SessionExpiredModal({ onClose }) {
+// De popup component is aangepast om een laadstatus te tonen
+function SessionExpiredModal({ onClose, isResending }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center border border-gray-200">
@@ -22,10 +22,11 @@ function SessionExpiredModal({ onClose }) {
         <div className="mt-6">
           <button
             type="button"
-            className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-2xl hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:ring-offset-2 transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+            className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-2xl hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:ring-offset-2 transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-lg disabled:opacity-70"
             onClick={onClose}
+            disabled={isResending}
           >
-            Nieuwe link aanvragen
+            {isResending ? 'Bezig met verzenden...' : 'Nieuwe link aanvragen'}
           </button>
         </div>
       </div>
@@ -44,8 +45,8 @@ export default function SetupAccount() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
-  // State om de zichtbaarheid van de popup te beheren
   const [showSessionExpiredModal, setShowSessionExpiredModal] = useState(false);
+  const [isResending, setIsResending] = useState(false); // State voor de laadstatus van de popupknop
 
   useEffect(() => {
     if (auth.currentUser) {
@@ -81,7 +82,6 @@ export default function SetupAccount() {
       navigate('/');
 
     } catch (error) {
-      // Verbeterde foutafhandeling: toon de popup bij de specifieke fout
       if (error.code === 'auth/requires-recent-login') {
         setShowSessionExpiredModal(true);
       } else {
@@ -93,9 +93,36 @@ export default function SetupAccount() {
     }
   };
 
+  // Functie om de link opnieuw te verzenden
+  const handleResendLink = async () => {
+    if (!userEmail) {
+      toast.error('E-mailadres niet gevonden. Ga terug en probeer opnieuw.');
+      return;
+    }
+    setIsResending(true);
+
+    const actionCodeSettings = {
+      url: window.location.origin,
+      handleCodeInApp: true,
+    };
+
+    try {
+      await sendSignInLinkToEmail(auth, userEmail, actionCodeSettings);
+      window.localStorage.setItem('emailForSignIn', userEmail);
+      toast.success('Nieuwe registratielink verzonden! Controleer uw e-mail.');
+      setShowSessionExpiredModal(false);
+      navigate('/login'); // Stuur gebruiker naar de loginpagina
+    } catch (error) {
+      toast.error('Kon de link niet verzenden. Probeer het later opnieuw.');
+      console.error("Error resending link:", error);
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <>
-      {showSessionExpiredModal && <SessionExpiredModal onClose={() => navigate('/register')} />}
+      {showSessionExpiredModal && <SessionExpiredModal onClose={handleResendLink} isResending={isResending} />}
 
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 flex items-center justify-center p-4">
         <Toaster position="top-center" />
