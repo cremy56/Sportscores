@@ -1,6 +1,7 @@
 // src/components/StudentSearch.jsx
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function StudentSearch({ onStudentSelect }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -8,33 +9,53 @@ export default function StudentSearch({ onStudentSelect }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!searchTerm) {
+    // Stop als de zoekterm te kort is
+    if (searchTerm.length < 2) {
       setResults([]);
       return;
     }
-    setLoading(true);
-    const delayDebounceFn = setTimeout(() => {
-      supabase.rpc('search_students', { p_search_term: searchTerm })
-        .then(({ data, error }) => {
-          if (error) console.error(error);
-          else setResults(data);
-          setLoading(false);
-        });
+
+    const delayDebounceFn = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const searchTermLower = searchTerm.toLowerCase();
+        const usersRef = collection(db, 'toegestane_gebruikers');
+        
+        // De nieuwe Firestore query
+        const q = query(
+          usersRef,
+          where('rol', '==', 'leerling'),
+          where('naam_keywords', 'array-contains', searchTermLower)
+        );
+
+        const querySnapshot = await getDocs(q);
+        const studentResults = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        setResults(studentResults);
+      } catch (error) {
+        console.error("Fout bij het zoeken naar leerlingen:", error);
+        // Eventueel een toast-notificatie hier toevoegen voor de gebruiker
+      }
+      setLoading(false);
     }, 300);
+
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
 
   const handleSelect = (student) => {
-  onStudentSelect(student); // <-- Geef het hele object door
-  setSearchTerm('');
-  setResults([]);
-};
+    onStudentSelect(student); // Geef het hele student-object door
+    setSearchTerm(''); // Maak de zoekvelden leeg na selectie
+    setResults([]);
+  };
 
   return (
     <div className="relative">
       <input
         type="text"
-        placeholder="Start met een hoofdletter"
+        placeholder="Zoek op voor- of achternaam..." // Duidelijkere placeholder
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         className="w-full px-4 py-2 border rounded-lg shadow-sm"

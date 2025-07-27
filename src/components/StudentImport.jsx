@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import Papa from 'papaparse';
 import { db } from '../firebase';
+import { writeBatch, doc } from 'firebase/firestore'; // Belangrijke imports
 import toast from 'react-hot-toast';
 
 export default function StudentImport({ onImportComplete }) {
@@ -14,7 +15,7 @@ export default function StudentImport({ onImportComplete }) {
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-        delimiter: ";", // <-- DE OPLOSSING: Vertel de parser om semicolons te gebruiken
+        delimiter: ";",
         complete: async (results) => {
           if (!results.data || results.data.length === 0) {
             toast.error("CSV-bestand is leeg of incorrect geformatteerd.");
@@ -22,21 +23,43 @@ export default function StudentImport({ onImportComplete }) {
             return;
           }
 
-          const promise = supabase.rpc('bulk_add_student_profiles', {
-            students: results.data
+          const processedStudents = results.data.map(student => {
+            if (typeof student.naam !== 'string' || !student.naam) {
+              return { ...student, naam_keywords: [] };
+            }
+            return {
+              ...student,
+              naam_keywords: student.naam.toLowerCase().split(' ')
+            };
           });
 
-          toast.promise(promise, {
-            loading: 'Bezig met importeren...',
-            success: (response) => {
-              if (response.error) throw new Error(response.error.message);
-              onImportComplete();
-              return response.data;
-            },
-            error: (err) => `Fout bij importeren: ${err.message}`
-          });
-          
-          setLoading(false);
+          // ---- FIREBASE LOGICA START ----
+          const loadingToast = toast.loading('Bezig met importeren...');
+          try {
+            // Maak een nieuwe "batch" aan voor meerdere schrijfacties
+            const batch = writeBatch(db);
+
+            processedStudents.forEach((student) => {
+              // Maak een referentie naar een nieuw document in 'toegestane_gebruikers'
+              // met de email als unieke ID.
+              const docRef = doc(db, 'toegestane_gebruikers', student.email);
+              batch.set(docRef, student); // Voeg de operatie toe aan de batch
+            });
+
+            await batch.commit(); // Voer alle operaties in één keer uit
+
+            toast.dismiss(loadingToast);
+            toast.success(`${processedStudents.length} leerlingen succesvol geïmporteerd!`);
+            onImportComplete();
+
+          } catch (error) {
+            toast.dismiss(loadingToast);
+            toast.error(`Fout bij importeren: ${error.message}`);
+            console.error("Fout bij importeren:", error);
+          } finally {
+            setLoading(false);
+          }
+          // ---- FIREBASE LOGICA EIND ----
         },
         error: (error) => {
           toast.error(`Fout bij het lezen van CSV: ${error.message}`);

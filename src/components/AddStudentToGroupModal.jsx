@@ -1,37 +1,33 @@
 // src/components/AddStudentToGroupModal.jsx
 import Modal from 'react-modal';
 import { db } from '../firebase';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore'; // Belangrijke imports voor Firestore
 import toast from 'react-hot-toast';
 import StudentSearch from './StudentSearch';
 
 export default function AddStudentToGroupModal({ isOpen, onRequestClose, group, onStudentAdded }) {
   if (!group) return null;
 
-  const handleStudentSelect = async (userId, studentName) => {
+  const handleStudentSelect = async (student) => {
     const loadingToast = toast.loading('Bezig met toevoegen...');
 
-    const { data, error } = await supabase.rpc('add_student_to_group', {
-        p_groep_id: group.groep_id,
-        p_user_id: userId
-    });
+    try {
+      // Definieer de referentie naar het specifieke groepsdocument
+      const groupRef = doc(db, 'groepen', group.id);
 
-    toast.dismiss(loadingToast); // Verwijder de "laden..." toast
+      // Voeg de ID van de leerling toe aan de 'leerling_ids' array in Firestore
+      await updateDoc(groupRef, {
+        leerling_ids: arrayUnion(student.id)
+      });
+      
+      toast.dismiss(loadingToast);
+      toast.success('Leerling succesvol toegevoegd!');
+      onStudentAdded(); // Ververs de lijst in de ouder-component
 
-    if (error) {
-        toast.error(`Fout: ${error.message}`);
-    } else {
-        // Toon het bericht dat we van de functie terugkrijgen
-        // 'data' bevat nu onze tekst, bv. "Succes: Leerling toegevoegd..."
-        if (data.includes('Fout')) {
-            toast.error(data);
-        } else if (data.includes('Info')) {
-            toast(data, { icon: 'ℹ️' }); // Een neutrale info-toast
-        }
-        else {
-            toast.success(data);
-        }
-        // Ververs altijd de lijst in de ouder-component
-        onStudentAdded(); 
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error('Kon de leerling niet toevoegen.');
+      console.error("Fout bij toevoegen leerling:", error);
     }
   };
 
@@ -50,7 +46,7 @@ export default function AddStudentToGroupModal({ isOpen, onRequestClose, group, 
           }
       }}
     >
-      <h2 className="text-2xl font-bold mb-4">Voeg leerling toe aan "{group.groep_naam}"</h2>
+      <h2 className="text-2xl font-bold mb-4">Voeg leerling toe aan "{group.naam}"</h2>
       <StudentSearch onStudentSelect={handleStudentSelect} />
       <div className="flex justify-end mt-6">
         <button onClick={onRequestClose} className="bg-gray-200 py-2 px-4 rounded-lg">Klaar</button>
