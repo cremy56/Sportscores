@@ -1,7 +1,7 @@
 // src/pages/SetupAccount.jsx
 import { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
-import { updatePassword, sendSignInLinkToEmail } from 'firebase/auth'; // sendSignInLinkToEmail toegevoegd
+import { updatePassword, sendSignInLinkToEmail, signOut } from 'firebase/auth'; // signOut toegevoegd
 import { doc, updateDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
@@ -107,11 +107,17 @@ export default function SetupAccount() {
     };
 
     try {
+      // STAP 1: Log de gebruiker met de verlopen sessie eerst volledig uit.
+      await signOut(auth);
+
+      // STAP 2: Stuur nu een nieuwe, schone inloglink.
       await sendSignInLinkToEmail(auth, userEmail, actionCodeSettings);
       window.localStorage.setItem('emailForSignIn', userEmail);
-      toast.success('Nieuwe registratielink verzonden! Controleer uw e-mail.');
+      
+      toast.success('Nieuwe link verzonden! Sluit deze pagina en open de nieuwe link in uw e-mail.');
+      
       setShowSessionExpiredModal(false);
-      navigate('/login'); // Stuur gebruiker naar de loginpagina
+      navigate('/login'); // Stuur de gebruiker naar de loginpagina om verwarring te voorkomen.
     } catch (error) {
       toast.error('Kon de link niet verzenden. Probeer het later opnieuw.');
       console.error("Error resending link:", error);
