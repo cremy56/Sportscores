@@ -85,9 +85,7 @@ export default function Groepsbeheer() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
         {/* Header Section */}
         <div className="max-w-7xl mx-auto mb-12 text-center">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                Groepsbeheer
-            </h1>
+        
             <p className="text-lg text-gray-600">
                 Beheer uw klassen en groepen
             </p>
