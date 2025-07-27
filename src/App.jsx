@@ -6,7 +6,7 @@ import { onAuthStateChanged, isSignInWithEmailLink, signInWithEmailLink } from '
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore'; // onSnapshot toegevoegd
 
 import Login from './Login';
-import Register from './pages/Register';
+import Register from './register';
 import Layout from './components/Layout';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
