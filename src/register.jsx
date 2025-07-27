@@ -106,7 +106,7 @@ export default function Register() {
         {/* Info Text */}
         <div className="mt-6 p-4 bg-blue-50/60 rounded-2xl border border-blue-200/30">
           <p className="text-sm text-blue-800 text-center">
-            📧 We sturen een veilige registratielink naar je schoole-mailadres
+            📧 We sturen een veilige registratielink naar je e-mailadres van de school
           </p>
         </div>
 
