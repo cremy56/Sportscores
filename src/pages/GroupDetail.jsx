@@ -20,7 +20,7 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
     }
     setLoading(true);
     try {
-      const usersRef = collection(db, 'users');
+      const usersRef = collection(db, 'toegestane_gebruikers');
       // Zoek naar leerlingen op naam (case-insensitive)
       const q = query(usersRef, 
         where('rol', '==', 'leerling'),
@@ -123,7 +123,7 @@ export default function GroupDetail() {
         setGroup(groupData);
 
         if (groupData.leerling_ids && groupData.leerling_ids.length > 0) {
-          const membersPromises = groupData.leerling_ids.map(id => getDoc(doc(db, 'users', id)));
+          const membersPromises = groupData.leerling_ids.map(id => getDoc(doc(db, 'toegestane_gebruikers', id)));
           const membersDocs = await Promise.all(membersPromises);
           const membersData = membersDocs.filter(doc => doc.exists()).map(doc => ({ id: doc.id, ...doc.data() }));
           setMembers(membersData);
