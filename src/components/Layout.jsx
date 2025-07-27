@@ -30,7 +30,7 @@ export default function Layout() {
     '/scores': 'Scores',
     '/leerlingbeheer': 'Leerlingbeheer',
     '/testbeheer': 'Testbeheer',
-    '/schoolbeheer': 'Schoolbeheer', // <-- TOEGEVOEGD
+    '/schoolbeheer': 'Schoolbeheer',
     '/wachtwoord-wijzigen': 'Wachtwoord wijzigen',
   };
 
@@ -70,8 +70,8 @@ export default function Layout() {
 
             <NavLink to="/" className="block h-8">
               <img
-                src={school?.logo_url || "/logo.png"} // Gebruik het schoollogo als het bestaat
-                alt={`${school?.naam || 'Sportscores'} Logo`}
+                src="/logo.png" // Gebruik altijd het website logo
+                alt="Sportscores Logo"
                 className="h-full w-auto object-contain"
               />
             </NavLink>
@@ -118,7 +118,6 @@ export default function Layout() {
                     Testbeheer
                   </NavLink>
                 </li>
-                {/* --- NIEUWE LINK --- */}
                 <li>
                   <NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
                     Schoolbeheer
@@ -148,7 +147,6 @@ export default function Layout() {
               <>
                 <li><NavLink to="/leerlingbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Leerlingbeheer</NavLink></li>
                 <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Testbeheer</NavLink></li>
-                {/* --- NIEUWE LINK --- */}
                 <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
               </>
             )}
@@ -168,7 +166,14 @@ export default function Layout() {
                 <div className="mb-2">
                   <p className="text-sm text-gray-500">Ingelogd als</p>
                   <p className="font-semibold text-gray-900">{profile?.naam || profile?.email}</p>
-                  <p className="text-xs text-gray-400 mt-1">School: {school?.naam || 'Niet gevonden'}</p>
+                  
+                  {/* --- AANGEPAST: School logo en naam --- */}
+                  <div className="flex items-center mt-2">
+                    {school?.logo_url && (
+                      <img src={school.logo_url} alt={`${school.naam} logo`} className="h-8 w-8 rounded-full mr-2 object-cover" />
+                    )}
+                    <p className="text-xs text-gray-400">School: {school?.naam || 'Niet gevonden'}</p>
+                  </div>
                 </div>
 
                 {profile?.rol === 'administrator' && (
@@ -199,7 +204,6 @@ export default function Layout() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Geef nu ook 'school' door aan de onderliggende paginas */}
         <Outlet context={{ profile, school, activeRole }} />
       </main>
     </div>
