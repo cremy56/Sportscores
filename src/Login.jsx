@@ -31,10 +31,10 @@ export default function Login() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50" style={{ width: '100vw', maxWidth: 'none' }}>
       <Toaster position="top-center" />
       
-      <div className="w-full max-w-2xl p-8 space-y-8 bg-white rounded-2xl shadow-lg">
+      <div className="w-full p-8 space-y-8 bg-white rounded-2xl shadow-lg" style={{ maxWidth: '800px', width: '90%' }}>
         <div>
           <img
             src="/logo.png"
