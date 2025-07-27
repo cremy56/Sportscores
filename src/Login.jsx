@@ -31,11 +31,11 @@ export default function Login() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50" style={{ width: '100vw', maxWidth: 'none' }}>
+    <div className="auth-container bg-gray-50">
       <Toaster position="top-center" />
       
-      <div className="w-full p-8 space-y-8 bg-white rounded-2xl shadow-lg" style={{ maxWidth: '800px', width: '90%' }}>
-        <div>
+      <div className="auth-card">
+        <div className="space-y-8">
           <img
             src="/logo.png"
             alt="Sportscores Logo"

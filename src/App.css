@@ -1,19 +1,120 @@
-/* Verwijder de beperkende CSS voor #root */
-#root {
-  /* Laat de root het hele scherm vullen zonder beperkingen */
-  width: 100%;
-  height: 100vh;
+/* Global reset en moderne styling */
+* {
+  box-sizing: border-box;
 }
 
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f9fafb;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Container voor pagina's - responsive en gecentreerd */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  width: 100%;
+}
+
+/* Responsive breakpoints */
+@media (min-width: 640px) {
+  .page-container {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .page-container {
+    padding: 0 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-container {
+    padding: 0 2.5rem;
+  }
+}
+
+/* Form containers - responsive width */
+.form-container {
+  width: 100%;
+  max-width: 28rem; /* 448px - goed voor forms */
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  .form-container {
+    max-width: 32rem; /* 512px */
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .form-container {
+    max-width: 36rem; /* 576px */
+    padding: 2rem;
+  }
+}
+
+/* Auth pages (login/register) - volledig scherm op mobiel, gecentreerd op desktop */
+.auth-container {
+  width: 100%;
+  min-height: 100vh;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 28rem;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .auth-card {
+    max-width: 32rem;
+    padding: 2rem;
+    border-radius: 1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .auth-card {
+    max-width: 36rem;
+    padding: 2.5rem;
+    border-radius: 1.5rem;
+  }
+}
+
+/* Logo styling */
 .logo {
   height: 6em;
   padding: 1.5em;
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
@@ -33,8 +134,50 @@
   }
 }
 
+/* Card component styling */
 .card {
   padding: 2em;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+@media (min-width: 768px) {
+  .card {
+    border-radius: 1rem;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  /* Zorg ervoor dat kleine schermen geen horizontal scroll hebben */
+  html, body {
+    overflow-x: hidden;
+  }
+  
+  /* Kleinere spacing op mobiel */
+  .auth-container {
+    padding: 0.5rem;
+  }
+  
+  .auth-card {
+    min-height: auto;
+    border-radius: 0.5rem;
+  }
+}
+
+/* Focus states voor toegankelijkheid */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid #8b5cf6;
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+* {
+  transition: colors 150ms ease, background-color 150ms ease, border-color 150ms ease;
 }
 
 .read-the-docs {
