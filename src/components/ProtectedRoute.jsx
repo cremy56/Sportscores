@@ -1,20 +1,18 @@
 // src/components/ProtectedRoute.jsx
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
-// Deze component is nu veel eenvoudiger. Het ontvangt het profiel als een prop
-// en bevat geen eigen state of data-fetching logica meer.
-export default function ProtectedRoute({ profile }) {
+// De component ontvangt nu OOK de school-gegevens als prop
+export default function ProtectedRoute({ profile, school }) {
   const location = useLocation();
 
-  // Als het profiel nog niet geladen is (of niet bestaat),
-  // stuur de gebruiker terug naar de login-pagina.
-  // Dit is een veilige fallback. De laadstatus in App.jsx voorkomt onnodige redirects.
+  // Als het profiel nog niet geladen is, stuur de gebruiker terug.
   if (!profile) {
+    // In een echte laad-situatie wordt dit meestal opgevangen door de 'loading' state in App.jsx,
+    // maar dit is een veilige fallback.
     return <Navigate to="/" replace />;
   }
 
-  // De kernlogica: als de onboarding niet is voltooid, forceer de gebruiker
-  // naar de setup-pagina, tenzij ze daar al zijn.
+  // Als de onboarding niet is voltooid, forceer de gebruiker naar de setup-pagina.
   if (!profile.onboarding_complete && location.pathname !== '/setup-account') {
     return <Navigate to="/setup-account" replace />;
   }
@@ -24,6 +22,7 @@ export default function ProtectedRoute({ profile }) {
     return <Navigate to="/" replace />;
   }
 
-  // ✅ Geef toegang en geef het profiel door aan de geneste routes (zoals Layout).
-  return <Outlet context={{ profile }} />;
+  // ✅ Geef ZOWEL profiel als school door aan de geneste routes (zoals Layout).
+  // De Layout component kan deze nu ophalen met useOutletContext().
+  return <Outlet context={{ profile, school }} />;
 }

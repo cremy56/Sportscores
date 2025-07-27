@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore'; // onSnapshot toegevoegd
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
 import Login from './Login';
 import Register from './register';
@@ -21,6 +21,7 @@ import TestafnameDetail from './pages/TestafnameDetail';
 import NieuweTestafname from './pages/NieuweTestafname';
 import GroupDetail from './pages/GroupDetail';
 import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
+import SchoolBeheer from './pages/SchoolBeheer';
 
 // Helper-component voor de magic link (onveranderd)
 function HandleAuthRedirect() {
@@ -52,15 +53,15 @@ function HandleAuthRedirect() {
 function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [school, setSchool] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Deze listener handelt alleen de login/logout status af.
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
-        // Als de gebruiker uitlogt, wissen we het profiel en stoppen we met laden.
         setProfile(null);
+        setSchool(null);
         setLoading(false);
       }
     });
@@ -68,18 +69,12 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Dit effect wordt actief zodra er een gebruiker is.
     if (!user) return;
 
-    // We zetten een real-time listener op voor het profieldocument.
-    // 'unsubscribeProfile' is een functie om de listener later te stoppen.
     const unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
       if (docSnap.exists()) {
-        // Het profiel bestaat. Telkens als het verandert, wordt deze code uitgevoerd.
-        // We updaten de 'profile' state met de nieuwste data.
         setProfile(docSnap.data());
       } else {
-        // EERSTE LOGIN: Het profiel bestaat nog niet. We maken het aan.
         const allowedUserRef = doc(db, 'toegestane_gebruikers', user.email);
         const allowedUserSnap = await getDoc(allowedUserRef);
 
@@ -87,18 +82,33 @@ function App() {
           const initialProfileData = allowedUserSnap.data();
           initialProfileData.email = user.email;
           initialProfileData.onboarding_complete = false;
-          
-          // Maak het document aan. De 'onSnapshot' listener hierboven zal
-          // deze nieuwe data automatisch oppikken en de 'profile' state bijwerken.
           await setDoc(doc(db, 'users', user.uid), initialProfileData);
         }
+      }
+    });
+
+    return () => unsubscribeProfile();
+  }, [user]);
+
+  useEffect(() => {
+    if (!profile?.school_id) {
+      setSchool(null);
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribeSchool = onSnapshot(doc(db, 'scholen', profile.school_id), (schoolSnap) => {
+      if (schoolSnap.exists()) {
+        setSchool({ id: schoolSnap.id, ...schoolSnap.data() });
+      } else {
+        console.error("School document niet gevonden!");
+        setSchool(null);
       }
       setLoading(false);
     });
 
-    // Dit is de 'cleanup' functie. Het stopt de listener als de gebruiker uitlogt.
-    return () => unsubscribeProfile();
-  }, [user]); // Dit effect wordt opnieuw uitgevoerd als de 'user' verandert (login/logout).
+    return () => unsubscribeSchool;
+  }, [profile]);
 
   if (loading) {
     return <div></div>;
@@ -107,7 +117,6 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Routes voor niet-ingelogde gebruikers */}
         {!user ? (
             <>
                 <Route path="/login" element={<Login />} />
@@ -119,12 +128,14 @@ function App() {
                 )}
             </>
         ) : (
-            /* Routes voor ingelogde gebruikers */
             <>
                 <Route path="/setup-account" element={<SetupAccount />} />
                 <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
 
-                <Route element={<ProtectedRoute profile={profile} />}>
+                {/* --- AANGEPASTE ROUTE STRUCTUUR --- */}
+                {/* ProtectedRoute ontvangt nu alle context data */}
+                <Route element={<ProtectedRoute profile={profile} school={school} />}>
+                    {/* Layout heeft geen props meer nodig, het haalt de context op */}
                     <Route element={<Layout />}>
                         <Route path="/" element={<Highscores />} />
                         <Route path="/evolutie" element={<Evolutie />} />
@@ -136,6 +147,10 @@ function App() {
                         <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
                         <Route path="/testbeheer" element={<Testbeheer />} />
                         <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
+                        
+                        {profile?.rol === 'administrator' && (
+                          <Route path="/schoolbeheer" element={<SchoolBeheer />} />
+                        )}
                     </Route>
                 </Route>
                 <Route path="/login" element={<Navigate to="/" />} />
