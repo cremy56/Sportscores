@@ -52,7 +52,12 @@ export default function SetupAccount() {
       navigate('/');
 
     } catch (error) {
-      toast.error(error.message);
+      // Verbeterde foutafhandeling
+      if (error.code === 'auth/requires-recent-login') {
+        toast.error('Uw sessie is verlopen uit veiligheidsoverwegingen. Vraag een nieuwe registratielink aan.');
+      } else {
+        toast.error(`Fout: ${error.message}`);
+      }
       console.error(error);
     } finally {
       setLoading(false);
@@ -148,7 +153,7 @@ export default function SetupAccount() {
         </form>
 
         <div className="mt-6 p-4 bg-green-50/60 rounded-2xl border border-green-200/30">
-          <p className="text-sm text-green-800 text-center">
+          <p className="text-xs text-green-800 text-center">
             🔒 Uw wachtwoord wordt veilig opgeslagen en gecodeerd
           </p>
         </div>
