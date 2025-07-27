@@ -5,6 +5,7 @@ import { updatePassword } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'; // Importeer de iconen
 
 export default function SetupAccount() {
   const [password, setPassword] = useState('');
@@ -12,6 +13,10 @@ export default function SetupAccount() {
   const [loading, setLoading] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const navigate = useNavigate();
+  
+  // Aparte states voor elk wachtwoordveld
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (auth.currentUser) {
@@ -37,10 +42,7 @@ export default function SetupAccount() {
       const user = auth.currentUser;
       if (!user) throw new Error("Geen gebruiker gevonden.");
 
-      // STAP 1: Update het wachtwoord in Firebase Auth
       await updatePassword(user, password);
-
-      // STAP 2: Markeer de onboarding als voltooid in Firestore
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
         onboarding_complete: true
@@ -62,7 +64,6 @@ export default function SetupAccount() {
       <Toaster position="top-center" />
       
       <div className="w-full max-w-md bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20">
-        {/* Logo en Header */}
         <div className="flex flex-col items-center mb-8">
           <div className="bg-gradient-to-br from-purple-100 to-blue-100 p-4 rounded-2xl mb-4 shadow-lg">
             <img
@@ -80,21 +81,29 @@ export default function SetupAccount() {
           </p>
         </div>
 
-        {/* Setup Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
               Nieuw Wachtwoord
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-4 bg-white/60 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 placeholder-gray-400 text-gray-900"
-              placeholder="Voer uw nieuwe wachtwoord in"
-              required
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-4 bg-white/60 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 placeholder-gray-400 text-gray-900 pr-10"
+                placeholder="Voer uw nieuwe wachtwoord in"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-purple-600"
+              >
+                {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+              </button>
+            </div>
             <p className="text-xs text-gray-500 mt-1">Minimaal 6 tekens</p>
           </div>
           
@@ -102,15 +111,24 @@ export default function SetupAccount() {
             <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
               Bevestig Wachtwoord
             </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-4 bg-white/60 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 placeholder-gray-400 text-gray-900"
-              placeholder="Herhaal uw wachtwoord"
-              required
-            />
+            <div className="relative">
+              <input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-4 py-4 bg-white/60 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 placeholder-gray-400 text-gray-900 pr-10"
+                placeholder="Herhaal uw wachtwoord"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-purple-600"
+              >
+                {showConfirmPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
           
           <button
@@ -129,7 +147,6 @@ export default function SetupAccount() {
           </button>
         </form>
 
-        {/* Security Info */}
         <div className="mt-6 p-4 bg-green-50/60 rounded-2xl border border-green-200/30">
           <p className="text-sm text-green-800 text-center">
             🔒 Uw wachtwoord wordt veilig opgeslagen en gecodeerd
