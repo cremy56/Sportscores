@@ -86,24 +86,7 @@ export default function Groepsbeheer() {
         {/* Header Section - Same style as Highscores */}
         <div className="max-w-7xl mx-auto mb-12">
           <div className="text-center">
-            {/* Logo Container */}
-            <div className="flex justify-center mb-6">
-              <div className="bg-gradient-to-br from-purple-100 to-blue-100 p-6 rounded-3xl shadow-lg">
-                <img
-                  src="/logo.png"
-                  alt="Sportscores Logo"
-                  className="h-16 w-auto object-contain"
-                />
-              </div>
-            </div>
-            
-            {/* Title */}
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
-              <span className="bg-gradient-to-r from-purple-600 via-blue-600 to-teal-600 bg-clip-text text-transparent">
-                Groepsbeheer
-              </span>
-            </h1>
-            
+          
             {/* Subtitle */}
             <p className="text-xl text-gray-600 font-medium">
               Beheer uw klassen en leerlingengroepen
@@ -122,7 +105,7 @@ export default function Groepsbeheer() {
           <div className="flex justify-center mb-12">
             <button
               onClick={() => setShowModal(true)}
-              className="group bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-3xl shadow-2xl hover:shadow-3xl transform transition-all duration-300 hover:scale-105 border border-white/20 backdrop-blur-lg"
+              className="group bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-2xl shadow-1xl hover:shadow-2xl transform transition-all duration-300 hover:scale-105 border border-white/20 backdrop-blur-lg"
             >
               <div className="flex items-center space-x-3">
                 <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
@@ -191,21 +174,6 @@ export default function Groepsbeheer() {
                             Actief
                           </div>
                         </div>
-                      </div>
-                      
-                      {/* Progress indicator */}
-                      <div className="mt-4 flex items-center space-x-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-500"
-                            style={{ 
-                              width: groep.leerling_ids.length > 0 ? `${Math.min((groep.leerling_ids.length / 30) * 100, 100)}%` : '5%' 
-                            }}
-                          ></div>
-                        </div>
-                        <span className="text-xs text-gray-500">
-                          {groep.leerling_ids.length}/30
-                        </span>
                       </div>
                     </div>
                     
