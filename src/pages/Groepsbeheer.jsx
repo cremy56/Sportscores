@@ -15,10 +15,19 @@ export default function Groepsbeheer() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
+    // Stop als het profiel (en dus de school_id) nog niet geladen is.
+    if (!auth.currentUser || !profile?.school_id) {
+      // Als er geen school_id is, stop met laden en toon een lege lijst.
+      setLoading(false);
+      return;
+    }
 
     const groepenCollectionRef = collection(db, 'groepen');
-    const q = query(groepenCollectionRef, where('leerkracht_id', '==', auth.currentUser.uid));
+    const q = query(
+        groepenCollectionRef, 
+        where('school_id', '==', profile.school_id), 
+        where('leerkracht_id', '==', auth.currentUser.uid)
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const groepenData = snapshot.docs.map(doc => ({
@@ -34,7 +43,7 @@ export default function Groepsbeheer() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [profile?.school_id]); // Voeg profile.school_id toe aan de dependency array
 
   const handleCreateGroup = async (e) => {
     e.preventDefault();
@@ -48,6 +57,7 @@ export default function Groepsbeheer() {
       await addDoc(collection(db, 'groepen'), {
         naam: newGroupName,
         leerkracht_id: auth.currentUser.uid,
+        school_id: profile.school_id, // <-- TOEGEVOEGD
         leerling_ids: [],
         created_at: serverTimestamp()
       });

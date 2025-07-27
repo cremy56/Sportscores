@@ -3,14 +3,15 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
-export default function StudentSearch({ onStudentSelect }) {
+// De component accepteert nu 'schoolId' als een prop
+export default function StudentSearch({ onStudentSelect, schoolId }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Stop als de zoekterm te kort is
-    if (searchTerm.length < 2) {
+    // Stop als de zoekterm te kort is of als er geen schoolId is
+    if (searchTerm.length < 2 || !schoolId) {
       setResults([]);
       return;
     }
@@ -21,9 +22,10 @@ export default function StudentSearch({ onStudentSelect }) {
         const searchTermLower = searchTerm.toLowerCase();
         const usersRef = collection(db, 'toegestane_gebruikers');
         
-        // De nieuwe Firestore query
+        // De query is nu uitgebreid met een filter voor school_id
         const q = query(
           usersRef,
+          where('school_id', '==', schoolId), // <-- NIEUWE FILTER
           where('rol', '==', 'leerling'),
           where('naam_keywords', 'array-contains', searchTermLower)
         );
@@ -43,7 +45,7 @@ export default function StudentSearch({ onStudentSelect }) {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm]);
+  }, [searchTerm, schoolId]); // Voeg schoolId toe aan de dependency array
 
   const handleSelect = (student) => {
     onStudentSelect(student); // Geef het hele student-object door
@@ -55,7 +57,7 @@ export default function StudentSearch({ onStudentSelect }) {
     <div className="relative">
       <input
         type="text"
-        placeholder="Zoek op voor- of achternaam..." // Duidelijkere placeholder
+        placeholder="Zoek op voor- of achternaam..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         className="w-full px-4 py-2 border rounded-lg shadow-sm"

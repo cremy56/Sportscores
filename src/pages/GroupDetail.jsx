@@ -7,13 +7,15 @@ import toast, { Toaster } from 'react-hot-toast';
 import { TrashIcon, PlusIcon, ArrowLeftIcon, UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 // --- Modal om leerlingen toe te voegen ---
+// De modal ontvangt nu de volledige 'group' prop
 function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (searchTerm.length < 2) {
+    // Stop als de zoekterm te kort is of als de groep (en dus school_id) niet beschikbaar is
+    if (searchTerm.length < 2 || !group?.school_id) {
       setSearchResults([]);
       return;
     }
@@ -24,8 +26,10 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
         const searchTermLower = searchTerm.toLowerCase();
         const usersRef = collection(db, 'toegestane_gebruikers');
         
+        // --- QUERY AANGEPAST ---
         const q = query(
           usersRef,
+          where('school_id', '==', group.school_id), // <-- TOEGEVOEGD: Filter op school
           where('rol', '==', 'leerling'),
           where('naam_keywords', 'array-contains', searchTermLower)
         );
@@ -44,7 +48,7 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, group.leerling_ids]);
+  }, [searchTerm, group]); // Dependency is nu de hele 'group'
 
   const handleAddStudent = async (student) => {
     const groupRef = doc(db, 'groepen', group.id);
@@ -74,8 +78,6 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
           </button>
         </div>
         
-        {/* --- GECORRIGEERDE CODE HIER --- */}
-        {/* Geen <form> of zoek-knop meer */}
         <input
           type="text"
           value={searchTerm}
@@ -91,7 +93,6 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
               {searchResults.map(student => (
                 <li key={student.id} className="flex justify-between items-center p-3 bg-gray-50/70 rounded-lg">
                   <span>{student.naam}</span>
-                  {/* --- GECORRIGEERDE FUNCTIE-AANROEP HIER --- */}
                   <button onClick={() => handleAddStudent(student)} className="text-purple-600 hover:text-purple-800 p-1 rounded-full hover:bg-purple-100">
                     <UserPlusIcon className="h-6 w-6" />
                   </button>

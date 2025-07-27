@@ -1,18 +1,32 @@
 // src/pages/Highscores.jsx
 import { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom'; // Importeren
 import { db } from '../firebase';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore'; // 'where' toegevoegd
 import CategoryCard from '../components/CategoryCard';
 
 export default function Highscores() {
+    // Haal profiel en schoolgegevens op uit de context
+    const { profile, school } = useOutletContext(); 
     const [testen, setTesten] = useState([]);
     const [loading, setLoading] = useState(true);
 
-   useEffect(() => {
+    useEffect(() => {
+        // Stop als er geen school_id beschikbaar is
+        if (!profile?.school_id) {
+            setLoading(false);
+            return;
+        };
+
         const fetchTesten = async () => {
             try {
                 const testenRef = collection(db, 'testen');
-                const q = query(testenRef, orderBy('naam'));
+                // Query aangepast met 'where' om op school te filteren
+                const q = query(
+                    testenRef, 
+                    where('school_id', '==', profile.school_id),
+                    orderBy('naam')
+                );
                 const querySnapshot = await getDocs(q);
                 const testenData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 setTesten(testenData);
@@ -22,7 +36,7 @@ export default function Highscores() {
             setLoading(false);
         };
         fetchTesten();
-    }, []);
+    }, [profile?.school_id]); // Dependency array aangepast
 
     // Groepeer de testen per categorie
     const grouped_tests = testen.reduce((acc, test) => {
@@ -52,18 +66,19 @@ export default function Highscores() {
                     {/* Logo Container */}
                     <div className="flex justify-center mb-6">
                         <div className="bg-gradient-to-br from-purple-100 to-blue-100 p-6 rounded-3xl shadow-lg">
+                            {/* Logo is nu dynamisch */}
                             <img
-                                src="/logo.png"
-                                alt="Sportscores Logo"
+                                src={school?.logo_url || '/logo.png'}
+                                alt={`${school?.naam || 'Sportscores'} Logo`}
                                 className="h-16 w-auto object-contain"
                             />
                         </div>
                     </div>
                     
-                    {/* Title */}
+                    {/* Title is nu dynamisch */}
                     <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
                         <span className="bg-gradient-to-r from-purple-600 via-blue-600 to-teal-600 bg-clip-text text-transparent">
-                            KA Beveren
+                            {school?.naam || 'Highscores'}
                         </span>
                     </h1>
                     
@@ -92,8 +107,7 @@ export default function Highscores() {
                             </div>
                             <h3 className="text-2xl font-bold text-gray-800 mb-2">Geen Testen Gevonden</h3>
                             <p className="text-gray-600 leading-relaxed">
-                                Er zijn momenteel geen testen beschikbaar in het systeem. 
-                                Voeg eerst testen toe in Supabase om hier highscores te kunnen bekijken.
+                                Er zijn momenteel geen testen beschikbaar voor deze school.
                             </p>
                         </div>
                     </div>
