@@ -1,6 +1,6 @@
 // src/Login.jsx
 import { useState } from 'react';
-import { Link } from 'react-router-dom'; // Link is nodig voor de "Registreren" knop
+import { Link } from 'react-router-dom';
 import { auth } from './firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import toast, { Toaster } from 'react-hot-toast';
@@ -21,7 +21,6 @@ export default function Login() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // De onAuthStateChanged listener in App.jsx handelt de succesvolle login af.
       toast.success('Succesvol ingelogd!');
     } catch (error) {
       console.error(error);
@@ -32,44 +31,98 @@ export default function Login() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center p-4">
       <Toaster position="top-center" />
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-2xl shadow-lg">
-        <div>
-           <img
-                src="/logo.png"
-                alt="Sportscores Logo"
-                className="mx-auto h-16 w-auto object-contain"
-            />
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Inloggen op uw account
+      
+      <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden">
+        {/* Header sectie met logo en titel */}
+        <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-10 text-center">
+          <img
+            src="/logo.png"
+            alt="Sportscores Logo"
+            className="mx-auto h-20 w-auto object-contain mb-4 filter brightness-0 invert"
+          />
+          <h2 className="text-2xl font-bold text-white">
+            Welkom terug!
           </h2>
+          <p className="text-purple-100 mt-2">
+            Log in op uw Sportscores account
+          </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handlePasswordLogin}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <input id="email-address" name="email" type="email" autoComplete="email" required className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm" placeholder="E-mailadres" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div>
-              <input id="password" name="password" type="password" autoComplete="current-password" required className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm" placeholder="Wachtwoord" value={password} onChange={(e) => setPassword(e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <button type="submit" disabled={loading} className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:bg-gray-400">
-              {loading ? 'Bezig...' : 'Inloggen'}
-            </button>
-          </div>
-        </form>
-        
-        <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300" /></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">Of</span></div></div>
 
-        <div>
-          {/* De knop is nu een Link component die naar de nieuwe registratiepagina leidt */}
+        {/* Form sectie */}
+        <div className="px-8 py-8">
+          <form className="space-y-6" onSubmit={handlePasswordLogin}>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="email-address" className="block text-sm font-medium text-gray-700 mb-2">
+                  E-mailadres
+                </label>
+                <input
+                  id="email-address"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                  placeholder="voornaam.naam@school.be"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  Wachtwoord
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                  placeholder="Voer uw wachtwoord in"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {loading ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Bezig met inloggen...
+                </div>
+              ) : (
+                'Inloggen'
+              )}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-gray-500 font-medium">
+                Nog geen account?
+              </span>
+            </div>
+          </div>
+
+          {/* Registreren knop */}
           <Link
             to="/register"
-            className="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+            className="w-full flex justify-center items-center py-3 px-4 border-2 border-purple-600 text-purple-600 font-semibold rounded-xl hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
           >
-            Registreren
+            Account aanmaken
           </Link>
         </div>
       </div>

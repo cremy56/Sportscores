@@ -87,13 +87,9 @@ export default function Register() {
           </div>
         </form>
         <p className="mt-4 text-center text-sm text-gray-600">
-          We e-mailen een link op je emailadres van de school.
+          We e-mailen een link naar je emailadres van de school.
         </p>
-        <div className="text-center mt-4">
-            <Link to="/login" className="font-medium text-purple-600 hover:text-purple-500">
-                Terug naar inloggen
-            </Link>
-        </div>
+       
       </div>
     </div>
   );
