@@ -176,7 +176,7 @@ export default function Groepsbeheer() {
                 <PlusIcon className="w-8 h-8 text-purple-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900">Nieuwe Groep Aanmaken</h2>
-              <p className="text-gray-600 mt-2">Voeg een nieuwe leerlingengroep toe aan uw dashboard</p>
+             
             </div>
             
             <form onSubmit={handleCreateGroup} className="space-y-6">
@@ -190,7 +190,7 @@ export default function Groepsbeheer() {
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   className="w-full px-4 py-4 bg-white/60 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-gray-900 placeholder-gray-500"
-                  placeholder="bv. Klas 5B Lichamelijke Opvoeding"
+                  placeholder="bv. Algemene Sport derde graad"
                 />
               </div>
               

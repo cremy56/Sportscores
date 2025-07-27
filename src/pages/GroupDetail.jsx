@@ -12,44 +12,48 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
     if (searchTerm.length < 2) {
-      toast.error('Voer minstens 2 karakters in om te zoeken.');
+      setSearchResults([]);
       return;
     }
-    setLoading(true);
-    try {
-      const usersRef = collection(db, 'toegestane_gebruikers');
-      // Zoek naar leerlingen op naam (case-insensitive)
-      const q = query(usersRef, 
-        where('rol', '==', 'leerling'),
-        where('naam', '>=', searchTerm),
-        where('naam', '<=', searchTerm + '\uf8ff')
-      );
-      const querySnapshot = await getDocs(q);
-      const results = querySnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        // Filter leerlingen die al in de groep zitten
-        .filter(student => !group.leerling_ids.includes(student.id));
-        
-      setSearchResults(results);
-    } catch (error) {
-      console.error("Fout bij zoeken naar leerlingen:", error);
-      toast.error("Kon niet zoeken naar leerlingen.");
-    }
-    setLoading(false);
-  };
 
-  const handleAddStudent = async (studentId) => {
+    const delayDebounceFn = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const searchTermLower = searchTerm.toLowerCase();
+        const usersRef = collection(db, 'toegestane_gebruikers');
+        
+        const q = query(
+          usersRef,
+          where('rol', '==', 'leerling'),
+          where('naam_keywords', 'array-contains', searchTermLower)
+        );
+
+        const querySnapshot = await getDocs(q);
+        const results = querySnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(student => !group.leerling_ids.includes(student.id));
+        
+        setSearchResults(results);
+      } catch (error) {
+        console.error("Fout bij zoeken naar leerlingen:", error);
+        toast.error("Kon niet zoeken naar leerlingen.");
+      }
+      setLoading(false);
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, group.leerling_ids]);
+
+  const handleAddStudent = async (student) => {
     const groupRef = doc(db, 'groepen', group.id);
     try {
       await updateDoc(groupRef, {
-        leerling_ids: arrayUnion(studentId)
+        leerling_ids: arrayUnion(student.id)
       });
       toast.success('Leerling toegevoegd!');
-      onStudentAdded(); // Herlaad de groepsdata
-      // Reset de zoekresultaten en het zoekveld
+      onStudentAdded();
       setSearchTerm('');
       setSearchResults([]);
     } catch (error) {
@@ -69,35 +73,33 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
             <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
-        <form onSubmit={handleSearch}>
-          <div className="flex gap-4">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Zoek op naam..."
-              className="flex-grow px-4 py-3 bg-white/60 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
-            />
-            <button type="submit" className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-2xl shadow-lg">
-              Zoek
-            </button>
-          </div>
-        </form>
+        
+        {/* --- GECORRIGEERDE CODE HIER --- */}
+        {/* Geen <form> of zoek-knop meer */}
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Zoek op voor- of achternaam..."
+          className="w-full px-4 py-3 bg-white/60 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
+        />
+        
         <div className="mt-6 max-h-60 overflow-y-auto">
-          {loading && <p>Zoeken...</p>}
+          {loading && <p className="text-center text-gray-500 py-4">Zoeken...</p>}
           {!loading && searchResults.length > 0 && (
             <ul className="space-y-2">
               {searchResults.map(student => (
                 <li key={student.id} className="flex justify-between items-center p-3 bg-gray-50/70 rounded-lg">
                   <span>{student.naam}</span>
-                  <button onClick={() => handleAddStudent(student.id)} className="text-purple-600 hover:text-purple-800 p-1 rounded-full hover:bg-purple-100">
+                  {/* --- GECORRIGEERDE FUNCTIE-AANROEP HIER --- */}
+                  <button onClick={() => handleAddStudent(student)} className="text-purple-600 hover:text-purple-800 p-1 rounded-full hover:bg-purple-100">
                     <UserPlusIcon className="h-6 w-6" />
                   </button>
                 </li>
               ))}
             </ul>
           )}
-          {!loading && searchTerm && searchResults.length === 0 && <p className="text-center text-gray-600 py-4">Geen leerlingen gevonden die nog niet in de groep zitten.</p>}
+          {!loading && searchTerm.length > 1 && searchResults.length === 0 && <p className="text-center text-gray-600 py-4">Geen leerlingen gevonden.</p>}
         </div>
       </div>
     </div>

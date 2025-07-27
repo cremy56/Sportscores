@@ -1,19 +1,23 @@
 // src/pages/Highscores.jsx
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
+import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import CategoryCard from '../components/CategoryCard';
 
 export default function Highscores() {
     const [testen, setTesten] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
+   useEffect(() => {
         const fetchTesten = async () => {
-            const { data, error } = await supabase.from('testen').select('*').order('naam');
-            if (error) {
+            try {
+                const testenRef = collection(db, 'testen');
+                const q = query(testenRef, orderBy('naam'));
+                const querySnapshot = await getDocs(q);
+                const testenData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setTesten(testenData);
+            } catch (error) {
                 console.error('Error fetching testen:', error);
-            } else {
-                setTesten(data);
             }
             setLoading(false);
         };
