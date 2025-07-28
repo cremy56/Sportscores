@@ -5,6 +5,33 @@ import { db } from '../firebase';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
+// Helper-functie om de datum correct te formatteren voor het <input type="date"> veld
+const formatDateForInput = (date) => {
+  if (!date) return '';
+  
+  let d;
+  // Controleer of het een Firestore Timestamp-object is
+  if (date.toDate) {
+    d = date.toDate();
+  } 
+  // Probeer het te parsen als het een string of een Date-object is
+  else {
+    d = new Date(date);
+  }
+
+  // Controleer op een ongeldige datum
+  if (isNaN(d.getTime())) {
+    return '';
+  }
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0'); // Maanden zijn 0-gebaseerd
+  const day = String(d.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+};
+
+
 export default function StudentFormModal({ isOpen, onClose, onStudentSaved, studentData, schoolId }) {
     const [formData, setFormData] = useState({
         naam: '',
@@ -22,7 +49,8 @@ export default function StudentFormModal({ isOpen, onClose, onStudentSaved, stud
                 setFormData({
                     naam: studentData.naam || '',
                     email: studentData.email || '',
-                    geboortedatum: studentData.geboortedatum || '',
+                    // --- GECORRIGEERD: Gebruik de formatteerfunctie ---
+                    geboortedatum: formatDateForInput(studentData.geboortedatum),
                     geslacht: studentData.geslacht || 'M',
                 });
             } else {
@@ -59,12 +87,10 @@ export default function StudentFormModal({ isOpen, onClose, onStudentSaved, stud
 
         try {
             if (isEditing) {
-                // Bij bewerken kunnen we de email (ID) niet wijzigen.
                 const { email, ...updateData } = studentObject;
                 const studentRef = doc(db, 'toegestane_gebruikers', studentData.id);
                 await updateDoc(studentRef, updateData);
             } else {
-                // Bij een nieuwe leerling is de email de unieke ID.
                 const studentRef = doc(db, 'toegestane_gebruikers', formData.email);
                 await setDoc(studentRef, studentObject);
             }
