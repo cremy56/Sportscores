@@ -114,7 +114,7 @@ export default function Groepsbeheer() {
               className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
             >
               <PlusIcon className="h-6 w-6" />
-              <span className="ml-2">Nieuwe Groep Aanmaken</span>
+              <span className="ml-2">Nieuwe Groep</span>
             </button>
           </div>
         </div>
