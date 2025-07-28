@@ -69,49 +69,50 @@ export default function Leerlingbeheer() {
         return () => clearTimeout(timeoutId);
     }, [searchTerm, profile?.school_id]);
 
-    // Zoekfunctie
+    // --- AANGEPASTE ZOEKFUNCTIE ---
     const searchLeerlingen = async (term) => {
         if (!profile?.school_id) return;
         
         setLoading(true);
+        let finalQuery;
+        const termLower = term.toLowerCase();
+        const usersRef = collection(db, 'toegestane_gebruikers');
+
+        // Bepaal of we op e-mail of op naam zoeken
+        if (term.includes('@')) {
+            // Zoek op e-mail
+            finalQuery = query(
+                usersRef,
+                where('school_id', '==', profile.school_id),
+                where('rol', '==', 'leerling'),
+                where('email', '>=', termLower),
+                where('email', '<=', termLower + '\uf8ff')
+            );
+        } else {
+            // Zoek op naam
+            finalQuery = query(
+                usersRef,
+                where('school_id', '==', profile.school_id),
+                where('rol', '==', 'leerling'),
+                where('naam_keywords', 'array-contains', termLower)
+            );
+        }
+
         try {
-            const naamQuery = query(
-                collection(db, 'toegestane_gebruikers'),
-                where('school_id', '==', profile.school_id),
-                where('rol', '==', 'leerling'),
-                where('naam_keywords', 'array-contains', term.toLowerCase()),
-                limit(100)
-            );
-            const emailQuery = query(
-                collection(db, 'toegestane_gebruikers'),
-                where('school_id', '==', profile.school_id),
-                where('rol', '==', 'leerling'),
-                where('email', '>=', term.toLowerCase()),
-                where('email', '<=', term.toLowerCase() + '\uf8ff'),
-                limit(50)
-            );
-
-            const [naamResults, emailResults] = await Promise.all([
-                getDocs(naamQuery),
-                getDocs(emailQuery)
-            ]);
-
-            const combinedResults = new Map();
-            naamResults.docs.forEach(doc => combinedResults.set(doc.id, { id: doc.id, ...doc.data() }));
-            emailResults.docs.forEach(doc => combinedResults.set(doc.id, { id: doc.id, ...doc.data() }));
-
-            const sortedResults = Array.from(combinedResults.values()).sort((a, b) => a.naam.localeCompare(b.naam));
-            setLeerlingen(sortedResults);
+            const querySnapshot = await getDocs(finalQuery);
+            const results = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            results.sort((a, b) => a.naam.localeCompare(b.naam));
+            setLeerlingen(results);
         } catch (error) {
             console.error('Zoekfout:', error);
-            toast.error('Fout bij zoeken naar leerlingen');
+            toast.error('Fout bij zoeken naar leerlingen. Controleer de database-indexen.');
         } finally {
             setLoading(false);
         }
     };
 
     const gefilterdeLeerlingen = useMemo(() => {
-        return leerlingen; // Sortering gebeurt nu in de zoekfunctie
+        return leerlingen;
     }, [leerlingen]);
 
     const handleFileChange = useCallback((event) => {
@@ -212,7 +213,6 @@ export default function Leerlingbeheer() {
         handleCloseModal();
     };
     
-    // --- EXPORTEER FUNCTIE TERUGGEZET ---
     const exportToCSV = () => {
         if (gefilterdeLeerlingen.length === 0) {
             toast.error('Geen data om te exporteren. Voer eerst een zoekopdracht uit.');
@@ -260,7 +260,6 @@ export default function Leerlingbeheer() {
                             </div>
                             
                             <div className="flex flex-wrap gap-2">
-                                {/* --- EXPORTEER KNOP TERUGGEZET --- */}
                                 <button 
                                     onClick={exportToCSV}
                                     disabled={gefilterdeLeerlingen.length === 0}
