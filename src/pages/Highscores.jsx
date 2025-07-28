@@ -74,14 +74,7 @@ export default function Highscores() {
                             />
                         </div>
                     </div>
-                    
-                    {/* Title is nu dynamisch */}
-                    <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
-                        <span className="bg-gradient-to-r from-purple-600 via-blue-600 to-teal-600 bg-clip-text text-transparent">
-                            {school?.naam || 'Highscores'}
-                        </span>
-                    </h1>
-                    
+        
                     {/* Subtitle */}
                     <p className="text-xl text-gray-600 font-medium">
                         Sportscores & Highscores Dashboard
