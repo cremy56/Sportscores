@@ -505,4 +505,5 @@ export default function TestDetailBeheer() {
                 </div>
             </div>
         </>
-    )
+   );
+}
