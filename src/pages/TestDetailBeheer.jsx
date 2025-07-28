@@ -25,11 +25,9 @@ export default function TestDetailBeheer() {
 
     const [isTestModalOpen, setIsTestModalOpen] = useState(false);
     
-    // State voor de inklapbare secties
     const [isTestDetailsOpen, setIsTestDetailsOpen] = useState(false);
     const [isNormenOpen, setIsNormenOpen] = useState(false);
 
-    // State voor selectie en bulkverwijdering
     const [selectedNorms, setSelectedNorms] = useState([]);
     const [itemsToDelete, setItemsToDelete] = useState(null);
 
@@ -160,11 +158,16 @@ export default function TestDetailBeheer() {
                 const batch = writeBatch(db);
                 results.data.forEach(row => {
                     const normRef = doc(collection(db, 'normen'));
+                    
+                    // --- GECORRIGEERD: Standaardiseer geslacht naar 'M' of 'V' ---
+                    const geslachtCleaned = (row.geslacht || '').trim().toUpperCase();
+                    const finalGeslacht = geslachtCleaned.startsWith('M') ? 'M' : 'V';
+
                     batch.set(normRef, {
                         test_id: testId,
                         school_id: profile.school_id,
                         leeftijd: Number(row.leeftijd),
-                        geslacht: row.geslacht.toUpperCase(),
+                        geslacht: finalGeslacht,
                         score_min: Number(row.score_min),
                         punt: Number(row.punt)
                     });
@@ -436,7 +439,14 @@ export default function TestDetailBeheer() {
                                                     ) : (
                                                         <>
                                                             <td className="py-4 px-6 text-sm font-medium text-gray-900">{norm.leeftijd} jaar</td>
-                                                            <td className="py-4 px-6 text-sm text-gray-700"><span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${norm.geslacht === 'M' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}>{norm.geslacht === 'M' ? 'Mannelijk' : 'Vrouwelijk'}</span></td>
+                                                            <td className="py-4 px-6 text-sm text-gray-700">
+                                                                {/* --- GECORRIGEERD: Robuuste weergave van geslacht --- */}
+                                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                                    (norm.geslacht === 'M' || norm.geslacht === 'MAN') ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
+                                                                }`}>
+                                                                    {(norm.geslacht === 'M' || norm.geslacht === 'MAN') ? 'Mannelijk' : 'Vrouwelijk'}
+                                                                </span>
+                                                            </td>
                                                             <td className="py-4 px-6 text-sm text-gray-700 font-medium">{norm.score_min}</td>
                                                             <td className="py-4 px-6 text-sm text-gray-700"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">{norm.punt} pt</span></td>
                                                             {isNormenOpen && (
@@ -470,5 +480,5 @@ export default function TestDetailBeheer() {
                 </div>
             </div>
         </>
-   );
+    );
 }
