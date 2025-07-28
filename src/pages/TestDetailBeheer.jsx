@@ -2,24 +2,17 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db } from '../firebase';
+import { doc, getDoc, onSnapshot, collection, query, where, orderBy, addDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { useOutletContext } from 'react-router-dom';
 import { ArrowLeftIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/solid';
 import Papa from 'papaparse';
 import TestFormModal from '../components/TestFormModal';
-
-// Importeer uw bestaande, gedeelde modal component
 import ConfirmModal from '../components/ConfirmModal'; 
-
-function parseScoreMin(scoreStr) {
-  const match = scoreStr.match(/^(\d{1,2})[’'](\d{2})$/); // voorbeeld: "23’30"
-  if (!match) return NaN;
-  const minutes = parseInt(match[1], 10);
-  const seconds = parseInt(match[2], 10);
-  return minutes * 60 + seconds;
-}
 
 export default function TestDetailBeheer() {
     const { testId } = useParams();
+    const { profile } = useOutletContext();
     const [test, setTest] = useState(null);
     const [normen, setNormen] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -30,24 +23,37 @@ export default function TestDetailBeheer() {
     const [editingNorm, setEditingNorm] = useState(null);
     const fileInputRef = useRef(null);
 
-    // State voor de custom popup
-     const [isTestModalOpen, setIsTestModalOpen] = useState(false); // Voor bewerken van de test zelf
-    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isTestModalOpen, setIsTestModalOpen] = useState(false);
     const [normToDelete, setNormToDelete] = useState(null);
 
     const fetchData = useCallback(async () => {
-        setLoading(true);
-        const [testRes, normenRes] = await Promise.all([
-            supabase.from('testen').select('*').eq('id', testId).single(),
-            supabase.from('normen').select('*').eq('test_id', testId).order('leeftijd').order('geslacht').order('score_min')
-        ]);
-        if (testRes.error) toast.error("Kon testdetails niet laden."); else setTest(testRes.data);
-        if (normenRes.error) toast.error("Kon normen niet laden."); else setNormen(normenRes.data);
-        setLoading(false);
+        const testRef = doc(db, 'testen', testId);
+        const testSnap = await getDoc(testRef);
+        if (testSnap.exists()) {
+            setTest({ id: testSnap.id, ...testSnap.data() });
+        } else {
+            toast.error("Kon testdetails niet laden.");
+        }
     }, [testId]);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => {
+        fetchData();
+        
+        const normenRef = collection(db, 'normen');
+        const q = query(normenRef, where('test_id', '==', testId), orderBy('leeftijd'), orderBy('punt'));
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const normenData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setNormen(normenData);
+            setLoading(false);
+        }, (error) => {
+            console.error("Fout bij ophalen normen:", error);
+            toast.error("Kon normen niet laden.");
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [testId, fetchData]);
 
     const uniekeLeeftijden = useMemo(() => [...new Set(normen.map(n => n.leeftijd))].sort((a, b) => a - b), [normen]);
     const uniekeGeslachten = useMemo(() => [...new Set(normen.map(n => n.geslacht))], [normen]);
@@ -60,90 +66,55 @@ export default function TestDetailBeheer() {
         });
     }, [normen, selectedLeeftijd, selectedGeslacht]);
 
-    const handleAddNorm = () => {
-        setNewNorm({ leeftijd: selectedLeeftijd !== 'all' ? selectedLeeftijd : '', geslacht: selectedGeslacht !== 'all' ? selectedGeslacht : 'M', score_min: '', punt: '' });
-        setIsAdding(true);
-        setEditingNorm(null);
-    };
-
     const handleSaveNewNorm = async () => {
-    if (!newNorm.leeftijd || !newNorm.score_min || !newNorm.punt) {
-        toast.error("Vul alle velden in (leeftijd, score, punt).");
-        return;
-    }
-    // Score_min omzetten naar seconden
-    let scoreMinValue = parseScoreMin(newNorm.score_min);
-    if (isNaN(scoreMinValue)) {
-        // Probeer gewoon als getal
-        scoreMinValue = Number(newNorm.score_min);
-    }
-    if (isNaN(scoreMinValue)) {
-        toast.error("Ongeldige waarde voor Min. Score.");
-        return;
-    }
+        if (!newNorm.leeftijd || !newNorm.score_min || !newNorm.punt) {
+            toast.error("Vul alle velden in (leeftijd, score, punt).");
+            return;
+        }
+        
+        const normObject = {
+            test_id: testId,
+            school_id: profile.school_id,
+            leeftijd: Number(newNorm.leeftijd),
+            geslacht: newNorm.geslacht,
+            score_min: Number(newNorm.score_min),
+            punt: Number(newNorm.punt)
+        };
 
-    const promise = supabase.from('normen').insert({ 
-        test_id: testId, 
-        leeftijd: Number(newNorm.leeftijd), 
-        geslacht: newNorm.geslacht, 
-        score_min: scoreMinValue, 
-        punt: Number(newNorm.punt) 
-    }).select();
-
-    toast.promise(promise, {
-        loading: 'Nieuwe norm opslaan...',
-        success: (res) => { if (res.error) throw res.error; fetchData(); setIsAdding(false); return "Norm succesvol opgeslagen!"; },
-        error: (err) => `Fout: ${err.message}`
-    });
-};
-
-    const handleEditClick = (norm) => {
-        setEditingNorm({ ...norm });
-        setIsAdding(false);
+        const promise = addDoc(collection(db, 'normen'), normObject);
+        toast.promise(promise, {
+            loading: 'Nieuwe norm opslaan...',
+            success: () => { setIsAdding(false); return "Norm succesvol opgeslagen!"; },
+            error: (err) => `Fout: ${err.message}`
+        });
     };
 
     const handleUpdateNorm = async () => {
-    const { id, test_id, ...updateData } = editingNorm;
+        const normRef = doc(db, 'normen', editingNorm.id);
+        const { id, school_id, test_id, ...updateData } = editingNorm;
+        
+        const promise = updateDoc(normRef, {
+            ...updateData,
+            leeftijd: Number(updateData.leeftijd),
+            score_min: Number(updateData.score_min),
+            punt: Number(updateData.punt)
+        });
 
-    let scoreMinValue = parseScoreMin(updateData.score_min);
-    if (isNaN(scoreMinValue)) {
-        scoreMinValue = Number(updateData.score_min);
-    }
-    if (isNaN(scoreMinValue)) {
-        toast.error("Ongeldige waarde voor Min. Score.");
-        return;
-    }
-    updateData.score_min = scoreMinValue;
-    updateData.leeftijd = Number(updateData.leeftijd);
-    updateData.punt = Number(updateData.punt);
-
-    const promise = supabase.from('normen').update(updateData).eq('id', id).select();
-
-    toast.promise(promise, {
-        loading: 'Norm bijwerken...',
-        success: (res) => { if (res.error) throw res.error; fetchData(); setEditingNorm(null); return "Norm succesvol bijgewerkt!"; },
-        error: (err) => `Fout: ${err.message}`
-    });
-};
-
-
-    const promptDeleteNorm = (normId) => {
-        setNormToDelete(normId);
-        setIsModalOpen(true);
+        toast.promise(promise, {
+            loading: 'Norm bijwerken...',
+            success: () => { setEditingNorm(null); return "Norm succesvol bijgewerkt!"; },
+            error: (err) => `Fout: ${err.message}`
+        });
     };
 
     const executeDelete = async () => {
         if (!normToDelete) return;
-        const promise = supabase.from('normen').delete().eq('id', normToDelete);
+        const promise = deleteDoc(doc(db, 'normen', normToDelete.id));
         toast.promise(promise, {
             loading: 'Norm verwijderen...',
-            success: () => {
-                fetchData();
-                return "Norm succesvol verwijderd!";
-            },
+            success: "Norm succesvol verwijderd!",
             error: "Kon norm niet verwijderen."
         });
-        setIsModalOpen(false);
         setNormToDelete(null);
     };
 
@@ -154,37 +125,30 @@ export default function TestDetailBeheer() {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            delimitersToGuess: [',', ';'],
             complete: async (results) => {
                 const requiredHeaders = ['leeftijd', 'geslacht', 'score_min', 'punt'];
-                const headers = results.meta.fields;
-                if (!requiredHeaders.every(h => headers.includes(h))) {
-                    toast.error(`CSV-bestand mist verplichte kolommen. Vereist: ${requiredHeaders.join(', ')}`);
+                if (!requiredHeaders.every(h => results.meta.fields.includes(h))) {
+                    toast.error(`CSV mist verplichte kolommen: ${requiredHeaders.join(', ')}`);
                     return;
                 }
-                const normsToInsert = results.data.map(row => {
-                    const geslachtUpper = row.geslacht?.toUpperCase();
-                    const finalGeslacht = geslachtUpper === 'J' ? 'M' : geslachtUpper;
 
-                    let parsedScoreMin = parseScoreMin(row.score_min);
-    if (isNaN(parsedScoreMin)) parsedScoreMin = Number(row.score_min);
-                    return {
+                const batch = writeBatch(db);
+                results.data.forEach(row => {
+                    const normRef = doc(collection(db, 'normen'));
+                    batch.set(normRef, {
                         test_id: testId,
+                        school_id: profile.school_id,
                         leeftijd: Number(row.leeftijd),
-                        geslacht: finalGeslacht,
-                        score_min: parsedScoreMin,
+                        geslacht: row.geslacht.toUpperCase(),
+                        score_min: Number(row.score_min),
                         punt: Number(row.punt)
-                    };
+                    });
                 });
-                const validNorms = normsToInsert.filter(n => !isNaN(n.leeftijd) && !isNaN(n.score_min) && !isNaN(n.punt) && (n.geslacht === 'M' || n.geslacht === 'V'));
-                if (validNorms.length === 0) {
-                    toast.error("Geen geldige rijen gevonden in het CSV-bestand om te importeren. Controleer de data.");
-                    return;
-                }
-                const promise = supabase.from('normen').insert(validNorms);
+
+                const promise = batch.commit();
                 toast.promise(promise, {
-                    loading: `Bezig met importeren van ${validNorms.length} normen...`,
-                    success: () => { fetchData(); return `${validNorms.length} normen succesvol geïmporteerd!`; },
+                    loading: `Bezig met importeren van ${results.data.length} normen...`,
+                    success: `${results.data.length} normen succesvol geïmporteerd!`,
                     error: (err) => `Import mislukt: ${err.message}`
                 });
             },
@@ -193,29 +157,27 @@ export default function TestDetailBeheer() {
         event.target.value = null;
     };
 
-
-    if (loading) return <p>Laden...</p>;
+    if (loading) return <p className="text-center p-8">Laden...</p>;
 
     return (
         <>
             <ConfirmModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                isOpen={!!normToDelete}
+                onClose={() => setNormToDelete(null)}
                 onConfirm={executeDelete}
                 title="Prestatienorm verwijderen"
             >
                 Weet u zeker dat u deze norm wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
             </ConfirmModal>
-{/* --- MODAL VOOR HET BEWERKEN VAN DE TEST --- */}
-            {isTestModalOpen && (
-                <TestFormModal
-                    isOpen={isTestModalOpen}
-                    onRequestClose={() => setIsTestModalOpen(false)}
-                    onTestSaved={fetchData} // Herlaad de data na opslaan
-                    testData={test} // Geef de huidige testdata mee
-                />
-            )}
-            {/* ----------------------------------------- */}
+            
+            <TestFormModal
+                isOpen={isTestModalOpen}
+                onClose={() => setIsTestModalOpen(false)}
+                onTestSaved={() => { fetchData(); setIsTestModalOpen(false); }}
+                testData={test}
+                schoolId={profile?.school_id}
+            />
+            
             <div className="max-w-7xl mx-auto space-y-8">
                 <Link to="/testbeheer" className="flex items-center text-sm text-gray-600 hover:text-purple-700 font-semibold">
                     <ArrowLeftIcon className="h-4 w-4 mr-2" />
@@ -225,53 +187,17 @@ export default function TestDetailBeheer() {
                 <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg">
                     <div className="flex justify-between items-center">
                         <h1 className="text-2xl font-bold">Testgegevens: {test?.naam}</h1>
-                        {/* --- DEZE KNOP OPENT NU DE MODAL --- */}
                         <button onClick={() => setIsTestModalOpen(true)} className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-semibold">
                             <PencilIcon className="h-5 w-5"/> Bewerken
                         </button>
                     </div>
-                    {/* --- NIEUWE LAYOUT VOOR TESTDETAILS --- */}
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
-                        <div>
-                            <h3 className="text-sm font-medium text-gray-500">Categorie</h3>
-                            <p className="font-semibold text-gray-800">{test?.categorie}</p>
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-medium text-gray-500">Eenheid</h3>
-                            <p className="font-semibold text-gray-800">{test?.eenheid || '-'}</p>
-                        </div>
-                    </div>
-                    <div className="mt-4">
-                        <h3 className="text-sm font-medium text-gray-500">Beschrijving</h3>
-                        <details className="text-gray-800">
-                            <summary className="cursor-pointer text-sm">
-                                {test?.beschrijving?.split('.')[0] || "Geen beschrijving."}
-                                {test?.beschrijving?.includes('.') && '... (lees meer)'}
-                            </summary>
-                            <p className="mt-2 text-sm">{test?.beschrijving}</p>
-                        </details>
-                    </div>
-                    {/* ------------------------------------ */}
                 </div>
 
                 <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg">
                     <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-4 flex-wrap">
                         <h2 className="text-2xl font-bold">Prestatienormen</h2>
                         <div className="flex items-center gap-4">
-                            <div>
-                                <label htmlFor="leeftijd-filter" className="block text-sm font-medium text-gray-700">Leeftijd</label>
-                                <select id="leeftijd-filter" value={selectedLeeftijd} onChange={(e) => setSelectedLeeftijd(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm rounded-md">
-                                    <option value="all">Alle</option>
-                                    {uniekeLeeftijden.map(leeftijd => <option key={leeftijd} value={leeftijd}>{leeftijd}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="geslacht-filter" className="block text-sm font-medium text-gray-700">Geslacht</label>
-                                <select id="geslacht-filter" value={selectedGeslacht} onChange={(e) => setSelectedGeslacht(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm rounded-md">
-                                    <option value="all">Alle</option>
-                                    {uniekeGeslachten.map(geslacht => <option key={geslacht} value={geslacht}>{geslacht}</option>)}
-                                </select>
-                            </div>
+                            {/* Filters */}
                         </div>
                         <div className="flex gap-2 self-start md:self-end">
                             <input type="file" accept=".csv" ref={fileInputRef} onChange={handleCsvUpload} className="hidden" />
@@ -279,7 +205,7 @@ export default function TestDetailBeheer() {
                                 <ArrowUpTrayIcon className="h-5 w-5" />
                                 Importeer CSV
                             </button>
-                            <button onClick={handleAddNorm} disabled={isAdding || editingNorm} className="bg-purple-700 text-white font-bold py-2 px-4 rounded-lg disabled:bg-gray-400">
+                            <button onClick={() => setIsAdding(true)} disabled={isAdding || editingNorm} className="bg-purple-700 text-white font-bold py-2 px-4 rounded-lg disabled:bg-gray-400">
                                 + Nieuwe Norm
                             </button>
                         </div>
@@ -288,7 +214,6 @@ export default function TestDetailBeheer() {
                         <table className="min-w-full bg-white rounded-lg">
                             <thead>
                                 <tr className="bg-gray-50">
-                                    {/* STYLING AANGEPAST: py-2 px-3 */}
                                     <th className="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leeftijd</th>
                                     <th className="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Geslacht</th>
                                     <th className="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min. Score</th>
@@ -299,7 +224,6 @@ export default function TestDetailBeheer() {
                             <tbody>
                                 {isAdding && (
                                     <tr className="bg-purple-50">
-                                        {/* STYLING AANGEPAST: py-1 px-2 */}
                                         <td className="py-1 px-2"><input type="number" value={newNorm.leeftijd} onChange={e => setNewNorm({...newNorm, leeftijd: e.target.value})} className="w-full p-1 border rounded text-sm" /></td>
                                         <td className="py-1 px-2">
                                             <select value={newNorm.geslacht} onChange={e => setNewNorm({...newNorm, geslacht: e.target.value})} className="w-full p-1 border rounded text-sm">
@@ -318,7 +242,6 @@ export default function TestDetailBeheer() {
                                     <tr key={norm.id} className="border-t">
                                         {editingNorm?.id === norm.id ? (
                                             <>
-                                                {/* STYLING AANGEPAST: py-1 px-2 */}
                                                 <td className="py-1 px-2"><input type="number" value={editingNorm.leeftijd} onChange={e => setEditingNorm({...editingNorm, leeftijd: e.target.value})} className="w-full p-1 border rounded text-sm" /></td>
                                                 <td className="py-1 px-2">
                                                     <select value={editingNorm.geslacht} onChange={e => setEditingNorm({...editingNorm, geslacht: e.target.value})} className="w-full p-1 border rounded text-sm">
@@ -334,14 +257,13 @@ export default function TestDetailBeheer() {
                                             </>
                                         ) : (
                                             <>
-                                                {/* STYLING AANGEPAST: py-2 px-3 en text-sm */}
                                                 <td className="py-2 px-3 text-sm">{norm.leeftijd}</td>
                                                 <td className="py-2 px-3 text-sm">{norm.geslacht}</td>
                                                 <td className="py-2 px-3 text-sm">{norm.score_min}</td>
                                                 <td className="py-2 px-3 text-sm">{norm.punt}</td>
                                                 <td className="py-2 px-3 flex gap-4 items-center">
-                                                    <button onClick={() => handleEditClick(norm)} className="text-blue-600 hover:text-blue-800"><PencilIcon className="h-4 w-4"/></button>
-                                                    <button onClick={() => promptDeleteNorm(norm.id)} className="text-red-600 hover:text-red-800"><TrashIcon className="h-4 w-4"/></button>
+                                                    <button onClick={() => setEditingNorm({ ...norm })} className="text-blue-600 hover:text-blue-800"><PencilIcon className="h-4 w-4"/></button>
+                                                    <button onClick={() => setNormToDelete(norm)} className="text-red-600 hover:text-red-800"><TrashIcon className="h-4 w-4"/></button>
                                                 </td>
                                             </>
                                         )}
@@ -350,10 +272,8 @@ export default function TestDetailBeheer() {
                             </tbody>
                         </table>
                     </div>
-                    {gefilterdeNormen.length === 0 && !isAdding && <p className="text-center py-4 text-gray-500">Geen normen gevonden voor deze selectie.</p>}
                 </div>
             </div>
         </>
     );
-   
 }

@@ -1,32 +1,44 @@
 // src/pages/Testbeheer.jsx
-import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import toast from 'react-hot-toast';
+import { collection, query, where, onSnapshot, deleteDoc, doc, getDocs } from 'firebase/firestore';
+import toast, { Toaster } from 'react-hot-toast';
 import TestFormModal from '../components/TestFormModal';
 import ConfirmModal from '../components/ConfirmModal';
-import { TrashIcon } from '@heroicons/react/24/solid';
-import { useNavigate } from 'react-router-dom';
-
+import { PlusIcon, TrashIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 export default function Testbeheer() {
+    const { profile } = useOutletContext();
     const [testen, setTesten] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     const [modal, setModal] = useState({ type: null, data: null });
 
-    const fetchTesten = useCallback(async () => {
-        setLoading(true);
-        const { data, error } = await supabase.from('testen').select('*').order('naam');
-        if (error) toast.error("Kon de testen niet laden.");
-        else setTesten(data);
-        setLoading(false);
-    }, []);
-
     useEffect(() => {
-        fetchTesten();
-    }, [fetchTesten]);
+        if (!profile?.school_id) {
+            setLoading(false);
+            return;
+        }
+
+        const testenRef = collection(db, 'testen');
+        const q = query(testenRef, where('school_id', '==', profile.school_id));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const testenData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Sorteer de testen alfabetisch in de code
+            testenData.sort((a, b) => a.naam.localeCompare(b.naam));
+            setTesten(testenData);
+            setLoading(false);
+        }, (error) => {
+            console.error("Fout bij ophalen testen:", error);
+            toast.error("Kon de testen niet laden.");
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [profile?.school_id]);
 
     const handleCloseModal = () => {
         setModal({ type: null, data: null });
@@ -36,101 +48,111 @@ export default function Testbeheer() {
         const testToDelete = modal.data;
         if (!testToDelete) return;
 
-        const { count, error: countError } = await supabase
-            .from('scores')
-            .select('*', { count: 'exact', head: true })
-            .eq('test_id', testToDelete.id);
+        const loadingToast = toast.loading('Test verwijderen...');
 
-        if (countError) {
-            toast.error(`Fout bij controleren van scores: ${countError.message}`);
-            handleCloseModal();
-            return;
-        }
+        try {
+            // Controleer of er scores aan deze test gekoppeld zijn
+            const scoresRef = collection(db, 'scores');
+            const scoresQuery = query(scoresRef, where('test_id', '==', testToDelete.id));
+            const scoresSnapshot = await getDocs(scoresQuery);
 
-        if (count > 0) {
-            toast.error(`Kan '${testToDelete.naam}' niet verwijderen. Er zijn nog ${count} scores aan deze test gekoppeld.`);
-            handleCloseModal();
-            return;
-        }
+            if (!scoresSnapshot.empty) {
+                toast.error(`Kan '${testToDelete.naam}' niet verwijderen. Er zijn nog ${scoresSnapshot.size} scores aan gekoppeld.`);
+                toast.dismiss(loadingToast);
+                handleCloseModal();
+                return;
+            }
 
-        const { error } = await supabase.from('testen').delete().eq('id', testToDelete.id);
-
-        if (error) {
-            toast.error(`Fout bij verwijderen: ${error.message}`);
-        } else {
+            // Verwijder de test
+            await deleteDoc(doc(db, 'testen', testToDelete.id));
             toast.success(`'${testToDelete.naam}' succesvol verwijderd.`);
-            fetchTesten(); 
+        } catch (error) {
+            toast.error(`Fout bij verwijderen: ${error.message}`);
+        } finally {
+            toast.dismiss(loadingToast);
+            handleCloseModal();
         }
-        
-        handleCloseModal();
     };
+    
+    if (loading) {
+        return <div className="text-center p-8">Laden...</div>;
+    }
 
     return (
-       <div className="max-w-4xl mx-auto">
-            <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Testbeheer</h1>
-                    <button onClick={() => setModal({ type: 'form', data: null })} className="bg-purple-700 bg-transparent hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg">
-                        + Nieuwe Test
+       <>
+        <Toaster position="top-center" />
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
+            {/* --- Responsive Header --- */}
+            <div className="max-w-7xl mx-auto mb-8">
+                <div className="flex justify-between items-center">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
+                        Testbeheer
+                    </h1>
+                    <button
+                        onClick={() => setModal({ type: 'form', data: null })}
+                        className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full sm:px-5 sm:py-3 sm:rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                    >
+                        <PlusIcon className="h-6 w-6" />
+                        <span className="hidden sm:inline sm:ml-2">Nieuwe Test</span>
                     </button>
                 </div>
-
-                {loading ? <p>Laden...</p> : (
-                    <div className="overflow-hidden border rounded-lg">
-                        <table className="min-w-full">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Naam</th>
-                                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Categorie</th>
-                                    <th className="px-4 py-2 text-right text-sm font-medium text-gray-500">Acties</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white">
-                                {testen.map(test => (
-                                    <tr
-                                    key={test.id}
-                                    className="border-t hover:bg-gray-50 cursor-pointer"
-                                    onClick={() => navigate(`/testbeheer/${test.id}`)}
-                                    >
-                                    <td className="px-4 py-3 font-medium text-purple-700">{test.naam}</td>
-                                    <td className="px-4 py-3 text-gray-600">{test.categorie}</td>
-                                    <td
-                                        className="px-4 py-3 text-gray-600 text-right"
-                                        onClick={(e) => {
-                                        e.stopPropagation(); // voorkomt dat de rij-navigatie gebeurt
-                                        setModal({ type: 'confirm', data: test });
-                                        }}
-                                    >
-                                        <button className="text-red-500 hover:text-red-700 p-1 rounded-full">
-                                        <TrashIcon className="h-5 w-5" />
-                                        </button>
-                                    </td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                        </table>
-                    </div>
-                )}
             </div>
 
-            <TestFormModal
-                isOpen={modal.type === 'form'}
-                onClose={handleCloseModal}
-                onTestSaved={() => {
-                    fetchTesten();
-                    handleCloseModal();
-                }}
-                testData={modal.data}
-            />
-
-            <ConfirmModal
-                isOpen={modal.type === 'confirm'}
-                onClose={handleCloseModal}
-                onConfirm={handleDeleteTest}
-                title="Test Verwijderen"
-            >
-                Weet u zeker dat u de test "{modal.data?.naam}" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
-            </ConfirmModal>
+            {/* --- Content --- */}
+            <div className="max-w-7xl mx-auto">
+                <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+                    <ul className="divide-y divide-gray-200/70">
+                        {testen.length > 0 ? (
+                            testen.map(test => (
+                                <li key={test.id} className="group">
+                                    <div onClick={() => navigate(`/testbeheer/${test.id}`)} className="flex items-center justify-between p-4 sm:p-6 cursor-pointer hover:bg-purple-50/50 transition-colors">
+                                        <div>
+                                            <p className="text-lg font-semibold text-gray-900 group-hover:text-purple-700">{test.naam}</p>
+                                            <p className="text-sm text-gray-500">{test.categorie}</p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setModal({ type: 'confirm', data: test });
+                                                }}
+                                                className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
+                                                aria-label="Verwijder test"
+                                            >
+                                                <TrashIcon className="h-5 w-5" />
+                                            </button>
+                                            <ChevronRightIcon className="h-6 w-6 text-gray-400 group-hover:text-purple-700 transition-transform group-hover:translate-x-1" />
+                                        </div>
+                                    </div>
+                                </li>
+                            ))
+                        ) : (
+                            <li className="text-center text-gray-500 p-12">
+                                <h3 className="text-xl font-semibold mb-2">Geen Testen Gevonden</h3>
+                                <p>Er zijn nog geen testen aangemaakt voor deze school. Klik op "+ Nieuwe Test" om te beginnen.</p>
+                            </li>
+                        )}
+                    </ul>
+                </div>
+            </div>
         </div>
+
+        <TestFormModal
+            isOpen={modal.type === 'form'}
+            onClose={handleCloseModal}
+            onTestSaved={handleCloseModal}
+            testData={modal.data}
+            schoolId={profile?.school_id}
+        />
+
+        <ConfirmModal
+            isOpen={modal.type === 'confirm'}
+            onClose={handleCloseModal}
+            onConfirm={handleDeleteTest}
+            title="Test Verwijderen"
+        >
+            Weet u zeker dat u de test "{modal.data?.naam}" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+        </ConfirmModal>
+       </>
     );
 }
