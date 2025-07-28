@@ -105,17 +105,11 @@ export default function Groepsbeheer() {
 
         {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
         <div className="hidden lg:block max-w-7xl mx-auto mb-12">
-          <div className="text-center">
+          <div className="flex justify-between items-center">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
                         Mijn groepen
                     </h1>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto">
-          {/* --- DESKTOP BUTTON: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
-          <div className="hidden lg:flex justify-end mb-8">
-            <button
+                    <button
               onClick={() => setShowModal(true)}
               className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
             >
@@ -123,6 +117,11 @@ export default function Groepsbeheer() {
               <span className="ml-2">Nieuwe Groep Aanmaken</span>
             </button>
           </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto">
+          {/* --- DESKTOP BUTTON: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
+         
 
           {groepen.length === 0 ? (
             <div className="bg-white/80 backdrop-blur-lg text-center p-12 rounded-3xl shadow-2xl border border-white/20 max-w-2xl mx-auto">
