@@ -79,7 +79,8 @@ export default function StudentFormModal({ isOpen, onClose, onStudentSaved, stud
             if (isEditing) {
                 setFormData({
                     naam: studentData.naam || '',
-                    email: studentData.email || '',
+                    // --- GECORRIGEERD: Gebruik de 'id' (de email) om het veld te vullen ---
+                    email: studentData.id || studentData.email || '',
                     geboortedatum: formatDateForInput(studentData.geboortedatum),
                     geslacht: studentData.geslacht || 'M',
                 });
