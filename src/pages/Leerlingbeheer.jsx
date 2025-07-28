@@ -2,12 +2,11 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, writeBatch, doc, deleteDoc } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 import Papa from 'papaparse';
 import { PlusIcon, ArrowUpTrayIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
-// Je zult een formulier-modal nodig hebben, vergelijkbaar met TestFormModal
-// import StudentFormModal from '../components/StudentFormModal'; 
+import StudentFormModal from '../components/StudentFormModal'; 
 import ConfirmModal from '../components/ConfirmModal';
 
 export default function Leerlingbeheer() {
@@ -106,9 +105,20 @@ export default function Leerlingbeheer() {
     };
 
     const handleDeleteLeerling = async () => {
-        // Logica voor het verwijderen van een leerling komt hier
-        console.log("Verwijderen:", modal.data);
-        toast.success("Verwijder-logica nog te implementeren.");
+        if (!modal.data) return;
+        
+        const promise = deleteDoc(doc(db, 'toegestane_gebruikers', modal.data.id));
+
+        toast.promise(promise, {
+            loading: 'Leerling verwijderen...',
+            success: 'Leerling succesvol verwijderd!',
+            error: 'Kon de leerling niet verwijderen.'
+        });
+
+        setModal({ type: null, data: null });
+    };
+
+    const handleCloseModal = () => {
         setModal({ type: null, data: null });
     };
 
@@ -141,7 +151,7 @@ export default function Leerlingbeheer() {
                                 <span className="hidden sm:inline sm:ml-2">Importeer</span>
                             </button>
                             <button
-                                onClick={() => toast.error('Modal voor nieuwe leerling nog te implementeren.')}
+                                onClick={() => setModal({ type: 'form', data: null })}
                                 className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full sm:px-5 sm:py-3 sm:rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
                             >
                                 <PlusIcon className="h-6 w-6" />
@@ -174,7 +184,7 @@ export default function Leerlingbeheer() {
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 <button
-                                                    onClick={() => toast.error('Bewerken nog te implementeren.')}
+                                                    onClick={() => setModal({ type: 'form', data: leerling })}
                                                     className="p-2 text-gray-400 rounded-full hover:bg-blue-100 hover:text-blue-600"
                                                 >
                                                     <PencilIcon className="h-5 w-5" />
@@ -201,9 +211,16 @@ export default function Leerlingbeheer() {
             </div>
 
             {/* Modals */}
+            <StudentFormModal
+                isOpen={modal.type === 'form'}
+                onClose={handleCloseModal}
+                onStudentSaved={handleCloseModal}
+                studentData={modal.data}
+                schoolId={profile?.school_id}
+            />
             <ConfirmModal
                 isOpen={modal.type === 'confirm'}
-                onClose={() => setModal({ type: null, data: null })}
+                onClose={handleCloseModal}
                 onConfirm={handleDeleteLeerling}
                 title="Leerling Verwijderen"
             >
