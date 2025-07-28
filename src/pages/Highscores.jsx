@@ -77,7 +77,7 @@ export default function Highscores() {
         
                     {/* Subtitle */}
                     <p className="text-xl text-gray-600 font-medium">
-                        Sportscores & Highscores Dashboard
+                        Sportscores & Highscores
                     </p>
                     
                     {/* Decorative Line */}
