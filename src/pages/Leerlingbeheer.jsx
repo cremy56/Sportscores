@@ -69,41 +69,15 @@ export default function Leerlingbeheer() {
         return () => clearTimeout(timeoutId);
     }, [searchTerm, profile?.school_id]);
 
-    // --- AANGEPASTE ZOEKFUNCTIE ---
-    // Vervang de searchLeerlingen functie met deze verbeterde versie:
+    const searchLeerlingen = async (term) => {
+        if (!profile?.school_id) return;
+        
+        setLoading(true);
+        let finalQuery;
+        const termLower = term.toLowerCase();
+        const usersRef = collection(db, 'toegestane_gebruikers');
 
-const searchLeerlingen = async (term) => {
-    if (!profile?.school_id) return;
-    
-    setLoading(true);
-    let finalQuery;
-    const termLower = term.toLowerCase();
-    const usersRef = collection(db, 'toegestane_gebruikers');
-
-    // Bepaal of we op e-mail of op naam zoeken
-    if (term.includes('@')) {
-        // Voor e-mail: probeer eerst exacte match, dan starts-with
-        try {
-            // Eerst proberen met exacte match
-            const exactQuery = query(
-                usersRef,
-                where('school_id', '==', profile.school_id),
-                where('rol', '==', 'leerling'),
-                where('email', '==', termLower)
-            );
-            
-            const exactSnapshot = await getDocs(exactQuery);
-            
-            if (!exactSnapshot.empty) {
-                // Exacte match gevonden
-                const results = exactSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                results.sort((a, b) => a.naam.localeCompare(b.naam));
-                setLeerlingen(results);
-                setLoading(false);
-                return;
-            }
-            
-            // Geen exacte match, probeer starts-with voor degedeeltelijke matches
+        if (term.includes('@')) {
             finalQuery = query(
                 usersRef,
                 where('school_id', '==', profile.school_id),
@@ -111,35 +85,27 @@ const searchLeerlingen = async (term) => {
                 where('email', '>=', termLower),
                 where('email', '<=', termLower + '\uf8ff')
             );
-            
-        } catch (error) {
-            console.error('Fout bij email zoeken:', error);
-            toast.error('Fout bij zoeken naar e-mailadres.');
-            setLoading(false);
-            return;
+        } else {
+            finalQuery = query(
+                usersRef,
+                where('school_id', '==', profile.school_id),
+                where('rol', '==', 'leerling'),
+                where('naam_keywords', 'array-contains', termLower)
+            );
         }
-    } else {
-        // Zoek op naam
-        finalQuery = query(
-            usersRef,
-            where('school_id', '==', profile.school_id),
-            where('rol', '==', 'leerling'),
-            where('naam_keywords', 'array-contains', termLower)
-        );
-    }
 
-    try {
-        const querySnapshot = await getDocs(finalQuery);
-        const results = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        results.sort((a, b) => a.naam.localeCompare(b.naam));
-        setLeerlingen(results);
-    } catch (error) {
-        console.error('Zoekfout:', error);
-        toast.error('Fout bij zoeken naar leerlingen. Controleer de database-indexen.');
-    } finally {
-        setLoading(false);
-    }
-};
+        try {
+            const querySnapshot = await getDocs(finalQuery);
+            const results = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            results.sort((a, b) => a.naam.localeCompare(b.naam));
+            setLeerlingen(results);
+        } catch (error) {
+            console.error('Zoekfout:', error);
+            toast.error('Fout bij zoeken naar leerlingen. Controleer de database-indexen.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const gefilterdeLeerlingen = useMemo(() => {
         return leerlingen;
@@ -326,13 +292,13 @@ const searchLeerlingen = async (term) => {
 
                     {/* Search */}
                     <div className="relative">
-                        <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
                         <input
                             type="text"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             placeholder="Zoek leerlingen op naam of e-mail (minimaal 2 karakters)..."
-                            className="w-full pl-12 pr-4 py-4 bg-white/70 backdrop-blur-lg border-2 border-transparent rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-md"
+                            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors duration-200"
                         />
                         {loading && (
                             <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
