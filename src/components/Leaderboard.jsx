@@ -1,53 +1,68 @@
 // src/components/Leaderboard.jsx
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-
-function formatScore(score, eenheid) {
-  if (eenheid === 'min') {
-    // score is in seconden, toon als mm:ss
-    return formatSeconds(score);
-  }
-  return score;
-} 
+import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 
 function formatSeconds(seconds) {
   if (typeof seconds !== 'number' || isNaN(seconds)) return seconds;
-
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
-
-  // Format met voorloopnullen
   const minsStr = mins.toString();
   const secsStr = secs < 10 ? `0${secs}` : secs.toString();
-
   return `${minsStr}'${secsStr}`;
 }
 
 export default function Leaderboard({ testId }) { 
   const [scores, setScores] = useState([]);
+  const [testData, setTestData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchScores = async () => {
-      if (!testId) return;
+      if (!testId) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
-      const { data, error } = await supabase.rpc('get_top_5_scores_dynamic', {
-        p_test_id: testId 
-      });
-      if (error) {
-        console.error('Error fetching highscores:', error);
+
+      try {
+        // Stap 1: Haal de testgegevens op (voor eenheid en score_richting)
+        const testRef = doc(db, 'testen', testId);
+        const testSnap = await getDoc(testRef);
+
+        if (!testSnap.exists()) {
+          throw new Error("Test niet gevonden.");
+        }
+        const currentTestData = testSnap.data();
+        setTestData(currentTestData);
+
+        // Stap 2: Bouw de query voor de scores
+        const scoresRef = collection(db, 'scores');
+        const scoreDirection = currentTestData.score_richting === 'hoog' ? 'desc' : 'asc';
+        
+        const q = query(
+          scoresRef, 
+          where('test_id', '==', testId),
+          orderBy('score', scoreDirection),
+          limit(5)
+        );
+
+        // Stap 3: Haal de scores op
+        const querySnapshot = await getDocs(q);
+        const scoresData = querySnapshot.docs.map(doc => doc.data());
+        
+        setScores(scoresData);
+
+      } catch (err) {
+        console.error('Error fetching highscores:', err);
         setError('Kon de scores niet laden.');
-      } else {
-        setScores(data);
-        console.log('Fetched scores:', data);
-        data.forEach((entry, i) => {
-          console.log(`Entry ${i}: score =`, entry.score, typeof entry.score, 'eenheid =', entry.eenheid);
-        });
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
+
     fetchScores();
   }, [testId]);
 
@@ -60,7 +75,7 @@ export default function Leaderboard({ testId }) {
     <ol className="space-y-1 text-gray-700 max-w-md mx-auto">
       {scores.map((entry, index) => (
         <li 
-          key={`${testId}-${index}`}
+          key={entry.leerling_id || index}
           className="flex justify-between items-center p-2 rounded-lg even:bg-green-500/10"
         >
           <div className="flex items-center gap-2">
@@ -72,12 +87,10 @@ export default function Leaderboard({ testId }) {
             </span>
           </div>
          <span className="font-bold text-[clamp(0.85rem,2vw,1.25rem)] text-purple-700">
-  {entry.eenheid === 'min'
-    ? formatSeconds(entry.score)
-    : `${entry.score} ${entry.eenheid}`}
-</span>
-
-
+            {testData?.eenheid === 'min'
+                ? formatSeconds(entry.score)
+                : `${entry.score} ${testData?.eenheid}`}
+        </span>
         </li>
       ))}
     </ol>

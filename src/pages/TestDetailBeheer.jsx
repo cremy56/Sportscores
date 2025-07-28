@@ -242,11 +242,11 @@ export default function TestDetailBeheer() {
                     {/* TESTGEGEVENS SECTIE */}
                     <div className="bg-white/70 backdrop-blur-lg rounded-3xl shadow-lg border border-white/20 overflow-hidden">
                         <div className="p-6">
-                            <button 
-                                onClick={() => setIsTestDetailsOpen(!isTestDetailsOpen)} 
-                                className="w-full flex justify-between items-center group"
-                            >
-                                <div className="flex items-center space-x-3">
+                            <div className="w-full flex justify-between items-center group">
+                                <div 
+                                    onClick={() => setIsTestDetailsOpen(!isTestDetailsOpen)} 
+                                    className="flex items-center space-x-3 cursor-pointer flex-grow"
+                                >
                                     <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center">
                                         <PencilIcon className="w-6 h-6 text-purple-600" />
                                     </div>
@@ -258,16 +258,18 @@ export default function TestDetailBeheer() {
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-3">
-                                    <button 
+                                    <div 
                                         onClick={(e) => { e.stopPropagation(); setIsTestModalOpen(true); }} 
-                                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-semibold p-2 rounded-xl hover:bg-blue-50 transition-all duration-200"
+                                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-semibold p-2 rounded-xl hover:bg-blue-50 transition-all duration-200 cursor-pointer"
                                     >
                                         <PencilIcon className="h-4 w-4"/> 
                                         <span className="hidden sm:inline">Bewerken</span>
+                                    </div>
+                                    <button onClick={() => setIsTestDetailsOpen(!isTestDetailsOpen)}>
+                                        <ChevronDownIcon className={`h-6 w-6 text-gray-400 transform transition-transform duration-300 ${isTestDetailsOpen ? 'rotate-180' : ''}`} />
                                     </button>
-                                    <ChevronDownIcon className={`h-6 w-6 text-gray-400 transform transition-transform duration-300 ${isTestDetailsOpen ? 'rotate-180' : ''}`} />
                                 </div>
-                            </button>
+                            </div>
                             
                             {!isTestDetailsOpen && (
                                 <div className="mt-4 pt-4 border-t border-gray-100">
@@ -345,34 +347,7 @@ export default function TestDetailBeheer() {
                                 <div className="mb-6 space-y-4">
                                     <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
                                         <div className="flex flex-wrap items-center gap-4">
-                                            <div className="flex items-center space-x-2">
-                                                <label className="text-sm font-medium text-gray-700">Leeftijd:</label>
-                                                <select 
-                                                    value={selectedLeeftijd} 
-                                                    onChange={(e) => setSelectedLeeftijd(e.target.value)}
-                                                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-                                                >
-                                                    <option value="all">Alle leeftijden</option>
-                                                    {uniekeLeeftijden.map(leeftijd => (
-                                                        <option key={leeftijd} value={leeftijd}>{leeftijd} jaar</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <label className="text-sm font-medium text-gray-700">Geslacht:</label>
-                                                <select 
-                                                    value={selectedGeslacht} 
-                                                    onChange={(e) => setSelectedGeslacht(e.target.value)}
-                                                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-                                                >
-                                                    <option value="all">Alle geslachten</option>
-                                                    {uniekeGeslachten.map(geslacht => (
-                                                        <option key={geslacht} value={geslacht}>
-                                                            {geslacht?.toUpperCase().startsWith('M') ? 'Mannelijk' : 'Vrouwelijk'}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
+                                            {/* Filters */}
                                         </div>
                                         <div className="flex gap-2">
                                             {selectedNorms.length > 0 && (
@@ -458,7 +433,7 @@ export default function TestDetailBeheer() {
                                                         <>
                                                             <td className="py-3 px-6"><input type="number" value={editingNorm.leeftijd} onChange={e => setEditingNorm({...editingNorm, leeftijd: e.target.value})} className="w-full p-2 border rounded-lg text-sm" /></td>
                                                             <td className="py-3 px-6"><select value={editingNorm.geslacht} onChange={e => setEditingNorm({...editingNorm, geslacht: e.target.value})} className="w-full p-2 border rounded-lg text-sm"><option value="M">M</option><option value="V">V</option></select></td>
-                                                            <td className="py-3 px-6"><input type="number" step="any" value={editingNorm.score_min} onChange={e => setEditingNorm({...editingNorm, score_min: e.target.value})} className="w-full p-2 border rounded-lg text-sm" /></td>
+                                                            <td className="py-3 px-6"><input type="number" step="any" value={isNaN(editingNorm.score_min) ? '' : editingNorm.score_min} onChange={e => setEditingNorm({...editingNorm, score_min: e.target.value})} className="w-full p-2 border rounded-lg text-sm" /></td>
                                                             <td className="py-3 px-6"><input type="number" value={editingNorm.punt} onChange={e => setEditingNorm({...editingNorm, punt: e.target.value})} className="w-full p-2 border rounded-lg text-sm" /></td>
                                                             <td className="py-3 px-6"><div className="flex gap-2 items-center"><button onClick={handleUpdateNorm} className="text-green-600 p-1"><CheckIcon className="h-5 w-5"/></button><button onClick={() => setEditingNorm(null)} className="text-red-600 p-1"><XMarkIcon className="h-5 w-5"/></button></div></td>
                                                         </>
@@ -472,7 +447,7 @@ export default function TestDetailBeheer() {
                                                                     {(norm.geslacht?.toUpperCase().startsWith('M')) ? 'Mannelijk' : 'Vrouwelijk'}
                                                                 </span>
                                                             </td>
-                                                            <td className="py-4 px-6 text-sm text-gray-700 font-medium">{norm.score_min}</td>
+                                                            <td className="py-4 px-6 text-sm text-gray-700 font-medium">{isNaN(norm.score_min) ? '-' : norm.score_min}</td>
                                                             <td className="py-4 px-6 text-sm text-gray-700"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">{norm.punt} pt</span></td>
                                                             {isNormenOpen && (
                                                                 <td className="py-4 px-6">
@@ -505,5 +480,5 @@ export default function TestDetailBeheer() {
                 </div>
             </div>
         </>
-   );
+    );
 }
