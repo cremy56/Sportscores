@@ -70,17 +70,40 @@ export default function Leerlingbeheer() {
     }, [searchTerm, profile?.school_id]);
 
     // --- AANGEPASTE ZOEKFUNCTIE ---
-    const searchLeerlingen = async (term) => {
-        if (!profile?.school_id) return;
-        
-        setLoading(true);
-        let finalQuery;
-        const termLower = term.toLowerCase();
-        const usersRef = collection(db, 'toegestane_gebruikers');
+    // Vervang de searchLeerlingen functie met deze verbeterde versie:
 
-        // Bepaal of we op e-mail of op naam zoeken
-        if (term.includes('@')) {
-            // Zoek op e-mail met een "starts-with" query. Dit is flexibeler.
+const searchLeerlingen = async (term) => {
+    if (!profile?.school_id) return;
+    
+    setLoading(true);
+    let finalQuery;
+    const termLower = term.toLowerCase();
+    const usersRef = collection(db, 'toegestane_gebruikers');
+
+    // Bepaal of we op e-mail of op naam zoeken
+    if (term.includes('@')) {
+        // Voor e-mail: probeer eerst exacte match, dan starts-with
+        try {
+            // Eerst proberen met exacte match
+            const exactQuery = query(
+                usersRef,
+                where('school_id', '==', profile.school_id),
+                where('rol', '==', 'leerling'),
+                where('email', '==', termLower)
+            );
+            
+            const exactSnapshot = await getDocs(exactQuery);
+            
+            if (!exactSnapshot.empty) {
+                // Exacte match gevonden
+                const results = exactSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                results.sort((a, b) => a.naam.localeCompare(b.naam));
+                setLeerlingen(results);
+                setLoading(false);
+                return;
+            }
+            
+            // Geen exacte match, probeer starts-with voor degedeeltelijke matches
             finalQuery = query(
                 usersRef,
                 where('school_id', '==', profile.school_id),
@@ -88,28 +111,35 @@ export default function Leerlingbeheer() {
                 where('email', '>=', termLower),
                 where('email', '<=', termLower + '\uf8ff')
             );
-        } else {
-            // Zoek op naam
-            finalQuery = query(
-                usersRef,
-                where('school_id', '==', profile.school_id),
-                where('rol', '==', 'leerling'),
-                where('naam_keywords', 'array-contains', termLower)
-            );
-        }
-
-        try {
-            const querySnapshot = await getDocs(finalQuery);
-            const results = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            results.sort((a, b) => a.naam.localeCompare(b.naam));
-            setLeerlingen(results);
+            
         } catch (error) {
-            console.error('Zoekfout:', error);
-            toast.error('Fout bij zoeken naar leerlingen. Controleer de database-indexen.');
-        } finally {
+            console.error('Fout bij email zoeken:', error);
+            toast.error('Fout bij zoeken naar e-mailadres.');
             setLoading(false);
+            return;
         }
-    };
+    } else {
+        // Zoek op naam
+        finalQuery = query(
+            usersRef,
+            where('school_id', '==', profile.school_id),
+            where('rol', '==', 'leerling'),
+            where('naam_keywords', 'array-contains', termLower)
+        );
+    }
+
+    try {
+        const querySnapshot = await getDocs(finalQuery);
+        const results = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        results.sort((a, b) => a.naam.localeCompare(b.naam));
+        setLeerlingen(results);
+    } catch (error) {
+        console.error('Zoekfout:', error);
+        toast.error('Fout bij zoeken naar leerlingen. Controleer de database-indexen.');
+    } finally {
+        setLoading(false);
+    }
+};
 
     const gefilterdeLeerlingen = useMemo(() => {
         return leerlingen;
