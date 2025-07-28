@@ -106,12 +106,9 @@ export default function Groepsbeheer() {
         {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
         <div className="hidden lg:block max-w-7xl mx-auto mb-12">
           <div className="text-center">
-            <p className="text-xl text-gray-600 font-medium">
-              Mijn groepen
-            </p>
-            <div className="mt-6 flex justify-center">
-              <div className="w-20 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
+                        Mijn groepen
+                    </h1>
           </div>
         </div>
 

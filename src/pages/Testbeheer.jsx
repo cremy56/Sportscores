@@ -86,7 +86,7 @@ export default function Testbeheer() {
             <div className="max-w-7xl mx-auto mb-8">
                 <div className="flex justify-between items-center">
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-                        Testbeheer
+                        Testen
                     </h1>
                     <button
                         onClick={() => setModal({ type: 'form', data: null })}
