@@ -80,13 +80,12 @@ export default function Leerlingbeheer() {
 
         // Bepaal of we op e-mail of op naam zoeken
         if (term.includes('@')) {
-            // Zoek op e-mail
+            // Zoek op e-mail met een exacte match
             finalQuery = query(
                 usersRef,
                 where('school_id', '==', profile.school_id),
                 where('rol', '==', 'leerling'),
-                where('email', '>=', termLower),
-                where('email', '<=', termLower + '\uf8ff')
+                where('email', '==', termLower)
             );
         } else {
             // Zoek op naam
