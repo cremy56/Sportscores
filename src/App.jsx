@@ -54,11 +54,13 @@ function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [school, setSchool] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Start altijd met laden
 
   useEffect(() => {
+    // Deze listener is de ENIGE bron van waarheid voor de login-status.
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      // Als de gebruiker uitlogt, wissen we alles en stoppen we met laden.
       if (!currentUser) {
         setProfile(null);
         setSchool(null);
@@ -69,12 +71,15 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // Dit effect wordt actief zodra er een gebruiker is.
     if (!user) return;
 
+    // We zetten een real-time listener op voor het profieldocument.
     const unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
       if (docSnap.exists()) {
         setProfile(docSnap.data());
       } else {
+        // EERSTE LOGIN: Het profiel bestaat nog niet. We maken het aan.
         const allowedUserRef = doc(db, 'toegestane_gebruikers', user.email);
         const allowedUserSnap = await getDoc(allowedUserRef);
 
@@ -82,7 +87,12 @@ function App() {
           const initialProfileData = allowedUserSnap.data();
           initialProfileData.email = user.email;
           initialProfileData.onboarding_complete = false;
+          
           await setDoc(doc(db, 'users', user.uid), initialProfileData);
+        } else {
+            // Gebruiker is niet toegestaan, maar heeft wel een account.
+            // We stoppen met laden zodat de ProtectedRoute hem kan afhandelen.
+            setLoading(false);
         }
       }
     });
@@ -91,12 +101,23 @@ function App() {
   }, [user]);
 
   useEffect(() => {
-    if (!profile?.school_id) {
-      setSchool(null);
-      setLoading(false);
-      return;
+    // Dit effect wordt actief zodra het profiel is geladen.
+    if (!profile) {
+        // Als er een gebruiker is maar (nog) geen profiel, blijven we laden.
+        // Tenzij de gebruiker is uitgelogd, dan is loading al false.
+        if(user) setLoading(true);
+        return;
+    };
+
+    if (!profile.school_id) {
+        // Als er een profiel is, maar geen school_id (bv. tijdens onboarding),
+        // zijn we klaar met laden voor dit stadium.
+        setSchool(null);
+        setLoading(false);
+        return;
     }
 
+    // Haal de schoolgegevens op.
     const unsubscribeSchool = onSnapshot(doc(db, 'scholen', profile.school_id), (schoolSnap) => {
       if (schoolSnap.exists()) {
         setSchool({ id: schoolSnap.id, ...schoolSnap.data() });
@@ -104,14 +125,21 @@ function App() {
         console.error("School document niet gevonden!");
         setSchool(null);
       }
+      // DIT is het laatste wat we laden. Nu mag de app getoond worden.
       setLoading(false);
     });
 
     return () => unsubscribeSchool;
-  }, [profile]);
+  }, [profile, user]); // Afhankelijk van user en profile
 
   if (loading) {
-    return <div></div>;
+    // Toon een laadscherm om de "flits" te voorkomen
+    return (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f9fafb' }}>
+            <div style={{ border: '4px solid rgba(0, 0, 0, 0.1)', width: '36px', height: '36px', borderRadius: '50%', borderLeftColor: '#8b5cf6', animation: 'spin 1s ease infinite' }}></div>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+    );
   }
 
   return (
@@ -132,10 +160,7 @@ function App() {
                 <Route path="/setup-account" element={<SetupAccount />} />
                 <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
 
-                {/* --- AANGEPASTE ROUTE STRUCTUUR --- */}
-                {/* ProtectedRoute ontvangt nu alle context data */}
                 <Route element={<ProtectedRoute profile={profile} school={school} />}>
-                    {/* Layout heeft geen props meer nodig, het haalt de context op */}
                     <Route element={<Layout />}>
                         <Route path="/" element={<Highscores />} />
                         <Route path="/evolutie" element={<Evolutie />} />
