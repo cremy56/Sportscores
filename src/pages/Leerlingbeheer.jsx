@@ -23,8 +23,7 @@ import {
     PencilIcon, 
     MagnifyingGlassIcon,
     UsersIcon,
-    ArrowDownTrayIcon,
-    EyeIcon
+    ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import StudentFormModal from '../components/StudentFormModal'; 
 import ConfirmModal from '../components/ConfirmModal';
@@ -32,44 +31,28 @@ import ConfirmModal from '../components/ConfirmModal';
 export default function Leerlingbeheer() {
     const { profile } = useOutletContext();
     const [leerlingen, setLeerlingen] = useState([]);
-    const [loading, setLoading] = useState(false); // Start niet met laden
+    const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [sortBy, setSortBy] = useState('naam');
-    const [sortOrder, setSortOrder] = useState('asc');
-    const [selectedLeerlingen, setSelectedLeerlingen] = useState([]);
-    const [filterGeslacht, setFilterGeslacht] = useState('all');
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [totalCount, setTotalCount] = useState(null);
-    const [showInitial, setShowInitial] = useState(false);
     const fileInputRef = useRef(null);
     const [modal, setModal] = useState({ type: null, data: null });
 
-    // Detecteer schermgrootte veranderingen
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    // Haal totaal aantal leerlingen op voor statistieken
+    // Haal totaal aantal leerlingen op
     useEffect(() => {
         const getTotalCount = async () => {
             if (!profile?.school_id) return;
-            
             try {
                 const countQuery = query(
                     collection(db, 'toegestane_gebruikers'),
                     where('school_id', '==', profile.school_id),
                     where('rol', '==', 'leerling')
                 );
-                
                 const snapshot = await getCountFromServer(countQuery);
                 setTotalCount(snapshot.data().count);
             } catch (error) {
                 console.error('Fout bij ophalen totaal aantal:', error);
             }
         };
-
         getTotalCount();
     }, [profile?.school_id]);
 
@@ -78,14 +61,13 @@ export default function Leerlingbeheer() {
         const timeoutId = setTimeout(() => {
             if (searchTerm.length >= 2) {
                 searchLeerlingen(searchTerm);
-            } else if (searchTerm.length === 0 && !showInitial) {
+            } else if (searchTerm.length === 0) {
                 setLeerlingen([]);
-                setSelectedLeerlingen([]);
             }
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [searchTerm, profile?.school_id, showInitial]);
+    }, [searchTerm, profile?.school_id]);
 
     // Zoekfunctie
     const searchLeerlingen = async (term) => {
@@ -93,7 +75,6 @@ export default function Leerlingbeheer() {
         
         setLoading(true);
         try {
-            // Zoek op naam keywords
             const naamQuery = query(
                 collection(db, 'toegestane_gebruikers'),
                 where('school_id', '==', profile.school_id),
@@ -101,8 +82,6 @@ export default function Leerlingbeheer() {
                 where('naam_keywords', 'array-contains', term.toLowerCase()),
                 limit(100)
             );
-
-            // Zoek op email (voor exacte matches)
             const emailQuery = query(
                 collection(db, 'toegestane_gebruikers'),
                 where('school_id', '==', profile.school_id),
@@ -117,19 +96,12 @@ export default function Leerlingbeheer() {
                 getDocs(emailQuery)
             ]);
 
-            // Combineer en dedupliceer resultaten
             const combinedResults = new Map();
-            
-            naamResults.docs.forEach(doc => {
-                combinedResults.set(doc.id, { id: doc.id, ...doc.data() });
-            });
-            
-            emailResults.docs.forEach(doc => {
-                combinedResults.set(doc.id, { id: doc.id, ...doc.data() });
-            });
+            naamResults.docs.forEach(doc => combinedResults.set(doc.id, { id: doc.id, ...doc.data() }));
+            emailResults.docs.forEach(doc => combinedResults.set(doc.id, { id: doc.id, ...doc.data() }));
 
-            setLeerlingen(Array.from(combinedResults.values()));
-            setSelectedLeerlingen([]); // Reset selecties bij nieuwe zoekopdracht
+            const sortedResults = Array.from(combinedResults.values()).sort((a, b) => a.naam.localeCompare(b.naam));
+            setLeerlingen(sortedResults);
         } catch (error) {
             console.error('Zoekfout:', error);
             toast.error('Fout bij zoeken naar leerlingen');
@@ -138,70 +110,9 @@ export default function Leerlingbeheer() {
         }
     };
 
-    // Functie om eerste X leerlingen op te halen
-    const loadInitialLeerlingen = async (limitCount = 50) => {
-        if (!profile?.school_id) return;
-        
-        setLoading(true);
-        try {
-            const q = query(
-                collection(db, 'toegestane_gebruikers'),
-                where('school_id', '==', profile.school_id),
-                where('rol', '==', 'leerling'),
-                orderBy('naam'),
-                limit(limitCount)
-            );
-            
-            const snapshot = await getDocs(q);
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setLeerlingen(data);
-            setShowInitial(true);
-            setSelectedLeerlingen([]);
-        } catch (error) {
-            console.error('Fout bij laden eerste leerlingen:', error);
-            toast.error('Kon de leerlingen niet laden');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Gefilterde en gesorteerde leerlingen (alleen client-side filtering nu)
-    const sortedAndFilteredLeerlingen = useMemo(() => {
-        let filtered = leerlingen.filter(leerling => {
-            const geslachtMatch = filterGeslacht === 'all' || leerling.geslacht === filterGeslacht;
-            return geslachtMatch;
-        });
-
-        return filtered.sort((a, b) => {
-            let aValue = a[sortBy] || '';
-            let bValue = b[sortBy] || '';
-            
-            if (typeof aValue === 'string') {
-                aValue = aValue.toLowerCase();
-                bValue = (bValue || '').toLowerCase();
-            }
-            
-            const comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-            return sortOrder === 'asc' ? comparison : -comparison;
-        });
-    }, [leerlingen, sortBy, sortOrder, filterGeslacht]);
-
-    const handleSort = (field) => {
-        if (sortBy === field) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortBy(field);
-            setSortOrder('asc');
-        }
-    };
-
-    // Clear search functie
-    const clearSearch = () => {
-        setSearchTerm('');
-        setLeerlingen([]);
-        setShowInitial(false);
-        setSelectedLeerlingen([]);
-    };
+    const gefilterdeLeerlingen = useMemo(() => {
+        return leerlingen; // Sortering gebeurt nu in de zoekfunctie
+    }, [leerlingen]);
 
     const handleFileChange = useCallback((event) => {
         const file = event.target.files[0];
@@ -233,23 +144,17 @@ export default function Leerlingbeheer() {
                     return;
                 }
 
-                const validRows = results.data.filter(row => {
-                    return row.naam && row.email && row.email.includes('@');
-                });
+                const validRows = results.data.filter(row => row.naam && row.email && row.email.includes('@'));
 
                 if (validRows.length === 0) {
                     toast.error("Geen geldige rijen gevonden in CSV.");
                     return;
                 }
 
-                if (validRows.length !== results.data.length) {
-                    toast.error(`${results.data.length - validRows.length} ongeldige rijen overgeslagen.`);
-                }
-
                 try {
                     const batch = writeBatch(db);
                     validRows.forEach(row => {
-                        const docRef = doc(db, 'toegestane_gebruikers', row.email);
+                        const docRef = doc(db, 'toegestane_gebruikers', row.email.trim().toLowerCase());
                         const geslachtCleaned = (row.geslacht || '').trim().toUpperCase();
                         const finalGeslacht = geslachtCleaned.startsWith('M') ? 'M' : 'V';
 
@@ -261,16 +166,12 @@ export default function Leerlingbeheer() {
                             rol: 'leerling',
                             school_id: profile.school_id,
                             naam_keywords: row.naam.toLowerCase().split(' '),
-                            created_at: new Date(),
-                            updated_at: new Date()
                         });
                     });
 
                     await batch.commit();
                     toast.success(`${validRows.length} leerlingen succesvol geïmporteerd!`);
-                    
-                    // Update totaal aantal
-                    setTotalCount(prev => prev ? prev + validRows.length : validRows.length);
+                    setTotalCount(prev => (prev || 0) + validRows.length);
                 } catch (error) {
                     console.error("Import error:", error);
                     toast.error(`Import mislukt: ${error.message}`);
@@ -290,11 +191,8 @@ export default function Leerlingbeheer() {
         try {
             await deleteDoc(doc(db, 'toegestane_gebruikers', modal.data.id));
             toast.success('Leerling succesvol verwijderd!');
-            
-            // Verwijder uit huidige lijst
             setLeerlingen(prev => prev.filter(l => l.id !== modal.data.id));
-            setSelectedLeerlingen(prev => prev.filter(id => id !== modal.data.id));
-            setTotalCount(prev => prev ? prev - 1 : null);
+            setTotalCount(prev => (prev || 1) - 1);
         } catch (error) {
             console.error("Delete error:", error);
             toast.error('Kon de leerling niet verwijderen.');
@@ -303,54 +201,25 @@ export default function Leerlingbeheer() {
         setModal({ type: null, data: null });
     };
 
-    const handleBulkDelete = async () => {
-        if (selectedLeerlingen.length === 0) return;
-
-        try {
-            const batch = writeBatch(db);
-            selectedLeerlingen.forEach(id => {
-                const docRef = doc(db, 'toegestane_gebruikers', id);
-                batch.delete(docRef);
-            });
-
-            await batch.commit();
-            toast.success(`${selectedLeerlingen.length} leerlingen succesvol verwijderd!`);
-            
-            // Verwijder uit huidige lijst
-            setLeerlingen(prev => prev.filter(l => !selectedLeerlingen.includes(l.id)));
-            setTotalCount(prev => prev ? prev - selectedLeerlingen.length : null);
-            setSelectedLeerlingen([]);
-        } catch (error) {
-            console.error("Bulk delete error:", error);
-            toast.error('Kon de leerlingen niet verwijderen.');
-        }
-
+    const handleCloseModal = () => {
         setModal({ type: null, data: null });
     };
 
-    const handleSelectLeerling = (id) => {
-        setSelectedLeerlingen(prev => 
-            prev.includes(id) 
-                ? prev.filter(lId => lId !== id)
-                : [...prev, id]
-        );
-    };
-
-    const handleSelectAll = () => {
-        if (selectedLeerlingen.length === sortedAndFilteredLeerlingen.length) {
-            setSelectedLeerlingen([]);
-        } else {
-            setSelectedLeerlingen(sortedAndFilteredLeerlingen.map(l => l.id));
+    const handleStudentSaved = () => {
+        if (searchTerm.length >= 2) {
+            searchLeerlingen(searchTerm);
         }
+        handleCloseModal();
     };
-
+    
+    // --- EXPORTEER FUNCTIE TERUGGEZET ---
     const exportToCSV = () => {
-        if (sortedAndFilteredLeerlingen.length === 0) {
-            toast.error('Geen data om te exporteren');
+        if (gefilterdeLeerlingen.length === 0) {
+            toast.error('Geen data om te exporteren. Voer eerst een zoekopdracht uit.');
             return;
         }
 
-        const csvData = sortedAndFilteredLeerlingen.map(leerling => ({
+        const csvData = gefilterdeLeerlingen.map(leerling => ({
             naam: leerling.naam,
             email: leerling.email,
             geboortedatum: leerling.geboortedatum,
@@ -370,70 +239,6 @@ export default function Leerlingbeheer() {
         toast.success('CSV-bestand gedownload!');
     };
 
-    const handleCloseModal = () => {
-        setModal({ type: null, data: null });
-    };
-
-    const handleStudentSaved = () => {
-        // Refresh de huidige zoekopdracht
-        if (searchTerm.length >= 2) {
-            searchLeerlingen(searchTerm);
-        } else if (showInitial) {
-            loadInitialLeerlingen();
-        }
-        handleCloseModal();
-    };
-
-    // Mobile Card Component
-    const MobileLeerlingCard = ({ leerling }) => (
-        <div className={`p-4 bg-white rounded-xl border-2 transition-all duration-200 ${
-            selectedLeerlingen.includes(leerling.id) ? 'border-purple-200 bg-purple-50' : 'border-gray-100 hover:border-purple-200'
-        }`}>
-            <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-3 flex-1">
-                    <input
-                        type="checkbox"
-                        checked={selectedLeerlingen.includes(leerling.id)}
-                        onChange={() => handleSelectLeerling(leerling.id)}
-                        className="mt-1 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                    />
-                    <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-gray-900 truncate">{leerling.naam}</h3>
-                        <p className="text-sm text-gray-500 truncate">{leerling.email}</p>
-                        <div className="flex items-center space-x-4 mt-2">
-                            {leerling.geboortedatum && (
-                                <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
-                                    {new Date(leerling.geboortedatum).toLocaleDateString('nl-NL')}
-                                </span>
-                            )}
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                leerling.geslacht === 'M' 
-                                    ? 'bg-blue-100 text-blue-800' 
-                                    : 'bg-pink-100 text-pink-800'
-                            }`}>
-                                {leerling.geslacht === 'M' ? 'Mannelijk' : 'Vrouwelijk'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex space-x-2 ml-2">
-                    <button
-                        onClick={() => setModal({ type: 'form', data: leerling })}
-                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                    >
-                        <PencilIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                        onClick={() => setModal({ type: 'confirm', data: leerling })}
-                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                    >
-                        <TrashIcon className="h-4 w-4" />
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-
     return (
         <>
             <Toaster position="top-center" />
@@ -450,33 +255,20 @@ export default function Leerlingbeheer() {
                                     <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Leerlingbeheer</h1>
                                     <p className="text-sm text-gray-600">
                                         {totalCount !== null ? `Totaal ${totalCount} leerlingen` : 'Leerlingen beheren'}
-                                        {sortedAndFilteredLeerlingen.length > 0 && (
-                                            <span className="ml-2">• {sortedAndFilteredLeerlingen.length} getoond</span>
-                                        )}
                                     </p>
                                 </div>
                             </div>
                             
                             <div className="flex flex-wrap gap-2">
-                                {selectedLeerlingen.length > 0 && (
-                                    <button 
-                                        onClick={() => setModal({ type: 'bulkDelete', data: selectedLeerlingen })}
-                                        className="flex items-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-                                    >
-                                        <TrashIcon className="h-4 w-4 mr-2" />
-                                        Verwijder ({selectedLeerlingen.length})
-                                    </button>
-                                )}
-                                
+                                {/* --- EXPORTEER KNOP TERUGGEZET --- */}
                                 <button 
                                     onClick={exportToCSV}
-                                    disabled={sortedAndFilteredLeerlingen.length === 0}
+                                    disabled={gefilterdeLeerlingen.length === 0}
                                     className="flex items-center bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
                                 >
                                     <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-                                    <span className="hidden sm:inline">Export</span>
+                                    <span className="hidden sm:inline">Exporteer</span>
                                 </button>
-
                                 <input
                                     type="file"
                                     accept=".csv"
@@ -489,7 +281,7 @@ export default function Leerlingbeheer() {
                                     className="flex items-center bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105"
                                 >
                                     <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-                                    <span className="hidden sm:inline">Import</span>
+                                    <span className="hidden sm:inline">Importeer</span>
                                 </button>
                                 
                                 <button
@@ -503,230 +295,74 @@ export default function Leerlingbeheer() {
                         </div>
                     </div>
 
-                    {/* Search & Filters */}
-                    <div className="bg-white/70 backdrop-blur-lg rounded-3xl shadow-lg border border-white/20 p-6">
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <div className="relative flex-1">
-                                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                                <input
-                                    type="text"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    placeholder="Zoek leerlingen op naam of e-mail (minimaal 2 karakters)..."
-                                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                />
-                                {loading && (
-                                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
-                                    </div>
-                                )}
+                    {/* Search */}
+                    <div className="relative">
+                        <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Zoek leerlingen op naam of e-mail (minimaal 2 karakters)..."
+                            className="w-full pl-12 pr-4 py-4 bg-white/70 backdrop-blur-lg border-2 border-transparent rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-md"
+                        />
+                        {loading && (
+                            <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
                             </div>
-                            
-                            <div className="flex gap-3">
-                                <select
-                                    value={filterGeslacht}
-                                    onChange={(e) => setFilterGeslacht(e.target.value)}
-                                    className="px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                >
-                                    <option value="all">Alle geslachten</option>
-                                    <option value="M">Mannelijk</option>
-                                    <option value="V">Vrouwelijk</option>
-                                </select>
-
-                                {!isMobile && (
-                                    <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden">
-                                        <button
-                                            onClick={() => handleSort('naam')}
-                                            className={`px-4 py-3 text-sm font-medium transition-colors ${
-                                                sortBy === 'naam' ? 'bg-purple-100 text-purple-700' : 'text-gray-700 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            Naam {sortBy === 'naam' && (sortOrder === 'asc' ? '↑' : '↓')}
-                                        </button>
-                                        <button
-                                            onClick={() => handleSort('email')}
-                                            className={`px-4 py-3 text-sm font-medium transition-colors border-l border-gray-200 ${
-                                                sortBy === 'email' ? 'bg-purple-100 text-purple-700' : 'text-gray-700 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            Email {sortBy === 'email' && (sortOrder === 'asc' ? '↑' : '↓')}
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* Quick actions */}
-                                <button
-                                    onClick={() => loadInitialLeerlingen(50)}
-                                    className="flex items-center px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                    <EyeIcon className="h-4 w-4 mr-2" />
-                                    Toon eerste 50
-                                </button>
-
-                                {(searchTerm || showInitial) && (
-                                    <button
-                                        onClick={clearSearch}
-                                        className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                                    >
-                                        Wissen
-                                    </button>
-                                )}
-                            </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* Results */}
-                    <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-lg border border-white/20 overflow-hidden">
-                        {/* Empty states */}
-                        {searchTerm.length > 0 && searchTerm.length < 2 && (
-                            <div className="text-center p-12">
-                                <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                                <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                                    Typ minimaal 2 karakters
-                                </h3>
-                                <p className="text-gray-600">
-                                    Voer minimaal 2 karakters in om te zoeken naar leerlingen.
-                                </p>
-                            </div>
-                        )}
-
-                        {searchTerm.length === 0 && !showInitial && (
+                    <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+                        {searchTerm.length < 2 ? (
                             <div className="text-center p-12">
                                 <UsersIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                                 <h3 className="text-xl font-semibold text-gray-800 mb-2">
                                     Zoek naar leerlingen
                                 </h3>
-                                <p className="text-gray-600 mb-6">
-                                    Gebruik de zoekbalk om specifieke leerlingen te vinden, of bekijk de eerste 50 leerlingen.
+                                <p className="text-gray-600">
+                                    Gebruik de zoekbalk hierboven om leerlingen te vinden.
                                 </p>
-                                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                    <button
-                                        onClick={() => loadInitialLeerlingen(50)}
-                                        className="inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium transition-colors"
-                                    >
-                                        <EyeIcon className="h-5 w-5 mr-2" />
-                                        Toon eerste 50 leerlingen
-                                    </button>
-                                    <button
-                                        onClick={() => setModal({ type: 'form', data: null })}
-                                        className="inline-flex items-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105"
-                                    >
-                                        <PlusIcon className="h-5 w-5 mr-2" />
-                                        Voeg nieuwe leerling toe
-                                    </button>
-                                </div>
                             </div>
-                        )}
-
-                        {((searchTerm.length >= 2) || showInitial) && !loading && sortedAndFilteredLeerlingen.length === 0 && (
+                        ) : loading ? (
+                            <div className="text-center p-12 text-gray-600">Resultaten laden...</div>
+                        ) : gefilterdeLeerlingen.length === 0 ? (
                             <div className="text-center p-12">
                                 <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                                 <h3 className="text-xl font-semibold text-gray-800 mb-2">
                                     Geen resultaten gevonden
                                 </h3>
                                 <p className="text-gray-600">
-                                    {searchTerm ? 
-                                        'Probeer andere zoektermen of controleer de spelling.' :
-                                        'Er zijn nog geen leerlingen in deze school.'
-                                    }
+                                    Probeer andere zoektermen of controleer de spelling.
                                 </p>
                             </div>
-                        )}
-
-                        {/* Results list */}
-                        {sortedAndFilteredLeerlingen.length > 0 && (
-                            <>
-                                {!isMobile && (
-                                    <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-                                        <div className="flex items-center space-x-4">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedLeerlingen.length === sortedAndFilteredLeerlingen.length && sortedAndFilteredLeerlingen.length > 0}
-                                                onChange={handleSelectAll}
-                                                className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                                            />
-                                            <span className="text-sm font-medium text-gray-700">
-                                                {selectedLeerlingen.length > 0 
-                                                    ? `${selectedLeerlingen.length} geselecteerd`
-                                                    : 'Alles selecteren'
-                                                }
-                                            </span>
-                                        </div>
-                                        <span className="text-sm text-gray-500">
-                                            {sortedAndFilteredLeerlingen.length} resultaten
-                                            {searchTerm && ` voor "${searchTerm}"`}
-                                        </span>
-                                    </div>
-                                )}
-
-                                <div className={isMobile ? "p-4 space-y-4" : "divide-y divide-gray-200"}>
-                                    {isMobile ? (
-                                        <>
-                                            {selectedLeerlingen.length > 0 && (
-                                                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-xl mb-4">
-                                                    <span className="text-sm font-medium text-purple-700">
-                                                        {selectedLeerlingen.length} geselecteerd
-                                                    </span>
-                                                    <button
-                                                        onClick={handleSelectAll}
-                                                        className="text-sm text-purple-600 hover:text-purple-800 font-medium"
-                                                    >
-                                                        {selectedLeerlingen.length === sortedAndFilteredLeerlingen.length ? 'Deselecteer alles' : 'Selecteer alles'}
-                                                    </button>
-                                                </div>
-                                            )}
-                                            {sortedAndFilteredLeerlingen.map(leerling => (
-                                                <MobileLeerlingCard key={leerling.id} leerling={leerling} />
-                                            ))}
-                                        </>
-                                    ) : (
-                                        sortedAndFilteredLeerlingen.map(leerling => (
-                                            <div key={leerling.id} className="flex items-center justify-between p-6 hover:bg-gray-50 transition-colors">
-                                                <div className="flex items-center space-x-4">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedLeerlingen.includes(leerling.id)}
-                                                        onChange={() => handleSelectLeerling(leerling.id)}
-                                                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                                                    />
-                                                    <div className="flex-1">
-                                                        <h3 className="text-lg font-semibold text-gray-900">{leerling.naam}</h3>
-                                                        <p className="text-sm text-gray-500">{leerling.email}</p>
-                                                        <div className="flex items-center space-x-4 mt-1">
-                                                            {leerling.geboortedatum && (
-                                                                <span className="text-xs text-gray-600">
-                                                                    {new Date(leerling.geboortedatum).toLocaleDateString('nl-NL')}
-                                                                </span>
-                                                            )}
-                                                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                                                leerling.geslacht === 'M' 
-                                                                    ? 'bg-blue-100 text-blue-800' 
-                                                                    : 'bg-pink-100 text-pink-800'
-                                                            }`}>
-                                                                {leerling.geslacht === 'M' ? 'M' : 'V'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <button
-                                                        onClick={() => setModal({ type: 'form', data: leerling })}
-                                                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                                                    >
-                                                        <PencilIcon className="h-5 w-5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setModal({ type: 'confirm', data: leerling })}
-                                                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                                                    >
-                                                        <TrashIcon className="h-5 w-5" />
-                                                    </button>
-                                                </div>
+                        ) : (
+                            <ul className="divide-y divide-gray-200/70">
+                                {gefilterdeLeerlingen.map(leerling => (
+                                    <li key={leerling.id}>
+                                        <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-gray-50 transition-colors">
+                                            <div>
+                                                <p className="text-lg font-semibold text-gray-900">{leerling.naam}</p>
+                                                <p className="text-sm text-gray-500">{leerling.email}</p>
                                             </div>
-                                        ))
-                                    )}
-                                </div>
-                            </>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => setModal({ type: 'form', data: leerling })}
+                                                    className="p-2 text-gray-500 rounded-full hover:bg-blue-100 hover:text-blue-600"
+                                                >
+                                                    <PencilIcon className="h-5 w-5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setModal({ type: 'confirm', data: leerling })}
+                                                    className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600"
+                                                >
+                                                    <TrashIcon className="h-5 w-5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
                         )}
                     </div>
                 </div>
@@ -748,15 +384,6 @@ export default function Leerlingbeheer() {
                 title="Leerling Verwijderen"
             >
                 Weet u zeker dat u "{modal.data?.naam}" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
-            </ConfirmModal>
-
-            <ConfirmModal
-                isOpen={modal.type === 'bulkDelete'}
-                onClose={handleCloseModal}
-                onConfirm={handleBulkDelete}
-                title="Meerdere Leerlingen Verwijderen"
-            >
-                Weet u zeker dat u {selectedLeerlingen.length} leerlingen wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
             </ConfirmModal>
         </>
     );
