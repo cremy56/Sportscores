@@ -2,7 +2,18 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, writeBatch, doc, deleteDoc } from 'firebase/firestore';
+import { 
+    collection, 
+    query, 
+    where, 
+    getDocs, 
+    writeBatch, 
+    doc, 
+    deleteDoc, 
+    limit,
+    orderBy,
+    getCountFromServer 
+} from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 import Papa from 'papaparse';
 import { 
@@ -12,10 +23,8 @@ import {
     PencilIcon, 
     MagnifyingGlassIcon,
     UsersIcon,
-    ChevronDownIcon,
-    CheckIcon,
-    XMarkIcon,
-    ArrowDownTrayIcon
+    ArrowDownTrayIcon,
+    EyeIcon
 } from '@heroicons/react/24/outline';
 import StudentFormModal from '../components/StudentFormModal'; 
 import ConfirmModal from '../components/ConfirmModal';
@@ -23,13 +32,15 @@ import ConfirmModal from '../components/ConfirmModal';
 export default function Leerlingbeheer() {
     const { profile } = useOutletContext();
     const [leerlingen, setLeerlingen] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false); // Start niet met laden
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState('naam');
     const [sortOrder, setSortOrder] = useState('asc');
     const [selectedLeerlingen, setSelectedLeerlingen] = useState([]);
     const [filterGeslacht, setFilterGeslacht] = useState('all');
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [totalCount, setTotalCount] = useState(null);
+    const [showInitial, setShowInitial] = useState(false);
     const fileInputRef = useRef(null);
     const [modal, setModal] = useState({ type: null, data: null });
 
@@ -40,58 +51,140 @@ export default function Leerlingbeheer() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Haal totaal aantal leerlingen op voor statistieken
     useEffect(() => {
-        if (!profile?.school_id) {
-            setLoading(false);
-            return;
-        }
+        const getTotalCount = async () => {
+            if (!profile?.school_id) return;
+            
+            try {
+                const countQuery = query(
+                    collection(db, 'toegestane_gebruikers'),
+                    where('school_id', '==', profile.school_id),
+                    where('rol', '==', 'leerling')
+                );
+                
+                const snapshot = await getCountFromServer(countQuery);
+                setTotalCount(snapshot.data().count);
+            } catch (error) {
+                console.error('Fout bij ophalen totaal aantal:', error);
+            }
+        };
 
-        const leerlingenRef = collection(db, 'toegestane_gebruikers');
-        const q = query(
-            leerlingenRef, 
-            where('school_id', '==', profile.school_id),
-            where('rol', '==', 'leerling')
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const leerlingenData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setLeerlingen(leerlingenData);
-            setLoading(false);
-        }, (error) => {
-            console.error("Fout bij ophalen leerlingen:", error);
-            toast.error("Kon de leerlingen niet laden.");
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
+        getTotalCount();
     }, [profile?.school_id]);
 
-   const sortedAndFilteredLeerlingen = useMemo(() => {
-    let filtered = leerlingen.filter(leerling => {
-        // Safe check for naam and email existence
-        const naam = leerling.naam || '';
-        const email = leerling.email || '';
-        
-        const naamMatch = naam.toLowerCase().includes(searchTerm.toLowerCase());
-        const emailMatch = email.toLowerCase().includes(searchTerm.toLowerCase());
-        const geslachtMatch = filterGeslacht === 'all' || leerling.geslacht === filterGeslacht;
-        
-        return (naamMatch || emailMatch) && geslachtMatch;
-    });
+    // Debounced search effect
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (searchTerm.length >= 2) {
+                searchLeerlingen(searchTerm);
+            } else if (searchTerm.length === 0 && !showInitial) {
+                setLeerlingen([]);
+                setSelectedLeerlingen([]);
+            }
+        }, 300);
 
-    return filtered.sort((a, b) => {
-        let aValue = a[sortBy] || '';
-        let bValue = b[sortBy] || '';
+        return () => clearTimeout(timeoutId);
+    }, [searchTerm, profile?.school_id, showInitial]);
+
+    // Zoekfunctie
+    const searchLeerlingen = async (term) => {
+        if (!profile?.school_id) return;
         
-        if (typeof aValue === 'string') {
-            aValue = aValue.toLowerCase();
-            bValue = (bValue || '').toLowerCase(); // Also safe check here
+        setLoading(true);
+        try {
+            // Zoek op naam keywords
+            const naamQuery = query(
+                collection(db, 'toegestane_gebruikers'),
+                where('school_id', '==', profile.school_id),
+                where('rol', '==', 'leerling'),
+                where('naam_keywords', 'array-contains', term.toLowerCase()),
+                limit(100)
+            );
+
+            // Zoek op email (voor exacte matches)
+            const emailQuery = query(
+                collection(db, 'toegestane_gebruikers'),
+                where('school_id', '==', profile.school_id),
+                where('rol', '==', 'leerling'),
+                where('email', '>=', term.toLowerCase()),
+                where('email', '<=', term.toLowerCase() + '\uf8ff'),
+                limit(50)
+            );
+
+            const [naamResults, emailResults] = await Promise.all([
+                getDocs(naamQuery),
+                getDocs(emailQuery)
+            ]);
+
+            // Combineer en dedupliceer resultaten
+            const combinedResults = new Map();
+            
+            naamResults.docs.forEach(doc => {
+                combinedResults.set(doc.id, { id: doc.id, ...doc.data() });
+            });
+            
+            emailResults.docs.forEach(doc => {
+                combinedResults.set(doc.id, { id: doc.id, ...doc.data() });
+            });
+
+            setLeerlingen(Array.from(combinedResults.values()));
+            setSelectedLeerlingen([]); // Reset selecties bij nieuwe zoekopdracht
+        } catch (error) {
+            console.error('Zoekfout:', error);
+            toast.error('Fout bij zoeken naar leerlingen');
+        } finally {
+            setLoading(false);
         }
+    };
+
+    // Functie om eerste X leerlingen op te halen
+    const loadInitialLeerlingen = async (limitCount = 50) => {
+        if (!profile?.school_id) return;
         
-        const comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-        return sortOrder === 'asc' ? comparison : -comparison;
-    });
-}, [leerlingen, searchTerm, sortBy, sortOrder, filterGeslacht]);
+        setLoading(true);
+        try {
+            const q = query(
+                collection(db, 'toegestane_gebruikers'),
+                where('school_id', '==', profile.school_id),
+                where('rol', '==', 'leerling'),
+                orderBy('naam'),
+                limit(limitCount)
+            );
+            
+            const snapshot = await getDocs(q);
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setLeerlingen(data);
+            setShowInitial(true);
+            setSelectedLeerlingen([]);
+        } catch (error) {
+            console.error('Fout bij laden eerste leerlingen:', error);
+            toast.error('Kon de leerlingen niet laden');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Gefilterde en gesorteerde leerlingen (alleen client-side filtering nu)
+    const sortedAndFilteredLeerlingen = useMemo(() => {
+        let filtered = leerlingen.filter(leerling => {
+            const geslachtMatch = filterGeslacht === 'all' || leerling.geslacht === filterGeslacht;
+            return geslachtMatch;
+        });
+
+        return filtered.sort((a, b) => {
+            let aValue = a[sortBy] || '';
+            let bValue = b[sortBy] || '';
+            
+            if (typeof aValue === 'string') {
+                aValue = aValue.toLowerCase();
+                bValue = (bValue || '').toLowerCase();
+            }
+            
+            const comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+            return sortOrder === 'asc' ? comparison : -comparison;
+        });
+    }, [leerlingen, sortBy, sortOrder, filterGeslacht]);
 
     const handleSort = (field) => {
         if (sortBy === field) {
@@ -100,6 +193,14 @@ export default function Leerlingbeheer() {
             setSortBy(field);
             setSortOrder('asc');
         }
+    };
+
+    // Clear search functie
+    const clearSearch = () => {
+        setSearchTerm('');
+        setLeerlingen([]);
+        setShowInitial(false);
+        setSelectedLeerlingen([]);
     };
 
     const handleFileChange = useCallback((event) => {
@@ -132,7 +233,6 @@ export default function Leerlingbeheer() {
                     return;
                 }
 
-                // Valideer data
                 const validRows = results.data.filter(row => {
                     return row.naam && row.email && row.email.includes('@');
                 });
@@ -168,6 +268,9 @@ export default function Leerlingbeheer() {
 
                     await batch.commit();
                     toast.success(`${validRows.length} leerlingen succesvol geïmporteerd!`);
+                    
+                    // Update totaal aantal
+                    setTotalCount(prev => prev ? prev + validRows.length : validRows.length);
                 } catch (error) {
                     console.error("Import error:", error);
                     toast.error(`Import mislukt: ${error.message}`);
@@ -187,6 +290,11 @@ export default function Leerlingbeheer() {
         try {
             await deleteDoc(doc(db, 'toegestane_gebruikers', modal.data.id));
             toast.success('Leerling succesvol verwijderd!');
+            
+            // Verwijder uit huidige lijst
+            setLeerlingen(prev => prev.filter(l => l.id !== modal.data.id));
+            setSelectedLeerlingen(prev => prev.filter(id => id !== modal.data.id));
+            setTotalCount(prev => prev ? prev - 1 : null);
         } catch (error) {
             console.error("Delete error:", error);
             toast.error('Kon de leerling niet verwijderen.');
@@ -207,6 +315,10 @@ export default function Leerlingbeheer() {
 
             await batch.commit();
             toast.success(`${selectedLeerlingen.length} leerlingen succesvol verwijderd!`);
+            
+            // Verwijder uit huidige lijst
+            setLeerlingen(prev => prev.filter(l => !selectedLeerlingen.includes(l.id)));
+            setTotalCount(prev => prev ? prev - selectedLeerlingen.length : null);
             setSelectedLeerlingen([]);
         } catch (error) {
             console.error("Bulk delete error:", error);
@@ -233,6 +345,11 @@ export default function Leerlingbeheer() {
     };
 
     const exportToCSV = () => {
+        if (sortedAndFilteredLeerlingen.length === 0) {
+            toast.error('Geen data om te exporteren');
+            return;
+        }
+
         const csvData = sortedAndFilteredLeerlingen.map(leerling => ({
             naam: leerling.naam,
             email: leerling.email,
@@ -255,6 +372,16 @@ export default function Leerlingbeheer() {
 
     const handleCloseModal = () => {
         setModal({ type: null, data: null });
+    };
+
+    const handleStudentSaved = () => {
+        // Refresh de huidige zoekopdracht
+        if (searchTerm.length >= 2) {
+            searchLeerlingen(searchTerm);
+        } else if (showInitial) {
+            loadInitialLeerlingen();
+        }
+        handleCloseModal();
     };
 
     // Mobile Card Component
@@ -307,19 +434,6 @@ export default function Leerlingbeheer() {
         </div>
     );
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 flex items-center justify-center p-4">
-                <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20">
-                    <div className="flex items-center space-x-3">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                        <p className="text-lg font-medium text-gray-700">Leerlingen laden...</p>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <>
             <Toaster position="top-center" />
@@ -334,7 +448,12 @@ export default function Leerlingbeheer() {
                                 </div>
                                 <div>
                                     <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Leerlingbeheer</h1>
-                                    <p className="text-sm text-gray-600">{sortedAndFilteredLeerlingen.length} leerlingen</p>
+                                    <p className="text-sm text-gray-600">
+                                        {totalCount !== null ? `Totaal ${totalCount} leerlingen` : 'Leerlingen beheren'}
+                                        {sortedAndFilteredLeerlingen.length > 0 && (
+                                            <span className="ml-2">• {sortedAndFilteredLeerlingen.length} getoond</span>
+                                        )}
+                                    </p>
                                 </div>
                             </div>
                             
@@ -351,7 +470,8 @@ export default function Leerlingbeheer() {
                                 
                                 <button 
                                     onClick={exportToCSV}
-                                    className="flex items-center bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+                                    disabled={sortedAndFilteredLeerlingen.length === 0}
+                                    className="flex items-center bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
                                 >
                                     <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
                                     <span className="hidden sm:inline">Export</span>
@@ -383,7 +503,7 @@ export default function Leerlingbeheer() {
                         </div>
                     </div>
 
-                    {/* Filters en Zoeken */}
+                    {/* Search & Filters */}
                     <div className="bg-white/70 backdrop-blur-lg rounded-3xl shadow-lg border border-white/20 p-6">
                         <div className="flex flex-col sm:flex-row gap-4">
                             <div className="relative flex-1">
@@ -392,9 +512,14 @@ export default function Leerlingbeheer() {
                                     type="text"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    placeholder="Zoek op naam of e-mail..."
+                                    placeholder="Zoek leerlingen op naam of e-mail (minimaal 2 karakters)..."
                                     className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 />
+                                {loading && (
+                                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                                    </div>
+                                )}
                             </div>
                             
                             <div className="flex gap-3">
@@ -428,13 +553,88 @@ export default function Leerlingbeheer() {
                                         </button>
                                     </div>
                                 )}
+
+                                {/* Quick actions */}
+                                <button
+                                    onClick={() => loadInitialLeerlingen(50)}
+                                    className="flex items-center px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                    <EyeIcon className="h-4 w-4 mr-2" />
+                                    Toon eerste 50
+                                </button>
+
+                                {(searchTerm || showInitial) && (
+                                    <button
+                                        onClick={clearSearch}
+                                        className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        Wissen
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
 
-                    {/* Leerlingen Lijst */}
+                    {/* Results */}
                     <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-lg border border-white/20 overflow-hidden">
-                        {sortedAndFilteredLeerlingen.length > 0 ? (
+                        {/* Empty states */}
+                        {searchTerm.length > 0 && searchTerm.length < 2 && (
+                            <div className="text-center p-12">
+                                <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                                <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                                    Typ minimaal 2 karakters
+                                </h3>
+                                <p className="text-gray-600">
+                                    Voer minimaal 2 karakters in om te zoeken naar leerlingen.
+                                </p>
+                            </div>
+                        )}
+
+                        {searchTerm.length === 0 && !showInitial && (
+                            <div className="text-center p-12">
+                                <UsersIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                                <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                                    Zoek naar leerlingen
+                                </h3>
+                                <p className="text-gray-600 mb-6">
+                                    Gebruik de zoekbalk om specifieke leerlingen te vinden, of bekijk de eerste 50 leerlingen.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                    <button
+                                        onClick={() => loadInitialLeerlingen(50)}
+                                        className="inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium transition-colors"
+                                    >
+                                        <EyeIcon className="h-5 w-5 mr-2" />
+                                        Toon eerste 50 leerlingen
+                                    </button>
+                                    <button
+                                        onClick={() => setModal({ type: 'form', data: null })}
+                                        className="inline-flex items-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105"
+                                    >
+                                        <PlusIcon className="h-5 w-5 mr-2" />
+                                        Voeg nieuwe leerling toe
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {((searchTerm.length >= 2) || showInitial) && !loading && sortedAndFilteredLeerlingen.length === 0 && (
+                            <div className="text-center p-12">
+                                <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                                <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                                    Geen resultaten gevonden
+                                </h3>
+                                <p className="text-gray-600">
+                                    {searchTerm ? 
+                                        'Probeer andere zoektermen of controleer de spelling.' :
+                                        'Er zijn nog geen leerlingen in deze school.'
+                                    }
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Results list */}
+                        {sortedAndFilteredLeerlingen.length > 0 && (
                             <>
                                 {!isMobile && (
                                     <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
@@ -454,6 +654,7 @@ export default function Leerlingbeheer() {
                                         </div>
                                         <span className="text-sm text-gray-500">
                                             {sortedAndFilteredLeerlingen.length} resultaten
+                                            {searchTerm && ` voor "${searchTerm}"`}
                                         </span>
                                     </div>
                                 )}
@@ -526,28 +727,6 @@ export default function Leerlingbeheer() {
                                     )}
                                 </div>
                             </>
-                        ) : (
-                            <div className="text-center p-12">
-                                <UsersIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                                <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                                    {searchTerm || filterGeslacht !== 'all' ? 'Geen leerlingen gevonden' : 'Nog geen leerlingen'}
-                                </h3>
-                                <p className="text-gray-600 mb-6">
-                                    {searchTerm || filterGeslacht !== 'all' 
-                                        ? 'Pas uw zoek- of filtercriteria aan.'
-                                        : 'Voeg leerlingen toe door ze handmatig in te voeren of een CSV-bestand te importeren.'
-                                    }
-                                </p>
-                                {!searchTerm && filterGeslacht === 'all' && (
-                                    <button
-                                        onClick={() => setModal({ type: 'form', data: null })}
-                                        className="inline-flex items-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105"
-                                    >
-                                        <PlusIcon className="h-5 w-5 mr-2" />
-                                        Voeg eerste leerling toe
-                                    </button>
-                                )}
-                            </div>
                         )}
                     </div>
                 </div>
@@ -557,7 +736,7 @@ export default function Leerlingbeheer() {
             <StudentFormModal
                 isOpen={modal.type === 'form'}
                 onClose={handleCloseModal}
-                onStudentSaved={handleCloseModal}
+                onStudentSaved={handleStudentSaved}
                 studentData={modal.data}
                 schoolId={profile?.school_id}
             />
