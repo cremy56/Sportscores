@@ -66,28 +66,32 @@ export default function Leerlingbeheer() {
         return () => unsubscribe();
     }, [profile?.school_id]);
 
-    const sortedAndFilteredLeerlingen = useMemo(() => {
-        let filtered = leerlingen.filter(leerling => {
-            const naamMatch = leerling.naam.toLowerCase().includes(searchTerm.toLowerCase());
-            const emailMatch = leerling.email.toLowerCase().includes(searchTerm.toLowerCase());
-            const geslachtMatch = filterGeslacht === 'all' || leerling.geslacht === filterGeslacht;
-            
-            return (naamMatch || emailMatch) && geslachtMatch;
-        });
+   const sortedAndFilteredLeerlingen = useMemo(() => {
+    let filtered = leerlingen.filter(leerling => {
+        // Safe check for naam and email existence
+        const naam = leerling.naam || '';
+        const email = leerling.email || '';
+        
+        const naamMatch = naam.toLowerCase().includes(searchTerm.toLowerCase());
+        const emailMatch = email.toLowerCase().includes(searchTerm.toLowerCase());
+        const geslachtMatch = filterGeslacht === 'all' || leerling.geslacht === filterGeslacht;
+        
+        return (naamMatch || emailMatch) && geslachtMatch;
+    });
 
-        return filtered.sort((a, b) => {
-            let aValue = a[sortBy] || '';
-            let bValue = b[sortBy] || '';
-            
-            if (typeof aValue === 'string') {
-                aValue = aValue.toLowerCase();
-                bValue = bValue.toLowerCase();
-            }
-            
-            const comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-            return sortOrder === 'asc' ? comparison : -comparison;
-        });
-    }, [leerlingen, searchTerm, sortBy, sortOrder, filterGeslacht]);
+    return filtered.sort((a, b) => {
+        let aValue = a[sortBy] || '';
+        let bValue = b[sortBy] || '';
+        
+        if (typeof aValue === 'string') {
+            aValue = aValue.toLowerCase();
+            bValue = (bValue || '').toLowerCase(); // Also safe check here
+        }
+        
+        const comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+        return sortOrder === 'asc' ? comparison : -comparison;
+    });
+}, [leerlingen, searchTerm, sortBy, sortOrder, filterGeslacht]);
 
     const handleSort = (field) => {
         if (sortBy === field) {
