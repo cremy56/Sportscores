@@ -159,7 +159,6 @@ export default function TestDetailBeheer() {
                 results.data.forEach(row => {
                     const normRef = doc(collection(db, 'normen'));
                     
-                    // --- GECORRIGEERD: Standaardiseer geslacht naar 'M' of 'V' ---
                     const geslachtCleaned = (row.geslacht || '').trim().toUpperCase();
                     const finalGeslacht = geslachtCleaned.startsWith('M') ? 'M' : 'V';
 
@@ -346,7 +345,34 @@ export default function TestDetailBeheer() {
                                 <div className="mb-6 space-y-4">
                                     <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
                                         <div className="flex flex-wrap items-center gap-4">
-                                            {/* Filters */}
+                                            <div className="flex items-center space-x-2">
+                                                <label className="text-sm font-medium text-gray-700">Leeftijd:</label>
+                                                <select 
+                                                    value={selectedLeeftijd} 
+                                                    onChange={(e) => setSelectedLeeftijd(e.target.value)}
+                                                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                                                >
+                                                    <option value="all">Alle leeftijden</option>
+                                                    {uniekeLeeftijden.map(leeftijd => (
+                                                        <option key={leeftijd} value={leeftijd}>{leeftijd} jaar</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <label className="text-sm font-medium text-gray-700">Geslacht:</label>
+                                                <select 
+                                                    value={selectedGeslacht} 
+                                                    onChange={(e) => setSelectedGeslacht(e.target.value)}
+                                                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                                                >
+                                                    <option value="all">Alle geslachten</option>
+                                                    {uniekeGeslachten.map(geslacht => (
+                                                        <option key={geslacht} value={geslacht}>
+                                                            {geslacht?.toUpperCase().startsWith('M') ? 'Mannelijk' : 'Vrouwelijk'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
                                         <div className="flex gap-2">
                                             {selectedNorms.length > 0 && (
@@ -440,11 +466,10 @@ export default function TestDetailBeheer() {
                                                         <>
                                                             <td className="py-4 px-6 text-sm font-medium text-gray-900">{norm.leeftijd} jaar</td>
                                                             <td className="py-4 px-6 text-sm text-gray-700">
-                                                                {/* --- GECORRIGEERD: Robuuste weergave van geslacht --- */}
                                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                                    (norm.geslacht === 'M' || norm.geslacht === 'MAN') ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
+                                                                    (norm.geslacht?.toUpperCase().startsWith('M')) ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
                                                                 }`}>
-                                                                    {(norm.geslacht === 'M' || norm.geslacht === 'MAN') ? 'Mannelijk' : 'Vrouwelijk'}
+                                                                    {(norm.geslacht?.toUpperCase().startsWith('M')) ? 'Mannelijk' : 'Vrouwelijk'}
                                                                 </span>
                                                             </td>
                                                             <td className="py-4 px-6 text-sm text-gray-700 font-medium">{norm.score_min}</td>
@@ -480,5 +505,4 @@ export default function TestDetailBeheer() {
                 </div>
             </div>
         </>
-    );
-}
+    )
