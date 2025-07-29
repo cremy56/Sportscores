@@ -1,129 +1,191 @@
+// src/pages/ScoresOverzicht.jsx
 import { useState, useEffect } from 'react';
-import { useOutletContext, Link } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import toast from 'react-hot-toast';
-import { TrashIcon } from '@heroicons/react/24/solid';
+import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
+import toast, { Toaster } from 'react-hot-toast';
+import { TrashIcon, PlusIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import ConfirmModal from '../components/ConfirmModal';
-import { useNavigate } from 'react-router-dom';
 
 export default function ScoresOverzicht() {
   const { profile } = useOutletContext();
   const [evaluaties, setEvaluaties] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [modal, setModal] = useState({ type: null, data: null });
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.school_id) {
+        setLoading(false);
+        return;
+    };
+
+    const fetchEvaluaties = async () => {
+        setLoading(true);
+        try {
+            // Haal alle scores op voor de school van de leerkracht
+            const scoresRef = collection(db, 'scores');
+            const q = query(
+                scoresRef, 
+                where('school_id', '==', profile.school_id),
+                where('leerkracht_id', '==', profile.id) // Optioneel: alleen afnames van deze leerkracht
+            );
+
+            const scoresSnapshot = await getDocs(q);
+            const scoresData = scoresSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+
+            // Groepeer scores om unieke testafnames te identificeren
+            const grouped = scoresData.reduce((acc, score) => {
+                const key = `${score.groep_id}-${score.test_id}-${score.datum}`;
+                if (!acc[key]) {
+                    acc[key] = {
+                        groep_id: score.groep_id,
+                        test_id: score.test_id,
+                        datum: score.datum,
+                        // Tijdelijke namen tot we de echte hebben
+                        groep_naam: 'Laden...', 
+                        test_naam: 'Laden...',
+                        score_ids: []
+                    };
+                }
+                acc[key].score_ids.push(score.id);
+                return acc;
+            }, {});
+
+            const uniekeEvaluaties = Object.values(grouped);
+
+            // Haal de namen van groepen en testen op
+            const groepIds = [...new Set(uniekeEvaluaties.map(e => e.groep_id))];
+            const testIds = [...new Set(uniekeEvaluaties.map(e => e.test_id))];
+
+            const [groepenDocs, testenDocs] = await Promise.all([
+                Promise.all(groepIds.map(id => getDoc(doc(db, 'groepen', id)))),
+                Promise.all(testIds.map(id => getDoc(doc(db, 'testen', id))))
+            ]);
+
+            const groepenMap = new Map(groepenDocs.map(d => [d.id, d.data()?.naam]));
+            const testenMap = new Map(testenDocs.map(d => [d.id, d.data()?.naam]));
+
+            // Voeg de echte namen toe
+            uniekeEvaluaties.forEach(ev => {
+                ev.groep_naam = groepenMap.get(ev.groep_id) || 'Onbekende Groep';
+                ev.test_naam = testenMap.get(ev.test_id) || 'Onbekende Test';
+            });
+
+            // Sorteer op datum (nieuwste eerst)
+            uniekeEvaluaties.sort((a, b) => new Date(b.datum) - new Date(a.datum));
+            
+            setEvaluaties(uniekeEvaluaties);
+
+        } catch (error) {
+            console.error("Fout bij laden testafnames:", error);
+            toast.error("Kon recente testafnames niet laden.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     fetchEvaluaties();
   }, [profile]);
 
-  const fetchEvaluaties = async () => {
-    setLoading(true);
-    const { data, error } = await supabase.rpc('get_recent_evaluations', { p_leerkracht_id: profile.id });
-    if (error) {
-      toast.error("Kon recente testafnames niet laden.");
-    } else {
-      // Sorteer op datum + tijd (nieuwste eerst)
-      const sortedData = (data || []).sort((a, b) => {
-        const aDateTime = new Date(`${a.datum}T${a.tijd}`);
-        const bDateTime = new Date(`${b.datum}T${b.tijd}`);
-        return bDateTime - aDateTime;
-      });
-      setEvaluaties(sortedData);
-    }
-    setLoading(false);
-  };
-
   const handleDelete = async () => {
-    if (!selectedItem) return;
-    const { groep_id, test_id, datum } = selectedItem;
-
-    const { error } = await supabase.rpc('delete_evaluation', {
-      p_test_id: test_id,
-      p_groep_id: groep_id,
-      p_datum: datum,
-    });
-
-    if (error) {
-      toast.error("Verwijderen mislukt.");
-    } else {
-      toast.success("Testafname verwijderd.");
-      setEvaluaties(evaluaties.filter(ev =>
-        !(ev.test_id === test_id && ev.groep_id === groep_id && ev.datum === datum)
-      ));
+    if (!modal.data) return;
+    
+    const loadingToast = toast.loading('Testafname verwijderen...');
+    try {
+        const batch = writeBatch(db);
+        modal.data.score_ids.forEach(scoreId => {
+            const docRef = doc(db, 'scores', scoreId);
+            batch.delete(docRef);
+        });
+        await batch.commit();
+        
+        setEvaluaties(prev => prev.filter(ev => 
+            !(ev.test_id === modal.data.test_id && ev.groep_id === modal.data.groep_id && ev.datum === modal.data.datum)
+        ));
+        toast.success("Testafname succesvol verwijderd.");
+    } catch (error) {
+        toast.error("Verwijderen mislukt.");
+        console.error("Fout bij verwijderen:", error);
+    } finally {
+        toast.dismiss(loadingToast);
+        setModal({ type: null, data: null });
     }
-
-    setShowConfirm(false);
-    setSelectedItem(null);
   };
+
+  if (loading) {
+    return <div className="text-center p-8">Laden...</div>;
+  }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Recente Testafnames</h1>
-        <button
-          onClick={() => navigate('/nieuwe-testafname')}
-          className="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-5 rounded-lg"
-        >
-          + Nieuwe Testafname
-        </button>
-      </div>
-
-      <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg">
-        {loading ? (
-          <p>Laden...</p>
-        ) : (
-          <ul className="space-y-1">
-            {evaluaties.length > 0 ? evaluaties.map((item, index) => (
-             <li
-                key={index}
-                onClick={() =>
-               navigate(`/testafname/${item.groep_id}/${item.test_id}/${item.datum}`)
-                }
-                    className="cursor-pointer flex justify-between items-center bg-white p-2 rounded-lg shadow-sm hover:bg-gray-50 transition-colors w-full"
+    <>
+        <Toaster position="top-center" />
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
+            <div className="max-w-7xl mx-auto mb-8">
+                <div className="flex justify-between items-center">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
+                        Scores & Testafnames
+                    </h1>
+                    <button
+                        onClick={() => navigate('/nieuwe-testafname')}
+                        className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full sm:px-5 sm:py-3 sm:rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
                     >
-                    <div className="flex flex-col">
-                        <p className="font-semibold text-purple-800">{item.test_naam}</p>
-                        <p className="text-sm text-gray-600">{item.groep_naam}</p>
-                    </div>
-                    <div className="flex items-center gap-4 text-right">
-                        <p className="text-sm text-gray-500 whitespace-nowrap">
-                        {new Date(item.datum).toLocaleDateString()}<br />
-                        <span className="text-xs text-gray-400">
-                            {item.tijd?.slice(0, 5)} u
-                        </span>
-                        </p>
-                        <button
-                        onClick={(e) => {
-                            e.stopPropagation(); // BELANGRIJK!
-                            setSelectedItem(item);
-                            setShowConfirm(true);
-                        }}
-                        className="p-2 text-red-600 hover:text-red-800"
-                        title="Verwijder testafname"
-                        >
-                        <TrashIcon className="h-5 w-5" />
-    </button>
-  </div>
-</li>
+                        <PlusIcon className="h-6 w-6" />
+                        <span className="hidden sm:inline sm:ml-2">Nieuwe Afname</span>
+                    </button>
+                </div>
+            </div>
 
-            )) : (
-              <p className="text-center text-gray-500 py-8">Er zijn nog geen scores ingevoerd.</p>
-            )}
-          </ul>
-        )}
-      </div>
+            <div className="max-w-7xl mx-auto">
+                <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+                    <ul className="divide-y divide-gray-200/70">
+                        {evaluaties.length > 0 ? evaluaties.map((item, index) => (
+                         <li key={index} className="group">
+                             <div 
+                                onClick={() => navigate(`/testafname/${item.groep_id}/${item.test_id}/${item.datum}`)}
+                                className="flex items-center justify-between p-4 sm:p-6 cursor-pointer hover:bg-purple-50/50 transition-colors"
+                            >
+                                <div>
+                                    <p className="font-semibold text-lg text-gray-900 group-hover:text-purple-700">{item.test_naam}</p>
+                                    <p className="text-sm text-gray-600">{item.groep_naam}</p>
+                                </div>
+                                <div className="flex items-center gap-4 text-right">
+                                    <p className="text-sm text-gray-500 whitespace-nowrap hidden sm:block">
+                                        {new Date(item.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    </p>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setModal({ type: 'confirm', data: item });
+                                        }}
+                                        className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
+                                        title="Verwijder testafname"
+                                    >
+                                        <TrashIcon className="h-5 w-5" />
+                                    </button>
+                                    <ChevronRightIcon className="h-6 w-6 text-gray-400 group-hover:text-purple-700 transition-transform group-hover:translate-x-1" />
+                                </div>
+                            </div>
+                        </li>
+                        )) : (
+                          <li className="text-center text-gray-500 p-12">
+                              <h3 className="text-xl font-semibold mb-2">Geen Testafnames Gevonden</h3>
+                              <p>Er zijn nog geen scores ingevoerd. Klik op "+ Nieuwe Afname" om te beginnen.</p>
+                          </li>
+                        )}
+                    </ul>
+                </div>
+            </div>
+        </div>
 
-      <ConfirmModal
-        isOpen={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        onConfirm={handleDelete}
-        title="Weet je zeker dat je deze testafname wil verwijderen?"
-      >
-        Deze actie kan niet ongedaan gemaakt worden.
-      </ConfirmModal>
-    </div>
+        <ConfirmModal
+            isOpen={modal.type === 'confirm'}
+            onClose={() => setModal({ type: null, data: null })}
+            onConfirm={handleDelete}
+            title="Testafname Verwijderen"
+        >
+            Weet u zeker dat u deze testafname en alle bijbehorende scores wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+        </ConfirmModal>
+    </>
   );
 }
