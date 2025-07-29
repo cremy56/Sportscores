@@ -1,8 +1,8 @@
 // src/pages/ScoresOverzicht.jsx
 import { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { db } from '../firebase';
-import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { db, auth } from '../firebase'; // auth hier importeren
+import { collection, query, where, getDocs, writeBatch, doc, getDoc } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 import { TrashIcon, PlusIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import ConfirmModal from '../components/ConfirmModal';
@@ -15,7 +15,9 @@ export default function ScoresOverzicht() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!profile?.school_id) {
+    const currentUser = auth.currentUser;
+    // Wacht tot zowel het profiel als de ingelogde gebruiker beschikbaar zijn.
+    if (!profile?.school_id || !currentUser) {
         setLoading(false);
         return;
     };
@@ -23,18 +25,18 @@ export default function ScoresOverzicht() {
     const fetchEvaluaties = async () => {
         setLoading(true);
         try {
-            // Haal alle scores op voor de school van de leerkracht
             const scoresRef = collection(db, 'scores');
+            // --- GECORRIGEERDE QUERY ---
+            // Gebruik auth.currentUser.uid in plaats van profile.id
             const q = query(
                 scoresRef, 
                 where('school_id', '==', profile.school_id),
-                where('leerkracht_id', '==', profile.id) // Optioneel: alleen afnames van deze leerkracht
+                where('leerkracht_id', '==', currentUser.uid)
             );
 
             const scoresSnapshot = await getDocs(q);
             const scoresData = scoresSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
 
-            // Groepeer scores om unieke testafnames te identificeren
             const grouped = scoresData.reduce((acc, score) => {
                 const key = `${score.groep_id}-${score.test_id}-${score.datum}`;
                 if (!acc[key]) {
@@ -42,7 +44,6 @@ export default function ScoresOverzicht() {
                         groep_id: score.groep_id,
                         test_id: score.test_id,
                         datum: score.datum,
-                        // Tijdelijke namen tot we de echte hebben
                         groep_naam: 'Laden...', 
                         test_naam: 'Laden...',
                         score_ids: []
@@ -54,25 +55,29 @@ export default function ScoresOverzicht() {
 
             const uniekeEvaluaties = Object.values(grouped);
 
-            // Haal de namen van groepen en testen op
+            if (uniekeEvaluaties.length === 0) {
+                setEvaluaties([]);
+                setLoading(false);
+                return;
+            }
+
             const groepIds = [...new Set(uniekeEvaluaties.map(e => e.groep_id))];
             const testIds = [...new Set(uniekeEvaluaties.map(e => e.test_id))];
 
+            // Voorkom fouten als er geen IDs zijn om op te zoeken
             const [groepenDocs, testenDocs] = await Promise.all([
-                Promise.all(groepIds.map(id => getDoc(doc(db, 'groepen', id)))),
-                Promise.all(testIds.map(id => getDoc(doc(db, 'testen', id))))
+                groepIds.length > 0 ? Promise.all(groepIds.map(id => getDoc(doc(db, 'groepen', id)))) : [],
+                testIds.length > 0 ? Promise.all(testIds.map(id => getDoc(doc(db, 'testen', id)))) : []
             ]);
 
             const groepenMap = new Map(groepenDocs.map(d => [d.id, d.data()?.naam]));
             const testenMap = new Map(testenDocs.map(d => [d.id, d.data()?.naam]));
 
-            // Voeg de echte namen toe
             uniekeEvaluaties.forEach(ev => {
                 ev.groep_naam = groepenMap.get(ev.groep_id) || 'Onbekende Groep';
                 ev.test_naam = testenMap.get(ev.test_id) || 'Onbekende Test';
             });
 
-            // Sorteer op datum (nieuwste eerst)
             uniekeEvaluaties.sort((a, b) => new Date(b.datum) - new Date(a.datum));
             
             setEvaluaties(uniekeEvaluaties);
@@ -86,7 +91,7 @@ export default function ScoresOverzicht() {
     };
 
     fetchEvaluaties();
-  }, [profile]);
+  }, [profile]); // useEffect blijft afhankelijk van het profiel
 
   const handleDelete = async () => {
     if (!modal.data) return;
