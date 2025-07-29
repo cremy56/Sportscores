@@ -417,13 +417,7 @@ export default function ScoresOverzicht() {
                                         <p className="text-gray-600 mb-6">
                                             Er zijn nog geen scores ingevoerd. Begin met je eerste testafname.
                                         </p>
-                                        <button
-                                            onClick={() => navigate('/nieuwe-testafname')}
-                                            className="inline-flex items-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition-shadow"
-                                        >
-                                            <PlusIcon className="h-5 w-5 mr-2" />
-                                            Nieuwe Testafname
-                                        </button>
+                                      
                                     </div>
                                 )}
                             </div>
