@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase/config'; // Pas aan naar jouw Firebase config pad
+import { db } from '../firebase';
 
 export function useDataConsistencyMonitor(userRole) {
   const [notifications, setNotifications] = useState([]);

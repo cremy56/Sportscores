@@ -1,7 +1,7 @@
 import React from 'react';
 import { useDataConsistencyMonitor } from '../hooks/useDataConsistencyMonitor';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { db } from '../firebase';
 
 export function DataConsistencyNotifications({ userRole }) {
   const { notifications, loading } = useDataConsistencyMonitor(userRole);
