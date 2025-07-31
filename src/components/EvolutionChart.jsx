@@ -1,4 +1,4 @@
-// src/components/EvolutionChart.jsx
+// src/components/EvolutionChart.jsx - Mobile Optimized
 import { Line } from 'react-chartjs-2';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
@@ -85,12 +85,24 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
   // Sorteer scores op datum voor correcte lijn weergave
   const sortedScores = [...scores].sort((a, b) => new Date(a.datum) - new Date(b.datum));
 
+  // Detect mobile screen
+  const isMobile = window.innerWidth < 640;
+
   const data = {
-    labels: sortedScores.map(s => new Date(s.datum).toLocaleDateString('nl-BE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit'
-    })),
+    labels: sortedScores.map(s => {
+      const date = new Date(s.datum);
+      // Shorter date format for mobile
+      return isMobile 
+        ? date.toLocaleDateString('nl-BE', {
+            day: '2-digit',
+            month: '2-digit'
+          })
+        : date.toLocaleDateString('nl-BE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit'
+          });
+    }),
     datasets: [
       {
         label: 'Evolutie',
@@ -100,11 +112,11 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
         pointBackgroundColor: 'rgb(126, 34, 206)',
         pointBorderColor: 'white',
         pointBorderWidth: 2,
-        pointRadius: 6,
-        pointHoverRadius: 8,
+        pointRadius: isMobile ? 4 : 6,
+        pointHoverRadius: isMobile ? 6 : 8,
         tension: 0.3,
         fill: true,
-        borderWidth: 3,
+        borderWidth: isMobile ? 2 : 3,
       },
     ],
   };
@@ -137,14 +149,20 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
         borderWidth: 1,
         cornerRadius: 8,
         displayColors: false,
+        titleFont: {
+          size: isMobile ? 12 : 14
+        },
+        bodyFont: {
+          size: isMobile ? 11 : 13
+        },
         callbacks: {
           title: function(context) {
             const index = context[0].dataIndex;
             const scoreData = sortedScores[index];
             return new Date(scoreData.datum).toLocaleDateString('nl-BE', {
-              weekday: 'long',
+              weekday: isMobile ? 'short' : 'long',
               day: 'numeric',
-              month: 'long',
+              month: isMobile ? 'short' : 'long',
               year: 'numeric'
             });
           },
@@ -184,8 +202,10 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
         ticks: {
           color: 'rgb(107, 114, 128)',
           font: {
-            size: 11
-          }
+            size: isMobile ? 9 : 11
+          },
+          maxRotation: isMobile ? 45 : 0,
+          minRotation: isMobile ? 45 : 0
         }
       },
       y: {
@@ -197,9 +217,13 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
         ticks: {
           color: 'rgb(107, 114, 128)',
           font: {
-            size: 11
+            size: isMobile ? 9 : 11
           },
           callback: function(value) {
+            // Shorter format on mobile
+            if (isMobile) {
+              return `${value}`;
+            }
             return `${value} ${eenheid || ''}`;
           }
         }
@@ -225,19 +249,30 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
         plugins={[coloredZonesPlugin, thresholdLinesPlugin]} 
       />
       
-      {/* Threshold Legend */}
+      {/* Threshold Legend - Mobile Optimized */}
       {thresholds && (
-        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-lg p-2 text-xs border border-gray-200/50 shadow-sm">
+        <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-white/90 backdrop-blur-sm rounded-lg p-1.5 sm:p-2 text-xs border border-gray-200/50 shadow-sm">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-0.5 bg-green-500"></div>
-              <span className="text-gray-600">P65 (Excellent)</span>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="w-2 h-0.5 sm:w-3 sm:h-0.5 bg-green-500"></div>
+              <span className="text-gray-600 text-xs sm:text-xs">
+                {isMobile ? 'P65' : 'P65 (Excellent)'}
+              </span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-0.5 bg-orange-500"></div>
-              <span className="text-gray-600">P50 (Goed)</span>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="w-2 h-0.5 sm:w-3 sm:h-0.5 bg-orange-500"></div>
+              <span className="text-gray-600 text-xs sm:text-xs">
+                {isMobile ? 'P50' : 'P50 (Goed)'}
+              </span>
             </div>
           </div>
+        </div>
+      )}
+      
+      {/* Mobile Unit Display */}
+      {isMobile && eenheid && (
+        <div className="absolute bottom-1 left-1 bg-white/80 backdrop-blur-sm rounded px-2 py-1 text-xs text-gray-600">
+          {eenheid}
         </div>
       )}
     </div>

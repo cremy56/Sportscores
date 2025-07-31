@@ -1,4 +1,4 @@
-// src/components/EvolutionCard.jsx
+// src/components/EvolutionCard.jsx - Mobile Optimized
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import EvolutionChart from './EvolutionChart';
@@ -181,23 +181,23 @@ export default function EvolutionCard({ categoryName, tests, student }) {
 
   if (!scoresAnalysis) {
     return (
-      <div className="bg-white/70 backdrop-blur-lg rounded-3xl shadow-lg border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-full">
-        <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-6 border-b border-white/20">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <TrophyIcon className="h-6 w-6 text-purple-600" />
-              {categoryName}
+      <div className="bg-white/70 backdrop-blur-lg rounded-2xl sm:rounded-3xl shadow-lg border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-full">
+        <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-3 sm:p-6 border-b border-white/20">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
+              <TrophyIcon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+              <span className="text-sm sm:text-xl">{categoryName}</span>
             </h2>
           </div>
-          <h3 className="font-semibold text-lg text-green-700 text-center">
+          <h3 className="font-semibold text-base sm:text-lg text-green-700 text-center">
             {currentTest?.test_naam || 'Geen test'}
           </h3>
         </div>
         
-        <div className="flex-grow flex items-center justify-center p-6">
+        <div className="flex-grow flex items-center justify-center p-4 sm:p-6">
           <div className="text-center">
-            <div className="text-4xl mb-2">📊</div>
-            <p className="text-gray-500">Geen scoregeschiedenis</p>
+            <div className="text-3xl sm:text-4xl mb-2">📊</div>
+            <p className="text-gray-500 text-sm sm:text-base">Geen scoregeschiedenis</p>
             <p className="text-xs text-gray-400 mt-1">voor deze test beschikbaar</p>
           </div>
         </div>
@@ -211,23 +211,24 @@ export default function EvolutionCard({ categoryName, tests, student }) {
     <div 
       ref={cardRef}
       tabIndex={0}
-      className="bg-white/70 backdrop-blur-lg rounded-3xl shadow-lg border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-full focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+      className="bg-white/70 backdrop-blur-lg rounded-2xl sm:rounded-3xl shadow-lg border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-full focus:outline-none focus:ring-2 focus:ring-purple-500/50"
     >
-      {/* Header */}
-      <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-6 border-b border-white/20">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <TrophyIcon className="h-6 w-6 text-purple-600" />
-            {categoryName}
+      {/* Header - Mobile Optimized */}
+      <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-3 sm:p-6 border-b border-white/20">
+        <div className="flex items-center justify-between mb-2 sm:mb-3">
+          <h2 className="text-base sm:text-xl font-bold text-gray-800 flex items-center gap-1 sm:gap-2">
+            <TrophyIcon className="h-4 w-4 sm:h-6 sm:w-6 text-purple-600" />
+            <span className="text-sm sm:text-xl truncate">{categoryName}</span>
           </h2>
-          <div className="flex items-center gap-2">
-            {/* Performance Indicator */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Performance Indicator - Smaller on mobile */}
             {performanceIndicator && (
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${performanceIndicator.color}`}>
-                {performanceIndicator.icon} {performanceIndicator.level}
+              <div className={`px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-medium ${performanceIndicator.color}`}>
+                <span className="hidden sm:inline">{performanceIndicator.icon} {performanceIndicator.level}</span>
+                <span className="sm:hidden">{performanceIndicator.icon}</span>
               </div>
             )}
-            <div className="flex items-center gap-1 bg-white/50 rounded-full px-2 py-1">
+            <div className="flex items-center gap-1 bg-white/50 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-1">
               <span className="text-xs text-gray-600">{currentIndex + 1}/{tests.length}</span>
             </div>
           </div>
@@ -236,37 +237,37 @@ export default function EvolutionCard({ categoryName, tests, student }) {
         <div className="flex justify-between items-center">
           <button 
             onClick={handlePrev} 
-            className="p-2 rounded-full bg-white/50 hover:bg-white/80 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+            className="p-1.5 sm:p-2 rounded-full bg-white/50 hover:bg-white/80 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
             disabled={tests.length <= 1}
             title="Vorige test (←)"
           >
-            <ChevronLeftIcon className="h-5 w-5 text-purple-700" />
+            <ChevronLeftIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-700" />
           </button>
           
-          <h3 className="font-semibold text-lg text-green-700 text-center flex-1 mx-4">
+          <h3 className="font-semibold text-sm sm:text-lg text-green-700 text-center flex-1 mx-2 sm:mx-4 truncate">
             {currentTest.test_naam}
           </h3>
           
           <button 
             onClick={handleNext} 
-            className="p-2 rounded-full bg-white/50 hover:bg-white/80 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+            className="p-1.5 sm:p-2 rounded-full bg-white/50 hover:bg-white/80 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
             disabled={tests.length <= 1}
             title="Volgende test (→)"
           >
-            <ChevronRightIcon className="h-5 w-5 text-purple-700" />
+            <ChevronRightIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-700" />
           </button>
         </div>
       </div>
 
-      {/* Enhanced Stats Grid */}
-      <div className="grid grid-cols-4 gap-3 p-6 bg-white/30">
+      {/* Enhanced Stats Grid - Mobile Layout */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 p-3 sm:p-6 bg-white/30">
         <div className="text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Eerste</p>
-          <p className="font-bold text-gray-800 text-sm">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Eerste</p>
+          <p className="font-bold text-gray-800 text-xs sm:text-sm">
             {firstScore ? `${firstScore.score} ${currentTest.eenheid}` : '-'}
           </p>
           {firstScore && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-1 hidden sm:block">
               {formatDate(firstScore.datum)}
             </p>
           )}
@@ -274,31 +275,31 @@ export default function EvolutionCard({ categoryName, tests, student }) {
         
         <div className="text-center">
           <p className="text-xs text-gray-500 uppercase font-bold mb-1">Record</p>
-          <p className="text-xl font-bold text-purple-700 mb-1">
+          <p className="text-lg sm:text-xl font-bold text-purple-700 mb-1">
             {currentTest.personal_best_score} {currentTest.eenheid}
           </p>
           {currentTest.personal_best_datum && (
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 hidden sm:block">
               {formatDate(currentTest.personal_best_datum)}
             </p>
           )}
         </div>
         
         <div className="text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Laatste</p>
-          <p className="font-bold text-gray-800 text-sm">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Laatste</p>
+          <p className="font-bold text-gray-800 text-xs sm:text-sm">
             {lastScore ? `${lastScore.score} ${currentTest.eenheid}` : '-'}
           </p>
           {lastScore && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-1 hidden sm:block">
               {formatDate(lastScore.datum)}
             </p>
           )}
         </div>
 
         <div className="text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Trend</p>
-          <p className="font-bold text-gray-800 text-sm">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Trend</p>
+          <p className="font-bold text-gray-800 text-xs sm:text-sm">
             {getTrendIcon(trendDirection)}
           </p>
           <p className="text-xs text-gray-500 mt-1">
@@ -307,9 +308,9 @@ export default function EvolutionCard({ categoryName, tests, student }) {
         </div>
       </div>
 
-      {/* Improvement Indicator */}
+      {/* Improvement Indicator - Mobile */}
       {improvement !== 0 && (
-        <div className={`px-6 py-2 text-center text-sm font-medium ${
+        <div className={`px-3 sm:px-6 py-2 text-center text-xs sm:text-sm font-medium ${
           isImprovement 
             ? 'bg-green-100 text-green-800' 
             : 'bg-red-100 text-red-800'
@@ -317,7 +318,7 @@ export default function EvolutionCard({ categoryName, tests, student }) {
           {isImprovement ? '📈' : '📉'} 
           {isImprovement ? 'Verbetering' : 'Verslechtering'}: 
           {Math.abs(improvement).toFixed(2)} {currentTest.eenheid}
-          <span className="ml-2 text-xs opacity-75">
+          <span className="ml-2 text-xs opacity-75 hidden sm:inline">
             (Gemiddelde: {average.toFixed(2)} {currentTest.eenheid})
           </span>
         </div>
@@ -325,19 +326,19 @@ export default function EvolutionCard({ categoryName, tests, student }) {
 
       {/* Error State */}
       {error && (
-        <div className="px-6 py-2 bg-yellow-100 text-yellow-800 text-sm text-center flex items-center justify-center gap-2">
-          <ExclamationTriangleIcon className="h-4 w-4" />
-          {error}
+        <div className="px-3 sm:px-6 py-2 bg-yellow-100 text-yellow-800 text-xs sm:text-sm text-center flex items-center justify-center gap-2">
+          <ExclamationTriangleIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+          <span className="truncate">{error}</span>
         </div>
       )}
       
-      {/* Chart */}
-      <div className="flex-grow p-6 min-h-[200px]">
+      {/* Chart - Mobile Height */}
+      <div className="flex-grow p-3 sm:p-6 min-h-[250px] sm:min-h-[300px]">
         {loading && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
-              <p className="text-sm text-gray-500">Drempelwaarden laden...</p>
+              <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
+              <p className="text-xs sm:text-sm text-gray-500">Drempelwaarden laden...</p>
             </div>
           </div>
         )}
@@ -352,23 +353,23 @@ export default function EvolutionCard({ categoryName, tests, student }) {
         ) : !loading && (
           <div className="flex items-center justify-center h-full text-center">
             <div>
-              <div className="text-4xl mb-2">📊</div>
-              <p className="text-gray-500">Geen scoregeschiedenis</p>
+              <div className="text-3xl sm:text-4xl mb-2">📊</div>
+              <p className="text-gray-500 text-sm sm:text-base">Geen scoregeschiedenis</p>
               <p className="text-xs text-gray-400 mt-1">voor deze test beschikbaar</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Selected Data Point */}
+      {/* Selected Data Point - Mobile */}
       {selectedDataPoint && (
-        <div className="mx-6 mb-6 p-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-xl border border-purple-200">
-          <p className="text-sm text-purple-800 text-center">
+        <div className="mx-3 sm:mx-6 mb-3 sm:mb-6 p-2 sm:p-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-xl border border-purple-200">
+          <p className="text-xs sm:text-sm text-purple-800 text-center">
             <span className="font-bold">{selectedDataPoint.score} {currentTest.eenheid}</span>
             <span className="mx-2">•</span>
-            <span>{formatDate(selectedDataPoint.datum)}</span>
+            <span className="text-xs">{formatDate(selectedDataPoint.datum)}</span>
             {thresholds && (
-              <span className="ml-2 text-xs opacity-75">
+              <span className="ml-2 text-xs opacity-75 block sm:inline mt-1 sm:mt-0">
                 {(() => {
                   const score = selectedDataPoint.score;
                   const { threshold_50, threshold_65, score_richting } = thresholds;
@@ -389,11 +390,11 @@ export default function EvolutionCard({ categoryName, tests, student }) {
         </div>
       )}
 
-      {/* Keyboard Navigation Hint */}
+      {/* Keyboard Navigation Hint - Hide on mobile */}
       {tests.length > 1 && (
-        <div className="px-6 pb-2">
+        <div className="px-3 sm:px-6 pb-2 hidden sm:block">
           <p className="text-xs text-gray-400 text-center">
-            💡 Gebruik ← → pijltjestoetsen om te navigeren
+            💡 Gebruik ← → pijltjestoetsten om te navigeren
           </p>
         </div>
       )}
