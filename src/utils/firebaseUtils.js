@@ -1,4 +1,21 @@
-// src/utils/firebaseUtils.js (aangepast fragment)
+// src/utils/firebaseUtils.js
+import { db } from '../firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  orderBy 
+} from 'firebase/firestore';
+
+// Import school year utilities
+import { 
+  getSchoolYearFromDate, 
+  getCurrentSchoolYear, 
+  generateSchoolYears,
+  getSchoolYearBounds,
+  formatSchoolYear 
+} from './schoolyearUtils';
 
 /**
  * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
@@ -296,12 +313,3 @@ export const getSchoolYearStats = async (schoolId, schoolYear) => {
     throw error;
   }
 };
-
-// Import school year utilities
-import { 
-  getSchoolYearFromDate, 
-  getCurrentSchoolYear, 
-  generateSchoolYears,
-  getSchoolYearBounds,
-  formatSchoolYear 
-} from './schoolyearUtils';
