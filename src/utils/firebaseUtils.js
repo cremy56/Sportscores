@@ -1,145 +1,307 @@
-// src/utils/firebaseUtils.js
-import { db } from '../firebase';
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  query, 
-  where, 
-  orderBy 
-} from 'firebase/firestore';
+// src/utils/firebaseUtils.js (aangepast fragment)
 
 /**
- * Haalt evolutiedata op voor een specifieke student
- * @param {string} studentId - De ID van de student
- * @param {number} schoolYear - Het schooljaar (bijvoorbeeld 2024)
- * @returns {Promise<Array>} Array met evolutiedata
+ * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
+ * Schooljaar filtering gebeurt client-side voor betere performance en flexibiliteit
+ * @param {string} studentId - Het ID van de student
+ * @returns {Promise<Array>} Array van test objecten met scores
  */
-export const getStudentEvolutionData = async (studentId, schoolYear) => {
+export const getStudentEvolutionData = async (studentId) => {
   try {
-    if (!studentId) {
-      throw new Error('Student ID is verplicht');
-    }
-
-    // Stap 1: Haal alle scores op voor deze student in het schooljaar
-    const scoresRef = collection(db, 'scores');
-    const scoresQuery = query(
-      scoresRef,
-      where('leerling_id', '==', studentId),
-      where('score_jaar', '==', schoolYear)
+    // 1. Haal alle testen op voor de school
+    const testsQuery = query(
+      collection(db, 'testen'),
+      where('is_actief', '==', true),
+      orderBy('categorie'),
+      orderBy('naam')
     );
     
-    const scoresSnapshot = await getDocs(scoresQuery);
-    const scores = [];
-    scoresSnapshot.forEach((doc) => {
-      scores.push(doc.data());
-    });
+    const testsSnapshot = await getDocs(testsQuery);
+    const tests = testsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
 
-    // Stap 2: Groepeer scores per test
-    const testScores = {};
-    scores.forEach(score => {
-      if (!testScores[score.test_id]) {
-        testScores[score.test_id] = [];
+    console.log(`Found ${tests.length} active tests`);
+
+    // 2. Voor elke test, haal alle scores op van deze student
+    const testDataPromises = tests.map(async (test) => {
+      const scoresQuery = query(
+        collection(db, 'scores'),
+        where('test_id', '==', test.id),
+        where('leerling_id', '==', studentId),
+        orderBy('afgenomen_op', 'desc') // Nieuwste eerst
+      );
+
+      const scoresSnapshot = await getDocs(scoresQuery);
+      const scores = scoresSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        datum: doc.data().afgenomen_op?.toDate?.() || new Date(doc.data().afgenomen_op)
+      }));
+
+      if (scores.length === 0) {
+        return null; // Geen scores voor deze test
       }
-      testScores[score.test_id].push({
-        score: score.score,
-        datum: score.datum
-      });
+
+      // Sorteer scores op datum (nieuwste eerst voor personal best)
+      const sortedScores = scores.sort((a, b) => new Date(b.datum) - new Date(a.datum));
+
+      // Bereken personal best over ALLE scores (niet per schooljaar)
+      const personalBest = calculatePersonalBest(sortedScores, test.score_richting);
+
+      return {
+        test_id: test.id,
+        test_naam: test.naam,
+        categorie: test.categorie,
+        eenheid: test.eenheid,
+        score_richting: test.score_richting,
+        personal_best_score: personalBest.score,
+        personal_best_datum: personalBest.datum,
+        all_scores: sortedScores.map(score => ({
+          score: score.score,
+          datum: score.datum,
+          id: score.id,
+          rapportpunt: score.rapportpunt || null
+        }))
+      };
     });
 
-    // Stap 3: Haal testinformatie op
-    const testenRef = collection(db, 'testen');
-    const testenSnapshot = await getDocs(testenRef);
-    const evolutionData = [];
-
-    testenSnapshot.forEach((doc) => {
-      const testData = doc.data();
-      const testId = doc.id;
-      
-      if (testScores[testId] && testScores[testId].length > 0) {
-        // Sorteer scores op datum
-        const sortedScores = testScores[testId].sort((a, b) => 
-          new Date(a.datum) - new Date(b.datum)
-        );
-
-        // Vind personal best
-        const personalBest = testData.score_richting === 'hoog' 
-          ? Math.max(...sortedScores.map(s => s.score))
-          : Math.min(...sortedScores.map(s => s.score));
-        
-        const personalBestEntry = sortedScores.find(s => s.score === personalBest);
-
-        evolutionData.push({
-          test_id: testId,
-          test_naam: testData.naam,
-          categorie: testData.categorie,
-          eenheid: testData.eenheid,
-          score_richting: testData.score_richting,
-          personal_best_score: personalBest,
-          personal_best_datum: personalBestEntry?.datum,
-          all_scores: sortedScores
-        });
-      }
-    });
+    const results = await Promise.all(testDataPromises);
+    const validResults = results.filter(result => result !== null);
     
-    return evolutionData;
+    console.log(`Processed evolution data: ${validResults.length} tests with scores`);
+    
+    return validResults;
+
   } catch (error) {
-    console.error('Error fetching student evolution data:', error);
+    console.error("Error getting student evolution data:", error);
     throw error;
   }
 };
 
 /**
- * Haalt score thresholds op uit Firebase
- * @param {string} testId - De ID van de test
+ * Berekent de personal best uit een array van scores
+ * @param {Array} scores - Array van score objecten
+ * @param {string} scoreRichting - 'hoog' of 'omlaag'  
+ * @returns {Object} Object met beste score en datum
+ */
+const calculatePersonalBest = (scores, scoreRichting) => {
+  if (!scores || scores.length === 0) {
+    return { score: null, datum: null };
+  }
+
+  const sortedScores = [...scores].sort((a, b) => {
+    if (scoreRichting === 'hoog') {
+      return b.score - a.score; // Hoogste eerst
+    } else {
+      return a.score - b.score; // Laagste eerst  
+    }
+  });
+
+  const best = sortedScores[0];
+  return {
+    score: best.score,
+    datum: best.datum
+  };
+};
+
+/**
+ * Haalt score thresholds op voor een specifieke test, leeftijd en geslacht
+ * @param {string} testId - Het test ID
  * @param {number} leeftijd - De leeftijd van de student
- * @param {string} geslacht - Het geslacht van de student ('M' of 'F')
- * @returns {Promise<Object>} Object met score thresholds
+ * @param {string} geslacht - Het geslacht ('M' of 'V')
+ * @returns {Promise<Object|null>} Threshold object of null als niet gevonden
  */
 export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
   try {
-    // Probeer eerst specifieke thresholds op te halen
-    const thresholdsRef = collection(db, 'drempelwaarden');
-    const q = query(
-      thresholdsRef,
+    const normenQuery = query(
+      collection(db, 'normen'),
       where('test_id', '==', testId),
       where('leeftijd', '==', leeftijd),
-      where('geslacht', '==', geslacht)
+      where('geslacht', '==', geslacht.toUpperCase())
     );
+
+    const normenSnapshot = await getDocs(normenQuery);
     
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      return doc.data();
+    if (normenSnapshot.empty) {
+      console.log(`No thresholds found for test ${testId}, age ${leeftijd}, gender ${geslacht}`);
+      return null;
     }
-    
-    // Fallback: haal algemene thresholds op voor deze test
-    const generalQuery = query(
-      thresholdsRef,
-      where('test_id', '==', testId)
-    );
-    
-    const generalSnapshot = await getDocs(generalQuery);
-    if (!generalSnapshot.empty) {
-      const doc = generalSnapshot.docs[0];
-      return doc.data();
+
+    const normenDoc = normenSnapshot.docs[0];
+    const normenData = normenDoc.data();
+
+    // Controleer of de benodigde velden aanwezig zijn
+    if (normenData.punt_8 !== undefined && normenData.score_min !== undefined) {
+      // Bereken thresholds op basis van beschikbare data
+      const threshold_50 = normenData.punt_8;  // 50e percentiel (punt 8/20)
+      const threshold_65 = calculateP65Threshold(normenData);
+
+      return {
+        threshold_50,
+        threshold_65,
+        score_richting: normenData.score_richting || 'hoog',
+        leeftijd,
+        geslacht,
+        test_id: testId
+      };
     }
-    
-    // Laatste fallback: standaard waarden
-    return {
-      threshold_50: 50,
-      threshold_65: 65,
-      score_richting: 'hoog'
-    };
+
+    return null;
   } catch (error) {
-    console.error('Error fetching score thresholds:', error);
-    // Fallback naar standaard waarden bij fout
-    return {
-      threshold_50: 50,
-      threshold_65: 65,
-      score_richting: 'hoog'
-    };
+    console.error("Error getting score thresholds:", error);
+    throw error;
   }
 };
+
+/**
+ * Berekent het 65e percentiel threshold op basis van beschikbare normgegevens
+ * @param {Object} normenData - De norm data uit de database
+ * @returns {number} Het berekende 65e percentiel
+ */
+const calculateP65Threshold = (normenData) => {
+  // Als er een specifiek P65 veld is, gebruik dat
+  if (normenData.punt_10 !== undefined) {
+    return normenData.punt_10; // Punt 10/20 ≈ 65e percentiel
+  }
+
+  // Anders schatten op basis van punt_8 en score_min
+  const punt8 = normenData.punt_8;
+  const scoreMin = normenData.score_min;
+  
+  // Simpele lineaire interpolatie voor betere threshold
+  const range = Math.abs(punt8 - scoreMin);
+  const improvement = range * 0.3; // 30% verbetering voor 65e percentiel
+  
+  if (normenData.score_richting === 'omlaag') {
+    return punt8 - improvement; // Lager is beter
+  } else {
+    return punt8 + improvement; // Hoger is beter
+  }
+};
+
+/**
+ * Haalt alle beschikbare schooljaren op uit de database
+ * Analyseert alle score data om beschikbare periodes te vinden
+ * @param {string} schoolId - Het school ID (optioneel)
+ * @returns {Promise<Array>} Array van schooljaar objecten
+ */
+export const getAvailableSchoolYears = async (schoolId = null) => {
+  try {
+    let scoresQuery = query(collection(db, 'scores'));
+    
+    if (schoolId) {
+      scoresQuery = query(
+        collection(db, 'scores'),
+        where('school_id', '==', schoolId)
+      );
+    }
+    
+    const scoresSnapshot = await getDocs(scoresQuery);
+    const schoolYears = new Set();
+    
+    scoresSnapshot.docs.forEach(doc => {
+      const scoreData = doc.data();
+      const datum = scoreData.afgenomen_op?.toDate?.() || new Date(scoreData.afgenomen_op);
+      
+      if (datum) {
+        const schoolYear = getSchoolYearFromDate(datum);
+        schoolYears.add(schoolYear);
+      }
+    });
+    
+    // Convert naar array en sorteer (nieuwste eerst)
+    return Array.from(schoolYears)
+      .sort((a, b) => b - a)
+      .map(year => ({
+        value: year,
+        label: `${year}-${year + 1}`,
+        isCurrent: year === getCurrentSchoolYear()
+      }));
+      
+  } catch (error) {
+    console.error("Error getting available school years:", error);
+    // Fallback naar standaard jaren
+    return generateSchoolYears();
+  }
+};
+
+/**
+ * Haalt statistieken op voor een specifiek schooljaar
+ * @param {string} schoolId - Het school ID
+ * @param {number} schoolYear - Het schooljaar
+ * @returns {Promise<Object>} Statistieken object
+ */
+export const getSchoolYearStats = async (schoolId, schoolYear) => {
+  try {
+    const schoolYearBounds = getSchoolYearBounds(schoolYear);
+    
+    const scoresQuery = query(
+      collection(db, 'scores'),
+      where('school_id', '==', schoolId),
+      where('afgenomen_op', '>=', schoolYearBounds.startDate),
+      where('afgenomen_op', '<=', schoolYearBounds.endDate)
+    );
+    
+    const scoresSnapshot = await getDocs(scoresQuery);
+    const scores = scoresSnapshot.docs.map(doc => doc.data());
+    
+    // Groepeer per student
+    const studentStats = {};
+    scores.forEach(score => {
+      const studentId = score.leerling_id;
+      if (!studentStats[studentId]) {
+        studentStats[studentId] = {
+          studentId,
+          totalScores: 0,
+          testCount: new Set(),
+          firstScore: null,
+          lastScore: null
+        };
+      }
+      
+      studentStats[studentId].totalScores++;
+      studentStats[studentId].testCount.add(score.test_id);
+      
+      const scoreDate = score.afgenomen_op?.toDate?.() || new Date(score.afgenomen_op);
+      if (!studentStats[studentId].firstScore || scoreDate < studentStats[studentId].firstScore) {
+        studentStats[studentId].firstScore = scoreDate;
+      }
+      if (!studentStats[studentId].lastScore || scoreDate > studentStats[studentId].lastScore) {
+        studentStats[studentId].lastScore = scoreDate;
+      }
+    });
+    
+    const uniqueStudents = Object.keys(studentStats).length;
+    const totalScores = scores.length;
+    const uniqueTests = new Set(scores.map(s => s.test_id)).size;
+    const avgScoresPerStudent = uniqueStudents > 0 ? totalScores / uniqueStudents : 0;
+    
+    return {
+      schoolYear: formatSchoolYear(schoolYear),
+      uniqueStudents,
+      totalScores,
+      uniqueTests,
+      avgScoresPerStudent: Math.round(avgScoresPerStudent * 100) / 100,
+      period: {
+        start: schoolYearBounds.startDate,
+        end: schoolYearBounds.endDate
+      },
+      studentDetails: studentStats
+    };
+    
+  } catch (error) {
+    console.error("Error getting school year stats:", error);
+    throw error;
+  }
+};
+
+// Import school year utilities
+import { 
+  getSchoolYearFromDate, 
+  getCurrentSchoolYear, 
+  generateSchoolYears,
+  getSchoolYearBounds,
+  formatSchoolYear 
+} from './schoolyearUtils';
