@@ -1,6 +1,7 @@
 // src/pages/WachtwoordWijzigen.jsx
 import { useState } from 'react';
-import { db } from '../firebase';
+import { auth } from '../firebase';
+import { updatePassword } from 'firebase/auth';
 import { useNavigate, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -23,18 +24,36 @@ export default function WachtwoordWijzigen() {
       return;
     }
 
-    setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password: nieuwWachtwoord });
-
-    if (error) {
-      toast.error('Fout bij bijwerken wachtwoord.');
-      console.error(error);
-    } else {
-      toast.success('Wachtwoord gewijzigd!');
-      navigate('/');
+    if (!auth.currentUser) {
+      toast.error('Je moet ingelogd zijn om je wachtwoord te wijzigen.');
+      return;
     }
 
-    setLoading(false);
+    setLoading(true);
+
+    try {
+      await updatePassword(auth.currentUser, nieuwWachtwoord);
+      toast.success('Wachtwoord succesvol gewijzigd!');
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
+    } catch (error) {
+      console.error('Fout bij wijzigen wachtwoord:', error);
+      
+      // Specifieke error handling voor Firebase
+      switch (error.code) {
+        case 'auth/requires-recent-login':
+          toast.error('Je moet opnieuw inloggen om je wachtwoord te wijzigen.');
+          break;
+        case 'auth/weak-password':
+          toast.error('Het wachtwoord is te zwak.');
+          break;
+        default:
+          toast.error('Er ging iets mis bij het wijzigen van je wachtwoord.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
