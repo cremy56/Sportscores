@@ -74,6 +74,17 @@ export default function Evolutie() {
 
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
 
+    const handleStudentSelect = (student) => {
+        console.log('Geselecteerde student:', student);
+        setSelectedStudent(student);
+        setError(null); // Reset error state bij nieuwe selectie
+    };
+
+    const handleYearChange = (newYear) => {
+        setSelectedYear(Number(newYear));
+        setError(null); // Reset error state bij jaar wijziging
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
             <PageHeader 
@@ -88,10 +99,8 @@ export default function Evolutie() {
                                 Zoek Leerling
                             </label>
                             <StudentSearch 
-                                onStudentSelect={(student) => {
-                                    console.log('Geselecteerde student:', student);
-                                    setSelectedStudent(student);
-                                }} 
+                                onStudentSelect={handleStudentSelect}
+                                schoolId={profile?.school_id} // FIX: schoolId prop toegevoegd
                             />
                         </div>
                         <div>
@@ -101,7 +110,7 @@ export default function Evolutie() {
                             <select
                                 id="school-year-select"
                                 value={selectedYear}
-                                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                                onChange={(e) => handleYearChange(e.target.value)}
                                 className="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300"
                             >
                                 {schoolYears.map(year => (
@@ -124,6 +133,9 @@ export default function Evolutie() {
                             <div className="text-center">
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
                                 <p className="text-lg font-medium text-gray-700">Evolutiegegevens laden...</p>
+                                <p className="text-sm text-gray-500 mt-2">
+                                    Data voor {selectedStudent?.naam} wordt opgehaald...
+                                </p>
                             </div>
                         </div>
                     )}
@@ -134,10 +146,27 @@ export default function Evolutie() {
                             <div className="text-center bg-red-50 rounded-2xl p-8 max-w-md">
                                 <div className="text-red-500 text-4xl mb-4">⚠️</div>
                                 <h3 className="text-lg font-semibold text-red-800 mb-2">Fout bij laden</h3>
-                                <p className="text-red-600">{error}</p>
+                                <p className="text-red-600 mb-4">{error}</p>
                                 <button 
-                                    onClick={() => window.location.reload()}
-                                    className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                                    onClick={() => {
+                                        setError(null);
+                                        if (selectedStudent) {
+                                            // Herlaad de data
+                                            const fetchData = async () => {
+                                                setLoading(true);
+                                                try {
+                                                    const data = await getStudentEvolutionData(selectedStudent.id, selectedYear);
+                                                    setEvolutionData(data);
+                                                } catch (err) {
+                                                    setError('Kon de evolutiegegevens niet laden.');
+                                                } finally {
+                                                    setLoading(false);
+                                                }
+                                            };
+                                            fetchData();
+                                        }
+                                    }}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                                 >
                                     Probeer opnieuw
                                 </button>
@@ -157,6 +186,9 @@ export default function Evolutie() {
                                 <h3 className="text-xl font-semibold text-gray-800 mb-2">Selecteer een leerling</h3>
                                 <p className="text-gray-600">
                                     Gebruik de zoekbalk hierboven om de evolutie van een leerling te bekijken.
+                                </p>
+                                <p className="text-sm text-gray-500 mt-2">
+                                    Typ minimaal 2 karakters om te zoeken
                                 </p>
                             </div>
                         </div>
@@ -178,6 +210,11 @@ export default function Evolutie() {
                                 <p className="text-sm text-gray-500">
                                     in het schooljaar {selectedYear}-{selectedYear + 1}
                                 </p>
+                                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                                    <p className="text-xs text-blue-700">
+                                        💡 Tip: Probeer een ander schooljaar of controleer of er scores zijn ingevoerd voor deze leerling.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -199,7 +236,7 @@ export default function Evolutie() {
                             {/* Stats Footer */}
                             <div className="mt-12 text-center">
                                 <div className="bg-white/60 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block">
-                                    <div className="flex items-center space-x-8 text-sm text-gray-600">
+                                    <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-600">
                                         <div className="flex items-center space-x-2">
                                             <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
                                             <span>{Object.keys(grouped_data).length} Categorieën</span>
@@ -213,6 +250,10 @@ export default function Evolutie() {
                                             <span>
                                                 {evolutionData.reduce((total, test) => total + (test.all_scores?.length || 0), 0)} Scores
                                             </span>
+                                        </div>
+                                        <div className="flex items-center space-x-2 text-purple-700 font-medium">
+                                            <div className="w-3 h-3 bg-gradient-to-r from-green-500 to-purple-500 rounded-full"></div>
+                                            <span>{selectedYear}-{selectedYear + 1}</span>
                                         </div>
                                     </div>
                                 </div>
