@@ -5,17 +5,12 @@ import StudentSearch from '../components/StudentSearch';
 import EvolutionCard from '../components/EvolutionCard';
 import PageHeader from '../components/PageHeader';
 import { getStudentEvolutionData } from '../utils/firebaseUtils';
-
-const generateSchoolYears = () => {
-    const years = [];
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth();
-    const endYear = currentMonth >= 8 ? currentYear : currentYear - 1;
-    for (let i = endYear; i >= 2020; i--) {
-        years.push({ value: i, label: `${i}-${i + 1}` });
-    }
-    return years;
-};
+import { 
+    generateSchoolYears, 
+    getCurrentSchoolYear, 
+    filterTestDataBySchoolYear,
+    formatSchoolYear 
+} from '../utils/schoolyearUtils';
 
 export default function Evolutie() {
     const { profile } = useOutletContext();
@@ -23,9 +18,16 @@ export default function Evolutie() {
     const [evolutionData, setEvolutionData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [availableYears, setAvailableYears] = useState([]);
 
-    const schoolYears = generateSchoolYears();
-    const [selectedYear, setSelectedYear] = useState(schoolYears[0]?.value);
+    // Gebruik de huidige schooljaar als default
+    const [selectedYear, setSelectedYear] = useState(getCurrentSchoolYear());
+
+    // Genereer beschikbare schooljaren
+    useEffect(() => {
+        const years = generateSchoolYears();
+        setAvailableYears(years);
+    }, []);
 
     // Auto-selecteer leerling als de gebruiker een leerling is
     useEffect(() => {
@@ -46,8 +48,17 @@ export default function Evolutie() {
             setError(null);
             
             try {
-                const data = await getStudentEvolutionData(selectedStudent.id, selectedYear);
-                setEvolutionData(data);
+                // Haal alle data op (zonder schooljaar filter in database query)
+                const allData = await getStudentEvolutionData(selectedStudent.id);
+                
+                // Filter client-side op schooljaar
+                const filteredData = filterTestDataBySchoolYear(allData, selectedYear);
+                
+                setEvolutionData(filteredData);
+                
+                // Log voor debugging
+                console.log(`Loaded ${allData.length} total tests, ${filteredData.length} for school year ${formatSchoolYear(selectedYear)}`);
+                
             } catch (err) {
                 console.error('Error fetching evolution data:', err);
                 setError('Kon de evolutiegegevens niet laden.');
@@ -60,7 +71,7 @@ export default function Evolutie() {
         fetchEvolutionData();
     }, [selectedStudent, selectedYear]);
 
-    // Groepeer data per categorie
+    // Groepeer data per categorie (alleen data met scores)
     const grouped_data = evolutionData.reduce((acc, test) => {
         if (test.all_scores && test.all_scores.length > 0) {
             (acc[test.categorie] = acc[test.categorie] || []).push(test);
@@ -77,19 +88,32 @@ export default function Evolutie() {
     const handleStudentSelect = (student) => {
         console.log('Geselecteerde student:', student);
         setSelectedStudent(student);
-        setError(null); // Reset error state bij nieuwe selectie
+        setError(null);
     };
 
     const handleYearChange = (newYear) => {
         setSelectedYear(Number(newYear));
-        setError(null); // Reset error state bij jaar wijziging
+        setError(null);
     };
+
+    // Statistieken voor de footer
+    const totalScores = evolutionData.reduce((total, test) => 
+        total + (test.all_scores?.length || 0), 0
+    );
+
+    // Find huidige schooljaar info
+    const currentYearInfo = availableYears.find(year => year.value === selectedYear);
+    const isCurrentYear = currentYearInfo?.isCurrent || false;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
             <PageHeader 
                 title={selectedStudent ? selectedStudent.naam : pageTitle}
-                subtitle={selectedStudent ? `Evolutie overzicht voor schooljaar ${selectedYear}-${selectedYear + 1}` : 'Bekijk je sportieve vooruitgang'}
+                subtitle={
+                    selectedStudent 
+                        ? `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
+                        : 'Bekijk je sportieve vooruitgang'
+                }
             >
                 {/* Search Controls - alleen voor leraren/admins */}
                 {isTeacherOrAdmin && (
@@ -100,12 +124,17 @@ export default function Evolutie() {
                             </label>
                             <StudentSearch 
                                 onStudentSelect={handleStudentSelect}
-                                schoolId={profile?.school_id} // FIX: schoolId prop toegevoegd
+                                schoolId={profile?.school_id}
                             />
                         </div>
                         <div>
                             <label htmlFor="school-year-select" className="block text-sm font-medium text-gray-700 mb-2">
                                 Schooljaar
+                                {isCurrentYear && (
+                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Huidig
+                                    </span>
+                                )}
                             </label>
                             <select
                                 id="school-year-select"
@@ -113,13 +142,39 @@ export default function Evolutie() {
                                 onChange={(e) => handleYearChange(e.target.value)}
                                 className="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300"
                             >
-                                {schoolYears.map(year => (
+                                {availableYears.map(year => (
                                     <option key={year.value} value={year.value}>
-                                        {year.label}
+                                        {year.label} {year.isCurrent ? '(Huidig)' : ''}
                                     </option>
                                 ))}
                             </select>
                         </div>
+                    </div>
+                )}
+
+                {/* Schooljaar selector voor leerlingen */}
+                {!isTeacherOrAdmin && (
+                    <div className="max-w-sm">
+                        <label htmlFor="student-year-select" className="block text-sm font-medium text-gray-700 mb-2">
+                            Bekijk schooljaar
+                            {isCurrentYear && (
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Huidig
+                                </span>
+                            )}
+                        </label>
+                        <select
+                            id="student-year-select"
+                            value={selectedYear}
+                            onChange={(e) => handleYearChange(e.target.value)}
+                            className="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300"
+                        >
+                            {availableYears.map(year => (
+                                <option key={year.value} value={year.value}>
+                                    {year.label} {year.isCurrent ? '(Huidig)' : ''}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 )}
             </PageHeader>
@@ -134,7 +189,7 @@ export default function Evolutie() {
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
                                 <p className="text-lg font-medium text-gray-700">Evolutiegegevens laden...</p>
                                 <p className="text-sm text-gray-500 mt-2">
-                                    Data voor {selectedStudent?.naam} wordt opgehaald...
+                                    Data voor {selectedStudent?.naam} wordt gefilterd voor schooljaar {formatSchoolYear(selectedYear)}...
                                 </p>
                             </div>
                         </div>
@@ -155,8 +210,9 @@ export default function Evolutie() {
                                             const fetchData = async () => {
                                                 setLoading(true);
                                                 try {
-                                                    const data = await getStudentEvolutionData(selectedStudent.id, selectedYear);
-                                                    setEvolutionData(data);
+                                                    const allData = await getStudentEvolutionData(selectedStudent.id);
+                                                    const filteredData = filterTestDataBySchoolYear(allData, selectedYear);
+                                                    setEvolutionData(filteredData);
                                                 } catch (err) {
                                                     setError('Kon de evolutiegegevens niet laden.');
                                                 } finally {
@@ -208,11 +264,12 @@ export default function Evolutie() {
                                     Geen scoregeschiedenis gevonden voor <strong>{selectedStudent.naam}</strong>
                                 </p>
                                 <p className="text-sm text-gray-500">
-                                    in het schooljaar {selectedYear}-{selectedYear + 1}
+                                    in het schooljaar {formatSchoolYear(selectedYear)}
+                                    {isCurrentYear && ' (huidig schooljaar)'}
                                 </p>
                                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                                     <p className="text-xs text-blue-700">
-                                        💡 Tip: Probeer een ander schooljaar of controleer of er scores zijn ingevoerd voor deze leerling.
+                                        💡 Tip: Probeer een ander schooljaar of controleer of er scores zijn ingevoerd voor deze leerling in dit periode.
                                     </p>
                                 </div>
                             </div>
@@ -225,7 +282,7 @@ export default function Evolutie() {
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                                 {Object.entries(grouped_data).map(([categoryName, testsInCategory]) => (
                                     <EvolutionCard
-                                        key={categoryName}
+                                        key={`${categoryName}-${selectedYear}`} // Key includes schooljaar voor re-render
                                         categoryName={categoryName}
                                         tests={testsInCategory}
                                         student={selectedStudent}
@@ -233,7 +290,7 @@ export default function Evolutie() {
                                 ))}
                             </div>
                             
-                            {/* Stats Footer */}
+                            {/* Enhanced Stats Footer */}
                             <div className="mt-12 text-center">
                                 <div className="bg-white/60 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block">
                                     <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-600">
@@ -247,13 +304,18 @@ export default function Evolutie() {
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             <div className="w-3 h-3 bg-gradient-to-r from-teal-500 to-green-500 rounded-full"></div>
-                                            <span>
-                                                {evolutionData.reduce((total, test) => total + (test.all_scores?.length || 0), 0)} Scores
-                                            </span>
+                                            <span>{totalScores} Scores</span>
                                         </div>
                                         <div className="flex items-center space-x-2 text-purple-700 font-medium">
                                             <div className="w-3 h-3 bg-gradient-to-r from-green-500 to-purple-500 rounded-full"></div>
-                                            <span>{selectedYear}-{selectedYear + 1}</span>
+                                            <span>
+                                                {formatSchoolYear(selectedYear)}
+                                                {isCurrentYear && (
+                                                    <span className="ml-1 text-xs bg-green-100 text-green-700 px-1 rounded">
+                                                        huidig
+                                                    </span>
+                                                )}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
