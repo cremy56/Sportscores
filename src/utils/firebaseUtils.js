@@ -262,11 +262,11 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
       console.warn('Invalid age for getScoreThresholds:', leeftijd);
       return null;
     }
-
+    const normAge = Math.min(leeftijd, 17);  
     const normenQuery = query(
       collection(db, 'normen'),
       where('test_id', '==', testId),
-      where('leeftijd', '==', leeftijd),
+      where('leeftijd', '==', normAge),
       where('geslacht', '==', geslacht.toUpperCase())
     );
 
@@ -279,6 +279,7 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
 
     const normenDoc = normenSnapshot.docs[0];
     const normenData = normenDoc.data();
+      
 
     // Controleer of de benodigde velden aanwezig zijn
     if (normenData.punt_8 !== undefined && normenData.score_min !== undefined) {
