@@ -8,7 +8,6 @@ import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroic
 // NIEUWE IMPORT TOEVOEGEN
 import { saveWithRetry, handleFirestoreError } from '../utils/firebaseUtils';
 
-// VERBETERDE FUNCTIE DIE FIRESTORE TIMESTAMPS ONDERSTEUNT
 function calculateAge(geboortedatum) {
     if (!geboortedatum) {
         console.warn('Geboortedatum is missing');
@@ -47,6 +46,7 @@ function calculateAge(geboortedatum) {
             age--;
         }
         
+        console.log(`Age calculation: birth ${birthDate.toDateString()} -> age ${age}`);
         return age;
     } catch (error) {
         console.error('Error calculating age:', error);
@@ -220,78 +220,118 @@ export default function NieuweTestafname() {
         });
     }, [selectedTestId]);
 
-    const getPointForScore = useCallback((leerling, score) => {
+   // 2. VERBETERDE getPointForScore functie
+const getPointForScore = useCallback((leerling, score) => {
+    console.log('=== Starting getPointForScore ===');
+    console.log('Student:', leerling.naam);
+    console.log('Raw birth date:', leerling.geboortedatum);
+    
     if (score === '' || !selectedTest || normen.length === 0) {
+        console.log('Early return: missing data');
         setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
         return;
     }
 
     const numericScore = parseTijdScore(score);
-    if (isNaN(numericScore)) {
-        setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
-        return;
-    }
-
-    // Use the improved age calculation
-    let age = calculateAge(leerling.geboortedatum);
-    if (age === null) {
-        console.warn(`Cannot calculate age for student ${leerling.naam}, birth date: ${leerling.geboortedatum}`);
-        setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
-        return;
-    }
-
-    // Cap leeftijd op 17 jaar voor normen
-    const normAge = Math.min(age, 17);
+    console.log('Numeric score:', numericScore);
     
-    // FIX: Map gender values to match database format
+    if (isNaN(numericScore)) {
+        console.log('Invalid numeric score');
+        setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
+        return;
+    }
+
+    // Calculate age
+    let age = calculateAge(leerling.geboortedatum);
+    console.log('Calculated age:', age);
+    
+    if (age === null) {
+        console.warn(`Cannot calculate age for student ${leerling.naam}`);
+        setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
+        return;
+    }
+
+    // BELANGRIJK: Cap leeftijd op 17 jaar voor normen (ouder dan 17 = gebruik 17-jarige normen)
+    const normAge = Math.min(age, 17);
+    console.log('Norm age (capped at 17):', normAge);
+    
+    // Case-insensitive gender mapping
     const genderMapping = {
         'man': 'M',
         'vrouw': 'V',
         'jongen': 'M',
         'meisje': 'V',
-        'M': 'M',
-        'V': 'V'
+        'm': 'M',
+        'v': 'V'
     };
     
-    const mappedGender = genderMapping[leerling.geslacht] || leerling.geslacht;
+    const normalizedGender = leerling.geslacht?.toLowerCase();
+    const mappedGender = genderMapping[normalizedGender] || leerling.geslacht?.toUpperCase();
+    console.log(`Gender: "${leerling.geslacht}" -> "${mappedGender}"`);
     
-    let relevanteNormen = normen.filter(n => 
-        n.leeftijd === normAge && 
-        n.geslacht === mappedGender
-    );
+    // Filter relevante normen
+    let relevanteNormen = normen.filter(n => {
+        const matches = n.leeftijd === normAge && n.geslacht === mappedGender;
+        console.log(`Norm check: age ${n.leeftijd} === ${normAge} && gender ${n.geslacht} === ${mappedGender} = ${matches}`);
+        return matches;
+    });
+    
+    console.log('Relevante normen found:', relevanteNormen.length);
+    console.log('Relevante normen:', relevanteNormen);
     
     if (relevanteNormen.length === 0) {
-        console.warn(`No thresholds found for test ${selectedTestId}, age ${normAge}, gender ${mappedGender} (original: ${leerling.geslacht})`);
+        console.warn(`No norms found for age ${normAge}, gender ${mappedGender}`);
+        console.log('All available norms:', normen.map(n => ({ 
+            leeftijd: n.leeftijd, 
+            geslacht: n.geslacht, 
+            punt: n.punt,
+            score_min: n.score_min 
+        })));
         setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
         return;
     }
     
-    // Sorteer normen en zoek het behaalde punt
+    // Sorteer normen en bereken punt
     let behaaldPunt = 0; // Default naar 0 als score onder minimum valt
+    
+    console.log('Test score richting:', selectedTest.score_richting);
     
     if (selectedTest.score_richting === 'hoog') {
         // Voor 'hoog': hogere scores zijn beter
+        // Sorteer van laag naar hoog
         relevanteNormen.sort((a, b) => a.score_min - b.score_min);
+        console.log('Sorted norms (low to high):', relevanteNormen.map(n => ({ punt: n.punt, score_min: n.score_min })));
         
+        // Vind het hoogste punt waar de score aan voldoet
         for (const norm of relevanteNormen) {
+            console.log(`Check: ${numericScore} >= ${norm.score_min}? ${numericScore >= norm.score_min}`);
             if (numericScore >= norm.score_min) {
                 behaaldPunt = norm.punt;
+                console.log(`Score qualifies for ${behaaldPunt} punten`);
             } else {
-                break;
+                break; // Als we deze drempel niet halen, halen we hogere ook niet
             }
         }
     } else { // 'laag' of 'omlaag'
         // Voor 'laag': lagere scores zijn beter
+        // Sorteer van hoog naar laag
         relevanteNormen.sort((a, b) => b.score_min - a.score_min);
+        console.log('Sorted norms (high to low):', relevanteNormen.map(n => ({ punt: n.punt, score_min: n.score_min })));
         
+        // Vind het hoogste punt waar de score aan voldoet
         for (const norm of relevanteNormen) {
+            console.log(`Check: ${numericScore} <= ${norm.score_min}? ${numericScore <= norm.score_min}`);
             if (numericScore <= norm.score_min) {
                 behaaldPunt = norm.punt;
+                console.log(`Score qualifies for ${behaaldPunt} punten`);
             } else {
-                break;
+                break; // Als we deze drempel niet halen, halen we betere ook niet
             }
         }
     }
+    
+    console.log(`Final result: ${numericScore} -> ${behaaldPunt} punten`);
+    console.log('=== End getPointForScore ===');
     
     setCalculatedPoints(prev => ({ ...prev, [leerling.id]: behaaldPunt }));
 }, [selectedTest, normen, selectedTestId]);
