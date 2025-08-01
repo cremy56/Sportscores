@@ -8,7 +8,7 @@ import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroic
 // NIEUWE IMPORT TOEVOEGEN
 import { saveWithRetry, handleFirestoreError } from '../utils/firebaseUtils';
 
-// ADD THIS NEW FUNCTION HERE - after the imports
+// VERBETERDE FUNCTIE DIE FIRESTORE TIMESTAMPS ONDERSTEUNT
 function calculateAge(geboortedatum) {
     if (!geboortedatum) {
         console.warn('Geboortedatum is missing');
@@ -16,7 +16,21 @@ function calculateAge(geboortedatum) {
     }
     
     try {
-        const birthDate = new Date(geboortedatum);
+        let birthDate;
+        
+        // Check if it's a Firestore Timestamp
+        if (geboortedatum && typeof geboortedatum === 'object' && geboortedatum.toDate) {
+            birthDate = geboortedatum.toDate();
+        }
+        // Check if it's already a Date object
+        else if (geboortedatum instanceof Date) {
+            birthDate = geboortedatum;
+        }
+        // Try to parse as string/number
+        else {
+            birthDate = new Date(geboortedatum);
+        }
+        
         const today = new Date();
         
         // Check if date is valid
