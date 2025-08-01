@@ -231,7 +231,7 @@ export default function NieuweTestafname() {
         });
     }, [selectedTestId]);
 
-   // 2. VERBETERDE getPointForScore functie
+ // VERBETERDE getPointForScore functie
 const getPointForScore = useCallback((leerling, score) => {
     console.log('=== Starting getPointForScore ===');
     console.log('Student:', leerling.naam);
@@ -262,11 +262,11 @@ const getPointForScore = useCallback((leerling, score) => {
         return;
     }
 
-    // BELANGRIJK: Cap leeftijd op 17 jaar voor normen (ouder dan 17 = gebruik 17-jarige normen)
+    // Cap leeftijd op 17 jaar voor normen
     const normAge = Math.min(age, 17);
     console.log('Norm age (capped at 17):', normAge);
     
-    // Case-insensitive gender mapping
+    // Gender mapping
     const genderMapping = {
         'man': 'M',
         'vrouw': 'V',
@@ -288,55 +288,50 @@ const getPointForScore = useCallback((leerling, score) => {
     });
     
     console.log('Relevante normen found:', relevanteNormen.length);
-    console.log('Relevante normen:', relevanteNormen);
+    console.log('Relevante normen details:', relevanteNormen.map(n => ({ 
+        punt: n.punt, 
+        score_min: n.score_min,
+        leeftijd: n.leeftijd,
+        geslacht: n.geslacht
+    })));
     
     if (relevanteNormen.length === 0) {
         console.warn(`No norms found for age ${normAge}, gender ${mappedGender}`);
-        console.log('All available norms:', normen.map(n => ({ 
-            leeftijd: n.leeftijd, 
-            geslacht: n.geslacht, 
-            punt: n.punt,
-            score_min: n.score_min 
-        })));
         setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
         return;
     }
     
-    // Sorteer normen en bereken punt
-    let behaaldPunt = 0; // Default naar 0 als score onder minimum valt
+    // BELANGRIJKE FIX: Sorteer normen correct op punt (van laag naar hoog)
+    relevanteNormen.sort((a, b) => a.punt - b.punt);
+    console.log('Sorted norms by point (low to high):', relevanteNormen.map(n => ({ 
+        punt: n.punt, 
+        score_min: n.score_min 
+    })));
+    
+    let behaaldPunt = 0; // Start met 0 punten
     
     console.log('Test score richting:', selectedTest.score_richting);
     
     if (selectedTest.score_richting === 'hoog') {
         // Voor 'hoog': hogere scores zijn beter
-        // Sorteer van laag naar hoog
-        relevanteNormen.sort((a, b) => a.score_min - b.score_min);
-        console.log('Sorted norms (low to high):', relevanteNormen.map(n => ({ punt: n.punt, score_min: n.score_min })));
-        
-        // Vind het hoogste punt waar de score aan voldoet
+        // Ga door alle normen (van laag naar hoog punt)
         for (const norm of relevanteNormen) {
-            console.log(`Check: ${numericScore} >= ${norm.score_min}? ${numericScore >= norm.score_min}`);
+            console.log(`Check: ${numericScore} >= ${norm.score_min}? ${numericScore >= norm.score_min} (punt: ${norm.punt})`);
             if (numericScore >= norm.score_min) {
                 behaaldPunt = norm.punt;
                 console.log(`Score qualifies for ${behaaldPunt} punten`);
-            } else {
-                break; // Als we deze drempel niet halen, halen we hogere ook niet
+                // NIET BREAKEN - ga door naar hogere punten
             }
         }
     } else { // 'laag' of 'omlaag'
         // Voor 'laag': lagere scores zijn beter
-        // Sorteer van hoog naar laag
-        relevanteNormen.sort((a, b) => b.score_min - a.score_min);
-        console.log('Sorted norms (high to low):', relevanteNormen.map(n => ({ punt: n.punt, score_min: n.score_min })));
-        
-        // Vind het hoogste punt waar de score aan voldoet
+        // Ga door alle normen (van laag naar hoog punt)
         for (const norm of relevanteNormen) {
-            console.log(`Check: ${numericScore} <= ${norm.score_min}? ${numericScore <= norm.score_min}`);
+            console.log(`Check: ${numericScore} <= ${norm.score_min}? ${numericScore <= norm.score_min} (punt: ${norm.punt})`);
             if (numericScore <= norm.score_min) {
                 behaaldPunt = norm.punt;
                 console.log(`Score qualifies for ${behaaldPunt} punten`);
-            } else {
-                break; // Als we deze drempel niet halen, halen we betere ook niet
+                // NIET BREAKEN - ga door naar hogere punten
             }
         }
     }
