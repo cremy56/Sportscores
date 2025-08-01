@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { 
     TrashIcon, 
@@ -12,7 +12,11 @@ import {
     ArrowLeftIcon,
     ChartBarIcon,
     UserGroupIcon,
-    CalendarIcon
+    CalendarIcon,
+    DocumentArrowDownIcon,
+    ClipboardDocumentListIcon,
+    ArrowPathIcon,
+    ExclamationTriangleIcon
 } from '@heroicons/react/24/solid';
 
 function formatScore(score, eenheid) {
@@ -24,10 +28,11 @@ function formatScore(score, eenheid) {
     return score;
 }
 
-function getScoreColorClass(punt) {
+function getScoreColorClass(punt, maxPunten = 20) {
     if (punt === null || punt === undefined) return 'text-gray-400';
-    if (punt < 5) return 'text-red-600';
-    if (punt <= 7) return 'text-yellow-600';
+    const percentage = (punt / maxPunten) * 100;
+    if (percentage < 40) return 'text-red-600';
+    if (percentage < 60) return 'text-yellow-600';
     return 'text-green-600';
 }
 
@@ -77,7 +82,7 @@ function StatCard({ icon: Icon, title, value, subtitle, color = "gray" }) {
     );
 }
 
-function ScoreDistributionChart({ leerlingen }) {
+function ScoreDistributionChart({ leerlingen, maxPunten = 20 }) {
     const distribution = useMemo(() => {
         const punten = leerlingen
             .filter(l => l.punt !== null)
@@ -85,23 +90,29 @@ function ScoreDistributionChart({ leerlingen }) {
         
         if (punten.length === 0) return null;
 
-        const excellent = punten.filter(p => p >= 8).length;
-        const good = punten.filter(p => p >= 6 && p < 8).length;
-        const satisfactory = punten.filter(p => p >= 4 && p < 6).length;
-        const poor = punten.filter(p => p < 4).length;
+        // Dynamic thresholds based on max points
+        const excellentThreshold = Math.round(maxPunten * 0.8); // 80%
+        const goodThreshold = Math.round(maxPunten * 0.6); // 60%
+        const satisfactoryThreshold = Math.round(maxPunten * 0.4); // 40%
+
+        const excellent = punten.filter(p => p >= excellentThreshold).length;
+        const good = punten.filter(p => p >= goodThreshold && p < excellentThreshold).length;
+        const satisfactory = punten.filter(p => p >= satisfactoryThreshold && p < goodThreshold).length;
+        const poor = punten.filter(p => p < satisfactoryThreshold).length;
         
         const total = punten.length;
         const average = (punten.reduce((sum, p) => sum + p, 0) / total).toFixed(1);
 
         return {
-            excellent: { count: excellent, percentage: Math.round((excellent / total) * 100) },
-            good: { count: good, percentage: Math.round((good / total) * 100) },
-            satisfactory: { count: satisfactory, percentage: Math.round((satisfactory / total) * 100) },
+            excellent: { count: excellent, percentage: Math.round((excellent / total) * 100), threshold: excellentThreshold },
+            good: { count: good, percentage: Math.round((good / total) * 100), threshold: goodThreshold },
+            satisfactory: { count: satisfactory, percentage: Math.round((satisfactory / total) * 100), threshold: satisfactoryThreshold },
             poor: { count: poor, percentage: Math.round((poor / total) * 100) },
             average,
-            total
+            total,
+            maxPunten
         };
-    }, [leerlingen]);
+    }, [leerlingen, maxPunten]);
 
     if (!distribution) {
         return (
@@ -124,7 +135,9 @@ function ScoreDistributionChart({ leerlingen }) {
             
             <div className="space-y-3 mb-6">
                 <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-green-700">Uitstekend (8-10)</span>
+                    <span className="text-sm font-medium text-green-700">
+                        Uitstekend ({distribution.excellent.threshold}-{distribution.maxPunten})
+                    </span>
                     <div className="flex items-center">
                         <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                             <div 
@@ -137,7 +150,9 @@ function ScoreDistributionChart({ leerlingen }) {
                 </div>
                 
                 <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-blue-700">Goed (6-8)</span>
+                    <span className="text-sm font-medium text-blue-700">
+                        Goed ({distribution.good.threshold}-{distribution.excellent.threshold - 1})
+                    </span>
                     <div className="flex items-center">
                         <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                             <div 
@@ -150,7 +165,9 @@ function ScoreDistributionChart({ leerlingen }) {
                 </div>
                 
                 <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-yellow-700">Voldoende (4-6)</span>
+                    <span className="text-sm font-medium text-yellow-700">
+                        Voldoende ({distribution.satisfactory.threshold}-{distribution.good.threshold - 1})
+                    </span>
                     <div className="flex items-center">
                         <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                             <div 
@@ -163,7 +180,9 @@ function ScoreDistributionChart({ leerlingen }) {
                 </div>
                 
                 <div className="flex items-center justify-between">
-                   <span className="text-sm font-medium text-red-700">{'Onvoldoende (<4)'}</span>
+                   <span className="text-sm font-medium text-red-700">
+                       Onvoldoende (&lt;{distribution.satisfactory.threshold})
+                   </span>
                     <div className="flex items-center">
                         <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                             <div 
@@ -180,7 +199,7 @@ function ScoreDistributionChart({ leerlingen }) {
                 <p className="text-center">
                     <span className="text-sm text-gray-600">Gemiddelde: </span>
                     <span className="text-lg font-bold text-gray-900">{distribution.average}</span>
-                    <span className="text-sm text-gray-600"> punten</span>
+                    <span className="text-sm text-gray-600"> / {distribution.maxPunten} punten</span>
                 </p>
             </div>
         </div>
@@ -194,11 +213,15 @@ export default function TestafnameDetail() {
         groep_naam: '', 
         test_naam: '', 
         eenheid: '',
+        max_punten: 20,
         leerlingen: [] 
     });
     const [loading, setLoading] = useState(true);
     const [editingScore, setEditingScore] = useState({ id: null, score: '', validation: null });
+    const [editingDate, setEditingDate] = useState(false);
+    const [newDate, setNewDate] = useState('');
     const [updating, setUpdating] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const stats = useMemo(() => {
         const leerlingenMetScore = details.leerlingen.filter(l => l.score !== null);
@@ -260,6 +283,7 @@ export default function TestafnameDetail() {
                 groep_naam: groupData.naam,
                 test_naam: testData.naam,
                 eenheid: testData.eenheid,
+                max_punten: testData.max_punten || 20,
                 leerlingen: leerlingenData.sort((a,b) => a.naam.localeCompare(b.naam))
             });
 
@@ -272,7 +296,8 @@ export default function TestafnameDetail() {
 
     useEffect(() => { 
         fetchDetails(); 
-    }, [fetchDetails]);
+        setNewDate(datum);
+    }, [fetchDetails, datum]);
 
     const handleEditClick = (scoreId, currentScore) => {
         setEditingScore({ 
@@ -340,6 +365,90 @@ export default function TestafnameDetail() {
         }
     };
 
+    const handleUpdateDate = async () => {
+        if (!newDate || newDate === datum) {
+            setEditingDate(false);
+            return;
+        }
+
+        const loadingToast = toast.loading('Datum bijwerken...');
+        try {
+            // Update all scores with the new date
+            const scoresQuery = query(collection(db, 'scores'), 
+                where('groep_id', '==', groepId),
+                where('test_id', '==', testId),
+                where('datum', '==', datum)
+            );
+            const scoresSnap = await getDocs(scoresQuery);
+            
+            const batch = writeBatch(db);
+            scoresSnap.docs.forEach(doc => {
+                batch.update(doc.ref, { datum: newDate });
+            });
+            await batch.commit();
+
+            toast.success("Testdatum succesvol bijgewerkt!");
+            setEditingDate(false);
+            navigate(`/testafname/${groepId}/${testId}/${newDate}`);
+        } catch (error) {
+            console.error("Fout bij bijwerken datum:", error);
+            toast.error("Fout bij bijwerken van de datum.");
+        } finally {
+            toast.dismiss(loadingToast);
+        }
+    };
+
+    const handleDeleteTestafname = async () => {
+        const loadingToast = toast.loading('Testafname verwijderen...');
+        try {
+            // Delete all scores for this test session
+            const scoresQuery = query(collection(db, 'scores'), 
+                where('groep_id', '==', groepId),
+                where('test_id', '==', testId),
+                where('datum', '==', datum)
+            );
+            const scoresSnap = await getDocs(scoresQuery);
+            
+            const batch = writeBatch(db);
+            scoresSnap.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+
+            toast.success("Testafname succesvol verwijderd!");
+            navigate('/scores');
+        } catch (error) {
+            console.error("Fout bij verwijderen:", error);
+            toast.error("Fout bij verwijderen van de testafname.");
+        } finally {
+            toast.dismiss(loadingToast);
+            setShowDeleteConfirm(false);
+        }
+    };
+
+    const exportToCSV = () => {
+        const headers = ['Naam', 'Score', 'Punten'];
+        const rows = details.leerlingen.map(leerling => [
+            leerling.naam,
+            leerling.score !== null ? formatScore(leerling.score, details.eenheid) : '',
+            leerling.punt !== null ? leerling.punt : ''
+        ]);
+
+        const csvContent = [headers, ...rows]
+            .map(row => row.map(cell => `"${cell}"`).join(','))
+            .join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${details.test_naam}_${details.groep_naam}_${datum}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const cancelEdit = () => {
         setEditingScore({ id: null, score: '', validation: null });
     };
@@ -376,12 +485,44 @@ export default function TestafnameDetail() {
                                     </div>
                                     <div className="flex items-center">
                                         <CalendarIcon className="h-5 w-5 mr-1" />
-                                        <span>{new Date(datum).toLocaleDateString('nl-BE', { 
-                                            weekday: 'long', 
-                                            year: 'numeric', 
-                                            month: 'long', 
-                                            day: 'numeric' 
-                                        })}</span>
+                                        {editingDate ? (
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="date"
+                                                    value={newDate}
+                                                    onChange={(e) => setNewDate(e.target.value)}
+                                                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                                />
+                                                <button
+                                                    onClick={handleUpdateDate}
+                                                    className="text-green-600 hover:text-green-800"
+                                                >
+                                                    <CheckIcon className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => {setEditingDate(false); setNewDate(datum);}}
+                                                    className="text-red-600 hover:text-red-800"
+                                                >
+                                                    <XMarkIcon className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <span>{new Date(datum).toLocaleDateString('nl-BE', { 
+                                                    weekday: 'long', 
+                                                    year: 'numeric', 
+                                                    month: 'long', 
+                                                    day: 'numeric' 
+                                                })}</span>
+                                                <button
+                                                    onClick={() => setEditingDate(true)}
+                                                    className="text-blue-600 hover:text-blue-800"
+                                                    title="Datum wijzigen"
+                                                >
+                                                    <PencilSquareIcon className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -414,7 +555,7 @@ export default function TestafnameDetail() {
                                   ).toFixed(1)
                                 : '-'
                             }
-                            subtitle="punten"
+                            subtitle={`/ ${details.max_punten} punten`}
                             color="purple"
                         />
                     </div>
@@ -422,7 +563,10 @@ export default function TestafnameDetail() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Score Verdeling */}
                         <div className="lg:col-span-1">
-                            <ScoreDistributionChart leerlingen={details.leerlingen} />
+                            <ScoreDistributionChart 
+                                leerlingen={details.leerlingen} 
+                                maxPunten={details.max_punten}
+                            />
                         </div>
 
                         {/* Scores Lijst */}
@@ -477,8 +621,8 @@ export default function TestafnameDetail() {
                                                     </div>
                                                     
                                                     <div className="text-center">
-                                                        <span className={`font-bold text-lg ${getScoreColorClass(lid.punt)}`}>
-                                                            {lid.punt !== null ? `${lid.punt} pt` : '-'}
+                                                        <span className={`font-bold text-lg ${getScoreColorClass(lid.punt, details.max_punten)}`}>
+                                                            {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
                                                         </span>
                                                     </div>
                                                     
@@ -538,32 +682,112 @@ export default function TestafnameDetail() {
                         </div>
                     </div>
                     
-                    {/* Acties */}
+                    {/* Enhanced Testafname Acties */}
                     <div className="bg-white/80 p-6 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-lg">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <div>
-                                <h3 className="font-semibold text-gray-900">Testafname Acties</h3>
-                                <p className="text-sm text-gray-600 mt-1">
-                                    Beheer deze testafname en de bijbehorende scores
-                                </p>
-                            </div>
-                            <div className="flex gap-3">
+                        <div className="mb-6">
+                            <h3 className="text-xl font-semibold text-gray-900 mb-2">Testafname Beheer</h3>
+                            <p className="text-sm text-gray-600">
+                                Beheer deze testafname en de bijbehorende scores
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {/* Export Data */}
+                            <button
+                                onClick={exportToCSV}
+                                disabled={details.leerlingen.length === 0}
+                                className="flex items-center justify-center px-4 py-3 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
+                                Exporteer CSV
+                            </button>
+
+                            {/* Print Report */}
+                            <button
+                                onClick={() => window.print()}
+                                className="flex items-center justify-center px-4 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+                            >
+                                <ClipboardDocumentListIcon className="h-5 w-5 mr-2" />
+                                Print Rapport
+                            </button>
+
+                            {/* Refresh Data */}
+                            <button
+                                onClick={fetchDetails}
+                                disabled={loading}
+                                className="flex items-center justify-center px-4 py-3 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium disabled:opacity-50"
+                            >
+                                <ArrowPathIcon className={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                                Vernieuwen
+                            </button>
+
+                            {/* Delete Test Session */}
+                            <button
+                                onClick={() => setShowDeleteConfirm(true)}
+                                className="flex items-center justify-center px-4 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium"
+                            >
+                                <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
+                                Verwijder Testafname
+                            </button>
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div className="mt-6 pt-6 border-t border-gray-200/70">
+                            <h4 className="text-lg font-medium text-gray-900 mb-3">Snelle Acties</h4>
+                            <div className="flex flex-wrap gap-3">
                                 <button
                                     onClick={() => navigate('/nieuwe-testafname')}
-                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
                                 >
                                     Nieuwe Testafname
                                 </button>
                                 <button
-                                    onClick={() => window.print()}
-                                    className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium"
+                                    onClick={() => navigate(`/test/${testId}`)}
+                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
                                 >
-                                    Afdrukken
+                                    Test Details
+                                </button>
+                                <button
+                                    onClick={() => navigate(`/groep/${groepId}`)}
+                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
+                                >
+                                    Groep Details
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                {/* Delete Confirmation Modal */}
+                {showDeleteConfirm && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+                            <div className="flex items-center mb-4">
+                                <ExclamationTriangleIcon className="h-8 w-8 text-red-500 mr-3" />
+                                <h3 className="text-lg font-bold text-gray-900">Testafname Verwijderen</h3>
+                            </div>
+                            <p className="text-gray-600 mb-6">
+                                Weet je zeker dat je deze testafname wilt verwijderen? Dit zal alle scores 
+                                voor <strong>{details.test_naam}</strong> van groep <strong>{details.groep_naam}</strong> 
+                                op {new Date(datum).toLocaleDateString('nl-BE')} permanent verwijderen.
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                                >
+                                    Annuleren
+                                </button>
+                                <button
+                                    onClick={handleDeleteTestafname}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                                >
+                                    Verwijderen
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
