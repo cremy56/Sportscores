@@ -78,7 +78,7 @@ function parseTijdScore(input) {
     return parsed;
 }
 
-function validateScore(score, eenheid) {
+function validateScore(score, eenheid, selectedTest, normen) {
     if (!score || score.trim() === '') {
         return { valid: true, message: '' }; // Empty is allowed
     }
@@ -96,8 +96,21 @@ function validateScore(score, eenheid) {
         return { valid: false, message: 'Score te hoog (max 1 uur)' };
     }
     
-    if (eenheid === 'meter' && numericScore > 1000) {
-        return { valid: false, message: 'Score te hoog (max 1000m)' };
+    if (eenheid === 'meter') {
+        // Gebruik de hoogste norm waarde + 50% als maximum
+        if (normen && normen.length > 0) {
+            const hoogsteNorm = Math.max(...normen.map(n => n.score_min || 0));
+            const maxMeters = Math.max(hoogsteNorm * 1.5, 1000); // minimaal 1000m
+            
+            if (numericScore > maxMeters) {
+                return { valid: false, message: `Score te hoog (max ${Math.round(maxMeters)}m)` };
+            }
+        } else {
+            // Fallback als er geen normen zijn
+            if (numericScore > 5000) {
+                return { valid: false, message: 'Score te hoog (max 5000m)' };
+            }
+        }
     }
     
     return { valid: true, message: '' };
@@ -342,19 +355,19 @@ const getPointForScore = useCallback((leerling, score) => {
     setCalculatedPoints(prev => ({ ...prev, [leerling.id]: behaaldPunt }));
 }, [selectedTest, normen, selectedTestId]);
 
-    const handleScoreChange = (leerling, score) => {
-        setScores(prev => ({ ...prev, [leerling.id]: score }));
-        
-        // Validatie
-        const validation = validateScore(score, selectedTest?.eenheid);
-        setValidations(prev => ({ ...prev, [leerling.id]: validation }));
-        
-        if (validation.valid) {
-            getPointForScore(leerling, score);
-        } else {
-            setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
-        }
-    };
+   const handleScoreChange = (leerling, score) => {
+    setScores(prev => ({ ...prev, [leerling.id]: score }));
+    
+    // Validatie MET selectedTest en normen
+    const validation = validateScore(score, selectedTest?.eenheid, selectedTest, normen);
+    setValidations(prev => ({ ...prev, [leerling.id]: validation }));
+    
+    if (validation.valid) {
+        getPointForScore(leerling, score);
+    } else {
+        setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
+    }
+};
 
     // GEWIJZIGDE handleSaveScores FUNCTIE MET NIEUWE UTILITIES
     const handleSaveScores = async () => {
