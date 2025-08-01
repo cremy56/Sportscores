@@ -220,67 +220,81 @@ export default function NieuweTestafname() {
         });
     }, [selectedTestId]);
 
-    // VERBETERDE getPointForScore MET LEEFTIJD FALLBACK EN MINIMUM SCORE HANDLING
     const getPointForScore = useCallback((leerling, score) => {
-        if (score === '' || !selectedTest || normen.length === 0) {
-            setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
-            return;
-        }
+    if (score === '' || !selectedTest || normen.length === 0) {
+        setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
+        return;
+    }
 
-        const numericScore = parseTijdScore(score);
-        if (isNaN(numericScore)) {
-            setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
-            return;
-        }
+    const numericScore = parseTijdScore(score);
+    if (isNaN(numericScore)) {
+        setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
+        return;
+    }
 
-        // Use the improved age calculation
-        let age = calculateAge(leerling.geboortedatum);
-        if (age === null) {
-            console.warn(`Cannot calculate age for student ${leerling.naam}, birth date: ${leerling.geboortedatum}`);
-            setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
-            return;
-        }
+    // Use the improved age calculation
+    let age = calculateAge(leerling.geboortedatum);
+    if (age === null) {
+        console.warn(`Cannot calculate age for student ${leerling.naam}, birth date: ${leerling.geboortedatum}`);
+        setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
+        return;
+    }
 
-        // NIEUW: Cap leeftijd op 17 jaar voor normen
-        const normAge = Math.min(age, 17);
+    // Cap leeftijd op 17 jaar voor normen
+    const normAge = Math.min(age, 17);
+    
+    // FIX: Map gender values to match database format
+    const genderMapping = {
+        'man': 'M',
+        'vrouw': 'V',
+        'jongen': 'M',
+        'meisje': 'V',
+        'M': 'M',
+        'V': 'V'
+    };
+    
+    const mappedGender = genderMapping[leerling.geslacht] || leerling.geslacht;
+    
+    let relevanteNormen = normen.filter(n => 
+        n.leeftijd === normAge && 
+        n.geslacht === mappedGender
+    );
+    
+    if (relevanteNormen.length === 0) {
+        console.warn(`No thresholds found for test ${selectedTestId}, age ${normAge}, gender ${mappedGender} (original: ${leerling.geslacht})`);
+        setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
+        return;
+    }
+    
+    // Sorteer normen en zoek het behaalde punt
+    let behaaldPunt = 0; // Default naar 0 als score onder minimum valt
+    
+    if (selectedTest.score_richting === 'hoog') {
+        // Voor 'hoog': hogere scores zijn beter
+        relevanteNormen.sort((a, b) => a.score_min - b.score_min);
         
-        let relevanteNormen = normen.filter(n => n.leeftijd === normAge && n.geslacht === leerling.geslacht);
-        
-        if (relevanteNormen.length === 0) {
-            console.warn(`No thresholds found for test ${selectedTestId}, age ${normAge}, gender ${leerling.geslacht}`);
-            setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
-            return;
-        }
-        
-        // Sorteer normen en zoek het behaalde punt
-        let behaaldPunt = 0; // Default naar 0 als score onder minimum valt
-        
-        if (selectedTest.score_richting === 'hoog') {
-            // Voor 'hoog': hogere scores zijn beter
-            relevanteNormen.sort((a, b) => a.score_min - b.score_min);
-            
-            for (const norm of relevanteNormen) {
-                if (numericScore >= norm.score_min) {
-                    behaaldPunt = norm.punt;
-                } else {
-                    break;
-                }
+        for (const norm of relevanteNormen) {
+            if (numericScore >= norm.score_min) {
+                behaaldPunt = norm.punt;
+            } else {
+                break;
             }
-        } else { // 'laag' of 'omlaag'
-            // Voor 'laag': lagere scores zijn beter
-            relevanteNormen.sort((a, b) => b.score_min - a.score_min);
-            
-            for (const norm of relevanteNormen) {
-                if (numericScore <= norm.score_min) {
-                    behaaldPunt = norm.punt;
-                } else {
-                    break;
-                }
+        }
+    } else { // 'laag' of 'omlaag'
+        // Voor 'laag': lagere scores zijn beter
+        relevanteNormen.sort((a, b) => b.score_min - a.score_min);
+        
+        for (const norm of relevanteNormen) {
+            if (numericScore <= norm.score_min) {
+                behaaldPunt = norm.punt;
+            } else {
+                break;
             }
         }
-        
-        setCalculatedPoints(prev => ({ ...prev, [leerling.id]: behaaldPunt }));
-    }, [selectedTest, normen, selectedTestId]);
+    }
+    
+    setCalculatedPoints(prev => ({ ...prev, [leerling.id]: behaaldPunt }));
+}, [selectedTest, normen, selectedTestId]);
 
     const handleScoreChange = (leerling, score) => {
         setScores(prev => ({ ...prev, [leerling.id]: score }));

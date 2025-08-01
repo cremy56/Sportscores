@@ -241,7 +241,6 @@ const calculatePersonalBest = (scores, scoreRichting) => {
     datum: best.datum
   };
 };
-
 /**
  * Haalt score thresholds op voor een specifieke test, leeftijd en geslacht
  * @param {string} testId - Het test ID
@@ -262,25 +261,38 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
       console.warn('Invalid age for getScoreThresholds:', leeftijd);
       return null;
     }
-    const normAge = Math.min(leeftijd, 17);  
+    
+    const normAge = Math.min(leeftijd, 17);
+    
+    // FIX: Map gender values to match database format
+    const genderMapping = {
+      'man': 'M',
+      'vrouw': 'V',
+      'jongen': 'M',
+      'meisje': 'V',
+      'M': 'M',
+      'V': 'V'
+    };
+    
+    const mappedGender = genderMapping[geslacht] || geslacht.toUpperCase();
+    
     const normenQuery = query(
       collection(db, 'normen'),
       where('test_id', '==', testId),
       where('leeftijd', '==', normAge),
-      where('geslacht', '==', geslacht.toUpperCase())
+      where('geslacht', '==', mappedGender)
     );
 
     const normenSnapshot = await getDocs(normenQuery);
     
     if (normenSnapshot.empty) {
-      console.log(`No thresholds found for test ${testId}, age ${leeftijd}, gender ${geslacht}`);
+      console.log(`No thresholds found for test ${testId}, age ${normAge}, gender ${mappedGender} (original: ${geslacht})`);
       return null;
     }
 
     const normenDoc = normenSnapshot.docs[0];
     const normenData = normenDoc.data();
       
-
     // Controleer of de benodigde velden aanwezig zijn
     if (normenData.punt_8 !== undefined && normenData.score_min !== undefined) {
       // Bereken thresholds op basis van beschikbare data
@@ -291,8 +303,8 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
         threshold_50,
         threshold_65,
         score_richting: normenData.score_richting || 'hoog',
-        leeftijd,
-        geslacht,
+        leeftijd: normAge,
+        geslacht: mappedGender,
         test_id: testId
       };
     }
