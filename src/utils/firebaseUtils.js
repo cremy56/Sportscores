@@ -5,8 +5,11 @@ import {
   query, 
   where, 
   getDocs, 
-  orderBy 
+  orderBy,
+  enableNetwork,
+  disableNetwork 
 } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 
 // Import school year utilities
 import { 
@@ -17,6 +20,118 @@ import {
   formatSchoolYear 
 } from './schoolyearUtils';
 
+// Retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 10000, // 10 seconds
+};
+
+/**
+ * Enhanced error handling function
+ * @param {Error} error - The Firestore error
+ * @param {string} operation - Description of the operation that failed
+ * @returns {string} User-friendly error message
+ */
+export function handleFirestoreError(error, operation = 'Firestore operation') {
+  console.error(`${operation} error:`, error);
+  
+  switch (error.code) {
+    case 'permission-denied':
+      return `Geen toegang tot ${operation.toLowerCase()}. Controleer je rechten.`;
+    case 'network-error':
+    case 'unavailable':
+      return 'Netwerkfout. Controleer je internetverbinding en probeer opnieuw.';
+    case 'deadline-exceeded':
+      return 'Verzoek duurde te lang. Probeer opnieuw.';
+    case 'resource-exhausted':
+      return 'Te veel verzoeken. Wacht een moment en probeer opnieuw.';
+    case 'unauthenticated':
+      return 'Niet ingelogd. Log opnieuw in.';
+    case 'failed-precondition':
+      return 'Gegevens zijn mogelijk gewijzigd. Ververs de pagina.';
+    case 'aborted':
+      return 'Actie werd afgebroken. Probeer opnieuw.';
+    case 'not-found':
+      return 'Gevraagde gegevens niet gevonden.';
+    default:
+      return error.message || 'Er is een onbekende fout opgetreden.';
+  }
+}
+
+/**
+ * Retry function with exponential backoff
+ * @param {Function} operation - The async operation to retry
+ * @param {number} maxRetries - Maximum number of retries
+ * @returns {Promise} The result of the operation
+ */
+export async function retryOperation(operation, maxRetries = RETRY_CONFIG.maxRetries) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      console.log(`Attempt ${attempt}/${maxRetries} failed:`, error.code);
+      
+      // Don't retry certain errors
+      if (['permission-denied', 'unauthenticated', 'invalid-argument', 'not-found'].includes(error.code)) {
+        throw error;
+      }
+      
+      // If this was the last attempt, throw the error
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        RETRY_CONFIG.baseDelay * Math.pow(2, attempt - 1),
+        RETRY_CONFIG.maxDelay
+      );
+      
+      console.log(`Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
+/**
+ * Network status monitoring
+ */
+let isOnline = navigator.onLine;
+
+export function setupNetworkMonitoring() {
+  window.addEventListener('online', async () => {
+    console.log('Network connection restored');
+    isOnline = true;
+    
+    try {
+      await enableNetwork(db);
+      toast.success('Verbinding hersteld', { duration: 3000 });
+    } catch (error) {
+      console.error('Failed to enable network:', error);
+    }
+  });
+
+  window.addEventListener('offline', async () => {
+    console.log('Network connection lost');
+    isOnline = false;
+    
+    try {
+      await disableNetwork(db);
+      toast.error('Geen internetverbinding', {
+        duration: 5000,
+        icon: '📡'
+      });
+    } catch (error) {
+      console.error('Failed to disable network:', error);
+    }
+  });
+}
+
+export function getNetworkStatus() {
+  return isOnline;
+}
+
 /**
  * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
  * Schooljaar filtering gebeurt client-side voor betere performance en flexibiliteit
@@ -24,7 +139,7 @@ import {
  * @returns {Promise<Array>} Array van test objecten met scores
  */
 export const getStudentEvolutionData = async (studentId) => {
-  try {
+  const operation = async () => {
     // 1. Haal alle testen op voor de school
     const testsQuery = query(
       collection(db, 'testen'),
@@ -90,10 +205,14 @@ export const getStudentEvolutionData = async (studentId) => {
     console.log(`Processed evolution data: ${validResults.length} tests with scores`);
     
     return validResults;
+  };
 
+  try {
+    return await retryOperation(operation);
   } catch (error) {
+    const errorMessage = handleFirestoreError(error, 'Laden van evolutiegegevens');
     console.error("Error getting student evolution data:", error);
-    throw error;
+    throw new Error(errorMessage);
   }
 };
 
@@ -131,7 +250,19 @@ const calculatePersonalBest = (scores, scoreRichting) => {
  * @returns {Promise<Object|null>} Threshold object of null als niet gevonden
  */
 export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
-  try {
+  const operation = async () => {
+    // Validatie van input parameters
+    if (!testId || leeftijd === null || leeftijd === undefined || !geslacht) {
+      console.warn('Invalid parameters for getScoreThresholds:', { testId, leeftijd, geslacht });
+      return null;
+    }
+
+    // Validatie van leeftijd
+    if (isNaN(leeftijd) || leeftijd < 0 || leeftijd > 100) {
+      console.warn('Invalid age for getScoreThresholds:', leeftijd);
+      return null;
+    }
+
     const normenQuery = query(
       collection(db, 'normen'),
       where('test_id', '==', testId),
@@ -166,9 +297,14 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
     }
 
     return null;
+  };
+
+  try {
+    return await retryOperation(operation);
   } catch (error) {
+    const errorMessage = handleFirestoreError(error, 'Laden van score thresholds');
     console.error("Error getting score thresholds:", error);
-    throw error;
+    throw new Error(errorMessage);
   }
 };
 
@@ -205,7 +341,7 @@ const calculateP65Threshold = (normenData) => {
  * @returns {Promise<Array>} Array van schooljaar objecten
  */
 export const getAvailableSchoolYears = async (schoolId = null) => {
-  try {
+  const operation = async () => {
     let scoresQuery = query(collection(db, 'scores'));
     
     if (schoolId) {
@@ -222,9 +358,11 @@ export const getAvailableSchoolYears = async (schoolId = null) => {
       const scoreData = doc.data();
       const datum = scoreData.afgenomen_op?.toDate?.() || new Date(scoreData.afgenomen_op);
       
-      if (datum) {
+      if (datum && !isNaN(datum.getTime())) { // Valideer datum
         const schoolYear = getSchoolYearFromDate(datum);
-        schoolYears.add(schoolYear);
+        if (schoolYear && !isNaN(schoolYear)) { // Valideer schooljaar
+          schoolYears.add(schoolYear);
+        }
       }
     });
     
@@ -236,10 +374,15 @@ export const getAvailableSchoolYears = async (schoolId = null) => {
         label: `${year}-${year + 1}`,
         isCurrent: year === getCurrentSchoolYear()
       }));
-      
+  };
+
+  try {
+    return await retryOperation(operation);
   } catch (error) {
+    const errorMessage = handleFirestoreError(error, 'Laden van beschikbare schooljaren');
     console.error("Error getting available school years:", error);
-    // Fallback naar standaard jaren
+    // Fallback naar standaard jaren bij fout
+    console.log("Falling back to generated school years");
     return generateSchoolYears();
   }
 };
@@ -251,7 +394,12 @@ export const getAvailableSchoolYears = async (schoolId = null) => {
  * @returns {Promise<Object>} Statistieken object
  */
 export const getSchoolYearStats = async (schoolId, schoolYear) => {
-  try {
+  const operation = async () => {
+    // Validatie van input parameters
+    if (!schoolId || !schoolYear || isNaN(schoolYear)) {
+      throw new Error('Invalid parameters for getSchoolYearStats');
+    }
+
     const schoolYearBounds = getSchoolYearBounds(schoolYear);
     
     const scoresQuery = query(
@@ -282,11 +430,13 @@ export const getSchoolYearStats = async (schoolId, schoolYear) => {
       studentStats[studentId].testCount.add(score.test_id);
       
       const scoreDate = score.afgenomen_op?.toDate?.() || new Date(score.afgenomen_op);
-      if (!studentStats[studentId].firstScore || scoreDate < studentStats[studentId].firstScore) {
-        studentStats[studentId].firstScore = scoreDate;
-      }
-      if (!studentStats[studentId].lastScore || scoreDate > studentStats[studentId].lastScore) {
-        studentStats[studentId].lastScore = scoreDate;
+      if (scoreDate && !isNaN(scoreDate.getTime())) { // Valideer datum
+        if (!studentStats[studentId].firstScore || scoreDate < studentStats[studentId].firstScore) {
+          studentStats[studentId].firstScore = scoreDate;
+        }
+        if (!studentStats[studentId].lastScore || scoreDate > studentStats[studentId].lastScore) {
+          studentStats[studentId].lastScore = scoreDate;
+        }
       }
     });
     
@@ -307,9 +457,74 @@ export const getSchoolYearStats = async (schoolId, schoolYear) => {
       },
       studentDetails: studentStats
     };
-    
+  };
+
+  try {
+    return await retryOperation(operation);
   } catch (error) {
+    const errorMessage = handleFirestoreError(error, 'Laden van schooljaar statistieken');
     console.error("Error getting school year stats:", error);
-    throw error;
+    throw new Error(errorMessage);
+  }
+};
+
+/**
+ * Enhanced fetch function voor algemene Firestore operaties
+ * @param {string} schoolId - School ID
+ * @param {string} userId - User ID
+ * @returns {Promise<Object>} Object met scores, groepen en testen
+ */
+export const fetchScoresData = async (schoolId, userId) => {
+  const operation = async () => {
+    // Validatie van input parameters
+    if (!schoolId || !userId) {
+      throw new Error('School ID en User ID zijn verplicht');
+    }
+
+    const [scoresSnapshot, groepenSnapshot, testenSnapshot] = await Promise.all([
+      getDocs(query(
+        collection(db, 'scores'), 
+        where('school_id', '==', schoolId),
+        where('leerkracht_id', '==', userId)
+      )),
+      getDocs(query(collection(db, 'groepen'), where('school_id', '==', schoolId))),
+      getDocs(query(collection(db, 'testen'), where('school_id', '==', schoolId)))
+    ]);
+
+    return {
+      scores: scoresSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+      groepen: groepenSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+      testen: testenSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    };
+  };
+
+  try {
+    return await retryOperation(operation);
+  } catch (error) {
+    const errorMessage = handleFirestoreError(error, 'Laden van scores data');
+    console.error("Error fetching scores data:", error);
+    throw new Error(errorMessage);
+  }
+};
+
+/**
+ * Enhanced save function voor batch operations
+ * @param {WriteBatch} batch - Firestore batch object
+ * @returns {Promise<void>}
+ */
+export const saveWithRetry = async (batch) => {
+  const operation = async () => {
+    if (!batch) {
+      throw new Error('Batch object is required');
+    }
+    await batch.commit();
+  };
+
+  try {
+    return await retryOperation(operation);
+  } catch (error) {
+    const errorMessage = handleFirestoreError(error, 'Opslaan van gegevens');
+    console.error("Error saving with batch:", error);
+    throw new Error(errorMessage);
   }
 };

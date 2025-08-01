@@ -6,6 +6,8 @@ import { collection, query, where, getDocs, writeBatch, doc, getDoc } from 'fire
 import toast, { Toaster } from 'react-hot-toast';
 import { TrashIcon, PlusIcon, ChevronRightIcon, FunnelIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import ConfirmModal from '../components/ConfirmModal';
+import { fetchScoresData, handleFirestoreError } from '../utils/firebaseUtils';
+
 
 function StatCard({ title, value, subtitle, color = "purple" }) {
     const colorClasses = {
@@ -163,6 +165,8 @@ export default function ScoresOverzicht() {
         const fetchData = async () => {
             setLoading(true);
             try {
+              const data = await fetchScoresData(profile.school_id, currentUser.uid);
+
                 // Parallel laden van alle data
                 const [scoresSnapshot, groepenSnapshot, testenSnapshot] = await Promise.all([
                     getDocs(query(

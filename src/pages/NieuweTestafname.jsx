@@ -5,6 +5,40 @@ import { db, auth } from '../firebase';
 import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+// NIEUWE IMPORT TOEVOEGEN
+import { saveWithRetry, handleFirestoreError } from '../utils/firebaseUtils';
+
+// ADD THIS NEW FUNCTION HERE - after the imports
+function calculateAge(geboortedatum) {
+    if (!geboortedatum) {
+        console.warn('Geboortedatum is missing');
+        return null;
+    }
+    
+    try {
+        const birthDate = new Date(geboortedatum);
+        const today = new Date();
+        
+        // Check if date is valid
+        if (isNaN(birthDate.getTime())) {
+            console.warn('Invalid birth date:', geboortedatum);
+            return null;
+        }
+        
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        // Adjust age if birthday hasn't occurred this year yet
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        
+        return age;
+    } catch (error) {
+        console.error('Error calculating age:', error);
+        return null;
+    }
+}
 
 function parseTijdScore(input) {
     if (!input) return NaN;
@@ -172,6 +206,7 @@ export default function NieuweTestafname() {
         });
     }, [selectedTestId]);
 
+    // REPLACE THE EXISTING getPointForScore WITH THIS IMPROVED VERSION
     const getPointForScore = useCallback((leerling, score) => {
         if (score === '' || !selectedTest || normen.length === 0) {
             setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
@@ -184,8 +219,21 @@ export default function NieuweTestafname() {
             return;
         }
 
-        const age = new Date().getFullYear() - new Date(leerling.geboortedatum).getFullYear();
+        // Use the improved age calculation
+        const age = calculateAge(leerling.geboortedatum);
+        if (age === null) {
+            console.warn(`Cannot calculate age for student ${leerling.naam}, birth date: ${leerling.geboortedatum}`);
+            setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
+            return;
+        }
+
         const relevanteNormen = normen.filter(n => n.leeftijd === age && n.geslacht === leerling.geslacht);
+        
+        if (relevanteNormen.length === 0) {
+            console.warn(`No thresholds found for test ${selectedTestId}, age ${age}, gender ${leerling.geslacht}`);
+            setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
+            return;
+        }
         
         let behaaldPunt = 0;
         if (selectedTest.score_richting === 'hoog') {
@@ -208,7 +256,7 @@ export default function NieuweTestafname() {
             }
         }
         setCalculatedPoints(prev => ({ ...prev, [leerling.id]: behaaldPunt }));
-    }, [selectedTest, normen]);
+    }, [selectedTest, normen, selectedTestId]);
 
     const handleScoreChange = (leerling, score) => {
         setScores(prev => ({ ...prev, [leerling.id]: score }));
@@ -224,6 +272,7 @@ export default function NieuweTestafname() {
         }
     };
 
+    // GEWIJZIGDE handleSaveScores FUNCTIE MET NIEUWE UTILITIES
     const handleSaveScores = async () => {
         if (!selectedGroupId || !selectedTestId) {
             toast.error("Selecteer eerst een groep en een test.");
@@ -278,24 +327,21 @@ export default function NieuweTestafname() {
                     rapportpunt: item.rapportpunt,
                     groep_id: selectedGroupId,
                     datum: nowDate,
-                    leerkracht_id: currentUser.uid, // Consistent gebruik van auth.currentUser.uid
+                    leerkracht_id: currentUser.uid,
                     school_id: profile.school_id,
                     score_jaar: new Date().getFullYear()
                 });
             });
 
-            await batch.commit();
+            // GEBRUIK VAN NIEUWE UTILITY FUNCTIES
+            await saveWithRetry(batch);
             toast.success(`${scoresToInsert.length} scores succesvol opgeslagen!`);
             navigate('/scores');
         } catch (error) {
             console.error("Fout bij opslaan:", error);
-            if (error.code === 'permission-denied') {
-                toast.error("Geen toegang tot deze functie. Controleer je rechten.");
-            } else if (error.code === 'network-error') {
-                toast.error("Netwerkfout. Controleer je internetverbinding.");
-            } else {
-                toast.error(`Fout bij opslaan: ${error.message}`);
-            }
+            // GEBRUIK VAN NIEUWE ERROR HANDLING
+            const errorMessage = handleFirestoreError(error);
+            toast.error(errorMessage);
         } finally {
             setSaving(false);
             toast.dismiss(loadingToast);

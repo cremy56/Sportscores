@@ -4,6 +4,8 @@ import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-route
 import { auth, db } from './firebase';
 import { onAuthStateChanged, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { setupNetworkMonitoring } from './utils/firebaseUtils';
+
 
 import Login from './Login';
 import Register from './register';
@@ -69,6 +71,10 @@ function App() {
     });
     return () => unsubscribeAuth();
   }, []);
+  
+useEffect(() => {
+    setupNetworkMonitoring();
+}, []);
 
   useEffect(() => {
     // Dit effect wordt actief zodra er een gebruiker is.
