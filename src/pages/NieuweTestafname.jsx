@@ -56,6 +56,8 @@ function calculateAge(geboortedatum) {
 
 function parseTijdScore(input) {
     if (!input) return NaN;
+    
+    // Als het een tijd format is (met ' of :)
     if (input.includes("'")) {
         const [min, sec] = input.split("'");
         return (parseInt(min, 10) * 60) + (parseInt(sec, 10) || 0);
@@ -64,7 +66,16 @@ function parseTijdScore(input) {
         const [min, sec] = input.split(":");
         return (parseInt(min, 10) * 60) + (parseInt(sec, 10) || 0);
     }
-    return parseFloat(input.replace(',', '.'));
+    
+    // Voor gewone getallen (zoals meters), parse als float
+    // Vervang komma door punt voor Nederlandse decimalen
+    const cleanInput = input.trim().replace(',', '.');
+    
+    // BELANGRIJK: Parse als gewoon getal, niet als tijd
+    const parsed = parseFloat(cleanInput);
+    
+    console.log(`parseTijdScore: "${input}" -> ${parsed}`);
+    return parsed;
 }
 
 function validateScore(score, eenheid) {
