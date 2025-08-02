@@ -3,14 +3,13 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import EvolutionChart from './EvolutionChart';
 import { formatDate } from '../utils/formatters';
-import { getScoreThresholds } from '../utils/firebaseUtils';
 import { getScoreNorms } from '../utils/firebaseUtils'; // <-- AAN TE PASSEN NAAM INDIEN NODIG
 
 
 export default function EvolutionCard({ categoryName, tests, student }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedDataPoint, setSelectedDataPoint] = useState(null);
-  const [thresholds, setThresholds] = useState(null);
+   const [scoreNorms, setScoreNorms] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const cardRef = useRef(null);
@@ -153,19 +152,19 @@ export default function EvolutionCard({ categoryName, tests, student }) {
 
   // Performance indicator gebaseerd op drempelwaarden
   const performanceIndicator = useMemo(() => {
-    if (!thresholds || !currentTest?.personal_best_score) return null;
+   if (!scoreNorms || !currentTest?.personal_best_score) return null;
 
-    const { threshold_50, threshold_65, score_richting } = thresholds;
+    const { '10': norm_10, '14': norm_14, score_richting } = scoreNorms;
     const score = currentTest.personal_best_score;
 
     let level, color, icon;
     
-    if (score_richting === 'omlaag') {
-      if (score <= threshold_65) {
+    if (score_richting === 'omlaag') { // Lager is beter
+      if (score <= norm_14) {
         level = 'Excellent';
         color = 'text-green-600 bg-green-100';
         icon = '🏆';
-      } else if (score <= threshold_50) {
+      } else if (score <= norm_10) {
         level = 'Goed';
         color = 'text-orange-600 bg-orange-100';
         icon = '👍';
@@ -174,12 +173,12 @@ export default function EvolutionCard({ categoryName, tests, student }) {
         color = 'text-red-600 bg-red-100';
         icon = '💪';
       }
-    } else {
-      if (score >= threshold_65) {
+    } else { // Hoger is beter
+      if (score >= norm_14) {
         level = 'Excellent';
         color = 'text-green-600 bg-green-100';
         icon = '🏆';
-      } else if (score >= threshold_50) {
+      } else if (score >= norm_10) {
         level = 'Goed';
         color = 'text-orange-600 bg-orange-100';
         icon = '👍';
@@ -191,7 +190,7 @@ export default function EvolutionCard({ categoryName, tests, student }) {
     }
 
     return { level, color, icon };
-  }, [thresholds, currentTest?.personal_best_score]);
+  }, [scoreNorms, currentTest?.personal_best_score]);
 
   // FIXED: Enhanced threshold fetching with better error handling
   useEffect(() => {
@@ -306,13 +305,13 @@ export default function EvolutionCard({ categoryName, tests, student }) {
 
   const { scores, firstScore, lastScore, improvement, isImprovement, average, trendDirection, totalScores } = scoresAnalysis;
 
-  return (
+ return (
     <div 
       ref={cardRef}
       tabIndex={0}
       className="bg-white/70 backdrop-blur-lg rounded-2xl sm:rounded-3xl shadow-lg border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-full focus:outline-none focus:ring-2 focus:ring-purple-500/50"
     >
-      {/* Header - Mobile Optimized */}
+      {/* Header (met aangepaste performanceIndicator) */}
       <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-3 sm:p-6 border-b border-white/20">
         <div className="flex items-center justify-between mb-2 sm:mb-3">
           <h2 className="text-base sm:text-xl font-bold text-gray-800 flex items-center gap-1 sm:gap-2">
@@ -320,7 +319,6 @@ export default function EvolutionCard({ categoryName, tests, student }) {
             <span className="text-sm sm:text-xl truncate">{categoryName}</span>
           </h2>
           <div className="flex items-center gap-1 sm:gap-2">
-            {/* Performance Indicator - Smaller on mobile */}
             {performanceIndicator && (
               <div className={`px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-medium ${performanceIndicator.color}`}>
                 <span className="hidden sm:inline">{performanceIndicator.icon} {performanceIndicator.level}</span>
@@ -423,7 +421,7 @@ export default function EvolutionCard({ categoryName, tests, student }) {
         </div>
       )}
 
-      {/* Error State */}
+     {/* Error State */}
      {error && (
         <div className="px-3 sm:px-6 py-2 bg-yellow-100 text-yellow-800 text-xs sm:text-sm text-center flex items-center justify-center gap-2">
           <ExclamationTriangleIcon className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -431,7 +429,7 @@ export default function EvolutionCard({ categoryName, tests, student }) {
         </div>
       )}
       
-     {/* **AANGEPAST** Chart container met VASTE HOOGTE */}
+    {/* Chart container */}
       <div className="w-full h-[500px] p-4 sm:p-6">
         {loading && (
           <div className="flex items-center justify-center h-full">
@@ -447,36 +445,36 @@ export default function EvolutionCard({ categoryName, tests, student }) {
             scores={scores} 
             eenheid={currentTest.eenheid}
             onPointClick={setSelectedDataPoint}
-            scoreNorms={scoreNorms} // Geef de nieuwe normen door
+            scoreNorms={scoreNorms} // Nu correct doorgegeven
             scoreRichting={currentTest.score_richting}
           />
         ) : !loading && (
           <div className="flex items-center justify-center h-full text-center">
-             {/* ... (Geen data weergave) ... */}
+             <p>Geen data om weer te geven.</p>
           </div>
         )}
       </div>
-      {/* Selected Data Point - Mobile */}
+     {/* **AANGEPAST**: Selected Data Point met nieuwe normen */}
       {selectedDataPoint && (
         <div className="mx-3 sm:mx-6 mb-3 sm:mb-6 p-2 sm:p-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-xl border border-purple-200">
           <p className="text-xs sm:text-sm text-purple-800 text-center">
             <span className="font-bold">{selectedDataPoint.score} {currentTest.eenheid}</span>
             <span className="mx-2">•</span>
             <span className="text-xs">{formatDate(selectedDataPoint.datum)}</span>
-            {thresholds && (
+            {scoreNorms && (
               <span className="ml-2 text-xs opacity-75 block sm:inline mt-1 sm:mt-0">
                 {(() => {
                   const score = selectedDataPoint.score;
-                  const { threshold_50, threshold_65, score_richting } = thresholds;
+                  const { '10': norm_10, '14': norm_14, score_richting } = scoreNorms;
                   
                   if (score_richting === 'omlaag') {
-                    if (score <= threshold_65) return '🟢 Excellent';
-                    else if (score <= threshold_50) return '🟠 Goed';
-                    else return '🔴 Kan beter';
+                    if (score <= norm_14) return '🏆 Excellent';
+                    else if (score <= norm_10) return '👍 Goed';
+                    else return '💪 Kan beter';
                   } else {
-                    if (score >= threshold_65) return '🟢 Excellent';
-                    else if (score >= threshold_50) return '🟠 Goed';
-                    else return '🔴 Kan beter';
+                    if (score >= norm_14) return '🏆 Excellent';
+                    else if (score >= norm_10) return '👍 Goed';
+                    else return '💪 Kan beter';
                   }
                 })()}
               </span>
