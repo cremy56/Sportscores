@@ -5,6 +5,8 @@ import {
   query, 
   where, 
   getDocs, 
+  getDoc,  // TOEGEVOEGD: Missing import
+  doc,     // TOEGEVOEGD: Missing import
   orderBy,
   enableNetwork,
   disableNetwork 
@@ -132,10 +134,6 @@ export function getNetworkStatus() {
   return isOnline;
 }
 
-
-/**
- * Enhanced DEBUG versie van getStudentEvolutionData
- */
 /**
  * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
  * Schooljaar filtering gebeurt client-side voor betere performance en flexibiliteit
@@ -287,6 +285,7 @@ const calculatePersonalBest = (scores, scoreRichting) => {
     datum: best.datum
   };
 };
+
 /**
  * Haalt score thresholds op voor een specifieke test, leeftijd en geslacht
  * @param {string} testId - Het test ID
@@ -415,6 +414,7 @@ export const getAvailableSchoolYears = async (schoolId = null) => {
     
     scoresSnapshot.docs.forEach(doc => {
       const scoreData = doc.data();
+      // FIXED: Gebruik 'datum' in plaats van 'afgenomen_op'
       const datum = scoreData.datum?.toDate?.() || new Date(scoreData.datum);
       
       if (datum && !isNaN(datum.getTime())) { // Valideer datum
