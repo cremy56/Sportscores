@@ -356,13 +356,24 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
           threshold_65 = calculateP65Threshold(normenData);
           console.log('✅ Using punt_8 + score_min strategy');
         }
-        // Strategie 2: Directe threshold velden (als die bestaan)
+        // Strategie 2: punt (zonder nummer) en score_min - NIEUWE STRATEGIE
+        else if (normenData.punt !== undefined && normenData.score_min !== undefined) {
+          threshold_50 = normenData.punt;
+          // Simuleer punt_8 voor berekening
+          const estimatedData = {
+            ...normenData,
+            punt_8: normenData.punt
+          };
+          threshold_65 = calculateP65Threshold(estimatedData);
+          console.log('✅ Using punt (generic) + score_min strategy');
+        }
+        // Strategie 3: Directe threshold velden (als die bestaan)
         else if (normenData.threshold_50 !== undefined && normenData.threshold_65 !== undefined) {
           threshold_50 = normenData.threshold_50;
           threshold_65 = normenData.threshold_65;
           console.log('✅ Using direct threshold fields');
         }
-        // Strategie 3: Andere punt velden proberen (punt_10, punt_12, etc.)
+        // Strategie 4: Andere punt velden proberen (punt_10, punt_12, etc.)
         else if (normenData.score_min !== undefined) {
           // Zoek naar beschikbare punt velden
           const puntFields = Object.keys(normenData).filter(key => key.startsWith('punt_'));
@@ -385,7 +396,7 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
             console.log(`✅ Using ${midPuntField} (${threshold_50}) as threshold_50 basis`);
           }
         }
-        // Strategie 4: Alleen score_min/score_max gebruiken voor basis schatting
+        // Strategie 5: Alleen score_min/score_max gebruiken voor basis schatting
         else if (normenData.score_min !== undefined && normenData.score_max !== undefined) {
           // Basis schatting: 50e percentiel = 40% van de range vanaf minimum
           const range = normenData.score_max - normenData.score_min;
@@ -405,7 +416,9 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
             original_geslacht: geslacht,
             test_id: testId,
             used_age_cap: normAge !== numericAge,
-            data_source: normenData.punt_8 !== undefined ? 'punt_8' : 'estimated'
+            data_source: normenData.punt_8 !== undefined ? 'punt_8' : 
+                        normenData.punt !== undefined ? 'punt_generic' : 
+                        'estimated'
           };
 
           console.log('✅ Successfully created threshold result:', result);
@@ -442,12 +455,19 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
           const fallbackDoc = fallbackSnapshot.docs[0];
           const fallbackData = fallbackDoc.data();
           
-          if (fallbackData.punt_8 !== undefined && fallbackData.score_min !== undefined) {
+          // Primaire strategie: punt_8 of generieke punt
+          if ((fallbackData.punt_8 !== undefined || fallbackData.punt !== undefined) && fallbackData.score_min !== undefined) {
             console.log(`✅ Using fallback age ${fallbackAge} (requested: ${numericAge}, normalized: ${normAge})`);
             
+            const basePoint = fallbackData.punt_8 || fallbackData.punt;
+            const estimatedData = {
+              ...fallbackData,
+              punt_8: basePoint
+            };
+            
             return {
-              threshold_50: fallbackData.punt_8,
-              threshold_65: calculateP65Threshold(fallbackData),
+              threshold_50: basePoint,
+              threshold_65: calculateP65Threshold(estimatedData),
               score_richting: fallbackData.score_richting || 'hoog',
               leeftijd: fallbackAge,
               original_leeftijd: numericAge,
@@ -456,11 +476,12 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
               test_id: testId,
               used_age_cap: normAge !== numericAge,
               used_fallback_age: true,
-              fallback_age: fallbackAge
+              fallback_age: fallbackAge,
+              data_source: fallbackData.punt_8 !== undefined ? 'punt_8' : 'punt_generic'
             };
           } else if (fallbackData.score_min !== undefined) {
             // Ook voor fallback: probeer andere strategieën
-            console.log(`🔄 Fallback age ${fallbackAge} missing punt_8, trying alternative extraction`);
+            console.log(`🔄 Fallback age ${fallbackAge} missing punt_8/punt, trying alternative extraction`);
             
             let fallbackThreshold50 = null;
             let fallbackThreshold65 = null;
@@ -524,9 +545,14 @@ const calculateP65Threshold = (normenData) => {
   }
 
   // Enhanced calculation based on available data
-  const punt8 = normenData.punt_8;
+  const punt8 = normenData.punt_8 || normenData.punt; // Accepteer ook generieke 'punt' veld
   const scoreMin = normenData.score_min;
   const scoreMax = normenData.score_max;
+  
+  if (!punt8) {
+    console.warn('calculateP65Threshold: No punt_8 or punt field found');
+    return null;
+  }
   
   // Use more sophisticated calculation if we have more data points
   if (scoreMax !== undefined && scoreMin !== undefined) {
