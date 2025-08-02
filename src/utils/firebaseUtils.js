@@ -144,8 +144,14 @@ export function getNetworkStatus() {
  * @param {string} studentId - Het ID van de student (kan email of document ID zijn)
  * @returns {Promise<Array>} Array van test objecten met scores
  */
+/**
+ * Enhanced DEBUG versie van getStudentEvolutionData
+ */
 export const getStudentEvolutionData = async (studentId) => {
   const operation = async () => {
+    console.log('=== ENHANCED DEBUG getStudentEvolutionData ===');
+    console.log('Input studentId:', studentId);
+    
     // 1. Haal alle testen op voor de school
     const testsQuery = query(
       collection(db, 'testen'),
@@ -160,14 +166,11 @@ export const getStudentEvolutionData = async (studentId) => {
       ...doc.data()
     }));
 
-    console.log(`Found ${tests.length} active tests`);
+    console.log(`Found ${tests.length} active tests:`, tests.map(t => ({id: t.id, naam: t.naam})));
 
     // 2. Bepaal de juiste leerling_id voor de query
-    // Probeer eerst met de gegeven studentId (kan email of document ID zijn)
     let leerlingId = studentId;
     
-    // Als studentId een document ID lijkt te zijn (geen @ teken), 
-    // probeer dan het user document op te halen voor het email adres
     if (studentId && !studentId.includes('@')) {
       try {
         const userDoc = await getDoc(doc(db, 'users', studentId));
@@ -177,19 +180,36 @@ export const getStudentEvolutionData = async (studentId) => {
         }
       } catch (error) {
         console.warn('Could not fetch user document, using original studentId:', error);
-        // Valt terug op de originele studentId
       }
     }
 
-    console.log(`Looking for scores with leerling_id: ${leerlingId}`);
+    console.log(`Final leerling_id for queries: ${leerlingId}`);
 
-    // 3. Voor elke test, haal alle scores op van deze student
+    // 3. EERST - laten we kijken wat er überhaupt in de scores collectie staat voor deze student
+    console.log('=== CHECKING ALL SCORES FOR THIS STUDENT ===');
+    const allStudentScoresQuery = query(
+      collection(db, 'scores'),
+      where('leerling_id', '==', leerlingId)
+    );
+    
+    const allStudentScoresSnapshot = await getDocs(allStudentScoresQuery);
+    const allStudentScores = allStudentScoresSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      datum: doc.data().afgenomen_op?.toDate?.() || new Date(doc.data().afgenomen_op)
+    }));
+    
+    console.log(`Found ${allStudentScores.length} total scores for student ${leerlingId}:`, allStudentScores);
+
+    // 4. Voor elke test, haal alle scores op van deze student
     const testDataPromises = tests.map(async (test) => {
+      console.log(`--- Processing test: ${test.naam} (ID: ${test.id}) ---`);
+      
       const scoresQuery = query(
         collection(db, 'scores'),
         where('test_id', '==', test.id),
         where('leerling_id', '==', leerlingId),
-        orderBy('afgenomen_op', 'desc') // Nieuwste eerst
+        orderBy('afgenomen_op', 'desc')
       );
 
       const scoresSnapshot = await getDocs(scoresQuery);
@@ -199,16 +219,17 @@ export const getStudentEvolutionData = async (studentId) => {
         datum: doc.data().afgenomen_op?.toDate?.() || new Date(doc.data().afgenomen_op)
       }));
 
-      console.log(`Found ${scores.length} scores for test ${test.naam} (${test.id})`);
+      console.log(`Found ${scores.length} scores for test ${test.naam}:`, scores);
+
+      // Check if any of the all scores match this test
+      const matchingScores = allStudentScores.filter(score => score.test_id === test.id);
+      console.log(`Matching scores from all scores query: ${matchingScores.length}`, matchingScores);
 
       if (scores.length === 0) {
-        return null; // Geen scores voor deze test
+        return null;
       }
 
-      // Sorteer scores op datum (nieuwste eerst voor personal best)
       const sortedScores = scores.sort((a, b) => new Date(b.datum) - new Date(a.datum));
-
-      // Bereken personal best over ALLE scores (niet per schooljaar)
       const personalBest = calculatePersonalBest(sortedScores, test.score_richting);
 
       return {
@@ -231,7 +252,9 @@ export const getStudentEvolutionData = async (studentId) => {
     const results = await Promise.all(testDataPromises);
     const validResults = results.filter(result => result !== null);
     
+    console.log(`=== FINAL RESULTS ===`);
     console.log(`Processed evolution data: ${validResults.length} tests with scores for student ${leerlingId}`);
+    console.log('Valid results:', validResults);
     
     return validResults;
   };
