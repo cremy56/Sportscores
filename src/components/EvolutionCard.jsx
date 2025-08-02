@@ -4,6 +4,8 @@ import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon, ExclamationTriangleIcon 
 import EvolutionChart from './EvolutionChart';
 import { formatDate } from '../utils/formatters';
 import { getScoreThresholds } from '../utils/firebaseUtils';
+import { getScoreNorms } from '../utils/firebaseUtils'; // <-- AAN TE PASSEN NAAM INDIEN NODIG
+
 
 export default function EvolutionCard({ categoryName, tests, student }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -193,14 +195,9 @@ export default function EvolutionCard({ categoryName, tests, student }) {
 
   // FIXED: Enhanced threshold fetching with better error handling
   useEffect(() => {
-    const fetchThresholds = async () => {
+    const fetchNorms = async () => {
       if (!currentTest || !student?.geboortedatum || !student?.geslacht) {
-        console.log('fetchThresholds: Missing required data', {
-          hasCurrentTest: !!currentTest,
-          hasGeboortedatum: !!student?.geboortedatum,
-          hasGeslacht: !!student?.geslacht
-        });
-        setThresholds(null);
+        setScoreNorms(null);
         setError(null);
         return;
       }
@@ -210,54 +207,35 @@ export default function EvolutionCard({ categoryName, tests, student }) {
       
       try {
         const testDate = currentTest.personal_best_datum || new Date();
-        console.log('fetchThresholds: Calculating age', {
-          geboortedatum: student.geboortedatum,
-          testDate,
-          geslacht: student.geslacht
-        });
-
         const leeftijd = calculateAge(student.geboortedatum, testDate);
         
         if (leeftijd === null || isNaN(leeftijd)) {
-          console.warn('fetchThresholds: Could not calculate valid age', {
-            leeftijd,
-            geboortedatum: student.geboortedatum,
-            testDate
-          });
-          setError("Kon leeftijd niet berekenen voor drempelwaarden");
-          setThresholds(null);
+          setError("Kon leeftijd niet berekenen voor normwaarden.");
+          setScoreNorms(null);
           return;
         }
 
-        console.log('fetchThresholds: Fetching thresholds', {
-          testId: currentTest.test_id,
-          leeftijd,
-          geslacht: student.geslacht
-        });
-
-        const thresholdData = await getScoreThresholds(
+        // Gebruik de nieuwe functie om data op te halen
+        const normData = await getScoreNorms(
           currentTest.test_id,
           leeftijd,
           student.geslacht
         );
         
-        if (thresholdData) {
-          console.log('fetchThresholds: Successfully fetched thresholds', thresholdData);
-        } else {
-          console.log('fetchThresholds: No thresholds found for this age/gender combination');
+        setScoreNorms(normData);
+        if (!normData) {
+          setError("Geen normen (1-20) gevonden voor deze test/leeftijd.");
         }
-        
-        setThresholds(thresholdData);
-      } catch (error) {
-        console.error("fetchThresholds: Error fetching thresholds:", error);
-        setError("Kon drempelwaarden niet laden");
-        setThresholds(null);
+      } catch (err) {
+        console.error("Error fetching score norms:", err);
+        setError("Kon de normwaarden niet laden.");
+        setScoreNorms(null);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchThresholds();
+    fetchNorms();
   }, [currentTest, student, calculateAge]);
 
   // Keyboard navigatie
@@ -446,20 +424,20 @@ export default function EvolutionCard({ categoryName, tests, student }) {
       )}
 
       {/* Error State */}
-      {error && (
+     {error && (
         <div className="px-3 sm:px-6 py-2 bg-yellow-100 text-yellow-800 text-xs sm:text-sm text-center flex items-center justify-center gap-2">
           <ExclamationTriangleIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-          <span className="truncate">{error}</span>
+          <span>{error}</span>
         </div>
       )}
       
-      {/* **AANGEPAST** Chart - Aanzienlijk verhoogde min-hoogte */}
-      <div className="flex-grow p-3 sm:p-6 min-h-[350px] sm:min-h-[450px]">
+     {/* **AANGEPAST** Chart container met VASTE HOOGTE */}
+      <div className="w-full h-[500px] p-4 sm:p-6">
         {loading && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
-              <p className="text-xs sm:text-sm text-gray-500">Drempelwaarden laden...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-sm text-gray-500">Normwaarden laden...</p>
             </div>
           </div>
         )}
@@ -468,17 +446,13 @@ export default function EvolutionCard({ categoryName, tests, student }) {
           <EvolutionChart 
             scores={scores} 
             eenheid={currentTest.eenheid}
-            onPointClick={handlePointClick}
-            thresholds={thresholds}
-            testName={currentTest.test_naam}
+            onPointClick={setSelectedDataPoint}
+            scoreNorms={scoreNorms} // Geef de nieuwe normen door
+            scoreRichting={currentTest.score_richting}
           />
         ) : !loading && (
           <div className="flex items-center justify-center h-full text-center">
-            <div>
-              <div className="text-3xl sm:text-4xl mb-2">📊</div>
-              <p className="text-gray-500 text-sm sm:text-base">Geen scoregeschiedenis</p>
-              <p className="text-xs text-gray-400 mt-1">voor deze test beschikbaar</p>
-            </div>
+             {/* ... (Geen data weergave) ... */}
           </div>
         )}
       </div>

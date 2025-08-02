@@ -8,260 +8,142 @@ const coloredZonesPlugin = {
   id: 'coloredZones',
   beforeDraw(chart, args, options) {
     const { ctx, chartArea: { top, bottom, left, right, width }, scales: { y } } = chart;
-    const { threshold_50, threshold_65, score_richting } = options;
+    const { norm_10, norm_14, score_richting } = options;
 
-    if (threshold_50 === undefined || threshold_65 === undefined) return;
-    
-    const yMin = y.min;
-    const yMax = y.max;
-    
-    if ((threshold_50 < yMin || threshold_50 > yMax) && (threshold_65 < yMin || threshold_65 > yMax)) {
-      return;
-    }
+    if (norm_10 === undefined || norm_14 === undefined) return;
 
     ctx.save();
     
-    const y50 = y.getPixelForValue(Math.max(Math.min(threshold_50, yMax), yMin));
-    const y65 = y.getPixelForValue(Math.max(Math.min(threshold_65, yMax), yMin));
+    const y10 = y.getPixelForValue(norm_10);
+    const y14 = y.getPixelForValue(norm_14);
+    const zoneOpacity = 0.25;
 
-    const zoneOpacity = 0.35;
-    
-    if (score_richting === 'omlaag') {
-      if (threshold_50 >= yMin && threshold_50 <= yMax) {
-        ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
-        ctx.fillRect(left, y50, width, bottom - y50);
-      }
-      if (threshold_50 >= yMin && threshold_65 <= yMax) {
-        ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;
-        const zoneTop = Math.max(y65, top);
-        const zoneBottom = Math.min(y50, bottom);
-        if (zoneBottom > zoneTop) ctx.fillRect(left, zoneTop, width, zoneBottom - zoneTop);
-      }
-      if (threshold_65 >= yMin && threshold_65 <= yMax) {
-        ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;
-        ctx.fillRect(left, top, width, y65 - top);
-      }
-    } else {
-      if (threshold_50 >= yMin && threshold_50 <= yMax) {
-        ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
-        ctx.fillRect(left, y50, width, bottom - y50);
-      }
-      if (threshold_50 >= yMin && threshold_65 <= yMax) {
-        ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;
-        const zoneTop = Math.max(y65, top);
-        const zoneBottom = Math.min(y50, bottom);
-        if (zoneBottom > zoneTop) ctx.fillRect(left, zoneTop, width, zoneBottom - zoneTop);
-      }
-      if (threshold_65 >= yMin && threshold_65 <= yMax) {
-        ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;
-        ctx.fillRect(left, top, width, y65 - top);
-      }
+    // Teken zones op basis van score richting
+    if (score_richting === 'omlaag') { // Lager is beter
+      // Groen: top -> y14
+      ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;
+      ctx.fillRect(left, top, width, y14 - top);
+      // Oranje: y14 -> y10
+      ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;
+      ctx.fillRect(left, y14, width, y10 - y14);
+      // Rood: y10 -> bottom
+      ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
+      ctx.fillRect(left, y10, width, bottom - y10);
+    } else { // Hoger is beter
+      // Rood: bottom -> y10
+      ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
+      ctx.fillRect(left, y10, width, bottom - y10);
+      // Oranje: y10 -> y14
+      ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;
+      ctx.fillRect(left, y10, width, y14 - y10);
+      // Groen: y14 -> top
+      ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;
+      ctx.fillRect(left, y14, width, top - y14);
     }
+
     ctx.restore();
   }
 };
-
 // Custom plugin voor drempel lijnen (geen wijzigingen hier)
+// **HERBOUWD** Plugin voor drempellijnen op basis van 10/20 en 14/20 normen
 const thresholdLinesPlugin = {
   id: 'thresholdLines',
   afterDatasetsDraw(chart, args, options) {
     const { ctx, chartArea: { left, right }, scales: { y } } = chart;
-    const { threshold_50, threshold_65 } = options;
+    const { norm_10, norm_14 } = options;
 
-    if (threshold_50 === undefined || threshold_65 === undefined) return;
-    
-    const yMin = y.min;
-    const yMax = y.max;
-
-    if ((threshold_50 < yMin || threshold_50 > yMax) && (threshold_65 < yMin || threshold_65 > yMax)) {
-      return;
-    }
+    if (norm_10 === undefined || norm_14 === undefined) return;
 
     ctx.save();
-    ctx.setLineDash([5, 5]);
-    ctx.lineWidth = 3;
+    ctx.setLineDash([6, 6]);
+    ctx.lineWidth = 2;
 
-    if (threshold_50 >= yMin && threshold_50 <= yMax) {
-      const y50 = y.getPixelForValue(threshold_50);
-      ctx.strokeStyle = 'rgba(249, 115, 22, 1)';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(left + 5, y50);
-      ctx.lineTo(right - 5, y50);
-      ctx.stroke();
-    }
+    // Lijn voor 10/20 (oranje)
+    const y10 = y.getPixelForValue(norm_10);
+    ctx.strokeStyle = 'rgba(249, 115, 22, 0.8)';
+    ctx.beginPath();
+    ctx.moveTo(left, y10);
+    ctx.lineTo(right, y10);
+    ctx.stroke();
 
-    if (threshold_65 >= yMin && threshold_65 <= yMax) {
-      const y65 = y.getPixelForValue(threshold_65);
-      ctx.strokeStyle = 'rgba(34, 197, 94, 1)';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(left + 5, y65);
-      ctx.lineTo(right - 5, y65);
-      ctx.stroke();
-    }
+    // Lijn voor 14/20 (groen)
+    const y14 = y.getPixelForValue(norm_14);
+    ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
+    ctx.beginPath();
+    ctx.moveTo(left, y14);
+    ctx.lineTo(right, y14);
+    ctx.stroke();
+
     ctx.restore();
   }
 };
 
-// **AANGEPAST** Intelligente Y-as schaling functie
-const calculateOptimalYRange = (scoreValues, thresholds, testName = '') => {
-  if (scoreValues.length === 0) {
-    return { minValue: 0, maxValue: 100 }; // Default fallback
+// **HERBOUWD** Y-as schaling functie op basis van 1/20 en 20/20 normen
+const calculateOptimalYRange = (scoreValues, scoreNorms) => {
+  if (!scoreNorms || scoreNorms['1'] === undefined || scoreNorms['20'] === undefined) {
+    // Fallback als normen niet beschikbaar zijn
+    const scoreMin = scoreValues.length > 0 ? Math.min(...scoreValues) : 0;
+    const scoreMax = scoreValues.length > 0 ? Math.max(...scoreValues) : 100;
+    const padding = (scoreMax - scoreMin) * 0.2;
+    return { minValue: scoreMin - padding, maxValue: scoreMax + padding };
   }
 
-  const scoreMin = Math.min(...scoreValues);
-  const scoreMax = Math.max(...scoreValues);
-  
-  let minValue = scoreMin;
-  let maxValue = scoreMax;
-  
-  const isCooperTest = testName?.toLowerCase().includes('cooper');
-  
-  if (isCooperTest) {
-    let rangeMin = scoreMin;
-    let rangeMax = scoreMax;
-    
-    if (thresholds) {
-      rangeMin = Math.min(rangeMin, thresholds.threshold_50, thresholds.threshold_65);
-      rangeMax = Math.max(rangeMax, thresholds.threshold_50, thresholds.threshold_65);
-    }
-    
-    // Gebruik Cooper range als basis, zoals gevraagd
-    const cooperMin = 2100;
-    const cooperMax = 3900;
-    
-    // Pas aan als data daarbuiten valt, met 15% padding
-    minValue = Math.min(cooperMin, rangeMin - (rangeMin * 0.15));
-    maxValue = Math.max(cooperMax, rangeMax + (rangeMax * 0.15));
-    
-    if (maxValue - minValue < 800) {
-      const center = (maxValue + minValue) / 2;
-      minValue = center - 400;
-      maxValue = center + 400;
-    }
-  } else {
-    if (thresholds) {
-      const { threshold_50, threshold_65 } = thresholds;
-      minValue = Math.min(minValue, threshold_50, threshold_65);
-      maxValue = Math.max(maxValue, threshold_50, threshold_65);
-    }
-    
-    const range = maxValue - minValue;
-    let padding;
-    
-    if (range === 0) {
-      padding = Math.max(maxValue * 0.1, 10);
-    } else if (range < 100) {
-      padding = range * 0.3;
-    } else {
-      padding = range * 0.15; // 15% padding
-    }
-    
-    minValue -= padding;
-    maxValue += padding;
+  // Bereken min/max op basis van 1/20 en 20/20 normen met 15% padding
+  let minValue = scoreNorms['1'] * 0.85;
+  let maxValue = scoreNorms['20'] * 1.15;
+
+  // Zorg dat de scores van de leerling altijd zichtbaar zijn
+  if (scoreValues.length > 0) {
+      const actualMin = Math.min(...scoreValues);
+      const actualMax = Math.max(...scoreValues);
+      minValue = Math.min(minValue, actualMin - (actualMax - actualMin) * 0.1);
+      maxValue = Math.max(maxValue, actualMax + (actualMax - actualMin) * 0.1);
   }
-  
-  if (minValue < 0 && scoreMin >= 0) {
-    minValue = 0;
-  }
-  
+
   return { minValue, maxValue };
 };
 
-export default function EvolutionChart({ scores, eenheid, onPointClick, thresholds, testName }) {
+
+export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNorms, scoreRichting }) {
   const sortedScores = [...scores].sort((a, b) => new Date(a.datum) - new Date(b.datum));
-  const isMobile = window.innerWidth < 640;
 
   const data = {
-    labels: sortedScores.map(s => {
-      const date = new Date(s.datum);
-      return isMobile 
-        ? date.toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit' })
-        : date.toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: '2-digit' });
-    }),
+    labels: sortedScores.map(s => new Date(s.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: '2-digit' })),
     datasets: [{
-      label: 'Evolutie',
-      data: sortedScores.map(s => s.score),
-      borderColor: 'rgb(126, 34, 206)',
-      backgroundColor: 'rgba(126, 34, 206, 0.1)',
-      pointBackgroundColor: 'rgb(126, 34, 206)',
-      pointBorderColor: 'white',
-      pointBorderWidth: 2,
-      pointRadius: isMobile ? 5 : 7,
-      pointHoverRadius: isMobile ? 7 : 9,
-      tension: 0.3,
-      fill: true,
-      borderWidth: isMobile ? 2 : 3,
+        label: 'Evolutie',
+        data: sortedScores.map(s => s.score),
+        borderColor: 'rgb(126, 34, 206)',
+        backgroundColor: 'rgba(126, 34, 206, 0.1)',
+        pointBackgroundColor: 'rgb(126, 34, 206)',
+        pointBorderColor: 'white',
+        pointBorderWidth: 2,
+        pointRadius: 7,
+        pointHoverRadius: 9,
+        tension: 0.3,
+        fill: true,
+        borderWidth: 3,
     }],
   };
-
+  
   const scoreValues = sortedScores.map(s => s.score);
-  const { minValue, maxValue } = calculateOptimalYRange(scoreValues, thresholds, testName);
-const isCooperTest = testName?.toLowerCase().includes('cooper');
+  const { minValue, maxValue } = calculateOptimalYRange(scoreValues, scoreNorms);
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: {
-      intersect: false,
-      mode: 'index',
-    },
     plugins: {
       legend: { display: false },
-      tooltip: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        titleColor: 'rgb(55, 65, 81)',
-        bodyColor: 'rgb(55, 65, 81)',
-        borderColor: 'rgba(126, 34, 206, 0.3)',
-        borderWidth: 1,
-        cornerRadius: 8,
-        displayColors: false,
-        titleFont: { size: isMobile ? 12 : 14 },
-        bodyFont: { size: isMobile ? 11 : 13 },
-        callbacks: {
-          title: function(context) {
-            const index = context[0].dataIndex;
-            const scoreData = sortedScores[index];
-            return new Date(scoreData.datum).toLocaleDateString('nl-BE', {
-              weekday: isMobile ? 'short' : 'long',
-              day: 'numeric',
-              month: isMobile ? 'short' : 'long',
-              year: 'numeric'
-            });
-          },
-          label: function(context) {
-            return `Score: ${context.parsed.y} ${eenheid || ''}`;
-          },
-          afterLabel: function(context) {
-            if (!thresholds) return '';
-            const score = context.parsed.y;
-            const { threshold_50, threshold_65, score_richting } = thresholds;
-            let level = '';
-            if (score_richting === 'omlaag') {
-              if (score <= threshold_65) level = '🏆 Excellent';
-              else if (score <= threshold_50) level = '👍 Goed';
-              else level = '💪 Verbetering nodig';
-            } else {
-              if (score >= threshold_65) level = '🏆 Excellent';
-              else if (score >= threshold_50) level = '👍 Goed';
-              else level = '💪 Verbetering nodig';
-            }
-            return level;
-          }
-        }
-      },
-      coloredZones: thresholds,
-      thresholdLines: thresholds
+      // Voeg de nieuwe normen en scoreRichting toe aan de plugin options
+      coloredZones: { ...scoreNorms, score_richting: scoreRichting },
+      thresholdLines: { ...scoreNorms }
     },
-   scales: {
-      x: {
-        grid: { color: 'rgba(156, 163, 175, 0.1)' },
+    scales: {
+      y: {
+        min: minValue,
+        max: maxValue,
         ticks: {
           color: 'rgb(107, 114, 128)',
-          font: { size: isMobile ? 10 : 12 },
-          maxRotation: isMobile ? 45 : 0,
-          minRotation: isMobile ? 45 : 0
+          font: { size: 12 },
         }
       },
       y: {
@@ -331,22 +213,17 @@ const isCooperTest = testName?.toLowerCase().includes('cooper');
         )}
       </div>
       
-      {/* **AANGEPAST** Threshold Legend onder de grafiek */}
-      {thresholds && (() => {
-        const thresholdInRange = 
-          (thresholds.threshold_50 >= minValue && thresholds.threshold_50 <= maxValue) ||
-          (thresholds.threshold_65 >= minValue && thresholds.threshold_65 <= maxValue);
-        return thresholdInRange;
-      })() && (
+      {/* **HERBOUWD** Legenda voor de nieuwe 10/20 en 14/20 drempels */}
+      {scoreNorms && (
         <div className="mt-4 flex justify-center items-center">
-            <div className="flex items-center gap-x-6 text-xs sm:text-sm text-gray-600">
+            <div className="flex items-center gap-x-6 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
-                    <div className="w-5 h-0.5" style={{borderTop: '2px dashed rgba(34, 197, 94, 1)'}}></div>
-                    <span>P65 (Excellent)</span>
+                    <div className="w-5 h-0.5" style={{borderTop: '2px dashed rgba(34, 197, 94, 0.8)'}}></div>
+                    <span>14/20 (Goed)</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-5 h-0.5" style={{borderTop: '2px dashed rgba(249, 115, 22, 1)'}}></div>
-                    <span>P50 (Goed)</span>
+                    <div className="w-5 h-0.5" style={{borderTop: '2px dashed rgba(249, 115, 22, 0.8)'}}></div>
+                    <span>10/20 (Voldoende)</span>
                 </div>
             </div>
         </div>

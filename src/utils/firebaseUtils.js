@@ -1,4 +1,4 @@
-// src/utils/firebaseUtils.js - Enhanced Threshold Handling
+// src/utils/firebaseUtils.js - Enhanced Threshold Handling & New Norms Function
 import { db } from '../firebase';
 import { 
   collection, 
@@ -157,8 +157,6 @@ export const getStudentEvolutionData = async (studentId) => {
       ...doc.data()
     }));
 
-    console.log(`Found ${tests.length} active tests`);
-
     let leerlingId = studentId;
     
     if (studentId && !studentId.includes('@')) {
@@ -166,14 +164,11 @@ export const getStudentEvolutionData = async (studentId) => {
         const userDoc = await getDoc(doc(db, 'users', studentId));
         if (userDoc.exists() && userDoc.data().email) {
           leerlingId = userDoc.data().email;
-          console.log(`Using email ${leerlingId} for student lookup (from user ID ${studentId})`);
         }
       } catch (error) {
         console.warn('Could not fetch user document, using original studentId:', error);
       }
     }
-
-    console.log(`Looking for scores with leerling_id: ${leerlingId}`);
 
     const testDataPromises = tests.map(async (test) => {
       const scoresQuery = query(
@@ -210,8 +205,6 @@ export const getStudentEvolutionData = async (studentId) => {
         };
       });
 
-      console.log(`Found ${scores.length} scores for test ${test.naam} (${test.id})`);
-
       if (scores.length === 0) {
         return null;
       }
@@ -237,11 +230,7 @@ export const getStudentEvolutionData = async (studentId) => {
     });
 
     const results = await Promise.all(testDataPromises);
-    const validResults = results.filter(result => result !== null);
-    
-    console.log(`Processed evolution data: ${validResults.length} tests with scores`);
-    
-    return validResults;
+    return results.filter(result => result !== null);
   };
 
   try {
@@ -281,256 +270,83 @@ const calculatePersonalBest = (scores, scoreRichting) => {
  */
 export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
   const operation = async () => {
-    // Enhanced input validation
-    if (!testId) {
-      console.warn('getScoreThresholds: Missing testId');
-      return null;
-    }
-    
-    if (leeftijd === null || leeftijd === undefined || isNaN(leeftijd)) {
-      console.warn('getScoreThresholds: Invalid age:', leeftijd);
-      return null;
-    }
-    
-    if (!geslacht) {
-      console.warn('getScoreThresholds: Missing gender');
+    if (!testId || leeftijd === null || leeftijd === undefined || isNaN(leeftijd) || !geslacht) {
+      console.warn('getScoreThresholds: Invalid input');
       return null;
     }
 
-    // Age validation and normalization - BELANGRIJKE FIX
     const numericAge = Number(leeftijd);
-    if (numericAge < 0 || numericAge > 100) {
-      console.warn('getScoreThresholds: Age out of valid range:', numericAge);
-      return null;
-    }
-
-    // CORRECTE IMPLEMENTATIE: Beperk leeftijd tot maximaal 17 jaar voor normen
     const normAge = Math.min(numericAge, 17);
-    
-    console.log(`Age normalization: ${numericAge} years old -> using norms for age ${normAge}`);
-
-    // Enhanced gender mapping
-    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || 
-                        GENDER_MAPPING[geslacht.toString()] || 
-                        geslacht.toString().toUpperCase();
+    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
     
     if (!['M', 'V'].includes(mappedGender)) {
-      console.warn('getScoreThresholds: Could not map gender:', geslacht, 'to M or V');
+      console.warn('getScoreThresholds: Could not map gender:', geslacht);
       return null;
     }
 
-    console.log('Gender mapping:', { 
-      original: geslacht, 
-      mapped: mappedGender,
-      originalType: typeof geslacht
-    });
-
-    // Primaire query met genormaliseerde leeftijd
-    try {
+    const fetchForAge = async (age) => {
       const normenQuery = query(
         collection(db, 'normen'),
         where('test_id', '==', testId),
-        where('leeftijd', '==', normAge),
+        where('leeftijd', '==', age),
         where('geslacht', '==', mappedGender)
       );
-
-      console.log(`Querying thresholds for: test=${testId}, age=${normAge}, gender=${mappedGender}`);
-
       const normenSnapshot = await getDocs(normenQuery);
-      
-      if (!normenSnapshot.empty) {
-        const normenDoc = normenSnapshot.docs[0];
-        const normenData = normenDoc.data();
-        
-        console.log(`✅ Found thresholds for age ${normAge}:`, normenData);
-        
-        // FLEXIBELE VALIDATIE: Controleer verschillende mogelijke veld combinaties
-        console.log('🔍 Analyzing available norm fields:', Object.keys(normenData));
-        
-        let threshold_50 = null;
-        let threshold_65 = null;
-        
-        // Strategie 1: punt_8 en score_min (originele verwachting)
-        if (normenData.punt_8 !== undefined && normenData.score_min !== undefined) {
-          threshold_50 = normenData.punt_8;
-          threshold_65 = calculateP65Threshold(normenData);
-          console.log('✅ Using punt_8 + score_min strategy');
-        }
-        // Strategie 2: punt (zonder nummer) en score_min - NIEUWE STRATEGIE
-        else if (normenData.punt !== undefined && normenData.score_min !== undefined) {
-          threshold_50 = normenData.punt;
-          // Simuleer punt_8 voor berekening
-          const estimatedData = {
-            ...normenData,
-            punt_8: normenData.punt
-          };
-          threshold_65 = calculateP65Threshold(estimatedData);
-          console.log('✅ Using punt (generic) + score_min strategy');
-        }
-        // Strategie 3: Directe threshold velden (als die bestaan)
-        else if (normenData.threshold_50 !== undefined && normenData.threshold_65 !== undefined) {
-          threshold_50 = normenData.threshold_50;
-          threshold_65 = normenData.threshold_65;
-          console.log('✅ Using direct threshold fields');
-        }
-        // Strategie 4: Andere punt velden proberen (punt_10, punt_12, etc.)
-        else if (normenData.score_min !== undefined) {
-          // Zoek naar beschikbare punt velden
-          const puntFields = Object.keys(normenData).filter(key => key.startsWith('punt_'));
-          console.log('🔍 Available punt fields:', puntFields);
-          
-          if (puntFields.length > 0) {
-            // Sorteer de punt velden en gebruik ze als basis
-            const sortedPuntFields = puntFields.sort();
-            const midPuntField = sortedPuntFields[Math.floor(sortedPuntFields.length / 2)];
-            
-            threshold_50 = normenData[midPuntField];
-            
-            // Bereken threshold_65 op basis van beschikbare data
-            const estimatedData = {
-              ...normenData,
-              punt_8: threshold_50 // Gebruik het gevonden punt als basis
-            };
-            threshold_65 = calculateP65Threshold(estimatedData);
-            
-            console.log(`✅ Using ${midPuntField} (${threshold_50}) as threshold_50 basis`);
-          }
-        }
-        // Strategie 5: Alleen score_min/score_max gebruiken voor basis schatting
-        else if (normenData.score_min !== undefined && normenData.score_max !== undefined) {
-          // Basis schatting: 50e percentiel = 40% van de range vanaf minimum
-          const range = normenData.score_max - normenData.score_min;
-          threshold_50 = normenData.score_min + (range * 0.4);
-          threshold_65 = normenData.score_min + (range * 0.6);
-          console.log('✅ Using score_min/score_max estimation strategy');
-        }
 
-        if (threshold_50 !== null && threshold_65 !== null) {
-          const result = {
-            threshold_50,
-            threshold_65,
-            score_richting: normenData.score_richting || 'hoog',
-            leeftijd: normAge,
-            original_leeftijd: numericAge,
-            geslacht: mappedGender,
-            original_geslacht: geslacht,
-            test_id: testId,
-            used_age_cap: normAge !== numericAge,
-            data_source: normenData.punt_8 !== undefined ? 'punt_8' : 
-                        normenData.punt !== undefined ? 'punt_generic' : 
-                        'estimated'
-          };
+      if (normenSnapshot.empty) return null;
 
-          console.log('✅ Successfully created threshold result:', result);
-          return result;
-        } else {
-          console.warn(`❌ Could not extract thresholds from available norm data:`, {
-            availableFields: Object.keys(normenData),
-            normenData
-          });
-        }
-      } else {
-        console.log(`❌ No thresholds found for test ${testId}, age ${normAge}, gender ${mappedGender}`);
+      const normenData = normenSnapshot.docs[0].data();
+      let threshold_50 = null;
+      let threshold_65 = null;
+      let source = 'estimated';
+
+      if (normenData.punt_8 !== undefined && normenData.score_min !== undefined) {
+        threshold_50 = normenData.punt_8;
+        threshold_65 = calculateP65Threshold(normenData);
+        source = 'punt_8';
+      } else if (normenData.punt !== undefined && normenData.score_min !== undefined) {
+        threshold_50 = normenData.punt;
+        threshold_65 = calculateP65Threshold({ ...normenData, punt_8: normenData.punt });
+        source = 'punt_generic';
+      } else if (normenData.threshold_50 !== undefined && normenData.threshold_65 !== undefined) {
+        threshold_50 = normenData.threshold_50;
+        threshold_65 = normenData.threshold_65;
+        source = 'direct_fields';
       }
-    } catch (queryError) {
-      console.error('❌ Error in primary threshold query:', queryError);
-    }
 
-    // Fallback strategie: probeer andere leeftijden rond de genormaliseerde leeftijd
-    console.log('🔄 Trying fallback age strategies...');
+      if (threshold_50 !== null && threshold_65 !== null) {
+        return {
+          threshold_50,
+          threshold_65,
+          score_richting: normenData.score_richting || 'hoog',
+          leeftijd: age,
+          original_leeftijd: numericAge,
+          geslacht: mappedGender,
+        };
+      }
+      return null;
+    };
+
+    let result = await fetchForAge(normAge);
+    if (result) return result;
+
     const fallbackAges = [17, 16, 15, 14, 13].filter(age => age !== normAge);
-    
     for (const fallbackAge of fallbackAges) {
-      try {
-        const fallbackQuery = query(
-          collection(db, 'normen'),
-          where('test_id', '==', testId),
-          where('leeftijd', '==', fallbackAge),
-          where('geslacht', '==', mappedGender)
-        );
-
-        const fallbackSnapshot = await getDocs(fallbackQuery);
-        
-        if (!fallbackSnapshot.empty) {
-          const fallbackDoc = fallbackSnapshot.docs[0];
-          const fallbackData = fallbackDoc.data();
-          
-          // Primaire strategie: punt_8 of generieke punt
-          if ((fallbackData.punt_8 !== undefined || fallbackData.punt !== undefined) && fallbackData.score_min !== undefined) {
-            console.log(`✅ Using fallback age ${fallbackAge} (requested: ${numericAge}, normalized: ${normAge})`);
-            
-            const basePoint = fallbackData.punt_8 || fallbackData.punt;
-            const estimatedData = {
-              ...fallbackData,
-              punt_8: basePoint
-            };
-            
-            return {
-              threshold_50: basePoint,
-              threshold_65: calculateP65Threshold(estimatedData),
-              score_richting: fallbackData.score_richting || 'hoog',
-              leeftijd: fallbackAge,
-              original_leeftijd: numericAge,
-              geslacht: mappedGender,
-              original_geslacht: geslacht,
-              test_id: testId,
-              used_age_cap: normAge !== numericAge,
-              used_fallback_age: true,
-              fallback_age: fallbackAge,
-              data_source: fallbackData.punt_8 !== undefined ? 'punt_8' : 'punt_generic'
-            };
-          } else if (fallbackData.score_min !== undefined) {
-            // Ook voor fallback: probeer andere strategieën
-            console.log(`🔄 Fallback age ${fallbackAge} missing punt_8/punt, trying alternative extraction`);
-            
-            let fallbackThreshold50 = null;
-            let fallbackThreshold65 = null;
-            
-            // Zoek naar punt velden in fallback data
-            const puntFields = Object.keys(fallbackData).filter(key => key.startsWith('punt_'));
-            if (puntFields.length > 0) {
-              const midPuntField = puntFields.sort()[Math.floor(puntFields.length / 2)];
-              fallbackThreshold50 = fallbackData[midPuntField];
-              
-              const estimatedData = { ...fallbackData, punt_8: fallbackThreshold50 };
-              fallbackThreshold65 = calculateP65Threshold(estimatedData);
-              
-              console.log(`✅ Using fallback age ${fallbackAge} with ${midPuntField} strategy`);
-              
-              return {
-                threshold_50: fallbackThreshold50,
-                threshold_65: fallbackThreshold65,
-                score_richting: fallbackData.score_richting || 'hoog',
-                leeftijd: fallbackAge,
-                original_leeftijd: numericAge,
-                geslacht: mappedGender,
-                original_geslacht: geslacht,
-                test_id: testId,
-                used_age_cap: normAge !== numericAge,
-                used_fallback_age: true,
-                fallback_age: fallbackAge,
-                data_source: 'estimated_fallback'
-              };
-            }
-          }
-        }
-      } catch (fallbackError) {
-        console.error(`Error trying fallback age ${fallbackAge}:`, fallbackError);
-        continue;
+      result = await fetchForAge(fallbackAge);
+      if (result) {
+        console.log(`Using fallback age ${fallbackAge} for thresholds.`);
+        return { ...result, used_fallback_age: true, fallback_age: fallbackAge };
       }
     }
 
-    console.log(`❌ No thresholds found for test ${testId} with any age strategy`);
+    console.log(`No thresholds found for test ${testId} with any age strategy`);
     return null;
   };
 
   try {
     return await retryOperation(operation);
   } catch (error) {
-    const errorMessage = handleFirestoreError(error, 'Laden van score thresholds');
-    console.error("Error getting score thresholds:", error);
-    // Don't throw error, just return null to allow graceful degradation
-    console.log('Returning null due to threshold fetch error, component will continue without thresholds');
+    handleFirestoreError(error, 'Laden van score thresholds');
     return null;
   }
 };
@@ -539,46 +355,111 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
  * Enhanced P65 threshold calculation
  */
 const calculateP65Threshold = (normenData) => {
-  // Direct P65 field if available
-  if (normenData.punt_10 !== undefined) {
-    return normenData.punt_10;
-  }
+  if (normenData.punt_10 !== undefined) return normenData.punt_10;
 
-  // Enhanced calculation based on available data
-  const punt8 = normenData.punt_8 || normenData.punt; // Accepteer ook generieke 'punt' veld
+  const punt8 = normenData.punt_8 || normenData.punt;
+  if (!punt8) return null;
+
   const scoreMin = normenData.score_min;
   const scoreMax = normenData.score_max;
-  
-  if (!punt8) {
-    console.warn('calculateP65Threshold: No punt_8 or punt field found');
-    return null;
-  }
-  
-  // Use more sophisticated calculation if we have more data points
+  const scoreRichting = normenData.score_richting || 'hoog';
+
   if (scoreMax !== undefined && scoreMin !== undefined) {
     const totalRange = Math.abs(scoreMax - scoreMin);
-    const p50Position = Math.abs(punt8 - scoreMin) / totalRange;
-    
-    // Estimate P65 based on normal distribution principles
-    const improvement = totalRange * 0.15; // 15% additional improvement for P65
-    
-    if (normenData.score_richting === 'omlaag') {
-      return Math.max(punt8 - improvement, scoreMin);
-    } else {
-      return Math.min(punt8 + improvement, scoreMax);
-    }
+    const improvement = totalRange * 0.15;
+    return scoreRichting === 'omlaag' ? Math.max(punt8 - improvement, scoreMin) : Math.min(punt8 + improvement, scoreMax);
   }
 
-  // Fallback to original calculation
   const range = Math.abs(punt8 - scoreMin);
   const improvement = range * 0.3;
-  
-  if (normenData.score_richting === 'omlaag') {
-    return punt8 - improvement;
-  } else {
-    return punt8 + improvement;
+  return scoreRichting === 'omlaag' ? punt8 - improvement : punt8 + improvement;
+};
+
+/**
+ * NIEUW: Haalt normen op gebaseerd op een 20-puntenschaal
+ */
+export const getScoreNorms = async (testId, leeftijd, geslacht) => {
+  const operation = async () => {
+    if (!testId || leeftijd === null || leeftijd === undefined || isNaN(leeftijd) || !geslacht) {
+      console.warn('getScoreNorms: Invalid input', { testId, leeftijd, geslacht });
+      return null;
+    }
+
+    const numericAge = Number(leeftijd);
+    const normAge = Math.min(numericAge, 17); // Leeftijd afkappen op 17 voor normen
+    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
+    
+    if (!['M', 'V'].includes(mappedGender)) {
+      console.warn('getScoreNorms: Could not map gender:', geslacht);
+      return null;
+    }
+
+    const fetchNormsForAge = async (age) => {
+      const normenQuery = query(
+        collection(db, 'normen'),
+        where('test_id', '==', testId),
+        where('leeftijd', '==', age),
+        where('geslacht', '==', mappedGender)
+      );
+      const normenSnapshot = await getDocs(normenQuery);
+
+      if (normenSnapshot.empty) return null;
+
+      const normenData = normenSnapshot.docs[0].data();
+      
+      // Controleer of de benodigde punt_ velden bestaan
+      const requiredPuntFields = ['punt_1', 'punt_10', 'punt_14', 'punt_20'];
+      const hasRequiredFields = requiredPuntFields.every(field => normenData[field] !== undefined);
+
+      if (hasRequiredFields) {
+        console.log(`✅ Found 20-point norms for test ${testId} at age ${age}.`);
+        return {
+          '1': normenData.punt_1,
+          '10': normenData.punt_10,
+          '14': normenData.punt_14,
+          '20': normenData.punt_20,
+          score_richting: normenData.score_richting || 'hoog',
+          leeftijd: age,
+        };
+      }
+      
+      console.warn(`Norms found for age ${age}, but missing required 20-point fields.`);
+      return null;
+    };
+    
+    // Probeer eerst de genormaliseerde leeftijd
+    let result = await fetchNormsForAge(normAge);
+    if (result) return { ...result, original_leeftijd: numericAge };
+
+    // Fallback: probeer andere leeftijden als de primaire zoekopdracht mislukt
+    console.log(`No 20-point norms found for age ${normAge}. Trying fallback ages...`);
+    const fallbackAges = [17, 16, 15, 14, 13].filter(age => age !== normAge);
+
+    for (const fallbackAge of fallbackAges) {
+      result = await fetchNormsForAge(fallbackAge);
+      if (result) {
+        console.log(`✅ Using fallback age ${fallbackAge} for 20-point norms.`);
+        return { 
+          ...result, 
+          original_leeftijd: numericAge, 
+          used_fallback_age: true, 
+          fallback_age: fallbackAge 
+        };
+      }
+    }
+
+    console.log(`❌ No 20-point norms found for test ${testId} with any age strategy.`);
+    return null;
+  };
+
+  try {
+    return await retryOperation(operation);
+  } catch (error) {
+    handleFirestoreError(error, 'Laden van 20-punts normen');
+    return null; // Geef null terug bij fout, zodat de UI niet crasht
   }
 };
+
 
 /**
  * Haalt alle beschikbare schooljaren op uit de database
@@ -621,9 +502,7 @@ export const getAvailableSchoolYears = async (schoolId = null) => {
   try {
     return await retryOperation(operation);
   } catch (error) {
-    const errorMessage = handleFirestoreError(error, 'Laden van beschikbare schooljaren');
-    console.error("Error getting available school years:", error);
-    console.log("Falling back to generated school years");
+    handleFirestoreError(error, 'Laden van beschikbare schooljaren');
     return generateSchoolYears();
   }
 };
@@ -699,7 +578,6 @@ export const getSchoolYearStats = async (schoolId, schoolYear) => {
     return await retryOperation(operation);
   } catch (error) {
     const errorMessage = handleFirestoreError(error, 'Laden van schooljaar statistieken');
-    console.error("Error getting school year stats:", error);
     throw new Error(errorMessage);
   }
 };
@@ -734,7 +612,6 @@ export const fetchScoresData = async (schoolId, userId) => {
     return await retryOperation(operation);
   } catch (error) {
     const errorMessage = handleFirestoreError(error, 'Laden van scores data');
-    console.error("Error fetching scores data:", error);
     throw new Error(errorMessage);
   }
 };
@@ -754,7 +631,6 @@ export const saveWithRetry = async (batch) => {
     return await retryOperation(operation);
   } catch (error) {
     const errorMessage = handleFirestoreError(error, 'Opslaan van gegevens');
-    console.error("Error saving with batch:", error);
     throw new Error(errorMessage);
   }
 };
