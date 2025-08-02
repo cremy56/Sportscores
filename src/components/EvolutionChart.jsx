@@ -1,4 +1,4 @@
-// src/components/EvolutionChart.jsx - Mobile Optimized - FIXED SCALING
+// src/components/EvolutionChart.jsx - Mobile Optimized - IMPROVED SCALING
 import { Line } from 'react-chartjs-2';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
@@ -128,7 +128,80 @@ const thresholdLinesPlugin = {
   }
 };
 
-export default function EvolutionChart({ scores, eenheid, onPointClick, thresholds }) {
+// Intelligente Y-as schaling functie
+const calculateOptimalYRange = (scoreValues, thresholds, testName = '') => {
+  const scoreMin = Math.min(...scoreValues);
+  const scoreMax = Math.max(...scoreValues);
+  
+  let minValue = scoreMin;
+  let maxValue = scoreMax;
+  
+  // Speciale behandeling voor Cooper test
+  const isCooperTest = testName?.toLowerCase().includes('cooper');
+  
+  if (isCooperTest) {
+    // Voor Cooper test: gebruik een meer realistische range
+    // Ondergrens: ongeveer 15% onder de laagste threshold of score
+    // Bovengrens: ongeveer 15% boven de hoogste threshold of score
+    
+    let rangeMin = scoreMin;
+    let rangeMax = scoreMax;
+    
+    if (thresholds) {
+      rangeMin = Math.min(rangeMin, thresholds.threshold_50, thresholds.threshold_65);
+      rangeMax = Math.max(rangeMax, thresholds.threshold_50, thresholds.threshold_65);
+    }
+    
+    // Voor Cooper test: minimaal range van 2100m tot 3900m
+    const cooperMin = 2100;
+    const cooperMax = 3900;
+    
+    // Gebruik Cooper range als basis, maar pas aan als data daarbuiten valt
+    minValue = Math.min(cooperMin, rangeMin - (rangeMin * 0.15));
+    maxValue = Math.max(cooperMax, rangeMax + (rangeMax * 0.15));
+    
+    // Zorg ervoor dat de range niet te klein is
+    if (maxValue - minValue < 800) {
+      const center = (maxValue + minValue) / 2;
+      minValue = center - 400;
+      maxValue = center + 400;
+    }
+  } else {
+    // Voor andere testen: gebruik de bestaande logica met verbeteringen
+    if (thresholds) {
+      const { threshold_50, threshold_65 } = thresholds;
+      minValue = Math.min(minValue, threshold_50, threshold_65);
+      maxValue = Math.max(maxValue, threshold_50, threshold_65);
+    }
+    
+    // Bereken intelligente padding gebaseerd op de data range
+    const range = maxValue - minValue;
+    let padding;
+    
+    if (range === 0) {
+      // Als alle scores hetzelfde zijn
+      padding = Math.max(maxValue * 0.1, 10);
+    } else if (range < 100) {
+      // Kleine ranges krijgen meer padding (percentage)
+      padding = range * 0.3;
+    } else {
+      // Grotere ranges krijgen minder padding (percentage)
+      padding = range * 0.15;
+    }
+    
+    minValue = minValue - padding;
+    maxValue = maxValue + padding;
+  }
+  
+  // Zorg ervoor dat waarden niet negatief worden (voor bepaalde testen)
+  if (minValue < 0 && scoreMin >= 0) {
+    minValue = 0;
+  }
+  
+  return { minValue, maxValue };
+};
+
+export default function EvolutionChart({ scores, eenheid, onPointClick, thresholds, testName }) {
   // Sorteer scores op datum voor correcte lijn weergave
   const sortedScores = [...scores].sort((a, b) => new Date(a.datum) - new Date(b.datum));
 
@@ -159,8 +232,8 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
         pointBackgroundColor: 'rgb(126, 34, 206)',
         pointBorderColor: 'white',
         pointBorderWidth: 2,
-        pointRadius: isMobile ? 4 : 6,
-        pointHoverRadius: isMobile ? 6 : 8,
+        pointRadius: isMobile ? 5 : 7, // Slightly larger for better visibility
+        pointHoverRadius: isMobile ? 7 : 9,
         tension: 0.3,
         fill: true,
         borderWidth: isMobile ? 2 : 3,
@@ -168,27 +241,9 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
     ],
   };
 
-  // Bereken Y-as bereik met intelligente padding en threshold integratie
+  // Gebruik de nieuwe intelligente Y-as schaling
   const scoreValues = sortedScores.map(s => s.score);
-  const scoreMin = Math.min(...scoreValues);
-  const scoreMax = Math.max(...scoreValues);
-  
-  let minValue = scoreMin;
-  let maxValue = scoreMax;
-  
-  // Als er thresholds zijn, zorg ervoor dat ze altijd zichtbaar zijn
-  if (thresholds) {
-    const { threshold_50, threshold_65 } = thresholds;
-    minValue = Math.min(minValue, threshold_50, threshold_65);
-    maxValue = Math.max(maxValue, threshold_50, threshold_65);
-  }
-  
-  // Voeg padding toe voor betere zichtbaarheid
-  const range = maxValue - minValue;
-  const padding = Math.max(range * 0.1, 50); // Minimum 50 meter padding
-  
-  minValue = minValue - padding;
-  maxValue = maxValue + padding;
+  const { minValue, maxValue } = calculateOptimalYRange(scoreValues, thresholds, testName);
 
   const options = {
     responsive: true,
@@ -262,7 +317,7 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
         ticks: {
           color: 'rgb(107, 114, 128)',
           font: {
-            size: isMobile ? 9 : 11
+            size: isMobile ? 10 : 12
           },
           maxRotation: isMobile ? 45 : 0,
           minRotation: isMobile ? 45 : 0
@@ -277,15 +332,37 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
         ticks: {
           color: 'rgb(107, 114, 128)',
           font: {
-            size: isMobile ? 9 : 11
+            size: isMobile ? 10 : 12
           },
+          // Verbeterde tick callback voor betere spacing
           callback: function(value) {
-            // Shorter format on mobile
-            if (isMobile) {
-              return `${Math.round(value)}`;
+            // Voor Cooper test: toon elke 200m
+            const isCooperTest = testName?.toLowerCase().includes('cooper');
+            if (isCooperTest) {
+              if (value % 200 === 0) {
+                return isMobile ? `${Math.round(value)}` : `${Math.round(value)} ${eenheid || ''}`;
+              }
+              return '';
             }
-            return `${Math.round(value)} ${eenheid || ''}`;
-          }
+            
+            // Voor andere testen: intelligente tick spacing
+            const range = maxValue - minValue;
+            let step;
+            
+            if (range <= 50) step = 5;
+            else if (range <= 100) step = 10;
+            else if (range <= 500) step = 50;
+            else if (range <= 1000) step = 100;
+            else step = 200;
+            
+            if (Math.round(value) % step === 0) {
+              return isMobile ? `${Math.round(value)}` : `${Math.round(value)} ${eenheid || ''}`;
+            }
+            return '';
+          },
+          // Meer controle over het aantal ticks
+          maxTicksLimit: isMobile ? 6 : 8,
+          stepSize: undefined // Laat de callback de spacing bepalen
         }
       }
     },
@@ -311,19 +388,10 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
       
       {/* Threshold Legend - Mobile Optimized - alleen tonen als thresholds binnen bereik */}
       {thresholds && (() => {
-        const scoreValues = sortedScores.map(s => s.score);
-        const scoreMin = Math.min(...scoreValues);
-        const scoreMax = Math.max(...scoreValues);
-        const scoreRange = scoreMax - scoreMin;
-        const baseRange = Math.max(scoreRange, scoreMax * 0.1);
-        
-        let chartMin = scoreMin - (baseRange * 0.25);
-        let chartMax = scoreMax + (baseRange * 0.15);
-        
         // Controleer of thresholds binnen chart bereik vallen
         const thresholdInRange = 
-          (thresholds.threshold_50 >= chartMin && thresholds.threshold_50 <= chartMax) ||
-          (thresholds.threshold_65 >= chartMin && thresholds.threshold_65 <= chartMax);
+          (thresholds.threshold_50 >= minValue && thresholds.threshold_50 <= maxValue) ||
+          (thresholds.threshold_65 >= minValue && thresholds.threshold_65 <= maxValue);
           
         return thresholdInRange;
       })() && (
