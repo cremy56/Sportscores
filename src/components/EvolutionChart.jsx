@@ -106,7 +106,7 @@ const calculateOptimalYRange = (scoreValues, scoreNorms) => {
 
 export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNorms, scoreRichting }) {
   const sortedScores = [...scores].sort((a, b) => new Date(a.datum) - new Date(b.datum));
-
+const isMobile = window.innerWidth < 640;
   const data = {
     labels: sortedScores.map(s => new Date(s.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: '2-digit' })),
     datasets: [{
