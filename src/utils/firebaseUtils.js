@@ -147,6 +147,9 @@ export function getNetworkStatus() {
 /**
  * Enhanced DEBUG versie van getStudentEvolutionData
  */
+/**
+ * Enhanced DEBUG versie van getStudentEvolutionData
+ */
 export const getStudentEvolutionData = async (studentId) => {
   const operation = async () => {
     console.log('=== ENHANCED DEBUG getStudentEvolutionData ===');
@@ -166,7 +169,14 @@ export const getStudentEvolutionData = async (studentId) => {
       ...doc.data()
     }));
 
-    console.log(`Found ${tests.length} active tests:`, tests.map(t => ({id: t.id, naam: t.naam})));
+    console.log(`Found ${tests.length} active tests:`);
+    tests.forEach((test, index) => {
+        console.log(`Test ${index + 1}:`, {
+            id: test.id,
+            naam: test.naam,
+            categorie: test.categorie
+        });
+    });
 
     // 2. Bepaal de juiste leerling_id voor de query
     let leerlingId = studentId;
@@ -199,7 +209,16 @@ export const getStudentEvolutionData = async (studentId) => {
       datum: doc.data().afgenomen_op?.toDate?.() || new Date(doc.data().afgenomen_op)
     }));
     
-    console.log(`Found ${allStudentScores.length} total scores for student ${leerlingId}:`, allStudentScores);
+    console.log(`Found ${allStudentScores.length} total scores for student ${leerlingId}:`);
+    allStudentScores.forEach((score, index) => {
+        console.log(`Score ${index + 1}:`, {
+            id: score.id,
+            test_id: score.test_id,
+            score: score.score,
+            datum: score.datum,
+            afgenomen_op: score.afgenomen_op
+        });
+    });
 
     // 4. Voor elke test, haal alle scores op van deze student
     const testDataPromises = tests.map(async (test) => {
