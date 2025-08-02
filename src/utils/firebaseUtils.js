@@ -1,12 +1,12 @@
-// src/utils/firebaseUtils.js
+// src/utils/firebaseUtils.js - Enhanced Threshold Handling
 import { db } from '../firebase';
 import { 
   collection, 
   query, 
   where, 
   getDocs, 
-  getDoc,  // TOEGEVOEGD: Missing import
-  doc,     // TOEGEVOEGD: Missing import
+  getDoc,
+  doc,
   orderBy,
   enableNetwork,
   disableNetwork 
@@ -25,15 +25,26 @@ import {
 // Retry configuration
 const RETRY_CONFIG = {
   maxRetries: 3,
-  baseDelay: 1000, // 1 second
-  maxDelay: 10000, // 10 seconds
+  baseDelay: 1000,
+  maxDelay: 10000,
+};
+
+// Enhanced gender mapping with more comprehensive mapping
+const GENDER_MAPPING = {
+  'man': 'M',
+  'vrouw': 'V', 
+  'jongen': 'M',
+  'meisje': 'V',
+  'M': 'M',
+  'V': 'V',
+  'm': 'M',
+  'v': 'V',
+  'male': 'M',
+  'female': 'V'
 };
 
 /**
  * Enhanced error handling function
- * @param {Error} error - The Firestore error
- * @param {string} operation - Description of the operation that failed
- * @returns {string} User-friendly error message
  */
 export function handleFirestoreError(error, operation = 'Firestore operation') {
   console.error(`${operation} error:`, error);
@@ -63,9 +74,6 @@ export function handleFirestoreError(error, operation = 'Firestore operation') {
 
 /**
  * Retry function with exponential backoff
- * @param {Function} operation - The async operation to retry
- * @param {number} maxRetries - Maximum number of retries
- * @returns {Promise} The result of the operation
  */
 export async function retryOperation(operation, maxRetries = RETRY_CONFIG.maxRetries) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -74,17 +82,14 @@ export async function retryOperation(operation, maxRetries = RETRY_CONFIG.maxRet
     } catch (error) {
       console.log(`Attempt ${attempt}/${maxRetries} failed:`, error.code);
       
-      // Don't retry certain errors
       if (['permission-denied', 'unauthenticated', 'invalid-argument', 'not-found'].includes(error.code)) {
         throw error;
       }
       
-      // If this was the last attempt, throw the error
       if (attempt === maxRetries) {
         throw error;
       }
       
-      // Calculate delay with exponential backoff
       const delay = Math.min(
         RETRY_CONFIG.baseDelay * Math.pow(2, attempt - 1),
         RETRY_CONFIG.maxDelay
@@ -136,13 +141,9 @@ export function getNetworkStatus() {
 
 /**
  * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
- * Schooljaar filtering gebeurt client-side voor betere performance en flexibiliteit
- * @param {string} studentId - Het ID van de student
- * @returns {Promise<Array>} Array van test objecten met scores
  */
 export const getStudentEvolutionData = async (studentId) => {
   const operation = async () => {
-    // 1. Haal alle testen op voor de school
     const testsQuery = query(
       collection(db, 'testen'),
       where('is_actief', '==', true),
@@ -158,7 +159,6 @@ export const getStudentEvolutionData = async (studentId) => {
 
     console.log(`Found ${tests.length} active tests`);
 
-    // 2. Bepaal de juiste leerling_id voor de query
     let leerlingId = studentId;
     
     if (studentId && !studentId.includes('@')) {
@@ -175,14 +175,12 @@ export const getStudentEvolutionData = async (studentId) => {
 
     console.log(`Looking for scores with leerling_id: ${leerlingId}`);
 
-    // 3. Voor elke test, haal alle scores op van deze student
     const testDataPromises = tests.map(async (test) => {
-      // Gebruik 'datum' veld voor orderBy (niet 'afgenomen_op')
       const scoresQuery = query(
         collection(db, 'scores'),
         where('test_id', '==', test.id),
         where('leerling_id', '==', leerlingId),
-        orderBy('datum', 'desc') // Gebruik 'datum' in plaats van 'afgenomen_op'
+        orderBy('datum', 'desc')
       );
 
       const scoresSnapshot = await getDocs(scoresQuery);
@@ -190,7 +188,6 @@ export const getStudentEvolutionData = async (studentId) => {
         const data = doc.data();
         let parsedDatum = null;
         
-        // Parse het datum veld
         if (data.datum) {
           if (typeof data.datum === 'string') {
             parsedDatum = new Date(data.datum);
@@ -201,10 +198,9 @@ export const getStudentEvolutionData = async (studentId) => {
           }
         }
         
-        // Fallback als datum niet kan worden geparsed
         if (!parsedDatum || isNaN(parsedDatum.getTime())) {
           console.warn(`Could not parse datum for score ${doc.id}:`, data.datum);
-          parsedDatum = new Date(); // Gebruik huidige datum als fallback
+          parsedDatum = new Date();
         }
 
         return {
@@ -217,13 +213,10 @@ export const getStudentEvolutionData = async (studentId) => {
       console.log(`Found ${scores.length} scores for test ${test.naam} (${test.id})`);
 
       if (scores.length === 0) {
-        return null; // Geen scores voor deze test
+        return null;
       }
 
-      // Sorteer scores op datum (nieuwste eerst voor personal best)
       const sortedScores = scores.sort((a, b) => new Date(b.datum) - new Date(a.datum));
-
-      // Bereken personal best over ALLE scores (niet per schooljaar)
       const personalBest = calculatePersonalBest(sortedScores, test.score_richting);
 
       return {
@@ -262,9 +255,6 @@ export const getStudentEvolutionData = async (studentId) => {
 
 /**
  * Berekent de personal best uit een array van scores
- * @param {Array} scores - Array van score objecten
- * @param {string} scoreRichting - 'hoog' of 'omlaag'  
- * @returns {Object} Object met beste score en datum
  */
 const calculatePersonalBest = (scores, scoreRichting) => {
   if (!scores || scores.length === 0) {
@@ -273,9 +263,9 @@ const calculatePersonalBest = (scores, scoreRichting) => {
 
   const sortedScores = [...scores].sort((a, b) => {
     if (scoreRichting === 'hoog') {
-      return b.score - a.score; // Hoogste eerst
+      return b.score - a.score;
     } else {
-      return a.score - b.score; // Laagste eerst  
+      return a.score - b.score;
     }
   });
 
@@ -287,77 +277,146 @@ const calculatePersonalBest = (scores, scoreRichting) => {
 };
 
 /**
- * Haalt score thresholds op voor een specifieke test, leeftijd en geslacht
- * @param {string} testId - Het test ID
- * @param {number} leeftijd - De leeftijd van de student
- * @param {string} geslacht - Het geslacht ('M' of 'V')
- * @returns {Promise<Object|null>} Threshold object of null als niet gevonden
+ * FIXED: Haalt score thresholds op - gebruikt correcte leeftijdsbeperking (max 17 jaar)
  */
 export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
   const operation = async () => {
-    // Validatie van input parameters
-    if (!testId || leeftijd === null || leeftijd === undefined || !geslacht) {
-      console.warn('Invalid parameters for getScoreThresholds:', { testId, leeftijd, geslacht });
-      return null;
-    }
-
-    // Validatie van leeftijd
-    if (isNaN(leeftijd) || leeftijd < 0 || leeftijd > 100) {
-      console.warn('Invalid age for getScoreThresholds:', leeftijd);
+    // Enhanced input validation
+    if (!testId) {
+      console.warn('getScoreThresholds: Missing testId');
       return null;
     }
     
-    const normAge = Math.min(leeftijd, 17);
+    if (leeftijd === null || leeftijd === undefined || isNaN(leeftijd)) {
+      console.warn('getScoreThresholds: Invalid age:', leeftijd);
+      return null;
+    }
     
-    // FIX: Map gender values to match database format
-    const genderMapping = {
-      'man': 'M',
-      'vrouw': 'V',
-      'jongen': 'M',
-      'meisje': 'V',
-      'M': 'M',
-      'V': 'V'
-    };
-    
-    const mappedGender = genderMapping[geslacht] || geslacht.toUpperCase();
-    console.log('Gender mapping debug:', { 
-  original: geslacht, 
-  mapped: mappedGender,
-  genderMapping 
-});
-    const normenQuery = query(
-      collection(db, 'normen'),
-      where('test_id', '==', testId),
-      where('leeftijd', '==', normAge),
-      where('geslacht', '==', mappedGender)
-    );
-
-    const normenSnapshot = await getDocs(normenQuery);
-    
-    if (normenSnapshot.empty) {
-      console.log(`No thresholds found for test ${testId}, age ${normAge}, gender ${mappedGender} (original: ${geslacht})`);
+    if (!geslacht) {
+      console.warn('getScoreThresholds: Missing gender');
       return null;
     }
 
-    const normenDoc = normenSnapshot.docs[0];
-    const normenData = normenDoc.data();
+    // Age validation and normalization - BELANGRIJKE FIX
+    const numericAge = Number(leeftijd);
+    if (numericAge < 0 || numericAge > 100) {
+      console.warn('getScoreThresholds: Age out of valid range:', numericAge);
+      return null;
+    }
+
+    // CORRECTE IMPLEMENTATIE: Beperk leeftijd tot maximaal 17 jaar voor normen
+    const normAge = Math.min(numericAge, 17);
+    
+    console.log(`Age normalization: ${numericAge} years old -> using norms for age ${normAge}`);
+
+    // Enhanced gender mapping
+    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || 
+                        GENDER_MAPPING[geslacht.toString()] || 
+                        geslacht.toString().toUpperCase();
+    
+    if (!['M', 'V'].includes(mappedGender)) {
+      console.warn('getScoreThresholds: Could not map gender:', geslacht, 'to M or V');
+      return null;
+    }
+
+    console.log('Gender mapping:', { 
+      original: geslacht, 
+      mapped: mappedGender,
+      originalType: typeof geslacht
+    });
+
+    // Primaire query met genormaliseerde leeftijd
+    try {
+      const normenQuery = query(
+        collection(db, 'normen'),
+        where('test_id', '==', testId),
+        where('leeftijd', '==', normAge),
+        where('geslacht', '==', mappedGender)
+      );
+
+      console.log(`Querying thresholds for: test=${testId}, age=${normAge}, gender=${mappedGender}`);
+
+      const normenSnapshot = await getDocs(normenQuery);
       
-    // Controleer of de benodigde velden aanwezig zijn
-    if (normenData.punt_8 !== undefined && normenData.score_min !== undefined) {
-      // Bereken thresholds op basis van beschikbare data
-      const threshold_50 = normenData.punt_8;  // 50e percentiel (punt 8/20)
-      const threshold_65 = calculateP65Threshold(normenData);
+      if (!normenSnapshot.empty) {
+        const normenDoc = normenSnapshot.docs[0];
+        const normenData = normenDoc.data();
+        
+        console.log(`✅ Found thresholds for age ${normAge}:`, normenData);
+        
+        // Validate that we have the necessary data
+        if (normenData.punt_8 !== undefined && normenData.score_min !== undefined) {
+          const threshold_50 = normenData.punt_8;
+          const threshold_65 = calculateP65Threshold(normenData);
 
-      return {
-        threshold_50,
-        threshold_65,
-        score_richting: normenData.score_richting || 'hoog',
-        leeftijd: normAge,
-        geslacht: mappedGender,
-        test_id: testId
-      };
+          const result = {
+            threshold_50,
+            threshold_65,
+            score_richting: normenData.score_richting || 'hoog',
+            leeftijd: normAge,
+            original_leeftijd: numericAge,
+            geslacht: mappedGender,
+            original_geslacht: geslacht,
+            test_id: testId,
+            used_age_cap: normAge !== numericAge
+          };
+
+          console.log('✅ Successfully created threshold result:', result);
+          return result;
+        } else {
+          console.warn(`❌ Found norm data for age ${normAge} but missing required fields (punt_8 or score_min):`, normenData);
+        }
+      } else {
+        console.log(`❌ No thresholds found for test ${testId}, age ${normAge}, gender ${mappedGender}`);
+      }
+    } catch (queryError) {
+      console.error('❌ Error in primary threshold query:', queryError);
     }
 
+    // Fallback strategie: probeer andere leeftijden rond de genormaliseerde leeftijd
+    console.log('🔄 Trying fallback age strategies...');
+    const fallbackAges = [17, 16, 15, 14, 13].filter(age => age !== normAge);
+    
+    for (const fallbackAge of fallbackAges) {
+      try {
+        const fallbackQuery = query(
+          collection(db, 'normen'),
+          where('test_id', '==', testId),
+          where('leeftijd', '==', fallbackAge),
+          where('geslacht', '==', mappedGender)
+        );
+
+        const fallbackSnapshot = await getDocs(fallbackQuery);
+        
+        if (!fallbackSnapshot.empty) {
+          const fallbackDoc = fallbackSnapshot.docs[0];
+          const fallbackData = fallbackDoc.data();
+          
+          if (fallbackData.punt_8 !== undefined && fallbackData.score_min !== undefined) {
+            console.log(`✅ Using fallback age ${fallbackAge} (requested: ${numericAge}, normalized: ${normAge})`);
+            
+            return {
+              threshold_50: fallbackData.punt_8,
+              threshold_65: calculateP65Threshold(fallbackData),
+              score_richting: fallbackData.score_richting || 'hoog',
+              leeftijd: fallbackAge,
+              original_leeftijd: numericAge,
+              geslacht: mappedGender,
+              original_geslacht: geslacht,
+              test_id: testId,
+              used_age_cap: normAge !== numericAge,
+              used_fallback_age: true,
+              fallback_age: fallbackAge
+            };
+          }
+        }
+      } catch (fallbackError) {
+        console.error(`Error trying fallback age ${fallbackAge}:`, fallbackError);
+        continue;
+      }
+    }
+
+    console.log(`❌ No thresholds found for test ${testId} with any age strategy`);
     return null;
   };
 
@@ -366,41 +425,54 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
   } catch (error) {
     const errorMessage = handleFirestoreError(error, 'Laden van score thresholds');
     console.error("Error getting score thresholds:", error);
-    throw new Error(errorMessage);
+    // Don't throw error, just return null to allow graceful degradation
+    console.log('Returning null due to threshold fetch error, component will continue without thresholds');
+    return null;
   }
 };
 
 /**
- * Berekent het 65e percentiel threshold op basis van beschikbare normgegevens
- * @param {Object} normenData - De norm data uit de database
- * @returns {number} Het berekende 65e percentiel
+ * Enhanced P65 threshold calculation
  */
 const calculateP65Threshold = (normenData) => {
-  // Als er een specifiek P65 veld is, gebruik dat
+  // Direct P65 field if available
   if (normenData.punt_10 !== undefined) {
-    return normenData.punt_10; // Punt 10/20 ≈ 65e percentiel
+    return normenData.punt_10;
   }
 
-  // Anders schatten op basis van punt_8 en score_min
+  // Enhanced calculation based on available data
   const punt8 = normenData.punt_8;
   const scoreMin = normenData.score_min;
+  const scoreMax = normenData.score_max;
   
-  // Simpele lineaire interpolatie voor betere threshold
+  // Use more sophisticated calculation if we have more data points
+  if (scoreMax !== undefined && scoreMin !== undefined) {
+    const totalRange = Math.abs(scoreMax - scoreMin);
+    const p50Position = Math.abs(punt8 - scoreMin) / totalRange;
+    
+    // Estimate P65 based on normal distribution principles
+    const improvement = totalRange * 0.15; // 15% additional improvement for P65
+    
+    if (normenData.score_richting === 'omlaag') {
+      return Math.max(punt8 - improvement, scoreMin);
+    } else {
+      return Math.min(punt8 + improvement, scoreMax);
+    }
+  }
+
+  // Fallback to original calculation
   const range = Math.abs(punt8 - scoreMin);
-  const improvement = range * 0.3; // 30% verbetering voor 65e percentiel
+  const improvement = range * 0.3;
   
   if (normenData.score_richting === 'omlaag') {
-    return punt8 - improvement; // Lager is beter
+    return punt8 - improvement;
   } else {
-    return punt8 + improvement; // Hoger is beter
+    return punt8 + improvement;
   }
 };
 
 /**
  * Haalt alle beschikbare schooljaren op uit de database
- * Analyseert alle score data om beschikbare periodes te vinden
- * @param {string} schoolId - Het school ID (optioneel)
- * @returns {Promise<Array>} Array van schooljaar objecten
  */
 export const getAvailableSchoolYears = async (schoolId = null) => {
   const operation = async () => {
@@ -418,18 +490,16 @@ export const getAvailableSchoolYears = async (schoolId = null) => {
     
     scoresSnapshot.docs.forEach(doc => {
       const scoreData = doc.data();
-      // FIXED: Gebruik 'datum' in plaats van 'afgenomen_op'
       const datum = scoreData.datum?.toDate?.() || new Date(scoreData.datum);
       
-      if (datum && !isNaN(datum.getTime())) { // Valideer datum
+      if (datum && !isNaN(datum.getTime())) {
         const schoolYear = getSchoolYearFromDate(datum);
-        if (schoolYear && !isNaN(schoolYear)) { // Valideer schooljaar
+        if (schoolYear && !isNaN(schoolYear)) {
           schoolYears.add(schoolYear);
         }
       }
     });
     
-    // Convert naar array en sorteer (nieuwste eerst)
     return Array.from(schoolYears)
       .sort((a, b) => b - a)
       .map(year => ({
@@ -444,7 +514,6 @@ export const getAvailableSchoolYears = async (schoolId = null) => {
   } catch (error) {
     const errorMessage = handleFirestoreError(error, 'Laden van beschikbare schooljaren');
     console.error("Error getting available school years:", error);
-    // Fallback naar standaard jaren bij fout
     console.log("Falling back to generated school years");
     return generateSchoolYears();
   }
@@ -452,13 +521,9 @@ export const getAvailableSchoolYears = async (schoolId = null) => {
 
 /**
  * Haalt statistieken op voor een specifiek schooljaar
- * @param {string} schoolId - Het school ID
- * @param {number} schoolYear - Het schooljaar
- * @returns {Promise<Object>} Statistieken object
  */
 export const getSchoolYearStats = async (schoolId, schoolYear) => {
   const operation = async () => {
-    // Validatie van input parameters
     if (!schoolId || !schoolYear || isNaN(schoolYear)) {
       throw new Error('Invalid parameters for getSchoolYearStats');
     }
@@ -475,7 +540,6 @@ export const getSchoolYearStats = async (schoolId, schoolYear) => {
     const scoresSnapshot = await getDocs(scoresQuery);
     const scores = scoresSnapshot.docs.map(doc => doc.data());
     
-    // Groepeer per student
     const studentStats = {};
     scores.forEach(score => {
       const studentId = score.leerling_id;
@@ -493,7 +557,7 @@ export const getSchoolYearStats = async (schoolId, schoolYear) => {
       studentStats[studentId].testCount.add(score.test_id);
       
       const scoreDate = score.datum?.toDate?.() || new Date(score.datum);
-      if (scoreDate && !isNaN(scoreDate.getTime())) { // Valideer datum
+      if (scoreDate && !isNaN(scoreDate.getTime())) {
         if (!studentStats[studentId].firstScore || scoreDate < studentStats[studentId].firstScore) {
           studentStats[studentId].firstScore = scoreDate;
         }
@@ -533,13 +597,9 @@ export const getSchoolYearStats = async (schoolId, schoolYear) => {
 
 /**
  * Enhanced fetch function voor algemene Firestore operaties
- * @param {string} schoolId - School ID
- * @param {string} userId - User ID
- * @returns {Promise<Object>} Object met scores, groepen en testen
  */
 export const fetchScoresData = async (schoolId, userId) => {
   const operation = async () => {
-    // Validatie van input parameters
     if (!schoolId || !userId) {
       throw new Error('School ID en User ID zijn verplicht');
     }
@@ -572,8 +632,6 @@ export const fetchScoresData = async (schoolId, userId) => {
 
 /**
  * Enhanced save function voor batch operations
- * @param {WriteBatch} batch - Firestore batch object
- * @returns {Promise<void>}
  */
 export const saveWithRetry = async (batch) => {
   const operation = async () => {
