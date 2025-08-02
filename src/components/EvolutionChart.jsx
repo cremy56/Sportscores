@@ -133,19 +133,12 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-      // Voeg de nieuwe normen en scoreRichting toe aan de plugin options
-      coloredZones: { ...scoreNorms, score_richting: scoreRichting },
-      thresholdLines: { ...scoreNorms }
+     // **AANGEPAST**: Voorkom de fout door een fallback object te gebruiken
+      // als scoreNorms nog null is.
+      coloredZones: { ...(scoreNorms || {}), score_richting: scoreRichting },
+      thresholdLines: { ...(scoreNorms || {}) }
     },
     scales: {
-      y: {
-        min: minValue,
-        max: maxValue,
-        ticks: {
-          color: 'rgb(107, 114, 128)',
-          font: { size: 12 },
-        }
-      },
       y: {
         min: minValue,
         max: maxValue,
@@ -157,31 +150,19 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
           font: {
             size: isMobile ? 10 : 12
           },
-          
-          // **AANGEPAST** Forceer de stapgrootte voor de Coopertest
-          stepSize: isCooperTest ? 250 : undefined,
-          
-          // Vereenvoudigde callback die enkel formatteert
-          callback: function(value) {
-            return isMobile ? `${Math.round(value)}` : `${Math.round(value)} ${eenheid || ''}`;
-            
-            const range = maxValue - minValue;
-            if (range <= 0) return isMobile ? `${Math.round(value)}` : `${Math.round(value)} ${eenheid || ''}`;
-
-            let step;
-            if (range <= 50) step = 5;
-            else if (range <= 100) step = 10;
-            else if (range <= 500) step = 50;
-            else if (range <= 1000) step = 100;
-            else step = 200;
-            
-            if (Math.round(value) % step === 0) {
-              return isMobile ? `${Math.round(value)}` : `${Math.round(value)} ${eenheid || ''}`;
-            }
-            return '';
+        }
+      },
+      x: {
+        grid: {
+          color: 'rgba(156, 163, 175, 0.1)',
+        },
+        ticks: {
+          color: 'rgb(107, 114, 128)',
+          font: {
+            size: isMobile ? 10 : 12
           },
-          maxTicksLimit: isMobile ? 6 : 8,
-          stepSize: undefined
+          maxRotation: isMobile ? 45 : 0,
+          minRotation: isMobile ? 45 : 0,
         }
       }
     },
