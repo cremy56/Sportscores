@@ -27,18 +27,18 @@ const coloredZonesPlugin = {
     const y65 = y.getPixelForValue(Math.max(Math.min(threshold_65, yMax), yMin));
 
     // Gebruik hogere opacity voor zones zodat ze goed zichtbaar zijn
-    const zoneOpacity = 0.25; // Verhoogde opacity voor betere zichtbaarheid
+    const zoneOpacity = 0.35; // Nog hoger voor maximale zichtbaarheid
     
     // Teken zones op basis van score richting
-    if (score_richting === 'omlaag') { // Lager is beter
-      // Groen (excellent): van top tot y65 - alleen als y65 zichtbaar is
-      if (threshold_65 >= yMin && threshold_65 <= yMax) {
-        ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;
-        ctx.fillRect(left, top, width, y65 - top);
+    if (score_richting === 'omlaag') { // Lager is beter (zoals Cooper test)
+      // Rood (verbetering nodig): van bottom tot y50 - alleen als y50 zichtbaar is
+      if (threshold_50 >= yMin && threshold_50 <= yMax) {
+        ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
+        ctx.fillRect(left, y50, width, bottom - y50);
       }
       
-      // Oranje (goed): van y65 tot y50 - alleen als beide zichtbaar zijn
-      if (threshold_65 >= yMin && threshold_50 <= yMax) {
+      // Oranje (goed): van y50 tot y65 - alleen als beide zichtbaar zijn
+      if (threshold_50 >= yMin && threshold_65 <= yMax) {
         ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;
         const zoneTop = Math.max(y65, top);
         const zoneBottom = Math.min(y50, bottom);
@@ -47,10 +47,10 @@ const coloredZonesPlugin = {
         }
       }
       
-      // Rood (verbetering nodig): van y50 tot bottom - alleen als y50 zichtbaar is
-      if (threshold_50 >= yMin && threshold_50 <= yMax) {
-        ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
-        ctx.fillRect(left, y50, width, bottom - y50);
+      // Groen (excellent): van top tot y65 - alleen als y65 zichtbaar is
+      if (threshold_65 >= yMin && threshold_65 <= yMax) {
+        ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;
+        ctx.fillRect(left, top, width, y65 - top);
       }
     } else { // Hoger is beter
       // Rood (verbetering nodig): van bottom tot y50
@@ -99,13 +99,13 @@ const thresholdLinesPlugin = {
     }
 
     ctx.save();
-    ctx.setLineDash([5, 5]); // Kortere streepjes
-    ctx.lineWidth = 3;
+    ctx.setLineDash([5, 5]); // Langere streepjes voor betere zichtbaarheid
+    ctx.lineWidth = 3; // Dikkere basis lijn
 
     // 50e percentiel lijn (oranje) - alleen als binnen bereik
     if (threshold_50 >= yMin && threshold_50 <= yMax) {
       const y50 = y.getPixelForValue(threshold_50);
-      ctx.strokeStyle = 'rgba(249, 115, 22, 1)'; // Hogere opacity voor betere zichtbaarheid
+      ctx.strokeStyle = 'rgba(249, 115, 22, 1)'; // Volledige opacity
       ctx.lineWidth = 3; // Dikkere lijn
       ctx.beginPath();
       ctx.moveTo(left + 5, y50);
@@ -116,7 +116,7 @@ const thresholdLinesPlugin = {
     // 65e percentiel lijn (groen) - alleen als binnen bereik
     if (threshold_65 >= yMin && threshold_65 <= yMax) {
       const y65 = y.getPixelForValue(threshold_65);
-      ctx.strokeStyle = 'rgba(34, 197, 94, 1)'; // Hogere opacity voor betere zichtbaarheid
+      ctx.strokeStyle = 'rgba(34, 197, 94, 1)'; // Volledige opacity
       ctx.lineWidth = 3; // Dikkere lijn
       ctx.beginPath();
       ctx.moveTo(left + 5, y65);
@@ -168,44 +168,27 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
     ],
   };
 
-  // Bereken Y-as bereik met intelligente padding
+  // Bereken Y-as bereik met intelligente padding en threshold integratie
   const scoreValues = sortedScores.map(s => s.score);
   const scoreMin = Math.min(...scoreValues);
   const scoreMax = Math.max(...scoreValues);
   
-  // Voor scores range: gebruik 25% padding onder minimum, 15% boven maximum
-  const scoreRange = scoreMax - scoreMin;
-  const baseRange = Math.max(scoreRange, scoreMax * 0.1); // Minimum 10% van de hoogste score
+  let minValue = scoreMin;
+  let maxValue = scoreMax;
   
-  let minValue = scoreMin - (baseRange * 0.25);
-  let maxValue = scoreMax + (baseRange * 0.15);
-  
-  // Als er thresholds zijn, controleer of ze binnen bereik vallen
+  // Als er thresholds zijn, zorg ervoor dat ze altijd zichtbaar zijn
   if (thresholds) {
-    const thresholdMin = Math.min(thresholds.threshold_50, thresholds.threshold_65);
-    const thresholdMax = Math.max(thresholds.threshold_50, thresholds.threshold_65);
-    
-    // Alleen thresholds includeren als ze dicht bij de scores liggen
-    const scoreCenter = (scoreMin + scoreMax) / 2;
-    const thresholdCenter = (thresholdMin + thresholdMax) / 2;
-    const centerDistance = Math.abs(scoreCenter - thresholdCenter);
-    
-    // Als thresholds ver van scores zijn, negeer ze voor schaling
-    if (centerDistance < baseRange * 2) {
-      minValue = Math.min(minValue, thresholdMin - (baseRange * 0.1));
-      maxValue = Math.max(maxValue, thresholdMax + (baseRange * 0.1));
-    }
+    const { threshold_50, threshold_65 } = thresholds;
+    minValue = Math.min(minValue, threshold_50, threshold_65);
+    maxValue = Math.max(maxValue, threshold_50, threshold_65);
   }
   
-  // Zorg voor een minimum bereik voor zichtbaarheid
-  const finalRange = maxValue - minValue;
-  const minimumRange = scoreMax * 0.2; // Minimum 20% van hoogste score
+  // Voeg padding toe voor betere zichtbaarheid
+  const range = maxValue - minValue;
+  const padding = Math.max(range * 0.1, 50); // Minimum 50 meter padding
   
-  if (finalRange < minimumRange) {
-    const center = (minValue + maxValue) / 2;
-    minValue = center - (minimumRange / 2);
-    maxValue = center + (minimumRange / 2);
-  }
+  minValue = minValue - padding;
+  maxValue = maxValue + padding;
 
   const options = {
     responsive: true,

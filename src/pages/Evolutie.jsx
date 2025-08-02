@@ -114,20 +114,23 @@ export default function Evolutie() {
     const isCurrentYear = currentYearInfo?.isCurrent || false;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-2 sm:p-4 lg:p-8">
-            <PageHeader 
-                title={selectedStudent ? selectedStudent.naam : pageTitle}
-                subtitle={
-                    selectedStudent 
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-1 sm:p-2 lg:p-4">
+            <div className="mb-2 sm:mb-4">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
+                    {selectedStudent ? selectedStudent.naam : pageTitle}
+                </h1>
+                <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
+                    {selectedStudent 
                         ? `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
                         : 'Bekijk je sportieve vooruitgang'
-                }
-            >
+                    }
+                </p>
+                
                 {/* Search Controls - alleen voor leraren/admins */}
                 {isTeacherOrAdmin && (
-                    <div className="grid grid-cols-1 gap-y-3 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-4 items-end">
+                    <div className="grid grid-cols-1 gap-y-2 sm:grid-cols-3 sm:gap-x-3 sm:gap-y-2 items-end mb-3 sm:mb-4">
                         <div className="sm:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
                                 Zoek Leerling
                             </label>
                             <StudentSearch 
@@ -136,7 +139,7 @@ export default function Evolutie() {
                             />
                         </div>
                         <div>
-                            <label htmlFor="school-year-select" className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="school-year-select" className="block text-xs font-medium text-gray-700 mb-1">
                                 Schooljaar
                                 {isCurrentYear && (
                                     <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -148,7 +151,7 @@ export default function Evolutie() {
                                 id="school-year-select"
                                 value={selectedYear}
                                 onChange={(e) => handleYearChange(e.target.value)}
-                                className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-white/80 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-sm"
+                                className="w-full px-2 py-1.5 sm:px-3 sm:py-2 bg-white/80 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-xs sm:text-sm"
                             >
                                 {availableYears.map(year => (
                                     <option key={year.value} value={year.value}>
@@ -185,13 +188,12 @@ export default function Evolutie() {
                         </select>
                     </div>
                 )}
-            </PageHeader>
+            </div>
 
             {/* GECENTREERDE CONTENT CONTAINER */}
             <div className="flex justify-center w-full">
-                <div className="w-full max-w-4xl"> {/* Beperkte breedte voor centrering */}
-                    <div className="bg-white/60 backdrop-blur-lg rounded-2xl sm:rounded-3xl shadow-xl border border-white/30 min-h-[60vh] p-4 sm:p-6 lg:p-8">
-                        
+                <div className="w-full max-w-5xl"> {/* Beperkte breedte voor centrering */}
+                    <div className="bg-white/60 backdrop-blur-lg rounded-xl sm:rounded-2xl shadow-xl border border-white/30 min-h-[75vh] p-2 sm:p-4 lg:p-6"> {/* Hogere minimum hoogte */}   
                         {/* Loading State */}
                         {loading && (
                             <div className="flex items-center justify-center h-64">
