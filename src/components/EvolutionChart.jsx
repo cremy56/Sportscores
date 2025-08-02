@@ -198,6 +198,7 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
 
   const scoreValues = sortedScores.map(s => s.score);
   const { minValue, maxValue } = calculateOptimalYRange(scoreValues, thresholds, testName);
+const isCooperTest = testName?.toLowerCase().includes('cooper');
 
   const options = {
     responsive: true,
@@ -253,7 +254,7 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
       coloredZones: thresholds,
       thresholdLines: thresholds
     },
-    scales: {
+   scales: {
       x: {
         grid: { color: 'rgba(156, 163, 175, 0.1)' },
         ticks: {
@@ -266,20 +267,21 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, threshol
       y: {
         min: minValue,
         max: maxValue,
-        grid: { color: 'rgba(156, 163, 175, 0.1)' },
+        grid: {
+          color: 'rgba(156, 163, 175, 0.1)',
+        },
         ticks: {
           color: 'rgb(107, 114, 128)',
-          font: { size: isMobile ? 10 : 12 },
-          // **AANGEPAST** tick callback voor betere spacing
+          font: {
+            size: isMobile ? 10 : 12
+          },
+          
+          // **AANGEPAST** Forceer de stapgrootte voor de Coopertest
+          stepSize: isCooperTest ? 250 : undefined,
+          
+          // Vereenvoudigde callback die enkel formatteert
           callback: function(value) {
-            const isCooperTest = testName?.toLowerCase().includes('cooper');
-            if (isCooperTest) {
-              // **AANGEPAST** Toon elke 250m voor Cooper test
-              if (value % 250 === 0) {
-                return isMobile ? `${Math.round(value)}` : `${Math.round(value)} ${eenheid || ''}`;
-              }
-              return '';
-            }
+            return isMobile ? `${Math.round(value)}` : `${Math.round(value)} ${eenheid || ''}`;
             
             const range = maxValue - minValue;
             if (range <= 0) return isMobile ? `${Math.round(value)}` : `${Math.round(value)} ${eenheid || ''}`;

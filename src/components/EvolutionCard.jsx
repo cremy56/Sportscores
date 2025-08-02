@@ -453,8 +453,8 @@ export default function EvolutionCard({ categoryName, tests, student }) {
         </div>
       )}
       
-       {/* **AANGEPAST** Chart - Verhoogde min-hoogte */}
-      <div className="flex-grow p-3 sm:p-6 min-h-[300px] sm:min-h-[400px]">
+      {/* **AANGEPAST** Chart - Aanzienlijk verhoogde min-hoogte */}
+      <div className="flex-grow p-3 sm:p-6 min-h-[350px] sm:min-h-[450px]">
         {loading && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -470,7 +470,7 @@ export default function EvolutionCard({ categoryName, tests, student }) {
             eenheid={currentTest.eenheid}
             onPointClick={handlePointClick}
             thresholds={thresholds}
-            testName={currentTest.test_naam} // Zorg dat testName wordt doorgegeven
+            testName={currentTest.test_naam}
           />
         ) : !loading && (
           <div className="flex items-center justify-center h-full text-center">
