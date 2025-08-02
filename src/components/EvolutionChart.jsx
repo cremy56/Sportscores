@@ -26,20 +26,20 @@ const coloredZonesPlugin = {
     const y50 = y.getPixelForValue(Math.max(Math.min(threshold_50, yMax), yMin));
     const y65 = y.getPixelForValue(Math.max(Math.min(threshold_65, yMax), yMin));
 
-    // Gebruik lagere opacity voor zones
-    const lowOpacity = 0.05; // Nog lagere opacity
+    // Gebruik hogere opacity voor zones zodat ze goed zichtbaar zijn
+    const zoneOpacity = 0.15; // Verhoogde opacity voor betere zichtbaarheid
     
     // Teken zones op basis van score richting
     if (score_richting === 'omlaag') { // Lager is beter
       // Groen (excellent): van top tot y65 - alleen als y65 zichtbaar is
       if (threshold_65 >= yMin && threshold_65 <= yMax) {
-        ctx.fillStyle = `rgba(34, 197, 94, ${lowOpacity})`;
+        ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;
         ctx.fillRect(left, top, width, y65 - top);
       }
       
       // Oranje (goed): van y65 tot y50 - alleen als beide zichtbaar zijn
       if (threshold_65 >= yMin && threshold_50 <= yMax) {
-        ctx.fillStyle = `rgba(249, 115, 22, ${lowOpacity})`;
+        ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;
         const zoneTop = Math.max(y65, top);
         const zoneBottom = Math.min(y50, bottom);
         if (zoneBottom > zoneTop) {
@@ -49,19 +49,19 @@ const coloredZonesPlugin = {
       
       // Rood (verbetering nodig): van y50 tot bottom - alleen als y50 zichtbaar is
       if (threshold_50 >= yMin && threshold_50 <= yMax) {
-        ctx.fillStyle = `rgba(239, 68, 68, ${lowOpacity})`;
+        ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
         ctx.fillRect(left, y50, width, bottom - y50);
       }
     } else { // Hoger is beter
       // Rood (verbetering nodig): van bottom tot y50
       if (threshold_50 >= yMin && threshold_50 <= yMax) {
-        ctx.fillStyle = `rgba(239, 68, 68, ${lowOpacity})`;
+        ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
         ctx.fillRect(left, y50, width, bottom - y50);
       }
       
       // Oranje (goed): van y50 tot y65
       if (threshold_50 >= yMin && threshold_65 <= yMax) {
-        ctx.fillStyle = `rgba(249, 115, 22, ${lowOpacity})`;
+        ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;
         const zoneTop = Math.max(y65, top);
         const zoneBottom = Math.min(y50, bottom);
         if (zoneBottom > zoneTop) {
@@ -71,7 +71,7 @@ const coloredZonesPlugin = {
       
       // Groen (excellent): van y65 tot top
       if (threshold_65 >= yMin && threshold_65 <= yMax) {
-        ctx.fillStyle = `rgba(34, 197, 94, ${lowOpacity})`;
+        ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;
         ctx.fillRect(left, top, width, y65 - top);
       }
     }
@@ -105,20 +105,22 @@ const thresholdLinesPlugin = {
     // 50e percentiel lijn (oranje) - alleen als binnen bereik
     if (threshold_50 >= yMin && threshold_50 <= yMax) {
       const y50 = y.getPixelForValue(threshold_50);
-      ctx.strokeStyle = 'rgba(249, 115, 22, 0.6)'; // Lagere opacity
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.9)'; // Hogere opacity voor betere zichtbaarheid
+      ctx.lineWidth = 2; // Dikkere lijn
       ctx.beginPath();
-      ctx.moveTo(left + 10, y50); // Start iets naar rechts
-      ctx.lineTo(right - 10, y50); // Stop iets voor het einde
+      ctx.moveTo(left + 5, y50);
+      ctx.lineTo(right - 5, y50);
       ctx.stroke();
     }
 
     // 65e percentiel lijn (groen) - alleen als binnen bereik
     if (threshold_65 >= yMin && threshold_65 <= yMax) {
       const y65 = y.getPixelForValue(threshold_65);
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.6)'; // Lagere opacity
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.9)'; // Hogere opacity voor betere zichtbaarheid
+      ctx.lineWidth = 2; // Dikkere lijn
       ctx.beginPath();
-      ctx.moveTo(left + 10, y65); // Start iets naar rechts
-      ctx.lineTo(right - 10, y65); // Stop iets voor het einde
+      ctx.moveTo(left + 5, y65);
+      ctx.lineTo(right - 5, y65);
       ctx.stroke();
     }
 
