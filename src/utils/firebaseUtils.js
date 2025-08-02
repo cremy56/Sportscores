@@ -138,6 +138,12 @@ export function getNetworkStatus() {
  * @param {string} studentId - Het ID van de student
  * @returns {Promise<Array>} Array van test objecten met scores
  */
+/**
+ * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
+ * Schooljaar filtering gebeurt client-side voor betere performance en flexibiliteit
+ * @param {string} studentId - Het ID van de student (kan email of document ID zijn)
+ * @returns {Promise<Array>} Array van test objecten met scores
+ */
 export const getStudentEvolutionData = async (studentId) => {
   const operation = async () => {
     // 1. Haal alle testen op voor de school
@@ -156,12 +162,33 @@ export const getStudentEvolutionData = async (studentId) => {
 
     console.log(`Found ${tests.length} active tests`);
 
-    // 2. Voor elke test, haal alle scores op van deze student
+    // 2. Bepaal de juiste leerling_id voor de query
+    // Probeer eerst met de gegeven studentId (kan email of document ID zijn)
+    let leerlingId = studentId;
+    
+    // Als studentId een document ID lijkt te zijn (geen @ teken), 
+    // probeer dan het user document op te halen voor het email adres
+    if (studentId && !studentId.includes('@')) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', studentId));
+        if (userDoc.exists() && userDoc.data().email) {
+          leerlingId = userDoc.data().email;
+          console.log(`Using email ${leerlingId} for student lookup (from user ID ${studentId})`);
+        }
+      } catch (error) {
+        console.warn('Could not fetch user document, using original studentId:', error);
+        // Valt terug op de originele studentId
+      }
+    }
+
+    console.log(`Looking for scores with leerling_id: ${leerlingId}`);
+
+    // 3. Voor elke test, haal alle scores op van deze student
     const testDataPromises = tests.map(async (test) => {
       const scoresQuery = query(
         collection(db, 'scores'),
         where('test_id', '==', test.id),
-        where('leerling_id', '==', studentId),
+        where('leerling_id', '==', leerlingId),
         orderBy('afgenomen_op', 'desc') // Nieuwste eerst
       );
 
@@ -171,6 +198,8 @@ export const getStudentEvolutionData = async (studentId) => {
         ...doc.data(),
         datum: doc.data().afgenomen_op?.toDate?.() || new Date(doc.data().afgenomen_op)
       }));
+
+      console.log(`Found ${scores.length} scores for test ${test.naam} (${test.id})`);
 
       if (scores.length === 0) {
         return null; // Geen scores voor deze test
@@ -202,7 +231,7 @@ export const getStudentEvolutionData = async (studentId) => {
     const results = await Promise.all(testDataPromises);
     const validResults = results.filter(result => result !== null);
     
-    console.log(`Processed evolution data: ${validResults.length} tests with scores`);
+    console.log(`Processed evolution data: ${validResults.length} tests with scores for student ${leerlingId}`);
     
     return validResults;
   };

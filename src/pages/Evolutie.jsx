@@ -43,30 +43,40 @@ export default function Evolutie() {
             return;
         }
 
-        const fetchEvolutionData = async () => {
-            setLoading(true);
-            setError(null);
-            
-            try {
-                // Haal alle data op (zonder schooljaar filter in database query)
-                const allData = await getStudentEvolutionData(selectedStudent.id);
-                
-                // Filter client-side op schooljaar
-                const filteredData = filterTestDataBySchoolYear(allData, selectedYear);
-                
-                setEvolutionData(filteredData);
-                
-                // Log voor debugging
-                console.log(`Loaded ${allData.length} total tests, ${filteredData.length} for school year ${formatSchoolYear(selectedYear)}`);
-                
-            } catch (err) {
-                console.error('Error fetching evolution data:', err);
-                setError('Kon de evolutiegegevens niet laden.');
-                setEvolutionData([]);
-            } finally {
-                setLoading(false);
-            }
-        };
+       // Debug enhanced version - add this to the fetchEvolutionData function in Evolutie.jsx
+
+const fetchEvolutionData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+        console.log('=== DEBUG Evolution Data Fetch ===');
+        console.log('Selected Student:', selectedStudent);
+        console.log('Student ID:', selectedStudent.id);
+        console.log('Student Email:', selectedStudent.email);
+        console.log('Selected Year:', selectedYear);
+        
+        // Haal alle data op (zonder schooljaar filter in database query)
+        const allData = await getStudentEvolutionData(selectedStudent.id);
+        console.log('Raw evolution data:', allData);
+        
+        // Filter client-side op schooljaar
+        const filteredData = filterTestDataBySchoolYear(allData, selectedYear);
+        console.log('Filtered evolution data:', filteredData);
+        
+        setEvolutionData(filteredData);
+        
+        // Log voor debugging
+        console.log(`Loaded ${allData.length} total tests, ${filteredData.length} for school year ${formatSchoolYear(selectedYear)}`);
+        
+    } catch (err) {
+        console.error('Error fetching evolution data:', err);
+        setError('Kon de evolutiegegevens niet laden.');
+        setEvolutionData([]);
+    } finally {
+        setLoading(false);
+    }
+};
 
         fetchEvolutionData();
     }, [selectedStudent, selectedYear]);
