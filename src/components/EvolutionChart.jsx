@@ -27,7 +27,7 @@ const coloredZonesPlugin = {
     const y65 = y.getPixelForValue(Math.max(Math.min(threshold_65, yMax), yMin));
 
     // Gebruik hogere opacity voor zones zodat ze goed zichtbaar zijn
-    const zoneOpacity = 0.15; // Verhoogde opacity voor betere zichtbaarheid
+    const zoneOpacity = 0.25; // Verhoogde opacity voor betere zichtbaarheid
     
     // Teken zones op basis van score richting
     if (score_richting === 'omlaag') { // Lager is beter
@@ -99,14 +99,14 @@ const thresholdLinesPlugin = {
     }
 
     ctx.save();
-    ctx.setLineDash([3, 3]); // Kortere streepjes
-    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]); // Kortere streepjes
+    ctx.lineWidth = 3;
 
     // 50e percentiel lijn (oranje) - alleen als binnen bereik
     if (threshold_50 >= yMin && threshold_50 <= yMax) {
       const y50 = y.getPixelForValue(threshold_50);
-      ctx.strokeStyle = 'rgba(249, 115, 22, 0.9)'; // Hogere opacity voor betere zichtbaarheid
-      ctx.lineWidth = 2; // Dikkere lijn
+      ctx.strokeStyle = 'rgba(249, 115, 22, 1)'; // Hogere opacity voor betere zichtbaarheid
+      ctx.lineWidth = 3; // Dikkere lijn
       ctx.beginPath();
       ctx.moveTo(left + 5, y50);
       ctx.lineTo(right - 5, y50);
@@ -116,8 +116,8 @@ const thresholdLinesPlugin = {
     // 65e percentiel lijn (groen) - alleen als binnen bereik
     if (threshold_65 >= yMin && threshold_65 <= yMax) {
       const y65 = y.getPixelForValue(threshold_65);
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.9)'; // Hogere opacity voor betere zichtbaarheid
-      ctx.lineWidth = 2; // Dikkere lijn
+      ctx.strokeStyle = 'rgba(34, 197, 94, 1)'; // Hogere opacity voor betere zichtbaarheid
+      ctx.lineWidth = 3; // Dikkere lijn
       ctx.beginPath();
       ctx.moveTo(left + 5, y65);
       ctx.lineTo(right - 5, y65);
