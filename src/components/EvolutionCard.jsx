@@ -1,4 +1,4 @@
-// src/components/EvolutionCard.jsx - Mobile Optimized
+// src/components/EvolutionCard.jsx - Mobile Optimized - FIXED AGE CALCULATION
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import EvolutionChart from './EvolutionChart';
@@ -15,9 +15,96 @@ export default function EvolutionCard({ categoryName, tests, student }) {
 
   const currentTest = tests[currentIndex];
 
-  // Memoized leeftijd berekening
+  // FIXED: Enhanced age calculation with proper validation
   const calculateAge = useCallback((birthDate, testDate) => {
-    return Math.floor((new Date(testDate) - new Date(birthDate)) / 31557600000);
+    // Validate inputs
+    if (!birthDate || !testDate) {
+      console.warn('calculateAge: Missing birthDate or testDate', { birthDate, testDate });
+      return null;
+    }
+
+    let birthDateObj, testDateObj;
+
+    // Parse birthDate
+    try {
+      if (typeof birthDate === 'string') {
+        birthDateObj = new Date(birthDate);
+      } else if (birthDate.toDate && typeof birthDate.toDate === 'function') {
+        // Firestore Timestamp
+        birthDateObj = birthDate.toDate();
+      } else if (birthDate instanceof Date) {
+        birthDateObj = birthDate;
+      } else {
+        console.warn('calculateAge: Invalid birthDate format', birthDate);
+        return null;
+      }
+    } catch (error) {
+      console.warn('calculateAge: Error parsing birthDate', error);
+      return null;
+    }
+
+    // Parse testDate
+    try {
+      if (typeof testDate === 'string') {
+        testDateObj = new Date(testDate);
+      } else if (testDate.toDate && typeof testDate.toDate === 'function') {
+        // Firestore Timestamp
+        testDateObj = testDate.toDate();
+      } else if (testDate instanceof Date) {
+        testDateObj = testDate;
+      } else {
+        console.warn('calculateAge: Invalid testDate format', testDate);
+        return null;
+      }
+    } catch (error) {
+      console.warn('calculateAge: Error parsing testDate', error);
+      return null;
+    }
+
+    // Validate parsed dates
+    if (isNaN(birthDateObj.getTime()) || isNaN(testDateObj.getTime())) {
+      console.warn('calculateAge: Invalid date objects', {
+        birthDateObj,
+        testDateObj,
+        birthDateValid: !isNaN(birthDateObj.getTime()),
+        testDateValid: !isNaN(testDateObj.getTime())
+      });
+      return null;
+    }
+
+    // Calculate age using more precise method
+    const birthYear = birthDateObj.getFullYear();
+    const birthMonth = birthDateObj.getMonth();
+    const birthDay = birthDateObj.getDate();
+    
+    const testYear = testDateObj.getFullYear();
+    const testMonth = testDateObj.getMonth();
+    const testDay = testDateObj.getDate();
+
+    let age = testYear - birthYear;
+
+    // Adjust age if birthday hasn't occurred yet this year
+    if (testMonth < birthMonth || (testMonth === birthMonth && testDay < birthDay)) {
+      age--;
+    }
+
+    // Validate calculated age
+    if (age < 0 || age > 100) {
+      console.warn('calculateAge: Unrealistic age calculated', {
+        age,
+        birthDate: birthDateObj,
+        testDate: testDateObj
+      });
+      return null;
+    }
+
+    console.log('calculateAge: Successfully calculated age', {
+      age,
+      birthDate: birthDateObj.toISOString(),
+      testDate: testDateObj.toISOString()
+    });
+
+    return age;
   }, []);
 
   // Memoized scores analyse
@@ -104,10 +191,15 @@ export default function EvolutionCard({ categoryName, tests, student }) {
     return { level, color, icon };
   }, [thresholds, currentTest?.personal_best_score]);
 
-  // Haal de drempelwaarden op als de test of de student verandert
+  // FIXED: Enhanced threshold fetching with better error handling
   useEffect(() => {
     const fetchThresholds = async () => {
       if (!currentTest || !student?.geboortedatum || !student?.geslacht) {
+        console.log('fetchThresholds: Missing required data', {
+          hasCurrentTest: !!currentTest,
+          hasGeboortedatum: !!student?.geboortedatum,
+          hasGeslacht: !!student?.geslacht
+        });
         setThresholds(null);
         setError(null);
         return;
@@ -118,7 +210,30 @@ export default function EvolutionCard({ categoryName, tests, student }) {
       
       try {
         const testDate = currentTest.personal_best_datum || new Date();
+        console.log('fetchThresholds: Calculating age', {
+          geboortedatum: student.geboortedatum,
+          testDate,
+          geslacht: student.geslacht
+        });
+
         const leeftijd = calculateAge(student.geboortedatum, testDate);
+        
+        if (leeftijd === null || isNaN(leeftijd)) {
+          console.warn('fetchThresholds: Could not calculate valid age', {
+            leeftijd,
+            geboortedatum: student.geboortedatum,
+            testDate
+          });
+          setError("Kon leeftijd niet berekenen voor drempelwaarden");
+          setThresholds(null);
+          return;
+        }
+
+        console.log('fetchThresholds: Fetching thresholds', {
+          testId: currentTest.test_id,
+          leeftijd,
+          geslacht: student.geslacht
+        });
 
         const thresholdData = await getScoreThresholds(
           currentTest.test_id,
@@ -126,9 +241,15 @@ export default function EvolutionCard({ categoryName, tests, student }) {
           student.geslacht
         );
         
+        if (thresholdData) {
+          console.log('fetchThresholds: Successfully fetched thresholds', thresholdData);
+        } else {
+          console.log('fetchThresholds: No thresholds found for this age/gender combination');
+        }
+        
         setThresholds(thresholdData);
       } catch (error) {
-        console.error("Fout bij ophalen drempels:", error);
+        console.error("fetchThresholds: Error fetching thresholds:", error);
         setError("Kon drempelwaarden niet laden");
         setThresholds(null);
       } finally {
