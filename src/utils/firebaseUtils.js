@@ -132,29 +132,18 @@ export function getNetworkStatus() {
   return isOnline;
 }
 
+
+/**
+ * Enhanced DEBUG versie van getStudentEvolutionData
+ */
 /**
  * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
  * Schooljaar filtering gebeurt client-side voor betere performance en flexibiliteit
  * @param {string} studentId - Het ID van de student
  * @returns {Promise<Array>} Array van test objecten met scores
  */
-/**
- * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
- * Schooljaar filtering gebeurt client-side voor betere performance en flexibiliteit
- * @param {string} studentId - Het ID van de student (kan email of document ID zijn)
- * @returns {Promise<Array>} Array van test objecten met scores
- */
-/**
- * Enhanced DEBUG versie van getStudentEvolutionData
- */
-/**
- * Enhanced DEBUG versie van getStudentEvolutionData
- */
 export const getStudentEvolutionData = async (studentId) => {
   const operation = async () => {
-    console.log('=== ENHANCED DEBUG getStudentEvolutionData ===');
-    console.log('Input studentId:', studentId);
-    
     // 1. Haal alle testen op voor de school
     const testsQuery = query(
       collection(db, 'testen'),
@@ -169,14 +158,7 @@ export const getStudentEvolutionData = async (studentId) => {
       ...doc.data()
     }));
 
-    console.log(`Found ${tests.length} active tests:`);
-    tests.forEach((test, index) => {
-        console.log(`Test ${index + 1}:`, {
-            id: test.id,
-            naam: test.naam,
-            categorie: test.categorie
-        });
-    });
+    console.log(`Found ${tests.length} active tests`);
 
     // 2. Bepaal de juiste leerling_id voor de query
     let leerlingId = studentId;
@@ -193,62 +175,57 @@ export const getStudentEvolutionData = async (studentId) => {
       }
     }
 
-    console.log(`Final leerling_id for queries: ${leerlingId}`);
+    console.log(`Looking for scores with leerling_id: ${leerlingId}`);
 
-    // 3. EERST - laten we kijken wat er überhaupt in de scores collectie staat voor deze student
-    console.log('=== CHECKING ALL SCORES FOR THIS STUDENT ===');
-    const allStudentScoresQuery = query(
-      collection(db, 'scores'),
-      where('leerling_id', '==', leerlingId)
-    );
-    
-    const allStudentScoresSnapshot = await getDocs(allStudentScoresQuery);
-    const allStudentScores = allStudentScoresSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      datum: doc.data().afgenomen_op?.toDate?.() || new Date(doc.data().afgenomen_op)
-    }));
-    
-    console.log(`Found ${allStudentScores.length} total scores for student ${leerlingId}:`);
-    allStudentScores.forEach((score, index) => {
-        console.log(`Score ${index + 1}:`, {
-            id: score.id,
-            test_id: score.test_id,
-            score: score.score,
-            datum: score.datum,
-            afgenomen_op: score.afgenomen_op
-        });
-    });
-
-    // 4. Voor elke test, haal alle scores op van deze student
+    // 3. Voor elke test, haal alle scores op van deze student
     const testDataPromises = tests.map(async (test) => {
-      console.log(`--- Processing test: ${test.naam} (ID: ${test.id}) ---`);
-      
+      // Gebruik 'datum' veld voor orderBy (niet 'afgenomen_op')
       const scoresQuery = query(
         collection(db, 'scores'),
         where('test_id', '==', test.id),
         where('leerling_id', '==', leerlingId),
-        orderBy('afgenomen_op', 'desc')
+        orderBy('datum', 'desc') // Gebruik 'datum' in plaats van 'afgenomen_op'
       );
 
       const scoresSnapshot = await getDocs(scoresQuery);
-      const scores = scoresSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        datum: doc.data().afgenomen_op?.toDate?.() || new Date(doc.data().afgenomen_op)
-      }));
+      const scores = scoresSnapshot.docs.map(doc => {
+        const data = doc.data();
+        let parsedDatum = null;
+        
+        // Parse het datum veld
+        if (data.datum) {
+          if (typeof data.datum === 'string') {
+            parsedDatum = new Date(data.datum);
+          } else if (data.datum.toDate && typeof data.datum.toDate === 'function') {
+            parsedDatum = data.datum.toDate();
+          } else if (data.datum instanceof Date) {
+            parsedDatum = data.datum;
+          }
+        }
+        
+        // Fallback als datum niet kan worden geparsed
+        if (!parsedDatum || isNaN(parsedDatum.getTime())) {
+          console.warn(`Could not parse datum for score ${doc.id}:`, data.datum);
+          parsedDatum = new Date(); // Gebruik huidige datum als fallback
+        }
 
-      console.log(`Found ${scores.length} scores for test ${test.naam}:`, scores);
+        return {
+          id: doc.id,
+          ...data,
+          datum: parsedDatum
+        };
+      });
 
-      // Check if any of the all scores match this test
-      const matchingScores = allStudentScores.filter(score => score.test_id === test.id);
-      console.log(`Matching scores from all scores query: ${matchingScores.length}`, matchingScores);
+      console.log(`Found ${scores.length} scores for test ${test.naam} (${test.id})`);
 
       if (scores.length === 0) {
-        return null;
+        return null; // Geen scores voor deze test
       }
 
+      // Sorteer scores op datum (nieuwste eerst voor personal best)
       const sortedScores = scores.sort((a, b) => new Date(b.datum) - new Date(a.datum));
+
+      // Bereken personal best over ALLE scores (niet per schooljaar)
       const personalBest = calculatePersonalBest(sortedScores, test.score_richting);
 
       return {
@@ -271,9 +248,7 @@ export const getStudentEvolutionData = async (studentId) => {
     const results = await Promise.all(testDataPromises);
     const validResults = results.filter(result => result !== null);
     
-    console.log(`=== FINAL RESULTS ===`);
-    console.log(`Processed evolution data: ${validResults.length} tests with scores for student ${leerlingId}`);
-    console.log('Valid results:', validResults);
+    console.log(`Processed evolution data: ${validResults.length} tests with scores`);
     
     return validResults;
   };
@@ -440,7 +415,7 @@ export const getAvailableSchoolYears = async (schoolId = null) => {
     
     scoresSnapshot.docs.forEach(doc => {
       const scoreData = doc.data();
-      const datum = scoreData.afgenomen_op?.toDate?.() || new Date(scoreData.afgenomen_op);
+      const datum = scoreData.datum?.toDate?.() || new Date(scoreData.datum);
       
       if (datum && !isNaN(datum.getTime())) { // Valideer datum
         const schoolYear = getSchoolYearFromDate(datum);
@@ -489,8 +464,8 @@ export const getSchoolYearStats = async (schoolId, schoolYear) => {
     const scoresQuery = query(
       collection(db, 'scores'),
       where('school_id', '==', schoolId),
-      where('afgenomen_op', '>=', schoolYearBounds.startDate),
-      where('afgenomen_op', '<=', schoolYearBounds.endDate)
+      where('datum', '>=', schoolYearBounds.startDate),
+      where('datum', '<=', schoolYearBounds.endDate)
     );
     
     const scoresSnapshot = await getDocs(scoresQuery);
@@ -513,7 +488,7 @@ export const getSchoolYearStats = async (schoolId, schoolYear) => {
       studentStats[studentId].totalScores++;
       studentStats[studentId].testCount.add(score.test_id);
       
-      const scoreDate = score.afgenomen_op?.toDate?.() || new Date(score.afgenomen_op);
+      const scoreDate = score.datum?.toDate?.() || new Date(score.datum);
       if (scoreDate && !isNaN(scoreDate.getTime())) { // Valideer datum
         if (!studentStats[studentId].firstScore || scoreDate < studentStats[studentId].firstScore) {
           studentStats[studentId].firstScore = scoreDate;
