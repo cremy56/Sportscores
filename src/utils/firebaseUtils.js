@@ -320,7 +320,11 @@ export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
     };
     
     const mappedGender = genderMapping[geslacht] || geslacht.toUpperCase();
-    
+    console.log('Gender mapping debug:', { 
+  original: geslacht, 
+  mapped: mappedGender,
+  genderMapping 
+});
     const normenQuery = query(
       collection(db, 'normen'),
       where('test_id', '==', testId),
