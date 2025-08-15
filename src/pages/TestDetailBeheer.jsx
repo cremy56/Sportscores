@@ -75,10 +75,139 @@ export default function TestDetailBeheer() {
         });
     }, [puntenSchaal, selectedLeeftijd, selectedGeslacht]);
 
-    const handleSaveNewNorm = async () => { /* ... Logica ongewijzigd ... */ };
-    const handleUpdateNorm = async () => { /* ... Logica ongewijzigd ... */ };
-    const executeDelete = async () => { /* ... Logica ongewijzigd ... */ };
-    const handleCsvUpload = (event) => { /* ... Logica ongewijzigd ... */ };
+    const handleSaveNewNorm = async () => {
+        if (!newNorm.leeftijd || !newNorm.score_min || !newNorm.punt) {
+            toast.error("Vul alle velden in.");
+            return;
+        }
+        
+        try {
+            const normDocRef = doc(db, 'normen', testId);
+            await updateDoc(normDocRef, {
+                punten_schaal: arrayUnion({
+                    leeftijd: Number(newNorm.leeftijd),
+                    geslacht: newNorm.geslacht,
+                    score_min: Number(newNorm.score_min),
+                    punt: Number(newNorm.punt)
+                })
+            });
+            
+            setNewNorm({ leeftijd: '', geslacht: 'M', score_min: '', punt: '' });
+            setIsAdding(false);
+            toast.success("Norm toegevoegd!");
+        } catch (error) {
+            console.error("Fout bij toevoegen norm:", error);
+            toast.error("Kon norm niet toevoegen.");
+        }
+    };
+
+    const handleUpdateNorm = async () => {
+        if (!editingNorm.current.leeftijd || !editingNorm.current.score_min || !editingNorm.current.punt) {
+            toast.error("Vul alle velden in.");
+            return;
+        }
+        
+        try {
+            const normDocRef = doc(db, 'normen', testId);
+            await updateDoc(normDocRef, {
+                punten_schaal: arrayRemove(editingNorm.original)
+            });
+            
+            await updateDoc(normDocRef, {
+                punten_schaal: arrayUnion({
+                    leeftijd: Number(editingNorm.current.leeftijd),
+                    geslacht: editingNorm.current.geslacht,
+                    score_min: Number(editingNorm.current.score_min),
+                    punt: Number(editingNorm.current.punt)
+                })
+            });
+            
+            setEditingNorm(null);
+            toast.success("Norm bijgewerkt!");
+        } catch (error) {
+            console.error("Fout bij bijwerken norm:", error);
+            toast.error("Kon norm niet bijwerken.");
+        }
+    };
+
+    const executeDelete = async () => {
+        try {
+            const normDocRef = doc(db, 'normen', testId);
+            
+            if (Array.isArray(itemsToDelete)) {
+                // Meerdere items verwijderen
+                const normsToDelete = itemsToDelete.map(id => 
+                    gefilterdeNormen.find(norm => getNormIdentifier(norm) === id)
+                ).filter(Boolean);
+                
+                for (const norm of normsToDelete) {
+                    await updateDoc(normDocRef, {
+                        punten_schaal: arrayRemove(norm)
+                    });
+                }
+                
+                setSelectedNorms([]);
+                toast.success(`${normsToDelete.length} norm(en) verwijderd!`);
+            } else {
+                // Enkele norm verwijderen
+                await updateDoc(normDocRef, {
+                    punten_schaal: arrayRemove(itemsToDelete)
+                });
+                toast.success("Norm verwijderd!");
+            }
+            
+            setItemsToDelete(null);
+        } catch (error) {
+            console.error("Fout bij verwijderen norm(en):", error);
+            toast.error("Kon norm(en) niet verwijderen.");
+        }
+    };
+
+    const handleCsvUpload = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                try {
+                    const normen = results.data.map(row => ({
+                        leeftijd: Number(row.leeftijd),
+                        geslacht: row.geslacht,
+                        score_min: Number(row.score_min),
+                        punt: Number(row.punt)
+                    })).filter(norm => 
+                        !isNaN(norm.leeftijd) && !isNaN(norm.score_min) && !isNaN(norm.punt) && 
+                        ['M', 'V'].includes(norm.geslacht)
+                    );
+
+                    if (normen.length === 0) {
+                        toast.error("Geen geldige normen gevonden in CSV.");
+                        return;
+                    }
+
+                    const normDocRef = doc(db, 'normen', testId);
+                    for (const norm of normen) {
+                        await updateDoc(normDocRef, {
+                            punten_schaal: arrayUnion(norm)
+                        });
+                    }
+
+                    toast.success(`${normen.length} normen geïmporteerd!`);
+                } catch (error) {
+                    console.error("Fout bij CSV import:", error);
+                    toast.error("Kon CSV niet importeren.");
+                }
+            },
+            error: (error) => {
+                console.error("CSV parse fout:", error);
+                toast.error("Ongeldig CSV bestand.");
+            }
+        });
+
+        event.target.value = '';
+    };
 
     const handleSelectNorm = (normIdentifier) => {
         setSelectedNorms(prev => 
@@ -117,13 +246,11 @@ export default function TestDetailBeheer() {
     }
 
     return (
-        <>
+        <div className="min-h-screen bg-slate-50">
             <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
             <TestFormModal isOpen={isTestModalOpen} onClose={() => setIsTestModalOpen(false)} onTestSaved={fetchData} testData={test} schoolId={profile?.school_id} />
             
-            {/* VOLLEDIG SCHERM ACHTERGROND */}
-            <div className="min-h-screen bg-slate-50">
-                <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6">
+            <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6">
                     
                     {/* Breadcrumb */}
                     <Link to="/testbeheer" className="inline-flex items-center text-sm text-slate-600 hover:text-purple-700 font-medium transition-colors">
@@ -147,8 +274,8 @@ export default function TestDetailBeheer() {
                                         </button>
                                     </div>
                                     
-                                    {/* Altijd zichtbare preview info */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                    {/* Compacte preview info - zonder totaal normen en score richting */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                                         <div className="bg-slate-50 rounded-xl p-4">
                                             <div className="text-sm text-slate-500 font-medium">Categorie</div>
                                             <div className="text-lg font-semibold text-slate-900">{test?.categorie || '-'}</div>
@@ -157,15 +284,25 @@ export default function TestDetailBeheer() {
                                             <div className="text-sm text-slate-500 font-medium">Eenheid</div>
                                             <div className="text-lg font-semibold text-slate-900">{test?.eenheid || '-'}</div>
                                         </div>
-                                        <div className="bg-slate-50 rounded-xl p-4">
-                                            <div className="text-sm text-slate-500 font-medium">Totaal normen</div>
-                                            <div className="text-lg font-semibold text-purple-700">{puntenSchaal.length}</div>
-                                        </div>
-                                        <div className="bg-slate-50 rounded-xl p-4">
-                                            <div className="text-sm text-slate-500 font-medium">Score richting</div>
-                                            <div className="text-lg font-semibold text-slate-900 capitalize">{normDocument?.score_richting || 'Hoog'}</div>
-                                        </div>
                                     </div>
+                                    
+                                    {/* Beschrijving preview - altijd zichtbaar als er een beschrijving is */}
+                                    {test?.beschrijving && (
+                                        <div className="bg-slate-50 rounded-xl p-4">
+                                            <div className="text-sm text-slate-500 font-medium mb-2">Beschrijving</div>
+                                            <p className="text-slate-700 leading-relaxed line-clamp-3">
+                                                {test.beschrijving}
+                                            </p>
+                                            {test.beschrijving.length > 150 && (
+                                                <button 
+                                                    onClick={() => setIsTestDetailsOpen(true)}
+                                                    className="text-purple-600 hover:text-purple-700 text-sm font-medium mt-2"
+                                                >
+                                                    Lees meer...
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 
                                 <button 
@@ -176,11 +313,13 @@ export default function TestDetailBeheer() {
                                 </button>
                             </div>
                             
-                            {/* Uitklapbare details */}
-                            {isTestDetailsOpen && test?.beschrijving && (
+                            {/* Uitklapbare details - volledige beschrijving */}
+                            {isTestDetailsOpen && (
                                 <div className="pt-6 border-t border-slate-200">
-                                    <h3 className="text-lg font-semibold text-slate-900 mb-3">Beschrijving</h3>
-                                    <p className="text-slate-600 leading-relaxed">{test.beschrijving}</p>
+                                    <h3 className="text-lg font-semibold text-slate-900 mb-3">Volledige beschrijving</h3>
+                                    <div className="bg-slate-50 rounded-xl p-4">
+                                        <p className="text-slate-700 leading-relaxed">{test?.beschrijving || 'Geen beschrijving beschikbaar.'}</p>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -189,12 +328,7 @@ export default function TestDetailBeheer() {
                     {/* Normen Sectie */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
                         <div className="p-6">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-slate-900">Prestatienormen</h2>
-                                <div className="text-sm text-slate-500">
-                                    {gefilterdeNormen.length} van {puntenSchaal.length} normen
-                                </div>
-                            </div>
+                            <h2 className="text-2xl font-bold text-slate-900 mb-6">Prestatienormen</h2>
                             
                             {/* Filters en Acties */}
                             <div className="space-y-4 mb-6">
@@ -508,7 +642,7 @@ export default function TestDetailBeheer() {
                         </div>
                     </div>
                 </div>
-            </div>
-        </>
+            
+        </div>
     );
 }
