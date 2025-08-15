@@ -234,7 +234,7 @@ export default function TestDetailBeheer() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
                 <div className="bg-white p-8 rounded-2xl shadow-sm">
                     <div className="flex items-center space-x-4">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
@@ -246,7 +246,7 @@ export default function TestDetailBeheer() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
             <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
             <TestFormModal isOpen={isTestModalOpen} onClose={() => setIsTestModalOpen(false)} onTestSaved={fetchData} testData={test} schoolId={profile?.school_id} />
             
@@ -258,51 +258,53 @@ export default function TestDetailBeheer() {
                         Terug naar testbeheer
                     </Link>
                     
-                    {/* Test Details Card */}
+                    {/* Test Details Card - volledige breedte op mobiel */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
-                        <div className="p-6">
+                        <div className="p-4 lg:p-6">
                             <div className="flex justify-between items-start">
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                     <div className="flex items-center space-x-3 mb-4">
-                                        <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">{test?.naam}</h1>
+                                        <h1 className="text-xl lg:text-3xl font-bold text-slate-900 truncate">{test?.naam}</h1>
                                         <button 
                                             onClick={() => setIsTestModalOpen(true)}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            className="flex-shrink-0 p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                             title="Bewerk test"
                                         >
-                                            <PencilIcon className="h-5 w-5"/> 
+                                            <PencilIcon className="h-4 w-4 lg:h-5 lg:w-5"/> 
                                         </button>
                                     </div>
                                     
-                                    {/* Compacte preview info - zonder totaal normen en score richting */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                                        <div className="bg-slate-50 rounded-xl p-4">
-                                            <div className="text-sm text-slate-500 font-medium">Categorie</div>
-                                            <div className="text-lg font-semibold text-slate-900">{test?.categorie || '-'}</div>
+                                    {/* Compacte preview info - volledige breedte op mobiel */}
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
+                                            <div className="bg-slate-50 rounded-xl p-3 lg:p-4">
+                                                <div className="text-xs lg:text-sm text-slate-500 font-medium">Categorie</div>
+                                                <div className="text-base lg:text-lg font-semibold text-slate-900">{test?.categorie || '-'}</div>
+                                            </div>
+                                            <div className="bg-slate-50 rounded-xl p-3 lg:p-4">
+                                                <div className="text-xs lg:text-sm text-slate-500 font-medium">Eenheid</div>
+                                                <div className="text-base lg:text-lg font-semibold text-slate-900">{test?.eenheid || '-'}</div>
+                                            </div>
                                         </div>
-                                        <div className="bg-slate-50 rounded-xl p-4">
-                                            <div className="text-sm text-slate-500 font-medium">Eenheid</div>
-                                            <div className="text-lg font-semibold text-slate-900">{test?.eenheid || '-'}</div>
-                                        </div>
-                                    </div>
                                     
-                                    {/* Beschrijving preview - altijd zichtbaar als er een beschrijving is */}
-                                    {test?.beschrijving && (
-                                        <div className="bg-slate-50 rounded-xl p-4">
-                                            <div className="text-sm text-slate-500 font-medium mb-2">Beschrijving</div>
-                                            <p className="text-slate-700 leading-relaxed line-clamp-3">
-                                                {test.beschrijving}
-                                            </p>
-                                            {test.beschrijving.length > 150 && (
-                                                <button 
-                                                    onClick={() => setIsTestDetailsOpen(true)}
-                                                    className="text-purple-600 hover:text-purple-700 text-sm font-medium mt-2"
-                                                >
-                                                    Lees meer...
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
+                                        {/* Beschrijving preview - volledige breedte */}
+                                        {test?.beschrijving && (
+                                            <div className="bg-slate-50 rounded-xl p-3 lg:p-4">
+                                                <div className="text-xs lg:text-sm text-slate-500 font-medium mb-2">Beschrijving</div>
+                                                <p className="text-sm lg:text-base text-slate-700 leading-relaxed line-clamp-3">
+                                                    {test.beschrijving}
+                                                </p>
+                                                {test.beschrijving.length > 150 && (
+                                                    <button 
+                                                        onClick={() => setIsTestDetailsOpen(true)}
+                                                        className="text-purple-600 hover:text-purple-700 text-xs lg:text-sm font-medium mt-2"
+                                                    >
+                                                        Lees meer...
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 
                                 <button 
@@ -359,13 +361,26 @@ export default function TestDetailBeheer() {
                                     </div>
                                     
                                     <div className="flex gap-2">
-                                        <button className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium">
+                                        <button 
+                                            onClick={() => setIsAdding(true)}
+                                            className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
+                                        >
                                             Nieuwe norm
                                         </button>
-                                        <button className="px-4 py-2 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-colors font-medium">
+                                        <button 
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="px-4 py-2 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-colors font-medium"
+                                        >
                                             <ArrowUpTrayIcon className="h-4 w-4 mr-2 inline" />
                                             Import CSV
                                         </button>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept=".csv"
+                                            onChange={handleCsvUpload}
+                                            className="hidden"
+                                        />
                                     </div>
                                 </div>
                                 
@@ -384,7 +399,7 @@ export default function TestDetailBeheer() {
                                 )}
                             </div>
 
-                            {/* RESPONSIVE TABEL/CARDS */}
+                            {/* Tabel met normen */}
                             {gefilterdeNormen.length === 0 ? (
                                 <div className="text-center py-12">
                                     <div className="text-slate-400 text-lg mb-2">Geen normen gevonden</div>
@@ -392,6 +407,73 @@ export default function TestDetailBeheer() {
                                 </div>
                             ) : (
                                 <>
+                                    {/* Nieuwe norm toevoegen form */}
+                                    {isAdding && (
+                                        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
+                                            <h3 className="text-lg font-semibold text-purple-900 mb-4">Nieuwe norm toevoegen</h3>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-purple-700 mb-1">Leeftijd</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={newNorm.leeftijd} 
+                                                        onChange={e => setNewNorm(p => ({...p, leeftijd: e.target.value}))} 
+                                                        className="w-full p-2 border border-purple-300 rounded-lg focus:border-purple-500 focus:ring-purple-500"
+                                                        placeholder="14"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-purple-700 mb-1">Geslacht</label>
+                                                    <select 
+                                                        value={newNorm.geslacht} 
+                                                        onChange={e => setNewNorm(p => ({...p, geslacht: e.target.value}))} 
+                                                        className="w-full p-2 border border-purple-300 rounded-lg focus:border-purple-500 focus:ring-purple-500"
+                                                    >
+                                                        <option value="M">M</option>
+                                                        <option value="V">V</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-purple-700 mb-1">Min. Score</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={newNorm.score_min} 
+                                                        onChange={e => setNewNorm(p => ({...p, score_min: e.target.value}))} 
+                                                        className="w-full p-2 border border-purple-300 rounded-lg focus:border-purple-500 focus:ring-purple-500"
+                                                        placeholder="2270"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-purple-700 mb-1">Punt</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={newNorm.punt} 
+                                                        onChange={e => setNewNorm(p => ({...p, punt: e.target.value}))} 
+                                                        className="w-full p-2 border border-purple-300 rounded-lg focus:border-purple-500 focus:ring-purple-500"
+                                                        placeholder="1"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    onClick={handleSaveNewNorm}
+                                                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                                                >
+                                                    Opslaan
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        setIsAdding(false);
+                                                        setNewNorm({ leeftijd: '', geslacht: 'M', score_min: '', punt: '' });
+                                                    }}
+                                                    className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
+                                                >
+                                                    Annuleren
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Desktop Tabel (verborgen op mobiel) */}
                                     <div className="hidden lg:block overflow-hidden rounded-xl border border-slate-200">
                                         <table className="min-w-full bg-white">
@@ -642,7 +724,6 @@ export default function TestDetailBeheer() {
                         </div>
                     </div>
                 </div>
-            
-        </div>
+            </div>
     );
 }
