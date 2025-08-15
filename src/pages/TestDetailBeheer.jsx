@@ -24,10 +24,13 @@ export default function TestDetailBeheer() {
     const fileInputRef = useRef(null);
     const [isTestModalOpen, setIsTestModalOpen] = useState(false);
     const [isTestDetailsOpen, setIsTestDetailsOpen] = useState(false);
-    const [isNormenOpen, setIsNormenOpen] = useState(true);
+    const [isNormenExpanded, setIsNormenExpanded] = useState(false);
     const [selectedNorms, setSelectedNorms] = useState([]);
     const [itemsToDelete, setItemsToDelete] = useState(null);
     const [showMobileMenu, setShowMobileMenu] = useState({});
+
+    // Aantal items om te tonen in preview
+    const PREVIEW_COUNT = 5;
 
     const getNormIdentifier = (norm) => `${norm.leeftijd}-${norm.geslacht}-${norm.punt}-${norm.score_min}`;
 
@@ -74,6 +77,11 @@ export default function TestDetailBeheer() {
             return leeftijdMatch && geslachtMatch;
         });
     }, [puntenSchaal, selectedLeeftijd, selectedGeslacht]);
+
+    // Bepaal welke normen te tonen (preview of volledig)
+    const normenToShow = useMemo(() => {
+        return isNormenExpanded ? gefilterdeNormen : gefilterdeNormen.slice(0, PREVIEW_COUNT);
+    }, [gefilterdeNormen, isNormenExpanded]);
 
     const handleSaveNewNorm = async () => {
         if (!newNorm.leeftijd || !newNorm.score_min || !newNorm.punt) {
@@ -329,75 +337,91 @@ export default function TestDetailBeheer() {
 
                     {/* Normen Sectie */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
-                        <div className="p-6">
-                            <h2 className="text-2xl font-bold text-slate-900 mb-6">Prestatienormen</h2>
+                        <div className="p-4 lg:p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Prestatienormen</h2>
+                                <div className="flex items-center space-x-4">
+                                    <div className="text-sm text-slate-500">
+                                        {gefilterdeNormen.length} {gefilterdeNormen.length === 1 ? 'norm' : 'normen'}
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsNormenExpanded(!isNormenExpanded)}
+                                        className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+                                        title={isNormenExpanded ? 'Inklappen' : 'Uitklappen'}
+                                    >
+                                        <ChevronDownIcon className={`h-5 w-5 transform transition-transform ${isNormenExpanded ? 'rotate-180' : ''}`} />
+                                    </button>
+                                </div>
+                            </div>
                             
-                            {/* Filters en Acties */}
-                            <div className="space-y-4 mb-6">
-                                <div className="flex flex-col lg:flex-row gap-4">
-                                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <select 
-                                            value={selectedLeeftijd} 
-                                            onChange={(e) => setSelectedLeeftijd(e.target.value)} 
-                                            className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-purple-500 focus:ring-purple-500"
-                                        >
-                                            <option value="all">Alle leeftijden</option>
-                                            {uniekeLeeftijden.map(leeftijd => 
-                                                <option key={leeftijd} value={leeftijd}>{leeftijd} jaar</option>
-                                            )}
-                                        </select>
-                                        <select 
-                                            value={selectedGeslacht} 
-                                            onChange={(e) => setSelectedGeslacht(e.target.value)} 
-                                            className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-purple-500 focus:ring-purple-500"
-                                        >
-                                            <option value="all">Alle geslachten</option>
-                                            {uniekeGeslachten.map(geslacht => 
-                                                <option key={geslacht} value={geslacht}>
-                                                    {geslacht === 'M' ? 'Mannelijk' : 'Vrouwelijk'}
-                                                </option>
-                                            )}
-                                        </select>
+                            {/* Filters en Acties - alleen zichtbaar als uitgevouwen */}
+                            {isNormenExpanded && (
+                                <div className="space-y-4 mb-6">
+                                    <div className="flex flex-col lg:flex-row gap-4">
+                                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <select 
+                                                value={selectedLeeftijd} 
+                                                onChange={(e) => setSelectedLeeftijd(e.target.value)} 
+                                                className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-purple-500 focus:ring-purple-500"
+                                            >
+                                                <option value="all">Alle leeftijden</option>
+                                                {uniekeLeeftijden.map(leeftijd => 
+                                                    <option key={leeftijd} value={leeftijd}>{leeftijd} jaar</option>
+                                                )}
+                                            </select>
+                                            <select 
+                                                value={selectedGeslacht} 
+                                                onChange={(e) => setSelectedGeslacht(e.target.value)} 
+                                                className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-purple-500 focus:ring-purple-500"
+                                            >
+                                                <option value="all">Alle geslachten</option>
+                                                {uniekeGeslachten.map(geslacht => 
+                                                    <option key={geslacht} value={geslacht}>
+                                                        {geslacht === 'M' ? 'Mannelijk' : 'Vrouwelijk'}
+                                                    </option>
+                                                )}
+                                            </select>
+                                        </div>
+                                        
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => setIsAdding(true)}
+                                                className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
+                                            >
+                                                Nieuwe norm
+                                            </button>
+                                            <button 
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="px-4 py-2 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-colors font-medium"
+                                            >
+                                                <ArrowUpTrayIcon className="h-4 w-4 mr-2 inline" />
+                                                Import CSV
+                                            </button>
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept=".csv"
+                                                onChange={handleCsvUpload}
+                                                className="hidden"
+                                            />
+                                        </div>
                                     </div>
                                     
-                                    <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => setIsAdding(true)}
-                                            className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
-                                        >
-                                            Nieuwe norm
-                                        </button>
-                                        <button 
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="px-4 py-2 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-colors font-medium"
-                                        >
-                                            <ArrowUpTrayIcon className="h-4 w-4 mr-2 inline" />
-                                            Import CSV
-                                        </button>
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept=".csv"
-                                            onChange={handleCsvUpload}
-                                            className="hidden"
-                                        />
-                                    </div>
+                                    {selectedNorms.length > 0 && (
+                                        <div className="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-200">
+                                            <span className="text-purple-700 font-medium">
+                                                {selectedNorms.length} item(s) geselecteerd
+                                            </span>
+                                            <button 
+                                                onClick={() => setItemsToDelete(selectedNorms)}
+                                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                                            >
+                                                Verwijder geselecteerde
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                                
-                                {selectedNorms.length > 0 && (
-                                    <div className="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-200">
-                                        <span className="text-purple-700 font-medium">
-                                            {selectedNorms.length} item(s) geselecteerd
-                                        </span>
-                                        <button 
-                                            onClick={() => setItemsToDelete(selectedNorms)}
-                                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-                                        >
-                                            Verwijder geselecteerde
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                            )}
 
                             {/* Tabel met normen */}
                             {gefilterdeNormen.length === 0 ? (
@@ -495,7 +519,7 @@ export default function TestDetailBeheer() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-200">
-                                                {gefilterdeNormen.map((norm) => {
+                                                {normenToShow.map((norm) => {
                                                     const normId = getNormIdentifier(norm);
                                                     const isEditingThis = editingNorm?.original && getNormIdentifier(editingNorm.original) === normId;
                                                     return (
@@ -597,7 +621,7 @@ export default function TestDetailBeheer() {
 
                                     {/* Mobiele Cards (verborgen op desktop) */}
                                     <div className="lg:hidden space-y-3">
-                                        {gefilterdeNormen.map((norm) => {
+                                        {normenToShow.map((norm) => {
                                             const normId = getNormIdentifier(norm);
                                             const isEditingThis = editingNorm?.original && getNormIdentifier(editingNorm.original) === normId;
                                             return (
@@ -719,11 +743,34 @@ export default function TestDetailBeheer() {
                                             );
                                         })}
                                     </div>
+                                    
+                                    {/* Toon meer/minder knop */}
+                                    {gefilterdeNormen.length > PREVIEW_COUNT && (
+                                        <div className="flex justify-center pt-6">
+                                            <button 
+                                                onClick={() => setIsNormenExpanded(!isNormenExpanded)}
+                                                className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium transition-colors flex items-center space-x-2"
+                                            >
+                                                {isNormenExpanded ? (
+                                                    <>
+                                                        <span>Toon minder</span>
+                                                        <ChevronDownIcon className="h-4 w-4 rotate-180" />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span>Toon alle {gefilterdeNormen.length} normen</span>
+                                                        <ChevronDownIcon className="h-4 w-4" />
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>
                     </div>
                 </div>
             </div>
+       
     );
 }
