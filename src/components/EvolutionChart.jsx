@@ -69,33 +69,45 @@ const thresholdLinesPlugin = {
   }
 };
 
-// **AANGEPAST**: De Y-as wordt nu berekend op basis van de hoogste en laagste score van de leerling.
-const calculateOptimalYRange = (scoreValues) => {
-  // Als er geen scores zijn, gebruik een standaard bereik.
-  if (!scoreValues || scoreValues.length === 0) {
-    return { minValue: 0, maxValue: 100 };
+// **HERBOUWD**: Y-as schaling met nieuwe, conditionele logica.
+const calculateOptimalYRange = (scoreValues, scoreNorms) => {
+  // Fallback als normen niet beschikbaar zijn: baseer op scores.
+  if (!scoreNorms || scoreNorms['1'] === undefined || scoreNorms['20'] === undefined) {
+    if (!scoreValues || scoreValues.length === 0) return { minValue: 0, maxValue: 100 };
+    const minScore = Math.min(...scoreValues);
+    const maxScore = Math.max(...scoreValues);
+    const padding = (maxScore - minScore) * 0.1;
+    return { minValue: minScore - padding, maxValue: maxScore + padding };
   }
 
-  const actualMin = Math.min(...scoreValues);
-  const actualMax = Math.max(...scoreValues);
+  // 1. Bepaal het basisbereik op basis van de laagste en hoogste norm.
+  const lowestNorm = scoreNorms['1'];
+  const highestNorm = scoreNorms['20'];
+  const normRange = highestNorm - lowestNorm;
 
-  // Als alle scores gelijk zijn, voeg een kleine marge toe.
-  if (actualMin === actualMax) {
-    const padding = actualMin * 0.1;
-    return {
-      minValue: actualMin - padding,
-      maxValue: actualMax + padding,
-    };
+  // 2. Bereken het nieuwe, strakkere bereik.
+  let finalMinValue = lowestNorm + (normRange * 0.15);  // Verhoog de ondergrens met 15%
+  let finalMaxValue = highestNorm - (normRange * 0.10); // Verlaag de bovengrens met 10%
+
+  // 3. Controleer of de daadwerkelijke scores binnen dit nieuwe bereik vallen.
+  if (scoreValues && scoreValues.length > 0) {
+    const actualMin = Math.min(...scoreValues);
+    const actualMax = Math.max(...scoreValues);
+
+    // Als de hoogste score van de leerling buiten het nieuwe bereik valt,
+    // negeer de -10% aanpassing en zorg dat de score zichtbaar is.
+    if (actualMax > finalMaxValue) {
+      finalMaxValue = actualMax + (normRange * 0.05); // Zorg voor 5% marge boven de hoogste score
+    }
+
+    // Als de laagste score van de leerling buiten het nieuwe bereik valt,
+    // negeer de +15% aanpassing en zorg dat de score zichtbaar is.
+    if (actualMin < finalMinValue) {
+      finalMinValue = actualMin - (normRange * 0.05); // Zorg voor 5% marge onder de laagste score
+    }
   }
 
-  // Bereken 10% van het bereik van de scores als marge.
-  const range = actualMax - actualMin;
-  const padding = range * 0.10;
-
-  return {
-    minValue: actualMin - padding,
-    maxValue: actualMax + padding,
-  };
+  return { minValue: finalMinValue, maxValue: finalMaxValue };
 };
 
 
@@ -121,8 +133,8 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
   };
   
   const scoreValues = sortedScores.map(s => s.score);
-  // **AANGEPAST**: De 'scoreNorms' worden niet meer meegegeven voor de schaalberekening.
-  const { minValue, maxValue } = calculateOptimalYRange(scoreValues);
+  // **AANGEPAST**: De functie gebruikt nu BEIDE parameters.
+  const { minValue, maxValue } = calculateOptimalYRange(scoreValues, scoreNorms);
 
   const options = {
     responsive: true,
