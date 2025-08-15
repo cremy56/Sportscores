@@ -1,9 +1,9 @@
-// src/components/EvolutionChart.jsx - Mobile Optimized - IMPROVED SCALING & LAYOUT
+// src/components/EvolutionChart.jsx
 import { Line } from 'react-chartjs-2';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
-// Custom plugin voor gekleurde zones (geen wijzigingen hier)
+// Custom plugin voor gekleurde zones (geen wijzigingen)
 const coloredZonesPlugin = {
   id: 'coloredZones',
   beforeDraw(chart, args, options) {
@@ -18,25 +18,18 @@ const coloredZonesPlugin = {
     const y14 = y.getPixelForValue(norm_14);
     const zoneOpacity = 0.25;
 
-    // Teken zones op basis van score richting
-    if (score_richting === 'omlaag') { // Lager is beter
-      // Groen: top -> y14
+    if (score_richting === 'omlaag') {
       ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;
       ctx.fillRect(left, top, width, y14 - top);
-      // Oranje: y14 -> y10
       ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;
       ctx.fillRect(left, y14, width, y10 - y14);
-      // Rood: y10 -> bottom
       ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
       ctx.fillRect(left, y10, width, bottom - y10);
-    } else { // Hoger is beter
-      // Rood: bottom -> y10
+    } else {
       ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
       ctx.fillRect(left, y10, width, bottom - y10);
-      // Oranje: y10 -> y14
       ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;
       ctx.fillRect(left, y10, width, y14 - y10);
-      // Groen: y14 -> top
       ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;
       ctx.fillRect(left, y14, width, top - y14);
     }
@@ -44,8 +37,8 @@ const coloredZonesPlugin = {
     ctx.restore();
   }
 };
-// Custom plugin voor drempel lijnen (geen wijzigingen hier)
-// **HERBOUWD** Plugin voor drempellijnen op basis van 10/20 en 14/20 normen
+
+// Custom plugin voor drempel lijnen (geen wijzigingen)
 const thresholdLinesPlugin = {
   id: 'thresholdLines',
   afterDatasetsDraw(chart, args, options) {
@@ -58,7 +51,6 @@ const thresholdLinesPlugin = {
     ctx.setLineDash([6, 6]);
     ctx.lineWidth = 2;
 
-    // Lijn voor 10/20 (oranje)
     const y10 = y.getPixelForValue(norm_10);
     ctx.strokeStyle = 'rgba(249, 115, 22, 0.8)';
     ctx.beginPath();
@@ -66,7 +58,6 @@ const thresholdLinesPlugin = {
     ctx.lineTo(right, y10);
     ctx.stroke();
 
-    // Lijn voor 14/20 (groen)
     const y14 = y.getPixelForValue(norm_14);
     ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
     ctx.beginPath();
@@ -78,35 +69,39 @@ const thresholdLinesPlugin = {
   }
 };
 
-// **HERBOUWD** Y-as schaling functie op basis van 1/20 en 20/20 normen
-const calculateOptimalYRange = (scoreValues, scoreNorms) => {
-  if (!scoreNorms || scoreNorms['1'] === undefined || scoreNorms['20'] === undefined) {
-    // Fallback als normen niet beschikbaar zijn
-    const scoreMin = scoreValues.length > 0 ? Math.min(...scoreValues) : 0;
-    const scoreMax = scoreValues.length > 0 ? Math.max(...scoreValues) : 100;
-    const padding = (scoreMax - scoreMin) * 0.2;
-    return { minValue: scoreMin - padding, maxValue: scoreMax + padding };
+// **AANGEPAST**: De Y-as wordt nu berekend op basis van de hoogste en laagste score van de leerling.
+const calculateOptimalYRange = (scoreValues) => {
+  // Als er geen scores zijn, gebruik een standaard bereik.
+  if (!scoreValues || scoreValues.length === 0) {
+    return { minValue: 0, maxValue: 100 };
   }
 
-  // Bereken min/max op basis van 1/20 en 20/20 normen met 15% padding
-  let minValue = scoreNorms['1'] * 0.85;
-  let maxValue = scoreNorms['20'] * 1.15;
+  const actualMin = Math.min(...scoreValues);
+  const actualMax = Math.max(...scoreValues);
 
-  // Zorg dat de scores van de leerling altijd zichtbaar zijn
-  if (scoreValues.length > 0) {
-      const actualMin = Math.min(...scoreValues);
-      const actualMax = Math.max(...scoreValues);
-      minValue = Math.min(minValue, actualMin - (actualMax - actualMin) * 0.1);
-      maxValue = Math.max(maxValue, actualMax + (actualMax - actualMin) * 0.1);
+  // Als alle scores gelijk zijn, voeg een kleine marge toe.
+  if (actualMin === actualMax) {
+    const padding = actualMin * 0.1;
+    return {
+      minValue: actualMin - padding,
+      maxValue: actualMax + padding,
+    };
   }
 
-  return { minValue, maxValue };
+  // Bereken 10% van het bereik van de scores als marge.
+  const range = actualMax - actualMin;
+  const padding = range * 0.10;
+
+  return {
+    minValue: actualMin - padding,
+    maxValue: actualMax + padding,
+  };
 };
 
 
 export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNorms, scoreRichting }) {
   const sortedScores = [...scores].sort((a, b) => new Date(a.datum) - new Date(b.datum));
-const isMobile = window.innerWidth < 640;
+  const isMobile = window.innerWidth < 640;
   const data = {
     labels: sortedScores.map(s => new Date(s.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: '2-digit' })),
     datasets: [{
@@ -126,15 +121,14 @@ const isMobile = window.innerWidth < 640;
   };
   
   const scoreValues = sortedScores.map(s => s.score);
-  const { minValue, maxValue } = calculateOptimalYRange(scoreValues, scoreNorms);
+  // **AANGEPAST**: De 'scoreNorms' worden niet meer meegegeven voor de schaalberekening.
+  const { minValue, maxValue } = calculateOptimalYRange(scoreValues);
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-     // **AANGEPAST**: Voorkom de fout door een fallback object te gebruiken
-      // als scoreNorms nog null is.
       coloredZones: { ...(scoreNorms || {}), score_richting: scoreRichting },
       thresholdLines: { ...(scoreNorms || {}) }
     },
@@ -178,7 +172,6 @@ const isMobile = window.innerWidth < 640;
     }
   };
 
-  // **AANGEPAST** JSX structuur voor legenda onder de grafiek
   return (
     <div className="flex flex-col h-full w-full">
       <div className="relative flex-grow">
@@ -194,7 +187,6 @@ const isMobile = window.innerWidth < 640;
         )}
       </div>
       
-      {/* **HERBOUWD** Legenda voor de nieuwe 10/20 en 14/20 drempels */}
       {scoreNorms && (
         <div className="mt-4 flex justify-center items-center">
             <div className="flex items-center gap-x-6 text-sm text-gray-600">
