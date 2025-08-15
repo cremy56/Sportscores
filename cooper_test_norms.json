@@ -1,0 +1,967 @@
+{
+    "test_id": "78DkiRMdmFbKL8W6TEnC",
+    "school_id": "cYEk6LqhpmEHIRhRJOY0",
+    "score_richting": "hoog",
+    "punten_schaal": [
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 1,
+            "score_min": 2270
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 2,
+            "score_min": 2320
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 3,
+            "score_min": 2370
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 4,
+            "score_min": 2420
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 5,
+            "score_min": 2470
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 6,
+            "score_min": 2520
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 7,
+            "score_min": 2570
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 8,
+            "score_min": 2620
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 9,
+            "score_min": 2670
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 10,
+            "score_min": 2720
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 11,
+            "score_min": 2770
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 12,
+            "score_min": 2820
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 13,
+            "score_min": 2870
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 14,
+            "score_min": 2920
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 15,
+            "score_min": 2970
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 16,
+            "score_min": 3020
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 17,
+            "score_min": 3090
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 18,
+            "score_min": 3160
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 19,
+            "score_min": 3230
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "M",
+            "punt": 20,
+            "score_min": 3300
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 1,
+            "score_min": 1800
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 2,
+            "score_min": 1850
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 3,
+            "score_min": 1900
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 4,
+            "score_min": 1950
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 5,
+            "score_min": 2000
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 6,
+            "score_min": 2050
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 7,
+            "score_min": 2100
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 8,
+            "score_min": 2150
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 9,
+            "score_min": 2200
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 10,
+            "score_min": 2250
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 11,
+            "score_min": 2300
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 12,
+            "score_min": 2350
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 13,
+            "score_min": 2400
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 14,
+            "score_min": 2450
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 15,
+            "score_min": 2500
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 16,
+            "score_min": 2550
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 17,
+            "score_min": 2600
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 18,
+            "score_min": 2650
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 19,
+            "score_min": 2700
+        },
+        {
+            "leeftijd": 14,
+            "geslacht": "V",
+            "punt": 20,
+            "score_min": 2750
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 1,
+            "score_min": 2300
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 2,
+            "score_min": 2350
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 3,
+            "score_min": 2400
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 4,
+            "score_min": 2450
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 5,
+            "score_min": 2500
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 6,
+            "score_min": 2550
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 7,
+            "score_min": 2600
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 8,
+            "score_min": 2650
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 9,
+            "score_min": 2700
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 10,
+            "score_min": 2750
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 11,
+            "score_min": 2800
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 12,
+            "score_min": 2850
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 13,
+            "score_min": 2900
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 14,
+            "score_min": 2950
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 15,
+            "score_min": 3000
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 16,
+            "score_min": 3050
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 17,
+            "score_min": 3120
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 18,
+            "score_min": 3190
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 19,
+            "score_min": 3260
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "M",
+            "punt": 20,
+            "score_min": 3330
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 1,
+            "score_min": 1850
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 2,
+            "score_min": 1900
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 3,
+            "score_min": 1950
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 4,
+            "score_min": 2000
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 5,
+            "score_min": 2050
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 6,
+            "score_min": 2100
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 7,
+            "score_min": 2150
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 8,
+            "score_min": 2200
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 9,
+            "score_min": 2250
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 10,
+            "score_min": 2300
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 11,
+            "score_min": 2350
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 12,
+            "score_min": 2400
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 13,
+            "score_min": 2450
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 14,
+            "score_min": 2500
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 15,
+            "score_min": 2550
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 16,
+            "score_min": 2600
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 17,
+            "score_min": 2650
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 18,
+            "score_min": 2700
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 19,
+            "score_min": 2750
+        },
+        {
+            "leeftijd": 15,
+            "geslacht": "V",
+            "punt": 20,
+            "score_min": 2800
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 1,
+            "score_min": 2350
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 2,
+            "score_min": 2400
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 3,
+            "score_min": 2450
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 4,
+            "score_min": 2500
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 5,
+            "score_min": 2550
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 6,
+            "score_min": 2600
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 7,
+            "score_min": 2650
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 8,
+            "score_min": 2700
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 9,
+            "score_min": 2750
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 10,
+            "score_min": 2800
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 11,
+            "score_min": 2850
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 12,
+            "score_min": 2900
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 13,
+            "score_min": 2950
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 14,
+            "score_min": 3000
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 15,
+            "score_min": 3050
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 16,
+            "score_min": 3100
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 17,
+            "score_min": 3150
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 18,
+            "score_min": 3200
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 19,
+            "score_min": 3250
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "M",
+            "punt": 20,
+            "score_min": 3300
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 1,
+            "score_min": 1900
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 2,
+            "score_min": 1950
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 3,
+            "score_min": 2000
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 4,
+            "score_min": 2050
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 5,
+            "score_min": 2100
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 6,
+            "score_min": 2150
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 7,
+            "score_min": 2200
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 8,
+            "score_min": 2250
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 9,
+            "score_min": 2300
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 10,
+            "score_min": 2350
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 11,
+            "score_min": 2400
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 12,
+            "score_min": 2450
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 13,
+            "score_min": 2500
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 14,
+            "score_min": 2550
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 15,
+            "score_min": 2600
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 16,
+            "score_min": 2650
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 17,
+            "score_min": 2700
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 18,
+            "score_min": 2750
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 19,
+            "score_min": 2800
+        },
+        {
+            "leeftijd": 16,
+            "geslacht": "V",
+            "punt": 20,
+            "score_min": 2850
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 1,
+            "score_min": 2450
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 2,
+            "score_min": 2500
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 3,
+            "score_min": 2550
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 4,
+            "score_min": 2600
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 5,
+            "score_min": 2650
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 6,
+            "score_min": 2700
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 7,
+            "score_min": 2750
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 8,
+            "score_min": 2800
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 9,
+            "score_min": 2850
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 10,
+            "score_min": 2900
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 11,
+            "score_min": 2950
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 12,
+            "score_min": 3000
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 13,
+            "score_min": 3050
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 14,
+            "score_min": 3100
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 15,
+            "score_min": 3150
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 16,
+            "score_min": 3200
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 17,
+            "score_min": 3250
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 18,
+            "score_min": 3300
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 19,
+            "score_min": 3350
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "M",
+            "punt": 20,
+            "score_min": 3400
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 1,
+            "score_min": 1800
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 2,
+            "score_min": 1850
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 3,
+            "score_min": 1900
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 4,
+            "score_min": 1950
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 5,
+            "score_min": 2000
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 6,
+            "score_min": 2050
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 7,
+            "score_min": 2100
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 8,
+            "score_min": 2200
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 9,
+            "score_min": 2300
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 10,
+            "score_min": 2400
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 11,
+            "score_min": 2450
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 12,
+            "score_min": 2500
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 13,
+            "score_min": 2550
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 14,
+            "score_min": 2600
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 15,
+            "score_min": 2650
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 16,
+            "score_min": 2700
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 17,
+            "score_min": 2750
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 18,
+            "score_min": 2800
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 19,
+            "score_min": 2850
+        },
+        {
+            "leeftijd": 17,
+            "geslacht": "V",
+            "punt": 20,
+            "score_min": 2900
+        }
+    ]
+}

@@ -376,69 +376,81 @@ const calculateP65Threshold = (normenData) => {
 };
 
 /**
- * NIEUW: Haalt normen op gebaseerd op een 20-puntenschaal
+ * HERSCHREVEN: Haalt normen op uit een 20-puntenschaal gebaseerd op de NIEUWE datastructuur.
+ * Deze functie haalt één document per test_id op en filtert de 'punten_schaal' array client-side.
  */
 export const getScoreNorms = async (testId, leeftijd, geslacht) => {
   const operation = async () => {
     if (!testId || leeftijd === null || leeftijd === undefined || isNaN(leeftijd) || !geslacht) {
-      console.warn('getScoreNorms: Invalid input', { testId, leeftijd, geslacht });
+      console.warn('getScoreNorms: Ongeldige input', { testId, leeftijd, geslacht });
       return null;
     }
 
-    const numericAge = Number(leeftijd);
-    const normAge = Math.min(numericAge, 17); // Leeftijd afkappen op 17 voor normen
-    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
+    // Haal het volledige norm-document op voor de test. Het document ID is de testId.
+    const normDocRef = doc(db, 'normen', testId);
+    const normDocSnap = await getDoc(normDocRef);
+
+    if (!normDocSnap.exists() || !normDocSnap.data().punten_schaal) {
+      console.log(`❌ Geen norm-document of 'punten_schaal' gevonden voor test ${testId}.`);
+      return null;
+    }
     
+    const normDocument = normDocSnap.data();
+    const puntenSchaal = normDocument.punten_schaal;
+    const scoreRichting = normDocument.score_richting || 'hoog';
+    const numericAge = Number(leeftijd);
+    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
+
     if (!['M', 'V'].includes(mappedGender)) {
-      console.warn('getScoreNorms: Could not map gender:', geslacht);
+      console.warn('getScoreNorms: Kon geslacht niet mappen:', geslacht);
       return null;
     }
 
-    const fetchNormsForAge = async (age) => {
-      const normenQuery = query(
-        collection(db, 'normen'),
-        where('test_id', '==', testId),
-        where('leeftijd', '==', age),
-        where('geslacht', '==', mappedGender)
+    // Helper functie om de schaal voor een specifieke leeftijd te filteren en de normen te extraheren
+    const extractNormsForAge = (age) => {
+      // Filter de volledige schaal op de juiste leeftijd en geslacht
+      const relevantNorms = puntenSchaal.filter(
+        norm => norm.leeftijd === age && norm.geslacht === mappedGender
       );
-      const normenSnapshot = await getDocs(normenQuery);
 
-      if (normenSnapshot.empty) return null;
+      if (relevantNorms.length === 0) return null;
 
-      const normenData = normenSnapshot.docs[0].data();
+      // Zoek de specifieke scores voor de benodigde punten
+      const findScore = (punt) => relevantNorms.find(n => n.punt === punt)?.score_min;
       
-      // Controleer of de benodigde punt_ velden bestaan
-      const requiredPuntFields = ['punt_1', 'punt_10', 'punt_14', 'punt_20'];
-      const hasRequiredFields = requiredPuntFields.every(field => normenData[field] !== undefined);
+      const norm_1 = findScore(1);
+      const norm_10 = findScore(10);
+      const norm_14 = findScore(14);
+      const norm_20 = findScore(20);
 
-      if (hasRequiredFields) {
-        console.log(`✅ Found 20-point norms for test ${testId} at age ${age}.`);
+      // Valideer of alle benodigde punten gevonden zijn
+      if ([norm_1, norm_10, norm_14, norm_20].every(n => n !== undefined)) {
+        console.log(`✅ Normen gevonden voor test ${testId} op leeftijd ${age}.`);
         return {
-          '1': normenData.punt_1,
-          '10': normenData.punt_10,
-          '14': normenData.punt_14,
-          '20': normenData.punt_20,
-          score_richting: normenData.score_richting || 'hoog',
+          '1': norm_1,
+          '10': norm_10,
+          '14': norm_14,
+          '20': norm_20,
+          score_richting: scoreRichting,
           leeftijd: age,
         };
       }
-      
-      console.warn(`Norms found for age ${age}, but missing required 20-point fields.`);
       return null;
     };
     
-    // Probeer eerst de genormaliseerde leeftijd
-    let result = await fetchNormsForAge(normAge);
+    // 1. Probeer eerst met de exacte (afgekapte) leeftijd
+    const normAge = Math.min(numericAge, 17);
+    let result = extractNormsForAge(normAge);
     if (result) return { ...result, original_leeftijd: numericAge };
 
-    // Fallback: probeer andere leeftijden als de primaire zoekopdracht mislukt
-    console.log(`No 20-point norms found for age ${normAge}. Trying fallback ages...`);
+    // 2. Fallback: probeer andere leeftijden als de primaire zoekopdracht mislukt
+    console.log(`Geen complete normen gevonden voor leeftijd ${normAge}. Proberen van fallback leeftijden...`);
     const fallbackAges = [17, 16, 15, 14, 13].filter(age => age !== normAge);
 
     for (const fallbackAge of fallbackAges) {
-      result = await fetchNormsForAge(fallbackAge);
+      result = extractNormsForAge(fallbackAge);
       if (result) {
-        console.log(`✅ Using fallback age ${fallbackAge} for 20-point norms.`);
+        console.log(`✅ Fallback succesvol: gebruik van leeftijd ${fallbackAge} voor normen.`);
         return { 
           ...result, 
           original_leeftijd: numericAge, 
@@ -448,15 +460,16 @@ export const getScoreNorms = async (testId, leeftijd, geslacht) => {
       }
     }
 
-    console.log(`❌ No 20-point norms found for test ${testId} with any age strategy.`);
+    console.log(`❌ Geen volledige 20-punts normen gevonden voor test ${testId} met enige leeftijdsstrategie.`);
     return null;
   };
 
   try {
+    // Gebruik de retryOperation wrapper die al in je bestand aanwezig is
     return await retryOperation(operation);
   } catch (error) {
     handleFirestoreError(error, 'Laden van 20-punts normen');
-    return null; // Geef null terug bij fout, zodat de UI niet crasht
+    return null;
   }
 };
 

@@ -36,3 +36,4 @@ dist-ssr
 
 # Optional: Git conflict backups
 *.orig
+serviceAccountKey.json

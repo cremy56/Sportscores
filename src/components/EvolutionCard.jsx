@@ -193,7 +193,7 @@ export default function EvolutionCard({ categoryName, tests, student }) {
   }, [scoreNorms, currentTest?.personal_best_score]);
 
   // FIXED: Enhanced threshold fetching with better error handling
-  useEffect(() => {
+useEffect(() => {
     const fetchNorms = async () => {
       if (!currentTest || !student?.geboortedatum || !student?.geslacht) {
         setScoreNorms(null);
@@ -211,19 +211,27 @@ export default function EvolutionCard({ categoryName, tests, student }) {
         if (leeftijd === null || isNaN(leeftijd)) {
           setError("Kon leeftijd niet berekenen voor normwaarden.");
           setScoreNorms(null);
+          setLoading(false);
           return;
         }
 
-        // Gebruik de nieuwe functie om data op te halen
+        // De nieuwe functie doet al het werk!
         const normData = await getScoreNorms(
           currentTest.test_id,
           leeftijd,
           student.geslacht
         );
         
-        setScoreNorms(normData);
-        if (!normData) {
+        if (normData) {
+          // De data is al correct geformatteerd, we hoeven alleen nog de extra keys voor de chart plugins toe te voegen
+          setScoreNorms({
+            ...normData,
+            norm_10: normData['10'],
+            norm_14: normData['14']
+          });
+        } else {
           setError("Geen normen (1-20) gevonden voor deze test/leeftijd.");
+          setScoreNorms(null);
         }
       } catch (err) {
         console.error("Error fetching score norms:", err);
