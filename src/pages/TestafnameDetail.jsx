@@ -91,24 +91,24 @@ function ScoreDistributionChart({ leerlingen, maxPunten = 20 }) {
         
         if (punten.length === 0) return null;
 
-        // Dynamic thresholds based on max points
-        const excellentThreshold = Math.round(maxPunten * 0.8); // 80%
-        const goodThreshold = Math.round(maxPunten * 0.6); // 60%
-        const satisfactoryThreshold = Math.round(maxPunten * 0.4); // 40%
+         const uitstekendDrempel = 18; // Alles van 18 en hoger
+        const goedDrempel = 14;       // Goed: 14, 15, 16, 17
+        const voldoendeDrempel = 10;    // Voldoende: 10, 11, 12, 13
+        // Onvoldoende is alles onder de 10
 
-        const excellent = punten.filter(p => p >= excellentThreshold).length;
-        const good = punten.filter(p => p >= goodThreshold && p < excellentThreshold).length;
-        const satisfactory = punten.filter(p => p >= satisfactoryThreshold && p < goodThreshold).length;
-        const poor = punten.filter(p => p < satisfactoryThreshold).length;
+        const uitstekend = punten.filter(p => p >= uitstekendDrempel).length;
+        const goed = punten.filter(p => p >= goedDrempel && p < uitstekendDrempel).length;
+        const voldoende = punten.filter(p => p >= voldoendeDrempel && p < goedDrempel).length;
+        const onvoldoende = punten.filter(p => p < voldoendeDrempel).length;
         
         const total = punten.length;
         const average = (punten.reduce((sum, p) => sum + p, 0) / total).toFixed(1);
 
         return {
-            excellent: { count: excellent, percentage: Math.round((excellent / total) * 100), threshold: excellentThreshold },
-            good: { count: good, percentage: Math.round((good / total) * 100), threshold: goodThreshold },
-            satisfactory: { count: satisfactory, percentage: Math.round((satisfactory / total) * 100), threshold: satisfactoryThreshold },
-            poor: { count: poor, percentage: Math.round((poor / total) * 100) },
+            uitstekend: { count: uitstekend, percentage: Math.round((uitstekend / total) * 100) },
+            goed: { count: goed, percentage: Math.round((goed / total) * 100) },
+            voldoende: { count: voldoende, percentage: Math.round((voldoende / total) * 100) },
+            onvoldoende: { count: onvoldoende, percentage: Math.round((onvoldoende / total) * 100) },
             average,
             total,
             maxPunten
@@ -137,61 +137,61 @@ function ScoreDistributionChart({ leerlingen, maxPunten = 20 }) {
             <div className="space-y-3 mb-6">
                 <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-green-700">
-                        Uitstekend ({distribution.excellent.threshold}-{distribution.maxPunten})
+                        Uitstekend (18-{distribution.maxPunten})
                     </span>
                     <div className="flex items-center">
                         <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                             <div 
                                 className="bg-green-500 h-2 rounded-full" 
-                                style={{ width: `${distribution.excellent.percentage}%` }}
+                                style={{ width: `${distribution.uitstekend.percentage}%` }}
                             ></div>
                         </div>
-                        <span className="text-sm text-gray-600 w-12">{distribution.excellent.count}/{distribution.total}</span>
+                        <span className="text-sm text-gray-600 w-12">{distribution.uitstekend.count}/{distribution.total}</span>
                     </div>
                 </div>
                 
                 <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-blue-700">
-                        Goed ({distribution.good.threshold}-{distribution.excellent.threshold - 1})
+                        Goed (14-17)
                     </span>
                     <div className="flex items-center">
                         <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                             <div 
                                 className="bg-blue-500 h-2 rounded-full" 
-                                style={{ width: `${distribution.good.percentage}%` }}
+                                style={{ width: `${distribution.goed.percentage}%` }}
                             ></div>
                         </div>
-                        <span className="text-sm text-gray-600 w-12">{distribution.good.count}/{distribution.total}</span>
+                        <span className="text-sm text-gray-600 w-12">{distribution.goed.count}/{distribution.total}</span>
                     </div>
                 </div>
                 
                 <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-yellow-700">
-                        Voldoende ({distribution.satisfactory.threshold}-{distribution.good.threshold - 1})
+                        Voldoende (10-13)
                     </span>
                     <div className="flex items-center">
                         <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                             <div 
                                 className="bg-yellow-500 h-2 rounded-full" 
-                                style={{ width: `${distribution.satisfactory.percentage}%` }}
+                                style={{ width: `${distribution.voldoende.percentage}%` }}
                             ></div>
                         </div>
-                        <span className="text-sm text-gray-600 w-12">{distribution.satisfactory.count}/{distribution.total}</span>
+                        <span className="text-sm text-gray-600 w-12">{distribution.voldoende.count}/{distribution.total}</span>
                     </div>
                 </div>
                 
                 <div className="flex items-center justify-between">
                    <span className="text-sm font-medium text-red-700">
-                       Onvoldoende (&lt;{distribution.satisfactory.threshold})
+                       Onvoldoende (&lt;10)
                    </span>
                     <div className="flex items-center">
                         <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
                             <div 
                                 className="bg-red-500 h-2 rounded-full" 
-                                style={{ width: `${distribution.poor.percentage}%` }}
+                                style={{ width: `${distribution.onvoldoende.percentage}%` }}
                             ></div>
                         </div>
-                        <span className="text-sm text-gray-600 w-12">{distribution.poor.count}/{distribution.total}</span>
+                        <span className="text-sm text-gray-600 w-12">{distribution.onvoldoende.count}/{distribution.total}</span>
                     </div>
                 </div>
             </div>
