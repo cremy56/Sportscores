@@ -31,9 +31,15 @@ function formatScore(score, eenheid) {
 
 function getScoreColorClass(punt, maxPunten = 20) {
     if (punt === null || punt === undefined) return 'text-gray-400';
-    const percentage = (punt / maxPunten) * 100;
-    if (percentage < 40) return 'text-red-600';
-    if (percentage < 60) return 'text-yellow-600';
+
+    // ▼▼▼ AANGEPASTE LOGICA MET VASTE PUNTGRENZEN ▼▼▼
+    if (punt < 10) { // Onvoldoende
+        return 'text-red-600';
+    }
+    if (punt < 14) { // Voldoende (10 t/m 13.9)
+        return 'text-yellow-600';
+    }
+    // Goed en Uitstekend (14 en hoger)
     return 'text-green-600';
 }
 
