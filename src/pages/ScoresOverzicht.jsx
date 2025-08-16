@@ -195,6 +195,7 @@ export default function ScoresOverzicht() {
 
                 // Groepeer scores per testafname
                 const grouped = scoresData.reduce((acc, score) => {
+                    const datumString = score.datum.toISOString().split('T')[0]; // bv. "2025-08-17"
                     const key = `${score.groep_id}-${score.test_id}-${score.datum}`;
                     if (!acc[key]) {
                         acc[key] = {
