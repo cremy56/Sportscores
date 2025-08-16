@@ -254,11 +254,17 @@ export default function TestafnameDetail() {
 
             const groupData = groupSnap.data();
             const testData = testSnap.data();
-            const queryDate = new Date(datum);
+            const dayStart = new Date(datum);
+            dayStart.setHours(0, 0, 0, 0);
+
+            const dayEnd = new Date(datum);
+            dayEnd.setHours(23, 59, 59, 999);
+
             const scoresQuery = query(collection(db, 'scores'), 
                 where('groep_id', '==', groepId),
                 where('test_id', '==', testId),
-                where('datum', '==', queryDate)
+                where('datum', '>=', dayStart),
+                where('datum', '<=', dayEnd)
             );
             const scoresSnap = await getDocs(scoresQuery);
             const scoresMap = new Map(scoresSnap.docs.map(d => [d.data().leerling_id, { id: d.id, ...d.data() }]));
