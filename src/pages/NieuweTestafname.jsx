@@ -419,78 +419,42 @@ const handleScoreChange = (leerlingId, newScore) => {
     }, [scores, selectedTest, datum, leerlingen]);
 
     // GEWIJZIGDE handleSaveScores FUNCTIE MET NIEUWE UTILITIES
-    const handleSaveScores = async () => {
-        if (!selectedGroupId || !selectedTestId) {
-            toast.error("Selecteer eerst een groep en een test.");
+  const handleSaveScores = async () => {
+        if (!selectedGroep || !selectedTest) {
+            toast.error("Selecteer een groep en een test.");
             return;
         }
-
-        // Check voor validatie fouten
-        const hasValidationErrors = Object.values(validations).some(v => v.valid === false);
-        if (hasValidationErrors) {
-            toast.error("Los eerst alle validatiefouten op voordat je opslaat.");
-            return;
-        }
-
-        const scoresToInsert = Object.entries(scores)
-            .filter(([_, score]) => score !== '' && score !== null)
-            .map(([leerlingId, score]) => ({
-                leerling_id: leerlingId,
-                score: parseTijdScore(score),
-                rapportpunt: calculatedPoints[leerlingId] || 0,
-            }));
-
-        if (scoresToInsert.length === 0) {
-            toast.error("Voer ten minste één score in.");
-            return;
-        }
-
-        if (scoresToInsert.some(s => isNaN(s.score))) {
-            toast.error("Een of meerdere scores zijn ongeldig. Controleer de invoer.");
-            return;
-        }
-
-        setSaving(true);
-        const loadingToast = toast.loading('Scores opslaan...');
-        
+        setIsSaving(true);
+        const batch = writeBatch(db);
         try {
-            const currentUser = auth.currentUser;
-            if (!currentUser) {
-                throw new Error("Gebruiker niet ingelogd");
+            for (const leerlingId in scores) {
+                const scoreData = scores[leerlingId];
+                if (scoreData.score && scoreData.score.trim() !== '') {
+                    const scoreValue = parseFloat(scoreData.score.replace(',', '.'));
+                    if (!isNaN(scoreValue)) {
+                        const newScoreRef = doc(collection(db, 'scores'));
+                        batch.set(newScoreRef, {
+                            datum: new Date(datum),
+                            groep_id: selectedGroep.value,
+                            leerling_id: leerlingId,
+                            score: scoreValue,
+                            rapportpunt: scoreData.rapportpunt ?? null,
+                            school_id: profile.school_id,
+                            test_id: selectedTest.value,
+                            leerkracht_id: profile.id,
+                            created_at: serverTimestamp()
+                        });
+                    }
+                }
             }
-
-            const batch = writeBatch(db);
-            const nowDate = new Date().toISOString().split('T')[0];
-            const leerlingDetails = new Map(selectedGroup.leden.map(l => [l.id, { naam: l.naam, email: l.email }]));
-
-            scoresToInsert.forEach(item => {
-                const scoreRef = doc(collection(db, 'scores'));
-                batch.set(scoreRef, {
-                    leerling_id: item.leerling_id,
-                    leerling_naam: leerlingDetails.get(item.leerling_id)?.naam,
-                    test_id: selectedTestId,
-                    score: item.score,
-                    rapportpunt: item.rapportpunt,
-                    groep_id: selectedGroupId,
-                    datum: nowDate,
-                    leerkracht_id: currentUser.uid,
-                    school_id: profile.school_id,
-                    score_jaar: new Date().getFullYear()
-                });
-            });
-
-            // GEBRUIK VAN NIEUWE UTILITY FUNCTIES
-            await saveWithRetry(batch);
-            toast.success(`${scoresToInsert.length} scores succesvol opgeslagen!`);
+            await batch.commit();
+            toast.success("Scores succesvol opgeslagen!");
             navigate('/scores');
         } catch (error) {
             console.error("Fout bij opslaan:", error);
-            // GEBRUIK VAN NIEUWE ERROR HANDLING
-            const errorMessage = handleFirestoreError(error);
-            toast.error(errorMessage);
+            toast.error("Kon de scores niet opslaan.");
         } finally {
-            setSaving(false);
-            toast.dismiss(loadingToast);
+            setIsSaving(false);
         }
     };
 
