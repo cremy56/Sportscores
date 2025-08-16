@@ -254,11 +254,11 @@ export default function TestafnameDetail() {
 
             const groupData = groupSnap.data();
             const testData = testSnap.data();
-            
+            const queryDate = new Date(datum);
             const scoresQuery = query(collection(db, 'scores'), 
                 where('groep_id', '==', groepId),
                 where('test_id', '==', testId),
-                where('datum', '==', datum)
+                where('datum', '==', queryDate)
             );
             const scoresSnap = await getDocs(scoresQuery);
             const scoresMap = new Map(scoresSnap.docs.map(d => [d.data().leerling_id, { id: d.id, ...d.data() }]));
@@ -297,7 +297,7 @@ export default function TestafnameDetail() {
 
     useEffect(() => { 
         fetchDetails(); 
-        setNewDate(datum);
+        setNewDate(datum.split('T')[0]); // Zorg dat de input een YYYY-MM-DD string krijgt
     }, [fetchDetails, datum]);
 
     const handleEditClick = (scoreId, currentScore) => {
@@ -367,7 +367,10 @@ export default function TestafnameDetail() {
     };
 
     const handleUpdateDate = async () => {
-        if (!newDate || newDate === datum) {
+        const originalDate = new Date(datum);
+        const updatedDate = new Date(newDate);
+
+        if (!newDate || originalDate.toISOString().split('T')[0] === updatedDate.toISOString().split('T')[0]) {
             setEditingDate(false);
             return;
         }
@@ -378,19 +381,20 @@ export default function TestafnameDetail() {
             const scoresQuery = query(collection(db, 'scores'), 
                 where('groep_id', '==', groepId),
                 where('test_id', '==', testId),
-                where('datum', '==', datum)
+                where('datum', '==', originalDate)
             );
             const scoresSnap = await getDocs(scoresQuery);
             
             const batch = writeBatch(db);
             scoresSnap.docs.forEach(doc => {
-                batch.update(doc.ref, { datum: newDate });
+                batch.update(doc.ref, { datum: updatedDate });
             });
             await batch.commit();
 
             toast.success("Testdatum succesvol bijgewerkt!");
             setEditingDate(false);
-            navigate(`/testafname/${groepId}/${testId}/${newDate}`);
+            navigate(`/testafname/${groepId}/${testId}/${updatedDate.toISOString()}`);
+
         } catch (error) {
             console.error("Fout bij bijwerken datum:", error);
             toast.error("Fout bij bijwerken van de datum.");
@@ -406,7 +410,7 @@ export default function TestafnameDetail() {
             const scoresQuery = query(collection(db, 'scores'), 
                 where('groep_id', '==', groepId),
                 where('test_id', '==', testId),
-                where('datum', '==', datum)
+                where('datum', '==', new Date(datum))
             );
             const scoresSnap = await getDocs(scoresQuery);
             
@@ -443,7 +447,7 @@ export default function TestafnameDetail() {
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', `${details.test_naam}_${details.groep_naam}_${datum}.csv`);
+        link.setAttribute('download', `${details.test_naam}_${details.groep_naam}_${datum.split('T')[0]}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -500,12 +504,7 @@ export default function TestafnameDetail() {
                                                 >
                                                     <CheckIcon className="h-4 w-4" />
                                                 </button>
-                                                <button
-                                                    onClick={() => {setEditingDate(false); setNewDate(datum);}}
-                                                    className="text-red-600 hover:text-red-800"
-                                                >
-                                                    <XMarkIcon className="h-4 w-4" />
-                                                </button>
+                                                <button onClick={() => {setEditingDate(false); setNewDate(datum.split('T')[0]);}} className="text-red-600 hover:text-red-800"><XMarkIcon className="h-4 w-4" /></button>
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-2">
