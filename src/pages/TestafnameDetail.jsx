@@ -19,6 +19,7 @@ import {
     ExclamationTriangleIcon
 } from '@heroicons/react/24/solid';
 
+
 function formatScore(score, eenheid) {
     if (eenheid === 'seconden' || eenheid === 'minuten') {
         const mins = Math.floor(score / 60);
@@ -56,7 +57,6 @@ function validateScore(score, eenheid) {
     
     return { valid: true, message: '' };
 }
-
 
 function StatCard({ icon: Icon, title, value, subtitle, color = "gray" }) {
     const colorClasses = {
@@ -215,12 +215,10 @@ export default function TestafnameDetail() {
         test_naam: '', 
         eenheid: '',
         max_punten: 20,
-        score_richting: 'hoog',
-        leerlingen: [],
-        testNorms: []
+        leerlingen: [] 
     });
     const [loading, setLoading] = useState(true);
-    const [editingScore, setEditingScore] = useState({ id: null, score: '', validation: null, leerlingId: null, previewPoints: null });
+    const [editingScore, setEditingScore] = useState({ id: null, score: '', validation: null });
     const [editingDate, setEditingDate] = useState(false);
     const [newDate, setNewDate] = useState('');
     const [updating, setUpdating] = useState(false);
@@ -256,16 +254,6 @@ export default function TestafnameDetail() {
 
             const groupData = groupSnap.data();
             const testData = testSnap.data();
-
-            // Haal normen op voor deze test
-            let testNorms = [];
-            try {
-                const normsQuery = query(collection(db, 'normen'), where('test_id', '==', testId));
-                const normsSnap = await getDocs(normsQuery);
-                testNorms = normsSnap.docs.map(d => d.data());
-            } catch (error) {
-                console.warn("Kon normen niet ophalen:", error);
-            }
             
             const scoresQuery = query(collection(db, 'scores'), 
                 where('groep_id', '==', groepId),
@@ -285,8 +273,6 @@ export default function TestafnameDetail() {
                     return {
                         id: d.id,
                         naam: d.data().naam,
-                        leeftijd: d.data().leeftijd,
-                        geslacht: d.data().geslacht,
                         score: scoreInfo?.score ?? null,
                         punt: scoreInfo?.rapportpunt ?? null,
                         score_id: scoreInfo?.id
@@ -299,9 +285,7 @@ export default function TestafnameDetail() {
                 test_naam: testData.naam,
                 eenheid: testData.eenheid,
                 max_punten: testData.max_punten || 20,
-                score_richting: testData.score_richting || 'hoog',
-                leerlingen: leerlingenData.sort((a,b) => a.naam.localeCompare(b.naam)),
-                testNorms: testNorms
+                leerlingen: leerlingenData.sort((a,b) => a.naam.localeCompare(b.naam))
             });
 
         } catch (error) {
@@ -316,40 +300,20 @@ export default function TestafnameDetail() {
         setNewDate(datum);
     }, [fetchDetails, datum]);
 
-    const handleEditClick = (scoreId, currentScore, leerlingId) => {
+    const handleEditClick = (scoreId, currentScore) => {
         setEditingScore({ 
             id: scoreId, 
             score: currentScore ?? '', 
-            validation: { valid: true, message: '' },
-            leerlingId: leerlingId,
-            previewPoints: null
+            validation: { valid: true, message: '' }
         });
     };
 
     const handleScoreChange = (value) => {
         const validation = validateScore(value, details.eenheid);
-        
-        // Bereken preview punten tijdens typen
-        let previewPoints = null;
-        if (value && !isNaN(parseFloat(value.replace(',', '.'))) && editingScore.leerlingId) {
-            const leerling = details.leerlingen.find(l => l.id === editingScore.leerlingId);
-            if (leerling && details.testNorms.length > 0 && leerling.leeftijd && leerling.geslacht) {
-                const scoreValue = parseFloat(value.replace(',', '.'));
-                previewPoints = calculatePointsWithInterpolation(
-                    scoreValue, 
-                    leerling.leeftijd, 
-                    leerling.geslacht, 
-                    details.testNorms,
-                    details.score_richting
-                );
-            }
-        }
-        
         setEditingScore(prev => ({ 
             ...prev, 
             score: value, 
-            validation,
-            previewPoints
+            validation 
         }));
     };
 
@@ -362,43 +326,14 @@ export default function TestafnameDetail() {
             return;
         }
 
-        // Vind de leerling gegevens
-        const leerling = details.leerlingen.find(l => l.id === editingScore.leerlingId);
-        if (!leerling) {
-            toast.error("Leerling gegevens niet gevonden.");
-            return;
-        }
-
-        // Bereken punten met interpolatie
-        let calculatedPoints = null;
-        if (details.testNorms.length > 0 && leerling.leeftijd && leerling.geslacht) {
-            calculatedPoints = calculatePointsWithInterpolation(
-                scoreValue, 
-                leerling.leeftijd, 
-                leerling.geslacht, 
-                details.testNorms,
-                details.score_richting
-            );
-        }
-
         setUpdating(true);
         const scoreRef = doc(db, 'scores', editingScore.id);
         
         try {
-            const updateData = { score: scoreValue };
-            if (calculatedPoints !== null) {
-                updateData.rapportpunt = calculatedPoints;
-            }
-            
-            await updateDoc(scoreRef, updateData);
-            
-            const message = calculatedPoints !== null 
-                ? `Score succesvol bijgewerkt! Punten: ${calculatedPoints}/20`
-                : "Score succesvol bijgewerkt!";
-            toast.success(message);
-            
+            await updateDoc(scoreRef, { score: scoreValue });
+            toast.success("Score succesvol bijgewerkt!");
             fetchDetails();
-            setEditingScore({ id: null, score: '', validation: null, leerlingId: null, previewPoints: null });
+            setEditingScore({ id: null, score: '', validation: null });
         } catch (error) {
             console.error("Fout bij bijwerken:", error);
             if (error.code === 'permission-denied') {
@@ -516,7 +451,7 @@ export default function TestafnameDetail() {
     };
 
     const cancelEdit = () => {
-        setEditingScore({ id: null, score: '', validation: null, leerlingId: null, previewPoints: null });
+        setEditingScore({ id: null, score: '', validation: null });
     };
 
     if (loading) {
@@ -640,7 +575,7 @@ export default function TestafnameDetail() {
                             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
                                 <div className="p-6 border-b border-gray-200/70">
                                     <h2 className="text-xl font-semibold text-gray-900">
-                                        Individuele Scores {details.testNorms.length > 0 && <span className="text-sm text-green-600">(met interpolatie)</span>}
+                                        Individuele Scores
                                     </h2>
                                     <p className="text-sm text-gray-600 mt-1">
                                         Klik op het potlood-icoon om een score te bewerken
@@ -654,11 +589,6 @@ export default function TestafnameDetail() {
                                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
                                                     <div className="font-medium text-gray-900">
                                                         {lid.naam}
-                                                        {lid.leeftijd && (
-                                                            <span className="text-xs text-gray-500 block">
-                                                                {lid.leeftijd} jaar, {lid.geslacht}
-                                                            </span>
-                                                        )}
                                                     </div>
                                                     
                                                     <div className="text-center">
@@ -683,11 +613,6 @@ export default function TestafnameDetail() {
                                                                         {editingScore.validation.message}
                                                                     </div>
                                                                 )}
-                                                                {editingScore.previewPoints !== null && editingScore.validation?.valid && (
-                                                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 text-xs text-green-600 whitespace-nowrap font-bold">
-                                                                        Preview: {editingScore.previewPoints}/20
-                                                                    </div>
-                                                                )}
                                                             </div>
                                                         ) : (
                                                             <span className="font-bold text-lg text-purple-700">
@@ -697,15 +622,9 @@ export default function TestafnameDetail() {
                                                     </div>
                                                     
                                                     <div className="text-center">
-                                                        {editingScore.id === lid.score_id && editingScore.previewPoints !== null && editingScore.validation?.valid ? (
-                                                            <span className="font-bold text-lg text-green-600 animate-pulse">
-                                                                {editingScore.previewPoints}/{details.max_punten}
-                                                            </span>
-                                                        ) : (
-                                                            <span className={`font-bold text-lg ${getScoreColorClass(lid.punt, details.max_punten)}`}>
-                                                                {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
-                                                            </span>
-                                                        )}
+                                                        <span className={`font-bold text-lg ${getScoreColorClass(lid.punt, details.max_punten)}`}>
+                                                            {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
+                                                        </span>
                                                     </div>
                                                     
                                                     <div className="flex justify-center items-center gap-2">
@@ -731,7 +650,7 @@ export default function TestafnameDetail() {
                                                         ) : (
                                                             <>
                                                                 <button 
-                                                                    onClick={() => handleEditClick(lid.score_id, lid.score, lid.id)}
+                                                                    onClick={() => handleEditClick(lid.score_id, lid.score)}
                                                                     title="Wijzigen" 
                                                                     className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
                                                                 >
@@ -770,11 +689,6 @@ export default function TestafnameDetail() {
                             <h3 className="text-xl font-semibold text-gray-900 mb-2">Testafname Beheer</h3>
                             <p className="text-sm text-gray-600">
                                 Beheer deze testafname en de bijbehorende scores
-                                {details.testNorms.length > 0 && (
-                                    <span className="block text-green-600 font-medium mt-1">
-                                        ✓ Automatische puntenberekening met interpolatie actief
-                                    </span>
-                                )}
                             </p>
                         </div>
 
