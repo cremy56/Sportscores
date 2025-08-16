@@ -244,18 +244,18 @@ export default function NieuweTestafname() {
 
     // Haal normen op als een test is geselecteerd
     useEffect(() => {
-        if (!selectedTestId) {
+        if (!selectedTest) {
             setNormen([]);
             return;
         }
-        const normenQuery = query(collection(db, 'normen'), where('test_id', '==', selectedTestId));
+        const normenQuery = query(collection(db, 'normen'), where('test_id', '==', selectedTest));
         getDocs(normenQuery).then(snap => {
             setNormen(snap.docs.map(d => d.data()));
         }).catch(error => {
             console.error("Fout bij laden normen:", error);
             setNormen([]);
         });
-    }, [selectedTestId]);
+    }, [selectedTest]);
 
  // VERBETERDE getPointForScore functie
 const getPointForScore = useCallback((leerling, score) => {
@@ -366,7 +366,7 @@ const getPointForScore = useCallback((leerling, score) => {
     console.log('=== End getPointForScore ===');
     
     setCalculatedPoints(prev => ({ ...prev, [leerling.id]: behaaldPunt }));
-}, [selectedTest, normen, selectedTestId]);
+}, [selectedTest, normen, selectedTest]);
 
 const handleScoreChange = (leerlingId, newScore) => {
         // Update direct de input-waarde en zet de laadstatus aan
@@ -508,8 +508,8 @@ const handleScoreChange = (leerlingId, newScore) => {
                                 </label>
                                 <select 
                                     id="test-select" 
-                                    value={selectedTestId} 
-                                    onChange={(e) => setSelectedTestId(e.target.value)} 
+                                    value={selectedTest} 
+                                    onChange={(e) => setSelectedTest(e.target.value)} 
                                     disabled={!selectedGroupId} 
                                     className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                                 >
