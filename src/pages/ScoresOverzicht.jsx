@@ -178,7 +178,15 @@ export default function ScoresOverzicht() {
                     getDocs(query(collection(db, 'testen'), where('school_id', '==', profile.school_id)))
                 ]);
 
-                const scoresData = scoresSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const scoresData = scoresSnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        datum: data.datum.toDate() // <<< FIX IS HIER
+                    };
+                });
+
                 const groepenData = groepenSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const testenData = testenSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
