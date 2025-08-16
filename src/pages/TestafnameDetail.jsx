@@ -57,117 +57,100 @@ const handleScoreChange = (value) => {
 };
 
 // Ook een verbeterde calculatePointsWithInterpolation functie met meer debugging:
-function calculatePointsWithInterpolation(score, age, gender, normsArray, scoreDirection = 'hoog') {
-    console.log('calculatePointsWithInterpolation called with:', {
-        score,
-        age,
-        gender,
-        normsArrayLength: normsArray?.length,
-        scoreDirection
-    });
+// DEBUG: Verbeterde calculatePointsWithInterpolation
+function calculatePointsWithInterpolation_NEW(score, age, gender, normsArray, scoreDirection = 'hoog') {
+    console.log('🔥 NEW INTERPOLATION FUNCTION CALLED 🔥');
+    console.log('Parameters:', { score, age, gender, normsArrayLength: normsArray?.length, scoreDirection });
 
     if (!score || !age || !gender || !normsArray || normsArray.length === 0) {
-        console.log('Early return due to missing parameters');
+        console.log('❌ Early return - missing parameters');
         return null;
     }
 
     // Flatten de normen data - extract alle punten_schaal items
     let allNorms = [];
     normsArray.forEach((normDoc, docIndex) => {
-        console.log(`Processing norm document ${docIndex}:`, normDoc);
+        console.log(`📋 Processing norm document ${docIndex}:`, normDoc);
         
         if (normDoc.punten_schaal && Array.isArray(normDoc.punten_schaal)) {
+            console.log(`✅ Found punten_schaal with ${normDoc.punten_schaal.length} items`);
             normDoc.punten_schaal.forEach((punt, puntIndex) => {
-                console.log(`  Punt ${puntIndex}:`, punt);
+                console.log(`  ➕ Adding punt ${puntIndex}:`, punt);
                 allNorms.push(punt);
             });
+        } else {
+            console.log(`❌ No punten_schaal found in document ${docIndex}`);
         }
     });
 
-    console.log('All flattened norms:', allNorms);
+    console.log('📊 Total flattened norms:', allNorms.length);
 
     if (allNorms.length === 0) {
-        console.log('No norms found in punten_schaal arrays');
+        console.log('❌ No norms found in punten_schaal arrays');
         return null;
     }
 
     // Gebruik leeftijd 17 als fallback voor oudere leerlingen
     const targetAge = Math.min(age, 17);
-    console.log('Target age:', targetAge);
+    console.log('🎯 Target age (capped at 17):', targetAge);
     
-    // Converteer geslacht naar hoofdletter formaat (zoals in je data: "M")
+    // Converteer geslacht
     const targetGender = gender.toLowerCase() === 'man' ? 'M' : 
                         gender.toLowerCase() === 'vrouw' ? 'V' : 
                         gender.toUpperCase();
     
-    console.log('Target gender:', targetGender);
+    console.log('🚻 Target gender converted:', `"${gender}" -> "${targetGender}"`);
     
-    // Filter normen voor specifieke leeftijd en geslacht
+    // Filter normen
     const relevantNorms = allNorms
         .filter(norm => {
             const ageMatch = norm.leeftijd === targetAge;
             const genderMatch = norm.geslacht === targetGender;
-            console.log(`Checking norm: leeftijd ${norm.leeftijd} === ${targetAge} (${ageMatch}) && geslacht "${norm.geslacht}" === "${targetGender}" (${genderMatch})`);
+            console.log(`🔍 Norm check: leeftijd ${norm.leeftijd}===${targetAge} (${ageMatch}) && geslacht "${norm.geslacht}"==="${targetGender}" (${genderMatch})`);
             return ageMatch && genderMatch;
         })
         .sort((a, b) => a.score_min - b.score_min);
 
-    console.log('Relevant norms found:', relevantNorms.length);
-    console.log('Relevant norms details:', relevantNorms);
+    console.log('✅ Relevant norms found:', relevantNorms.length);
 
     if (relevantNorms.length === 0) {
-        console.log(`No norms found for age ${targetAge}, gender ${targetGender}`);
+        console.log(`❌ No matching norms for age ${targetAge}, gender ${targetGender}`);
         return null;
     }
 
-    // Voor scores onder de laagste norm
+    // Interpolatie logic
     if (score < relevantNorms[0].score_min) {
         const result = scoreDirection === 'hoog' ? 0 : relevantNorms[0].punt;
-        console.log('Score below minimum, returning:', result);
+        console.log('⬇️ Score below minimum, returning:', result);
         return result;
     }
 
-    // Voor scores boven de hoogste norm
     const highestNorm = relevantNorms[relevantNorms.length - 1];
     if (score >= highestNorm.score_min) {
-        console.log('Score above maximum, returning:', highestNorm.punt);
+        console.log('⬆️ Score above maximum, returning:', highestNorm.punt);
         return highestNorm.punt;
     }
 
-    // Zoek de twee normen waar de score tussen valt
+    // Zoek interpolatie range
     for (let i = 0; i < relevantNorms.length - 1; i++) {
         const currentNorm = relevantNorms[i];
         const nextNorm = relevantNorms[i + 1];
 
         if (score >= currentNorm.score_min && score < nextNorm.score_min) {
-            // Lineaire interpolatie tussen de twee punten
             const scoreDiff = nextNorm.score_min - currentNorm.score_min;
             const pointDiff = nextNorm.punt - currentNorm.punt;
             const scorePosition = score - currentNorm.score_min;
-            
-            // Bereken geïnterpoleerde punt
             const interpolatedPoints = currentNorm.punt + (scorePosition / scoreDiff) * pointDiff;
-            
-            // Rond af op 0.5
             const result = Math.round(interpolatedPoints * 2) / 2;
             
-            console.log('Interpolation calculation:', {
-                currentNorm,
-                nextNorm,
-                scoreDiff,
-                pointDiff,
-                scorePosition,
-                interpolatedPoints,
-                result
-            });
-            
+            console.log('🎯 INTERPOLATION SUCCESS!');
+            console.log('Result:', result);
             return result;
         }
     }
 
-    // Fallback: gebruik de laatste norm
     const fallback = relevantNorms[relevantNorms.length - 1].punt;
-    console.log('Using fallback:', fallback);
+    console.log('🔄 Using fallback:', fallback);
     return fallback;
 }
 
