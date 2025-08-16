@@ -355,19 +355,176 @@ const getPointForScore = useCallback((leerling, score) => {
     setCalculatedPoints(prev => ({ ...prev, [leerling.id]: behaaldPunt }));
 }, [selectedTest, normen, selectedTestId]);
 
-   const handleScoreChange = (leerling, score) => {
-    setScores(prev => ({ ...prev, [leerling.id]: score }));
+  const handleScoreChange = (value) => {
+    console.log('🔥 NEW HANDLE SCORE CHANGE 🔥');
     
-    // Validatie MET selectedTest en normen
-    const validation = validateScore(score, selectedTest?.eenheid, selectedTest, normen);
-    setValidations(prev => ({ ...prev, [leerling.id]: validation }));
+    const validation = validateScore(value, details.eenheid);
+    let previewPoints = null;
+    const numericValue = value ? parseFloat(value.toString().replace(',', '.')) : null;
     
-    if (validation.valid) {
-        getPointForScore(leerling, score);
-    } else {
-        setCalculatedPoints(prev => ({ ...prev, [leerling.id]: null }));
+    if (numericValue !== null && !isNaN(numericValue) && editingScore.leerlingId) {
+        const leerling = details.leerlingen.find(l => l.id === editingScore.leerlingId);
+        
+        if (leerling && details.testNorms.length > 0 && leerling.leeftijd && leerling.geslacht) {
+            console.log('🚀 Calling NEW interpolation function...');
+            console.log('Leerling data:', leerling);
+            console.log('Test norms:', details.testNorms);
+            
+            previewPoints = calculatePointsWithInterpolation_NEW(
+                numericValue, 
+                leerling.leeftijd, 
+                leerling.geslacht, 
+                details.testNorms,
+                details.score_richting
+            );
+            console.log('✅ Preview points result:', previewPoints);
+        }
     }
+    
+    setEditingScore(prev => ({ 
+        ...prev, 
+        score: value, 
+        validation,
+        previewPoints
+    }));
 };
+
+// Finale werkende functie voor score naar punt conversie met lineaire interpolatie
+function calculatePointsWithInterpolation_NEW(score, age, gender, normsArray, scoreDirection = 'hoog') {
+    console.log('🔥 NEW INTERPOLATION FUNCTION CALLED 🔥');
+    console.log('Parameters:', { score, age, gender, normsArrayLength: normsArray?.length, scoreDirection });
+
+    if (!score || !age || !gender || !normsArray || normsArray.length === 0) {
+        console.log('❌ Early return - missing parameters');
+        return null;
+    }
+
+    // Flatten de normen data - extract alle punten_schaal items
+    let allNorms = [];
+    normsArray.forEach((normDoc, docIndex) => {
+        console.log(`📋 Processing norm document ${docIndex}:`, normDoc);
+        
+        if (normDoc.punten_schaal && Array.isArray(normDoc.punten_schaal)) {
+            console.log(`✅ Found punten_schaal with ${normDoc.punten_schaal.length} items`);
+            normDoc.punten_schaal.forEach((punt, puntIndex) => {
+                console.log(`  ➕ Adding punt ${puntIndex}:`, punt);
+                
+                // Controleer of alle vereiste velden aanwezig zijn
+                if (punt && 
+                    punt.hasOwnProperty('leeftijd') && 
+                    punt.hasOwnProperty('geslacht') && 
+                    punt.hasOwnProperty('score_min') && 
+                    punt.hasOwnProperty('punt')) {
+                    allNorms.push(punt);
+                } else {
+                    console.log(`  ⚠️ Skipping incomplete punt:`, punt);
+                }
+            });
+        } else {
+            console.log(`❌ No punten_schaal found in document ${docIndex}`);
+        }
+    });
+
+    console.log('📊 Total flattened norms:', allNorms.length);
+    console.log('📊 First few norms:', allNorms.slice(0, 5));
+
+    if (allNorms.length === 0) {
+        console.log('❌ No valid norms found in punten_schaal arrays');
+        return null;
+    }
+
+    // Gebruik leeftijd 17 als fallback voor oudere leerlingen
+    const targetAge = Math.min(age, 17);
+    console.log('🎯 Target age (capped at 17):', targetAge);
+    
+    // Converteer geslacht - probeer verschillende varianten
+    let targetGender;
+    const genderLower = gender.toLowerCase();
+    if (genderLower === 'man' || genderLower === 'm' || genderLower === 'male') {
+        targetGender = 'M';
+    } else if (genderLower === 'vrouw' || genderLower === 'v' || genderLower === 'female') {
+        targetGender = 'V';
+    } else {
+        targetGender = gender.toUpperCase();
+    }
+    
+    console.log('🚻 Target gender converted:', `"${gender}" -> "${targetGender}"`);
+    
+    // Filter normen voor de juiste leeftijd en geslacht
+    const relevantNorms = allNorms
+        .filter(norm => {
+            const ageMatch = norm.leeftijd === targetAge;
+            const genderMatch = norm.geslacht === targetGender;
+            console.log(`🔍 Norm check: leeftijd ${norm.leeftijd}===${targetAge} (${ageMatch}) && geslacht "${norm.geslacht}"==="${targetGender}" (${genderMatch})`);
+            return ageMatch && genderMatch;
+        })
+        .sort((a, b) => a.score_min - b.score_min);
+
+    console.log('✅ Relevant norms found:', relevantNorms.length);
+    console.log('📋 Relevant norms details:', relevantNorms);
+
+    if (relevantNorms.length === 0) {
+        console.log(`❌ No matching norms for age ${targetAge}, gender ${targetGender}`);
+        
+        // Debug: toon alle beschikbare leeftijden en geslachten
+        const availableAges = [...new Set(allNorms.map(n => n.leeftijd))].sort();
+        const availableGenders = [...new Set(allNorms.map(n => n.geslacht))];
+        console.log('📊 Available ages:', availableAges);
+        console.log('📊 Available genders:', availableGenders);
+        
+        return null;
+    }
+
+    // Interpolatie logic
+    console.log('🎯 Starting interpolation logic...');
+    console.log('Input score:', score);
+    console.log('Score direction:', scoreDirection);
+    
+    // Score onder minimum
+    if (score < relevantNorms[0].score_min) {
+        const result = scoreDirection === 'hoog' ? 0 : relevantNorms[0].punt;
+        console.log('⬇️ Score below minimum, returning:', result);
+        return result;
+    }
+
+    // Score boven maximum
+    const highestNorm = relevantNorms[relevantNorms.length - 1];
+    if (score >= highestNorm.score_min) {
+        console.log('⬆️ Score above maximum, returning:', highestNorm.punt);
+        return highestNorm.punt;
+    }
+
+    // Zoek interpolatie range
+    for (let i = 0; i < relevantNorms.length - 1; i++) {
+        const currentNorm = relevantNorms[i];
+        const nextNorm = relevantNorms[i + 1];
+
+        console.log(`🔍 Checking range ${i}: ${currentNorm.score_min} <= ${score} < ${nextNorm.score_min}`);
+
+        if (score >= currentNorm.score_min && score < nextNorm.score_min) {
+            const scoreDiff = nextNorm.score_min - currentNorm.score_min;
+            const pointDiff = nextNorm.punt - currentNorm.punt;
+            const scorePosition = score - currentNorm.score_min;
+            const interpolatedPoints = currentNorm.punt + (scorePosition / scoreDiff) * pointDiff;
+            const result = Math.round(interpolatedPoints * 2) / 2; // Rond af op halve punten
+            
+            console.log('🎯 INTERPOLATION SUCCESS!');
+            console.log('📊 Current norm:', currentNorm);
+            console.log('📊 Next norm:', nextNorm);
+            console.log('📊 Score diff:', scoreDiff);
+            console.log('📊 Point diff:', pointDiff);
+            console.log('📊 Score position:', scorePosition);
+            console.log('📊 Interpolated points:', interpolatedPoints);
+            console.log('📊 Final result (rounded):', result);
+            return result;
+        }
+    }
+
+    // Fallback - gebruik het hoogste punt
+    const fallback = relevantNorms[relevantNorms.length - 1].punt;
+    console.log('🔄 Using fallback:', fallback);
+    return fallback;
+}
 
     // GEWIJZIGDE handleSaveScores FUNCTIE MET NIEUWE UTILITIES
     const handleSaveScores = async () => {
