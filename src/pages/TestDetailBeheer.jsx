@@ -178,11 +178,25 @@ export default function TestDetailBeheer() {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
+            // --- FIX 1: Negeert het onzichtbare startteken (BOM) van Excel ---
+            bom: true, 
+            // --- FIX 2: Verwijdert spaties rond de kolomkoppen ---
+            transformHeader: header => header.trim(), 
+            
             complete: async (results) => {
+                const requiredHeaders = ['leeftijd', 'geslacht', 'score_min', 'punt'];
+                
+                // Deze controle zou nu moeten slagen
+                if (!requiredHeaders.every(h => results.meta.fields.includes(h))) {
+                    toast.error(`CSV mist verplichte kolommen. Zorg dat deze aanwezig zijn: ${requiredHeaders.join(', ')}`);
+                    console.error("Gevonden headers:", results.meta.fields);
+                    return;
+                }
+
                 try {
                     const normen = results.data.map(row => ({
                         leeftijd: Number(row.leeftijd),
-                        geslacht: row.geslacht,
+                        geslacht: (row.geslacht || '').trim().toUpperCase(),
                         score_min: Number(row.score_min),
                         punt: Number(row.punt)
                     })).filter(norm => 
@@ -191,26 +205,34 @@ export default function TestDetailBeheer() {
                     );
 
                     if (normen.length === 0) {
-                        toast.error("Geen geldige normen gevonden in CSV.");
+                        toast.error("Geen geldige normen gevonden in het CSV-bestand.");
                         return;
                     }
 
                     const normDocRef = doc(db, 'normen', testId);
-                    for (const norm of normen) {
-                        await updateDoc(normDocRef, {
-                            punten_schaal: arrayUnion(norm)
-                        });
+                    
+                    // Gebruik de bestaande puntenSchaal om duplicaten te vermijden
+                    const bestaandeIdentifiers = new Set(puntenSchaal.map(getNormIdentifier));
+                    const uniekeNieuweNormen = normen.filter(norm => !bestaandeIdentifiers.has(getNormIdentifier(norm)));
+
+                    if (uniekeNieuweNormen.length === 0) {
+                        toast.success("Alle normen in het bestand bestonden al.");
+                        return;
                     }
 
-                    toast.success(`${normen.length} normen geïmporteerd!`);
+                    const samengevoegdeSchaal = [...puntenSchaal, ...uniekeNieuweNormen];
+                    await updateDoc(normDocRef, { punten_schaal: samengevoegdeSchaal });
+
+                    toast.success(`${uniekeNieuweNormen.length} nieuwe normen succesvol geïmporteerd!`);
+
                 } catch (error) {
                     console.error("Fout bij CSV import:", error);
-                    toast.error("Kon CSV niet importeren.");
+                    toast.error("Kon CSV niet importeren. Bestaat de test al?");
                 }
             },
             error: (error) => {
                 console.error("CSV parse fout:", error);
-                toast.error("Ongeldig CSV bestand.");
+                toast.error("Ongeldig CSV-bestand.");
             }
         });
 
