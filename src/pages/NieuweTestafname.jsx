@@ -1,5 +1,5 @@
 // src/pages/NieuweTestafname.jsx
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useOutletContext, useNavigate, Link } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 // NIEUWE IMPORT TOEVOEGEN
 import { saveWithRetry, handleFirestoreError } from '../utils/firebaseUtils';
-import React, { useState, useEffect } from 'react';
+
 
 // --- HULPFUNCTIE 1: BEREKENT LEEFTIJD ---
 function calculateAge(birthDate, testDate) {
