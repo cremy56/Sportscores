@@ -57,6 +57,58 @@ function validateScore(score, eenheid) {
     return { valid: true, message: '' };
 }
 
+// Nieuwe functie voor score naar punt conversie met lineaire interpolatie
+function calculatePointsWithInterpolation(score, age, gender, normsArray, scoreDirection = 'hoog') {
+    if (!score || !age || !gender || !normsArray || normsArray.length === 0) {
+        return null;
+    }
+
+    // Gebruik leeftijd 17 als fallback voor oudere leerlingen
+    const targetAge = Math.min(age, 17);
+    
+    // Filter normen voor specifieke leeftijd en geslacht
+    const relevantNorms = normsArray
+        .filter(norm => norm.leeftijd === targetAge && norm.geslacht === gender)
+        .sort((a, b) => a.score_min - b.score_min);
+
+    if (relevantNorms.length === 0) {
+        return null;
+    }
+
+    // Voor scores onder de laagste norm
+    if (score < relevantNorms[0].score_min) {
+        return scoreDirection === 'hoog' ? 0 : relevantNorms[0].punt;
+    }
+
+    // Voor scores boven de hoogste norm
+    const highestNorm = relevantNorms[relevantNorms.length - 1];
+    if (score >= highestNorm.score_min) {
+        return highestNorm.punt;
+    }
+
+    // Zoek de twee normen waar de score tussen valt
+    for (let i = 0; i < relevantNorms.length - 1; i++) {
+        const currentNorm = relevantNorms[i];
+        const nextNorm = relevantNorms[i + 1];
+
+        if (score >= currentNorm.score_min && score < nextNorm.score_min) {
+            // Lineaire interpolatie tussen de twee punten
+            const scoreDiff = nextNorm.score_min - currentNorm.score_min;
+            const pointDiff = nextNorm.punt - currentNorm.punt;
+            const scorePosition = score - currentNorm.score_min;
+            
+            // Bereken geïnterpoleerde punt
+            const interpolatedPoints = currentNorm.punt + (scorePosition / scoreDiff) * pointDiff;
+            
+            // Rond af op 0.5
+            return Math.round(interpolatedPoints * 2) / 2;
+        }
+    }
+
+    // Fallback: gebruik de laatste norm
+    return relevantNorms[relevantNorms.length - 1].punt;
+}
+
 function StatCard({ icon: Icon, title, value, subtitle, color = "gray" }) {
     const colorClasses = {
         purple: "from-purple-500 to-purple-600",
@@ -214,10 +266,12 @@ export default function TestafnameDetail() {
         test_naam: '', 
         eenheid: '',
         max_punten: 20,
-        leerlingen: [] 
+        score_richting: 'hoog',
+        leerlingen: [],
+        testNorms: []
     });
     const [loading, setLoading] = useState(true);
-    const [editingScore, setEditingScore] = useState({ id: null, score: '', validation: null });
+    const [editingScore, setEditingScore] = useState({ id: null, score: '', validation: null, leerlingId: null });
     const [editingDate, setEditingDate] = useState(false);
     const [newDate, setNewDate] = useState('');
     const [updating, setUpdating] = useState(false);
@@ -253,6 +307,16 @@ export default function TestafnameDetail() {
 
             const groupData = groupSnap.data();
             const testData = testSnap.data();
+
+            // Haal normen op voor deze test
+            let testNorms = [];
+            try {
+                const normsQuery = query(collection(db, 'normen'), where('test_id', '==', testId));
+                const normsSnap = await getDocs(normsQuery);
+                testNorms = normsSnap.docs.map(d => d.data());
+            } catch (error) {
+                console.warn("Kon normen niet ophalen:", error);
+            }
             
             const scoresQuery = query(collection(db, 'scores'), 
                 where('groep_id', '==', groepId),
@@ -272,6 +336,8 @@ export default function TestafnameDetail() {
                     return {
                         id: d.id,
                         naam: d.data().naam,
+                        leeftijd: d.data().leeftijd,
+                        geslacht: d.data().geslacht,
                         score: scoreInfo?.score ?? null,
                         punt: scoreInfo?.rapportpunt ?? null,
                         score_id: scoreInfo?.id
@@ -284,7 +350,9 @@ export default function TestafnameDetail() {
                 test_naam: testData.naam,
                 eenheid: testData.eenheid,
                 max_punten: testData.max_punten || 20,
-                leerlingen: leerlingenData.sort((a,b) => a.naam.localeCompare(b.naam))
+                score_richting: testData.score_richting || 'hoog',
+                leerlingen: leerlingenData.sort((a,b) => a.naam.localeCompare(b.naam)),
+                testNorms: testNorms
             });
 
         } catch (error) {
@@ -299,11 +367,12 @@ export default function TestafnameDetail() {
         setNewDate(datum);
     }, [fetchDetails, datum]);
 
-    const handleEditClick = (scoreId, currentScore) => {
+    const handleEditClick = (scoreId, currentScore, leerlingId) => {
         setEditingScore({ 
             id: scoreId, 
             score: currentScore ?? '', 
-            validation: { valid: true, message: '' }
+            validation: { valid: true, message: '' },
+            leerlingId: leerlingId
         });
     };
 
@@ -325,14 +394,43 @@ export default function TestafnameDetail() {
             return;
         }
 
+        // Vind de leerling gegevens
+        const leerling = details.leerlingen.find(l => l.id === editingScore.leerlingId);
+        if (!leerling) {
+            toast.error("Leerling gegevens niet gevonden.");
+            return;
+        }
+
+        // Bereken punten met interpolatie
+        let calculatedPoints = null;
+        if (details.testNorms.length > 0 && leerling.leeftijd && leerling.geslacht) {
+            calculatedPoints = calculatePointsWithInterpolation(
+                scoreValue, 
+                leerling.leeftijd, 
+                leerling.geslacht, 
+                details.testNorms,
+                details.score_richting
+            );
+        }
+
         setUpdating(true);
         const scoreRef = doc(db, 'scores', editingScore.id);
         
         try {
-            await updateDoc(scoreRef, { score: scoreValue });
-            toast.success("Score succesvol bijgewerkt!");
+            const updateData = { score: scoreValue };
+            if (calculatedPoints !== null) {
+                updateData.rapportpunt = calculatedPoints;
+            }
+            
+            await updateDoc(scoreRef, updateData);
+            
+            const message = calculatedPoints !== null 
+                ? `Score succesvol bijgewerkt! Punten: ${calculatedPoints}/20`
+                : "Score succesvol bijgewerkt!";
+            toast.success(message);
+            
             fetchDetails();
-            setEditingScore({ id: null, score: '', validation: null });
+            setEditingScore({ id: null, score: '', validation: null, leerlingId: null });
         } catch (error) {
             console.error("Fout bij bijwerken:", error);
             if (error.code === 'permission-denied') {
@@ -450,7 +548,7 @@ export default function TestafnameDetail() {
     };
 
     const cancelEdit = () => {
-        setEditingScore({ id: null, score: '', validation: null });
+        setEditingScore({ id: null, score: '', validation: null, leerlingId: null });
     };
 
     if (loading) {
@@ -574,7 +672,7 @@ export default function TestafnameDetail() {
                             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
                                 <div className="p-6 border-b border-gray-200/70">
                                     <h2 className="text-xl font-semibold text-gray-900">
-                                        Individuele Scores
+                                        Individuele Scores {details.testNorms.length > 0 && <span className="text-sm text-green-600">(met interpolatie)</span>}
                                     </h2>
                                     <p className="text-sm text-gray-600 mt-1">
                                         Klik op het potlood-icoon om een score te bewerken
@@ -588,6 +686,11 @@ export default function TestafnameDetail() {
                                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
                                                     <div className="font-medium text-gray-900">
                                                         {lid.naam}
+                                                        {lid.leeftijd && (
+                                                            <span className="text-xs text-gray-500 block">
+                                                                {lid.leeftijd} jaar, {lid.geslacht}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     
                                                     <div className="text-center">
@@ -649,7 +752,7 @@ export default function TestafnameDetail() {
                                                         ) : (
                                                             <>
                                                                 <button 
-                                                                    onClick={() => handleEditClick(lid.score_id, lid.score)}
+                                                                    onClick={() => handleEditClick(lid.score_id, lid.score, lid.id)}
                                                                     title="Wijzigen" 
                                                                     className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
                                                                 >
@@ -688,6 +791,11 @@ export default function TestafnameDetail() {
                             <h3 className="text-xl font-semibold text-gray-900 mb-2">Testafname Beheer</h3>
                             <p className="text-sm text-gray-600">
                                 Beheer deze testafname en de bijbehorende scores
+                                {details.testNorms.length > 0 && (
+                                    <span className="block text-green-600 font-medium mt-1">
+                                        ✓ Automatische puntenberekening met interpolatie actief
+                                    </span>
+                                )}
                             </p>
                         </div>
 
