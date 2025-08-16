@@ -271,7 +271,7 @@ export default function TestafnameDetail() {
         testNorms: []
     });
     const [loading, setLoading] = useState(true);
-    const [editingScore, setEditingScore] = useState({ id: null, score: '', validation: null, leerlingId: null });
+    const [editingScore, setEditingScore] = useState({ id: null, score: '', validation: null, leerlingId: null, previewPoints: null });
     const [editingDate, setEditingDate] = useState(false);
     const [newDate, setNewDate] = useState('');
     const [updating, setUpdating] = useState(false);
@@ -372,16 +372,35 @@ export default function TestafnameDetail() {
             id: scoreId, 
             score: currentScore ?? '', 
             validation: { valid: true, message: '' },
-            leerlingId: leerlingId
+            leerlingId: leerlingId,
+            previewPoints: null
         });
     };
 
     const handleScoreChange = (value) => {
         const validation = validateScore(value, details.eenheid);
+        
+        // Bereken preview punten tijdens typen
+        let previewPoints = null;
+        if (value && !isNaN(parseFloat(value.replace(',', '.'))) && editingScore.leerlingId) {
+            const leerling = details.leerlingen.find(l => l.id === editingScore.leerlingId);
+            if (leerling && details.testNorms.length > 0 && leerling.leeftijd && leerling.geslacht) {
+                const scoreValue = parseFloat(value.replace(',', '.'));
+                previewPoints = calculatePointsWithInterpolation(
+                    scoreValue, 
+                    leerling.leeftijd, 
+                    leerling.geslacht, 
+                    details.testNorms,
+                    details.score_richting
+                );
+            }
+        }
+        
         setEditingScore(prev => ({ 
             ...prev, 
             score: value, 
-            validation 
+            validation,
+            previewPoints
         }));
     };
 
@@ -430,7 +449,7 @@ export default function TestafnameDetail() {
             toast.success(message);
             
             fetchDetails();
-            setEditingScore({ id: null, score: '', validation: null, leerlingId: null });
+            setEditingScore({ id: null, score: '', validation: null, leerlingId: null, previewPoints: null });
         } catch (error) {
             console.error("Fout bij bijwerken:", error);
             if (error.code === 'permission-denied') {
@@ -548,7 +567,7 @@ export default function TestafnameDetail() {
     };
 
     const cancelEdit = () => {
-        setEditingScore({ id: null, score: '', validation: null, leerlingId: null });
+        setEditingScore({ id: null, score: '', validation: null, leerlingId: null, previewPoints: null });
     };
 
     if (loading) {
@@ -715,6 +734,11 @@ export default function TestafnameDetail() {
                                                                         {editingScore.validation.message}
                                                                     </div>
                                                                 )}
+                                                                {editingScore.previewPoints !== null && editingScore.validation?.valid && (
+                                                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 text-xs text-green-600 whitespace-nowrap font-bold">
+                                                                        Preview: {editingScore.previewPoints}/20
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ) : (
                                                             <span className="font-bold text-lg text-purple-700">
@@ -724,9 +748,15 @@ export default function TestafnameDetail() {
                                                     </div>
                                                     
                                                     <div className="text-center">
-                                                        <span className={`font-bold text-lg ${getScoreColorClass(lid.punt, details.max_punten)}`}>
-                                                            {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
-                                                        </span>
+                                                        {editingScore.id === lid.score_id && editingScore.previewPoints !== null && editingScore.validation?.valid ? (
+                                                            <span className="font-bold text-lg text-green-600 animate-pulse">
+                                                                {editingScore.previewPoints}/{details.max_punten}
+                                                            </span>
+                                                        ) : (
+                                                            <span className={`font-bold text-lg ${getScoreColorClass(lid.punt, details.max_punten)}`}>
+                                                                {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     
                                                     <div className="flex justify-center items-center gap-2">
