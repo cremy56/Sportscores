@@ -1,7 +1,7 @@
 // src/pages/NieuweTestafname.jsx
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useOutletContext, useNavigate, Link } from 'react-router-dom';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { collection, query, where, getDocs, writeBatch, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
