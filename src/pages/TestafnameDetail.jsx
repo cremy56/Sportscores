@@ -13,13 +13,20 @@ const handleScoreChange = (value) => {
     if (numericValue !== null && !isNaN(numericValue) && editingScore.leerlingId) {
         const leerling = details.leerlingen.find(l => l.id === editingScore.leerlingId);
         
-        console.log('Preview calculation:', {
-            value: numericValue,
-            leerling: leerling,
-            normsAvailable: details.testNorms.length,
-            leeftijd: leerling?.leeftijd,
-            geslacht: leerling?.geslacht
-        });
+        console.log('=== PREVIEW CALCULATION ===');
+        console.log('Input value:', value);
+        console.log('Numeric value:', numericValue);
+        console.log('Leerling found:', !!leerling);
+        if (leerling) {
+            console.log('Leerling data:', {
+                naam: leerling.naam,
+                leeftijd: leerling.leeftijd,
+                geslacht: leerling.geslacht
+            });
+        }
+        console.log('Test norms available:', details.testNorms.length);
+        console.log('Score richting:', details.score_richting);
+        console.log('============================');
         
         if (leerling && details.testNorms.length > 0 && leerling.leeftijd && leerling.geslacht) {
             previewPoints = calculatePointsWithInterpolation(
@@ -30,9 +37,9 @@ const handleScoreChange = (value) => {
                 details.score_richting
             );
             
-            console.log('Calculated preview points:', previewPoints);
+            console.log('Final preview points:', previewPoints);
         } else {
-            console.log('Preview calculation failed - missing data:', {
+            console.log('Preview calculation skipped - missing requirements:', {
                 hasLeerling: !!leerling,
                 hasNorms: details.testNorms.length > 0,
                 hasLeeftijd: !!leerling?.leeftijd,
@@ -64,19 +71,52 @@ function calculatePointsWithInterpolation(score, age, gender, normsArray, scoreD
         return null;
     }
 
+    // Flatten de normen data - extract alle punten_schaal items
+    let allNorms = [];
+    normsArray.forEach((normDoc, docIndex) => {
+        console.log(`Processing norm document ${docIndex}:`, normDoc);
+        
+        if (normDoc.punten_schaal && Array.isArray(normDoc.punten_schaal)) {
+            normDoc.punten_schaal.forEach((punt, puntIndex) => {
+                console.log(`  Punt ${puntIndex}:`, punt);
+                allNorms.push(punt);
+            });
+        }
+    });
+
+    console.log('All flattened norms:', allNorms);
+
+    if (allNorms.length === 0) {
+        console.log('No norms found in punten_schaal arrays');
+        return null;
+    }
+
     // Gebruik leeftijd 17 als fallback voor oudere leerlingen
     const targetAge = Math.min(age, 17);
     console.log('Target age:', targetAge);
     
+    // Converteer geslacht naar hoofdletter formaat (zoals in je data: "M")
+    const targetGender = gender.toLowerCase() === 'man' ? 'M' : 
+                        gender.toLowerCase() === 'vrouw' ? 'V' : 
+                        gender.toUpperCase();
+    
+    console.log('Target gender:', targetGender);
+    
     // Filter normen voor specifieke leeftijd en geslacht
-    const relevantNorms = normsArray
-        .filter(norm => norm.leeftijd === targetAge && norm.geslacht === gender)
+    const relevantNorms = allNorms
+        .filter(norm => {
+            const ageMatch = norm.leeftijd === targetAge;
+            const genderMatch = norm.geslacht === targetGender;
+            console.log(`Checking norm: leeftijd ${norm.leeftijd} === ${targetAge} (${ageMatch}) && geslacht "${norm.geslacht}" === "${targetGender}" (${genderMatch})`);
+            return ageMatch && genderMatch;
+        })
         .sort((a, b) => a.score_min - b.score_min);
 
-    console.log('Relevant norms found:', relevantNorms.length, relevantNorms);
+    console.log('Relevant norms found:', relevantNorms.length);
+    console.log('Relevant norms details:', relevantNorms);
 
     if (relevantNorms.length === 0) {
-        console.log('No relevant norms found');
+        console.log(`No norms found for age ${targetAge}, gender ${targetGender}`);
         return null;
     }
 
