@@ -175,67 +175,87 @@ export default function TestDetailBeheer() {
         const file = event.target.files[0];
         if (!file) return;
 
+        const loadingToast = toast.loading('CSV-bestand verwerken...');
+
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            bom: true,
-            transformHeader: header => header.trim(),
+            bom: true, // Belangrijk voor bestanden uit Excel
+            transformHeader: header => header.trim(), // Verwijdert spaties
             
             complete: async (results) => {
+                toast.dismiss(loadingToast);
                 const requiredHeaders = ['leeftijd', 'geslacht', 'score_min', 'punt'];
                 
                 if (!requiredHeaders.every(h => results.meta.fields.includes(h))) {
-                    toast.error(`CSV mist verplichte kolommen: ${requiredHeaders.join(', ')}`);
+                    toast.error(`CSV mist verplichte kolommen. Zorg dat deze aanwezig zijn: ${requiredHeaders.join(', ')}`);
+                    console.error("Gevonden headers in CSV:", results.meta.fields);
                     return;
                 }
 
-                try {
-                    const normen = results.data.map(row => ({
-                        leeftijd: Number(row.leeftijd),
-                        geslacht: (row.geslacht || '').trim().toUpperCase(),
-                        score_min: Number(row.score_min),
-                        punt: Number(row.punt)
-                    })).filter(norm => 
-                        !isNaN(norm.leeftijd) && !isNaN(norm.score_min) && !isNaN(norm.punt) && 
-                        ['M', 'V'].includes(norm.geslacht)
-                    );
+                const uploadPromise = new Promise(async (resolve, reject) => {
+                    try {
+                        const normen = results.data.map(row => ({
+                            leeftijd: Number(row.leeftijd),
+                            geslacht: (row.geslacht || '').trim().toUpperCase(),
+                            score_min: Number(row.score_min),
+                            punt: Number(row.punt)
+                        })).filter(norm => 
+                            !isNaN(norm.leeftijd) && !isNaN(norm.score_min) && !isNaN(norm.punt) && 
+                            ['M', 'V'].includes(norm.geslacht)
+                        );
 
-                    if (normen.length === 0) {
-                        toast.error("Geen geldige normen gevonden in het CSV-bestand.");
-                        return;
+                        if (normen.length === 0) {
+                            return reject(new Error("Geen geldige rijen met normen gevonden in het CSV-bestand."));
+                        }
+
+                        const normDocRef = doc(db, 'normen', testId);
+                        
+                        const bestaandeIdentifiers = new Set(puntenSchaal.map(getNormIdentifier));
+                        const uniekeNieuweNormen = normen.filter(norm => !bestaandeIdentifiers.has(getNormIdentifier(norm)));
+
+                        if (uniekeNieuweNormen.length === 0) {
+                            // Dit is geen fout, dus we resolven met een succesbericht
+                            resolve("Alle normen in het bestand bestonden al.");
+                            return;
+                        }
+
+                        const samengevoegdeSchaal = [...puntenSchaal, ...uniekeNieuweNormen];
+                        
+                        await setDoc(normDocRef, { 
+                            punten_schaal: samengevoegdeSchaal,
+                            test_id: testId,
+                            school_id: profile.school_id
+                        }, { merge: true });
+
+                        resolve(`${uniekeNieuweNormen.length} nieuwe normen succesvol geïmporteerd!`);
+
+                    } catch (error) {
+                        // Stuur de specifieke databasefout door
+                        reject(error);
                     }
+                });
 
-                    const normDocRef = doc(db, 'normen', testId);
-                    
-                    const bestaandeIdentifiers = new Set(puntenSchaal.map(getNormIdentifier));
-                    const uniekeNieuweNormen = normen.filter(norm => !besteaandeIdentifiers.has(getNormIdentifier(norm)));
-
-                    if (uniekeNieuweNormen.length === 0) {
-                        toast.success("Alle normen in het bestand bestonden al.");
-                        return;
+                toast.promise(uploadPromise, {
+                    loading: 'Normen importeren naar database...',
+                    success: (message) => message,
+                    error: (err) => {
+                        // --- DIT IS DE VERBETERDE FOUTAFHANDELING ---
+                        console.error("Specifieke importfout:", err);
+                        if (err.code === 'permission-denied') {
+                            return "Import mislukt: onvoldoende rechten. Controleer de database regels.";
+                        }
+                        if (err.message) {
+                           return `Fout: ${err.message}`;
+                        }
+                        return "Onbekende fout bij het importeren.";
                     }
-
-                    const samengevoegdeSchaal = [...puntenSchaal, ...uniekeNieuweNormen];
-                    
-                    // --- FIX: Vervang updateDoc door setDoc met merge-optie ---
-                    // Dit maakt het document aan als het niet bestaat, en werkt het bij als het wel bestaat.
-                    await setDoc(normDocRef, { 
-                        punten_schaal: samengevoegdeSchaal,
-                        test_id: testId, // Zorg ervoor dat de test_id ook in het document staat
-                        school_id: profile.school_id // En de school_id
-                    }, { merge: true });
-                    // --- EINDE FIX ---
-
-                    toast.success(`${uniekeNieuweNormen.length} nieuwe normen succesvol geïmporteerd!`);
-
-                } catch (error) {
-                    console.error("Fout bij CSV import:", error);
-                    toast.error("Kon CSV niet importeren. Probeer opnieuw.");
-                }
+                });
             },
-            error: (error) => {
-                console.error("CSV parse fout:", error);
-                toast.error("Ongeldig CSV-bestand.");
+            error: (parseError) => {
+                toast.dismiss(loadingToast);
+                console.error("CSV parse fout:", parseError);
+                toast.error("Kon het CSV-bestand niet lezen. Is het correct geformatteerd?");
             }
         });
 
