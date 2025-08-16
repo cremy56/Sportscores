@@ -26,10 +26,8 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
         if (!geboortedatum || !geslacht) return null;
 
         const leeftijd = calculateAge(geboortedatum.toDate(), testDatum);
-        // Norms are capped at age 17
-        const normAge = Math.min(leeftijd, 17);
+        const normAge = Math.min(leeftijd, 17); // Norms are capped at age 17
 
-        // In your structure, the norm document ID is the test ID
         const normRef = doc(db, 'normen', test.id);
         const normSnap = await getDoc(normRef);
 
@@ -41,7 +39,6 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
         const { punten_schaal, score_richting } = normSnap.data();
         if (!punten_schaal || punten_schaal.length === 0) return null;
         
-        // Map gender for flexibility (e.g., 'jongen' -> 'M')
         const genderMapping = { 'man': 'M', 'vrouw': 'V', 'jongen': 'M', 'meisje': 'V' };
         const mappedGender = genderMapping[geslacht.toLowerCase()] || geslacht.toUpperCase();
 
@@ -54,20 +51,48 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
             return null;
         }
 
-        let calculatedPunt = 0;
+        // ▼▼▼ UPDATED LOGIC START ▼▼▼
+
+        let lowerBoundNorm = null;
+
+        // Find the highest norm that the score meets
         for (const norm of relevantNorms) {
-            // If score direction is 'laag', a lower score is better.
-            // If score direction is 'hoog', a higher score is better.
-            if (score_richting === 'laag' ? score <= norm.score_min : score >= norm.score_min) {
-                calculatedPunt = norm.punt;
+            const meetsRequirement = score_richting === 'laag' 
+                ? score <= norm.score_min 
+                : score >= norm.score_min;
+
+            if (meetsRequirement) {
+                lowerBoundNorm = norm;
             } else {
-                 // For 'hoog', once a score fails a threshold, it can't meet higher ones.
-                 // For 'laag', we need to check all thresholds.
-                if (score_richting !== 'laag') break;
+                // For 'hoog' scores, we can stop early once a norm isn't met
+                if (score_richting === 'hoog') break;
+            }
+        }
+
+        // If no norm was met, return 0
+        if (!lowerBoundNorm) {
+            return 0;
+        }
+
+        let finalPunt = lowerBoundNorm.punt;
+        
+        // Find the next norm level to check for interpolation
+        const upperBoundNorm = relevantNorms.find(n => n.punt === lowerBoundNorm.punt + 1);
+
+        if (upperBoundNorm) {
+            const isBetweenNorms = score_richting === 'laag'
+                ? score < lowerBoundNorm.score_min // Better score is smaller
+                : score > lowerBoundNorm.score_min; // Better score is larger
+            
+            // If the score is not exactly on the threshold but better, add 0.5
+            if (isBetweenNorms) {
+                finalPunt += 0.5;
             }
         }
         
-        return calculatedPunt;
+        return finalPunt;
+        
+        // ▲▲▲ UPDATED LOGIC END ▲▲▲
 
     } catch (error) {
         console.error("Error during point calculation:", error);
@@ -332,6 +357,6 @@ export default function NieuweTestafname() {
                 </div>
             </div>
         </div>
-         </div>
+        </div>
     );
 }
