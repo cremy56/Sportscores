@@ -178,18 +178,14 @@ export default function TestDetailBeheer() {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            // --- FIX 1: Negeert het onzichtbare startteken (BOM) van Excel ---
-            bom: true, 
-            // --- FIX 2: Verwijdert spaties rond de kolomkoppen ---
-            transformHeader: header => header.trim(), 
+            bom: true,
+            transformHeader: header => header.trim(),
             
             complete: async (results) => {
                 const requiredHeaders = ['leeftijd', 'geslacht', 'score_min', 'punt'];
                 
-                // Deze controle zou nu moeten slagen
                 if (!requiredHeaders.every(h => results.meta.fields.includes(h))) {
-                    toast.error(`CSV mist verplichte kolommen. Zorg dat deze aanwezig zijn: ${requiredHeaders.join(', ')}`);
-                    console.error("Gevonden headers:", results.meta.fields);
+                    toast.error(`CSV mist verplichte kolommen: ${requiredHeaders.join(', ')}`);
                     return;
                 }
 
@@ -211,9 +207,8 @@ export default function TestDetailBeheer() {
 
                     const normDocRef = doc(db, 'normen', testId);
                     
-                    // Gebruik de bestaande puntenSchaal om duplicaten te vermijden
                     const bestaandeIdentifiers = new Set(puntenSchaal.map(getNormIdentifier));
-                    const uniekeNieuweNormen = normen.filter(norm => !bestaandeIdentifiers.has(getNormIdentifier(norm)));
+                    const uniekeNieuweNormen = normen.filter(norm => !besteaandeIdentifiers.has(getNormIdentifier(norm)));
 
                     if (uniekeNieuweNormen.length === 0) {
                         toast.success("Alle normen in het bestand bestonden al.");
@@ -221,13 +216,21 @@ export default function TestDetailBeheer() {
                     }
 
                     const samengevoegdeSchaal = [...puntenSchaal, ...uniekeNieuweNormen];
-                    await updateDoc(normDocRef, { punten_schaal: samengevoegdeSchaal });
+                    
+                    // --- FIX: Vervang updateDoc door setDoc met merge-optie ---
+                    // Dit maakt het document aan als het niet bestaat, en werkt het bij als het wel bestaat.
+                    await setDoc(normDocRef, { 
+                        punten_schaal: samengevoegdeSchaal,
+                        test_id: testId, // Zorg ervoor dat de test_id ook in het document staat
+                        school_id: profile.school_id // En de school_id
+                    }, { merge: true });
+                    // --- EINDE FIX ---
 
                     toast.success(`${uniekeNieuweNormen.length} nieuwe normen succesvol geïmporteerd!`);
 
                 } catch (error) {
                     console.error("Fout bij CSV import:", error);
-                    toast.error("Kon CSV niet importeren. Bestaat de test al?");
+                    toast.error("Kon CSV niet importeren. Probeer opnieuw.");
                 }
             },
             error: (error) => {
