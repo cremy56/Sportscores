@@ -68,6 +68,9 @@ const handleScoreChange = (value) => {
         
         if (leerling && details.testNorms.length > 0 && leerling.leeftijd && leerling.geslacht) {
             console.log('🚀 Calling NEW interpolation function...');
+            console.log('Leerling data:', leerling);
+            console.log('Test norms:', details.testNorms);
+            
             previewPoints = calculatePointsWithInterpolation_NEW(
                 numericValue, 
                 leerling.leeftijd, 
@@ -86,7 +89,8 @@ const handleScoreChange = (value) => {
         previewPoints
     }));
 };
-// Nieuwe functie voor score naar punt conversie met lineaire interpolatie
+
+// Finale werkende functie voor score naar punt conversie met lineaire interpolatie
 function calculatePointsWithInterpolation_NEW(score, age, gender, normsArray, scoreDirection = 'hoog') {
     console.log('🔥 NEW INTERPOLATION FUNCTION CALLED 🔥');
     console.log('Parameters:', { score, age, gender, normsArrayLength: normsArray?.length, scoreDirection });
@@ -105,7 +109,17 @@ function calculatePointsWithInterpolation_NEW(score, age, gender, normsArray, sc
             console.log(`✅ Found punten_schaal with ${normDoc.punten_schaal.length} items`);
             normDoc.punten_schaal.forEach((punt, puntIndex) => {
                 console.log(`  ➕ Adding punt ${puntIndex}:`, punt);
-                allNorms.push(punt);
+                
+                // Controleer of alle vereiste velden aanwezig zijn
+                if (punt && 
+                    punt.hasOwnProperty('leeftijd') && 
+                    punt.hasOwnProperty('geslacht') && 
+                    punt.hasOwnProperty('score_min') && 
+                    punt.hasOwnProperty('punt')) {
+                    allNorms.push(punt);
+                } else {
+                    console.log(`  ⚠️ Skipping incomplete punt:`, punt);
+                }
             });
         } else {
             console.log(`❌ No punten_schaal found in document ${docIndex}`);
@@ -113,9 +127,10 @@ function calculatePointsWithInterpolation_NEW(score, age, gender, normsArray, sc
     });
 
     console.log('📊 Total flattened norms:', allNorms.length);
+    console.log('📊 First few norms:', allNorms.slice(0, 5));
 
     if (allNorms.length === 0) {
-        console.log('❌ No norms found in punten_schaal arrays');
+        console.log('❌ No valid norms found in punten_schaal arrays');
         return null;
     }
 
@@ -123,14 +138,20 @@ function calculatePointsWithInterpolation_NEW(score, age, gender, normsArray, sc
     const targetAge = Math.min(age, 17);
     console.log('🎯 Target age (capped at 17):', targetAge);
     
-    // Converteer geslacht
-    const targetGender = gender.toLowerCase() === 'man' ? 'M' : 
-                        gender.toLowerCase() === 'vrouw' ? 'V' : 
-                        gender.toUpperCase();
+    // Converteer geslacht - probeer verschillende varianten
+    let targetGender;
+    const genderLower = gender.toLowerCase();
+    if (genderLower === 'man' || genderLower === 'm' || genderLower === 'male') {
+        targetGender = 'M';
+    } else if (genderLower === 'vrouw' || genderLower === 'v' || genderLower === 'female') {
+        targetGender = 'V';
+    } else {
+        targetGender = gender.toUpperCase();
+    }
     
     console.log('🚻 Target gender converted:', `"${gender}" -> "${targetGender}"`);
     
-    // Filter normen
+    // Filter normen voor de juiste leeftijd en geslacht
     const relevantNorms = allNorms
         .filter(norm => {
             const ageMatch = norm.leeftijd === targetAge;
@@ -141,19 +162,33 @@ function calculatePointsWithInterpolation_NEW(score, age, gender, normsArray, sc
         .sort((a, b) => a.score_min - b.score_min);
 
     console.log('✅ Relevant norms found:', relevantNorms.length);
+    console.log('📋 Relevant norms details:', relevantNorms);
 
     if (relevantNorms.length === 0) {
         console.log(`❌ No matching norms for age ${targetAge}, gender ${targetGender}`);
+        
+        // Debug: toon alle beschikbare leeftijden en geslachten
+        const availableAges = [...new Set(allNorms.map(n => n.leeftijd))].sort();
+        const availableGenders = [...new Set(allNorms.map(n => n.geslacht))];
+        console.log('📊 Available ages:', availableAges);
+        console.log('📊 Available genders:', availableGenders);
+        
         return null;
     }
 
     // Interpolatie logic
+    console.log('🎯 Starting interpolation logic...');
+    console.log('Input score:', score);
+    console.log('Score direction:', scoreDirection);
+    
+    // Score onder minimum
     if (score < relevantNorms[0].score_min) {
         const result = scoreDirection === 'hoog' ? 0 : relevantNorms[0].punt;
         console.log('⬇️ Score below minimum, returning:', result);
         return result;
     }
 
+    // Score boven maximum
     const highestNorm = relevantNorms[relevantNorms.length - 1];
     if (score >= highestNorm.score_min) {
         console.log('⬆️ Score above maximum, returning:', highestNorm.punt);
@@ -165,19 +200,28 @@ function calculatePointsWithInterpolation_NEW(score, age, gender, normsArray, sc
         const currentNorm = relevantNorms[i];
         const nextNorm = relevantNorms[i + 1];
 
+        console.log(`🔍 Checking range ${i}: ${currentNorm.score_min} <= ${score} < ${nextNorm.score_min}`);
+
         if (score >= currentNorm.score_min && score < nextNorm.score_min) {
             const scoreDiff = nextNorm.score_min - currentNorm.score_min;
             const pointDiff = nextNorm.punt - currentNorm.punt;
             const scorePosition = score - currentNorm.score_min;
             const interpolatedPoints = currentNorm.punt + (scorePosition / scoreDiff) * pointDiff;
-            const result = Math.round(interpolatedPoints * 2) / 2;
+            const result = Math.round(interpolatedPoints * 2) / 2; // Rond af op halve punten
             
             console.log('🎯 INTERPOLATION SUCCESS!');
-            console.log('Result:', result);
+            console.log('📊 Current norm:', currentNorm);
+            console.log('📊 Next norm:', nextNorm);
+            console.log('📊 Score diff:', scoreDiff);
+            console.log('📊 Point diff:', pointDiff);
+            console.log('📊 Score position:', scorePosition);
+            console.log('📊 Interpolated points:', interpolatedPoints);
+            console.log('📊 Final result (rounded):', result);
             return result;
         }
     }
 
+    // Fallback - gebruik het hoogste punt
     const fallback = relevantNorms[relevantNorms.length - 1].punt;
     console.log('🔄 Using fallback:', fallback);
     return fallback;
