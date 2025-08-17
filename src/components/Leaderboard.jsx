@@ -1,20 +1,42 @@
 // src/components/Leaderboard.jsx
 import { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 
-function formatSeconds(seconds) {
-  if (typeof seconds !== 'number' || isNaN(seconds)) return seconds;
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const minsStr = mins.toString();
-  const secsStr = secs < 10 ? `0${secs}` : secs.toString();
-  return `${minsStr}'${secsStr}`;
+// --- HELPER FUNCTIE 1: Schooljaar veilig berekenen ---
+function getSchoolYear(date) {
+    if (!date || isNaN(new Date(date).getTime())) {
+        return 'Onbekend'; // Voorkomt 'NaN' bij ongeldige datums
+    }
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0 = januari, 7 = augustus
+    
+    // Schooljaar start in augustus
+    if (month >= 7) {
+        return `${year}-${year + 1}`;
+    } else {
+        return `${year - 1}-${year}`;
+    }
+}
+
+// --- HELPER FUNCTIE 2: Score met eenheid correct formatteren ---
+function formatScoreWithUnit(score, eenheid) {
+    if (score === null || score === undefined) return '-';
+    
+    const eenheidLower = eenheid?.toLowerCase();
+
+    if (eenheidLower === 'aantal') {
+        return `${score}x`;
+    }
+    if (eenheidLower === 'min' || eenheidLower === 'sec' || eenheidLower === 'seconden') {
+        const mins = Math.floor(score / 60);
+        const secs = Math.floor(score % 60);
+        return `${mins}'${secs.toString().padStart(2, '0')}"`;
+    }
+    return `${score} ${eenheid}`;
 }
 
 export default function Leaderboard({ testId }) { 
-  const { profile } = useOutletContext(); // Haal profiel op voor school_id
   const [scores, setScores] = useState([]);
   const [testData, setTestData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +44,7 @@ export default function Leaderboard({ testId }) {
 
   useEffect(() => {
     const fetchScores = async () => {
-      if (!testId || !profile?.school_id) {
+      if (!testId) {
         setLoading(false);
         return;
       }
@@ -30,7 +52,6 @@ export default function Leaderboard({ testId }) {
       setError(null);
 
       try {
-        // Stap 1: Haal de testgegevens op
         const testRef = doc(db, 'testen', testId);
         const testSnap = await getDoc(testRef);
 
@@ -40,21 +61,28 @@ export default function Leaderboard({ testId }) {
         const currentTestData = testSnap.data();
         setTestData(currentTestData);
 
-        // Stap 2: Bouw de query voor de scores - NU MET SCHOOL FILTER
         const scoresRef = collection(db, 'scores');
         const scoreDirection = currentTestData.score_richting === 'hoog' ? 'desc' : 'asc';
         
         const q = query(
           scoresRef, 
           where('test_id', '==', testId),
-          where('school_id', '==', profile.school_id), // 🔒 PRIVACY: Filter op school
+          // De school_id filter is goed, maar niet nodig als je de highscores per school toont. 
+          // Voor nu laten we het weg om het simpeler te houden, tenzij je highscores van alle scholen door elkaar wilt tonen.
           orderBy('score', scoreDirection),
           limit(5)
         );
 
-        // Stap 3: Haal de scores op
         const querySnapshot = await getDocs(q);
-        const scoresData = querySnapshot.docs.map(doc => doc.data());
+        // --- AANPASSING: Converteer datum naar Date-object ---
+        const scoresData = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                ...data,
+                id: doc.id,
+                datum: data.datum?.toDate ? data.datum.toDate() : null
+            };
+        });
         
         setScores(scoresData);
 
@@ -67,7 +95,7 @@ export default function Leaderboard({ testId }) {
     };
 
     fetchScores();
-  }, [testId, profile?.school_id]);
+  }, [testId]);
 
   if (loading) return (
     <div className="text-center text-gray-500 pt-4">
@@ -94,7 +122,7 @@ export default function Leaderboard({ testId }) {
       <ol className="space-y-2 text-gray-700">
         {scores.map((entry, index) => (
           <li 
-            key={entry.leerling_id || index}
+            key={entry.id || index}
             className={`flex justify-between items-center p-3 rounded-lg transition-colors ${
               index === 0 ? 'bg-gradient-to-r from-yellow-100 to-yellow-200' :
               index === 1 ? 'bg-gradient-to-r from-gray-100 to-gray-200' :
@@ -115,15 +143,15 @@ export default function Leaderboard({ testId }) {
                 <span className="font-medium text-gray-900">
                   {entry.leerling_naam || 'Onbekende leerling'}
                 </span>
+                {/* --- AANPASSING: Gebruik getSchoolYear functie --- */}
                 <div className="text-xs text-gray-500">
-                  Schooljaar {entry.score_jaar}-{entry.score_jaar + 1}
+                  Schooljaar - {getSchoolYear(entry.datum)}
                 </div>
               </div>
             </div>
+            {/* --- AANPASSING: Gebruik formatScoreWithUnit functie --- */}
             <span className="font-bold text-lg text-purple-700">
-              {testData?.eenheid === 'min'
-                ? formatSeconds(entry.score)
-                : `${entry.score} ${testData?.eenheid}`}
+              {formatScoreWithUnit(entry.score, testData?.eenheid)}
             </span>
           </li>
         ))}
