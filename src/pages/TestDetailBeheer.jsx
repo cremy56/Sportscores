@@ -386,7 +386,7 @@ export default function TestDetailBeheer() {
             <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
             <TestFormModal isOpen={isTestModalOpen} onClose={() => setIsTestModalOpen(false)} onTestSaved={fetchData} testData={test} schoolId={profile?.school_id} />
             
-            <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6 pt-24 pb-12">
+            <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6 pt-12 pb-12">
                     
                     {/* Terug link */}
                     <Link to="/testbeheer" className="inline-flex items-center text-sm text-slate-600 hover:text-purple-700 font-medium transition-colors">
