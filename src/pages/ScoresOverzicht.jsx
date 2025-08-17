@@ -301,33 +301,7 @@ export default function ScoresOverzicht() {
                 </div>
 
                 <div className="max-w-7xl mx-auto">
-                    {/* Statistieken */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <StatCard 
-                            title="Totaal Testafnames" 
-                            value={stats.total} 
-                            subtitle="Alle tijd"
-                            color="purple"
-                        />
-                        <StatCard 
-                            title="Deze Maand" 
-                            value={stats.thisMonth} 
-                            subtitle="Nieuwe testafnames"
-                            color="blue"
-                        />
-                        <StatCard 
-                            title="Actieve Groepen" 
-                            value={stats.uniqueGroepen} 
-                            subtitle="Met testresultaten"
-                            color="green"
-                        />
-                        <StatCard 
-                            title="Verschillende Testen" 
-                            value={stats.uniqueTesten} 
-                            subtitle="Uitgevoerd"
-                            color="orange"
-                        />
-                    </div>
+                    
 
                     {/* Filters */}
                     <FilterBar 
@@ -437,6 +411,29 @@ export default function ScoresOverzicht() {
                         )}
                     </div>
                 </div>
+                {/* ▼▼▼ NIEUWE, SUBTIELE STATISTIEKEN-FOOTER TOEGEVOEGD ▼▼▼ */}
+                    <div className="mt-12 text-center">
+                        <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block shadow-lg">
+                            <div className="flex items-center space-x-6 text-sm text-gray-600 flex-wrap justify-center gap-x-6 gap-y-3">
+                                <div className="flex items-center" title="Totaal aantal testafnames">
+                                    <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
+                                    <div><span className="font-bold text-gray-800">{stats.total}</span> Totaal</div>
+                                </div>
+                                <div className="flex items-center" title="Aantal testafnames deze maand">
+                                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                                    <div><span className="font-bold text-gray-800">{stats.thisMonth}</span> Deze Maand</div>
+                                </div>
+                                <div className="flex items-center" title="Aantal unieke groepen met scores">
+                                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                                    <div><span className="font-bold text-gray-800">{stats.uniqueGroepen}</span> Groepen</div>
+                                </div>
+                                <div className="flex items-center" title="Aantal unieke testen met scores">
+                                    <div className="w-3 h-3 bg-orange-500 rounded-full mr-2"></div>
+                                    <div><span className="font-bold text-gray-800">{stats.uniqueTesten}</span> Testen</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
             </div>
 
             <ConfirmModal
