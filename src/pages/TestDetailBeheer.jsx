@@ -364,7 +364,7 @@ export default function TestDetailBeheer() {
             </div>
         );
     }
-
+const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
     return (
           <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
             <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
