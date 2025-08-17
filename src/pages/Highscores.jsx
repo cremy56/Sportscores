@@ -67,46 +67,44 @@ export default function Highscores() {
 
     return (
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-            <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6">
+            <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8">
                 
-                {/* Header met schoollogo */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
-                    <div className="text-center">
-                        <div className="flex justify-center mb-6">
-                            <img
-                                src={school?.logo_url || '/logo.png'}
-                                alt={`${school?.naam || 'Sportscores'} Logo`}
-                                className="h-16 w-auto object-contain"
-                                onError={(e) => {
-                                    e.target.src = '/logo.png'; // Fallback
-                                }}
-                            />
-                        </div>
-                        
-                        <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-4">
-                            Highscores
-                        </h1>
-                        
-                        <p className="text-lg text-slate-600 font-medium mb-6">
-                            De beste tijden van onze school!
-                        </p>
-                        
-                        <div className="flex justify-center">
-                            <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                        </div>
+                {/* Compacte Header */}
+                <div className="text-center mb-8">
+                    <div className="flex justify-center mb-4">
+                        <img
+                            src={school?.logo_url || '/logo.png'}
+                            alt={`${school?.naam || 'Sportscores'} Logo`}
+                            className="h-12 w-auto object-contain"
+                            onError={(e) => {
+                                e.target.src = '/logo.png'; // Fallback
+                            }}
+                        />
+                    </div>
+                    
+                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
+                        Highscores
+                    </h1>
+                    
+                    <p className="text-slate-600 mb-4">
+                        De beste tijden van onze school!
+                    </p>
+                    
+                    <div className="flex justify-center mb-6">
+                        <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
                     </div>
                 </div>
 
                 {/* Error State */}
                 {error && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-6 lg:p-8">
+                    <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-8 max-w-2xl mx-auto mb-8">
                         <div className="text-center">
                             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl lg:text-2xl font-bold text-red-800 mb-2">Oeps!</h3>
+                            <h3 className="text-xl font-bold text-red-800 mb-2">Oeps!</h3>
                             <p className="text-red-600 leading-relaxed mb-4">{error}</p>
                             <button 
                                 onClick={() => window.location.reload()}
@@ -120,14 +118,14 @@ export default function Highscores() {
 
                 {/* Empty State */}
                 {!error && Object.keys(grouped_tests).length === 0 && !loading && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-2xl mx-auto">
                         <div className="text-center">
                             <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl lg:text-2xl font-bold text-slate-800 mb-2">Geen Actieve Testen</h3>
+                            <h3 className="text-xl font-bold text-slate-800 mb-2">Geen Actieve Testen</h3>
                             <p className="text-slate-600 leading-relaxed">
                                 Er zijn momenteel geen actieve testen beschikbaar voor deze school.
                                 {profile?.rol === 'administrator' && (
@@ -140,22 +138,21 @@ export default function Highscores() {
                     </div>
                 )}
                 
-                {/* Tests Grid */}
+                {/* Tests Grid - CategoryCards staan nu direct in de grid */}
                 {!error && Object.keys(grouped_tests).length > 0 && (
-                    <>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div className="space-y-8">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
                             {Object.entries(grouped_tests).map(([categoryName, testsInCategory]) => (
-                                <div key={categoryName}>
-                                    <CategoryCard 
-                                        categoryName={categoryName}
-                                        tests={testsInCategory}
-                                    />
-                                </div>
+                                <CategoryCard 
+                                    key={categoryName}
+                                    categoryName={categoryName}
+                                    tests={testsInCategory}
+                                />
                             ))}
                         </div>
                         
                         {/* Stats Footer */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4">
                             <div className="flex items-center justify-center space-x-8 text-sm text-slate-600 flex-wrap gap-4">
                                 <div className="flex items-center space-x-2">
                                     <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
@@ -171,7 +168,7 @@ export default function Highscores() {
                                 </div>
                             </div>
                         </div>
-                    </>
+                    </div>
                 )}
             </div>
         </div>
