@@ -373,7 +373,7 @@ export default function TestDetailBeheer() {
             
             <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6">
                     
-                    {/* Breadcrumb */}
+                    {/* Terug link */}
                     <Link to="/testbeheer" className="inline-flex items-center text-sm text-slate-600 hover:text-purple-700 font-medium transition-colors">
                         <ArrowLeftIcon className="h-4 w-4 mr-2" />
                         Terug naar testbeheer
@@ -397,8 +397,8 @@ export default function TestDetailBeheer() {
                                 </div>
                             </div>
                             
-                            {/* Compacte info grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                           {/* Info grid - alle items in dezelfde stijl */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="bg-slate-50 rounded-xl p-4">
                                     <div className="text-sm text-slate-500 font-medium mb-1">Categorie</div>
                                     <div className="text-lg font-semibold text-slate-900">{test?.categorie || '-'}</div>
@@ -407,61 +407,41 @@ export default function TestDetailBeheer() {
                                     <div className="text-sm text-slate-500 font-medium mb-1">Eenheid</div>
                                     <div className="text-lg font-semibold text-slate-900">{test?.eenheid || '-'}</div>
                                 </div>
+                                
+                                {/* Doel */}
+                                {parsedBeschrijving?.doel && (
+                                    <div className="bg-slate-50 rounded-xl p-4">
+                                        <div className="text-sm text-slate-500 font-medium mb-1">Doel</div>
+                                        <div className="text-base text-slate-700 leading-relaxed">{parsedBeschrijving.doel}</div>
+                                    </div>
+                                )}
+                                
+                                {/* Benodigdheden */}
+                                {parsedBeschrijving?.benodigdheden && (
+                                    <div className="bg-slate-50 rounded-xl p-4">
+                                        <div className="text-sm text-slate-500 font-medium mb-1">Benodigdheden</div>
+                                        <div className="text-base text-slate-700 leading-relaxed">{parsedBeschrijving.benodigdheden}</div>
+                                    </div>
+                                )}
+                                
+                                {/* Procedure */}
+                                {parsedBeschrijving?.procedure && (
+                                    <div className="bg-slate-50 rounded-xl p-4 sm:col-span-2 lg:col-span-3">
+                                        <div className="text-sm text-slate-500 font-medium mb-2">Procedure</div>
+                                        <div className="text-base text-slate-700">
+                                            {renderBeschrijvingContent(parsedBeschrijving.procedure, 'procedure')}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* Fallback voor niet-gestructureerde beschrijving */}
+                                {parsedBeschrijving?.beschrijving && (
+                                    <div className="bg-slate-50 rounded-xl p-4 sm:col-span-2 lg:col-span-3">
+                                        <div className="text-sm text-slate-500 font-medium mb-2">Beschrijving</div>
+                                        <div className="text-base text-slate-700 leading-relaxed">{parsedBeschrijving.beschrijving}</div>
+                                    </div>
+                                )}
                             </div>
-                            
-                            {/* Gestructureerde beschrijving - altijd zichtbaar */}
-                            {test?.beschrijving && parsedBeschrijving && (
-                                <div className="space-y-6">
-                                    {parsedBeschrijving.doel && (
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center">
-                                                <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium mr-3">
-                                                    Doel
-                                                </span>
-                                            </h3>
-                                            <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
-                                                {renderBeschrijvingContent(parsedBeschrijving.doel, 'doel')}
-                                            </div>
-                                        </div>
-                                    )}
-                                    
-                                    {parsedBeschrijving.procedure && (
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center">
-                                                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium mr-3">
-                                                    Procedure
-                                                </span>
-                                            </h3>
-                                            <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                                                {renderBeschrijvingContent(parsedBeschrijving.procedure, 'procedure')}
-                                            </div>
-                                        </div>
-                                    )}
-                                    
-                                    {parsedBeschrijving.benodigdheden && (
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center">
-                                                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium mr-3">
-                                                    Benodigdheden
-                                                </span>
-                                            </h3>
-                                            <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-                                                {renderBeschrijvingContent(parsedBeschrijving.benodigdheden, 'benodigdheden')}
-                                            </div>
-                                        </div>
-                                    )}
-                                    
-                                    {/* Fallback voor niet-gestructureerde beschrijving */}
-                                    {parsedBeschrijving.beschrijving && (
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-slate-900 mb-3">Beschrijving</h3>
-                                            <div className="bg-slate-50 rounded-xl p-4">
-                                                <p className="text-slate-700 leading-relaxed">{parsedBeschrijving.beschrijving}</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     </div>
 
