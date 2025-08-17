@@ -20,23 +20,22 @@ export default function Evolutie() {
     const [error, setError] = useState(null);
     const [availableYears, setAvailableYears] = useState([]);
 
-    // Gebruik de huidige schooljaar als default
-    const [selectedYear, setSelectedYear] = useState(getCurrentSchoolYear());
+    // --- AANPASSING 1: Begin standaard met 'all' ---
+    const [selectedYear, setSelectedYear] = useState('all');
 
-    // Genereer uitgebreidere lijst van schooljaren (meer jaren terug)
-    useEffect(() => {
-        const years = generateSchoolYears(10); // 10 jaar terug in plaats van standaard
-        setAvailableYears(years);
+   useEffect(() => {
+        const years = generateSchoolYears(10);
+        // --- AANPASSING 2: Voeg 'Alle Schooljaren' toe aan de lijst ---
+        const allYearsOption = { label: 'Alle Schooljaren', value: 'all' };
+        setAvailableYears([allYearsOption, ...years]);
     }, []);
 
-    // Auto-selecteer leerling als de gebruiker een leerling is
     useEffect(() => {
         if (profile?.rol === 'leerling') {
             setSelectedStudent(profile);
         }
     }, [profile]);
 
-    // Haal evolutie data op
     useEffect(() => {
         if (!selectedStudent?.id) {
             setEvolutionData([]);
@@ -48,24 +47,17 @@ export default function Evolutie() {
             setError(null);
             
             try {
-                console.log('=== DEBUG Evolution Data Fetch ===');
-                console.log('Selected Student:', selectedStudent);
-                console.log('Student ID:', selectedStudent.id);
-                console.log('Student Email:', selectedStudent.email);
-                console.log('Selected Year:', selectedYear);
-                
-                // Haal alle data op (zonder schooljaar filter in database query)
                 const allData = await getStudentEvolutionData(selectedStudent.id);
-                console.log('Raw evolution data:', allData);
                 
-                // Filter client-side op schooljaar
-                const filteredData = filterTestDataBySchoolYear(allData, selectedYear);
-                console.log('Filtered evolution data:', filteredData);
+                // --- AANPASSING 3: Filter alleen als een specifiek jaar is gekozen ---
+                let dataToShow = [];
+                if (selectedYear === 'all') {
+                    dataToShow = allData; // Toon alles
+                } else {
+                    dataToShow = filterTestDataBySchoolYear(allData, selectedYear);
+                }
                 
-                setEvolutionData(filteredData);
-                
-                // Log voor debugging
-                console.log(`Loaded ${allData.length} total tests, ${filteredData.length} for school year ${formatSchoolYear(selectedYear)}`);
+                setEvolutionData(dataToShow);
                 
             } catch (err) {
                 console.error('Error fetching evolution data:', err);
@@ -94,22 +86,18 @@ export default function Evolutie() {
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
 
     const handleStudentSelect = (student) => {
-        console.log('Geselecteerde student:', student);
         setSelectedStudent(student);
         setError(null);
     };
 
-    const handleYearChange = (newYear) => {
-        setSelectedYear(Number(newYear));
+   // --- AANPASSING 4: Handel zowel 'all' (string) als jaartallen (number) af ---
+    const handleYearChange = (newYearValue) => {
+        const valueToSet = newYearValue === 'all' ? 'all' : Number(newYearValue);
+        setSelectedYear(valueToSet);
         setError(null);
     };
 
-    // Statistieken voor de footer
-    const totalScores = evolutionData.reduce((total, test) => 
-        total + (test.all_scores?.length || 0), 0
-    );
-
-    // Find huidige schooljaar info
+    const totalScores = evolutionData.reduce((total, test) => total + (test.all_scores?.length || 0), 0);
     const currentYearInfo = availableYears.find(year => year.value === selectedYear);
     const isCurrentYear = currentYearInfo?.isCurrent || false;
 
@@ -137,7 +125,9 @@ export default function Evolutie() {
                     </h1>
                     <p className="text-slate-600 mb-4">
                         {selectedStudent 
-                            ? `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
+                            ? selectedYear === 'all'
+                                ? 'Evolutie overzicht over alle schooljaren'
+                                : `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
                             : 'Bekijk je sportieve vooruitgang'
                         }
                     </p>
