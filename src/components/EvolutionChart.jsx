@@ -1,4 +1,4 @@
-// src/components/EvolutionChart.jsx
+// src/components/EvolutionChart.jsx - Optimized and Consistent Layout
 import { Line } from 'react-chartjs-2';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
@@ -114,8 +114,13 @@ const calculateOptimalYRange = (scoreValues, scoreNorms) => {
 export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNorms, scoreRichting }) {
   const sortedScores = [...scores].sort((a, b) => new Date(a.datum) - new Date(b.datum));
   const isMobile = window.innerWidth < 640;
+  
   const data = {
-    labels: sortedScores.map(s => new Date(s.datum).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: '2-digit' })),
+    labels: sortedScores.map(s => new Date(s.datum).toLocaleDateString('nl-BE', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: isMobile ? '2-digit' : '2-digit' 
+    })),
     datasets: [{
         label: 'Evolutie',
         data: sortedScores.map(s => s.score),
@@ -124,11 +129,11 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
         pointBackgroundColor: 'rgb(126, 34, 206)',
         pointBorderColor: 'white',
         pointBorderWidth: 2,
-        pointRadius: 7,
-        pointHoverRadius: 9,
+        pointRadius: isMobile ? 5 : 6,
+        pointHoverRadius: isMobile ? 7 : 8,
         tension: 0.3,
         fill: true,
-        borderWidth: 3,
+        borderWidth: isMobile ? 2 : 3,
     }],
   };
   
@@ -139,6 +144,14 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 10,
+        right: 10,
+        bottom: 10,
+        left: 10
+      }
+    },
     plugins: {
       legend: { display: false },
       coloredZones: { ...(scoreNorms || {}), score_richting: scoreRichting },
@@ -150,26 +163,48 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
         max: maxValue,
         grid: {
           color: 'rgba(156, 163, 175, 0.1)',
+          drawBorder: false,
         },
         ticks: {
           color: 'rgb(107, 114, 128)',
           font: {
-            size: isMobile ? 10 : 12
+            size: isMobile ? 10 : 11
           },
+          padding: 8,
+          maxTicksLimit: 8
+        },
+        border: {
+          display: false
         }
       },
       x: {
         grid: {
           color: 'rgba(156, 163, 175, 0.1)',
+          drawBorder: false,
         },
         ticks: {
           color: 'rgb(107, 114, 128)',
           font: {
-            size: isMobile ? 10 : 12
+            size: isMobile ? 9 : 10
           },
           maxRotation: isMobile ? 45 : 0,
           minRotation: isMobile ? 45 : 0,
+          padding: 8,
+          maxTicksLimit: isMobile ? 4 : 8
+        },
+        border: {
+          display: false
         }
+      }
+    },
+    elements: {
+      point: {
+        radius: isMobile ? 5 : 6,
+        hoverRadius: isMobile ? 7 : 8,
+        borderWidth: 2
+      },
+      line: {
+        borderWidth: isMobile ? 2 : 3
       }
     },
     onClick: (event, elements) => {
@@ -200,15 +235,15 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
       </div>
       
       {scoreNorms && (
-        <div className="mt-4 flex justify-center items-center">
-            <div className="flex items-center gap-x-6 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                    <div className="w-5 h-0.5" style={{borderTop: '2px dashed rgba(34, 197, 94, 0.8)'}}></div>
-                    <span>14/20 (Goed)</span>
+        <div className="mt-3 flex justify-center items-center">
+            <div className="flex items-center gap-x-4 sm:gap-x-6 text-xs sm:text-sm text-gray-600">
+                <div className="flex items-center gap-1 sm:gap-2">
+                    <div className="w-4 sm:w-5 h-0.5" style={{borderTop: '2px dashed rgba(34, 197, 94, 0.8)'}}></div>
+                    <span className="whitespace-nowrap">14/20 (Goed)</span>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-5 h-0.5" style={{borderTop: '2px dashed rgba(249, 115, 22, 0.8)'}}></div>
-                    <span>10/20 (Voldoende)</span>
+                <div className="flex items-center gap-1 sm:gap-2">
+                    <div className="w-4 sm:w-5 h-0.5" style={{borderTop: '2px dashed rgba(249, 115, 22, 0.8)'}}></div>
+                    <span className="whitespace-nowrap">10/20 (Voldoende)</span>
                 </div>
             </div>
         </div>

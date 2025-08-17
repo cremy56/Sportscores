@@ -1,4 +1,4 @@
-// src/components/EvolutionCard.jsx - Mobile Optimized - FIXED AGE CALCULATION
+// src/components/EvolutionCard.jsx - Mobile Optimized - FIXED AGE CALCULATION - Compact Layout
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import EvolutionChart from './EvolutionChart';
@@ -437,8 +437,8 @@ useEffect(() => {
         </div>
       )}
       
-    {/* Chart container */}
-      <div className="w-full h-[500px] p-4 sm:p-6">
+    {/* Chart container - Optimized height */}
+      <div className="w-full h-[400px] p-4 sm:p-6">
         {loading && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -495,7 +495,7 @@ useEffect(() => {
       {tests.length > 1 && (
         <div className="px-3 sm:px-6 pb-2 hidden sm:block">
           <p className="text-xs text-gray-400 text-center">
-            💡 Gebruik ← → pijltjestoetsten om te navigeren
+            💡 Gebruik ← → pijltjestoetsen om te navigeren
           </p>
         </div>
       )}

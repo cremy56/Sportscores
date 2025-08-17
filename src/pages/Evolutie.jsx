@@ -1,4 +1,4 @@
-// src/pages/Evolutie.jsx - Grid Layout like Highscores
+// src/pages/Evolutie.jsx - Optimized Layout with 2-column grid
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import StudentSearch from '../components/StudentSearch';
@@ -23,9 +23,9 @@ export default function Evolutie() {
     // Gebruik de huidige schooljaar als default
     const [selectedYear, setSelectedYear] = useState(getCurrentSchoolYear());
 
-    // Genereer beschikbare schooljaren
+    // Genereer uitgebreidere lijst van schooljaren (meer jaren terug)
     useEffect(() => {
-        const years = generateSchoolYears();
+        const years = generateSchoolYears(10); // 10 jaar terug in plaats van standaard
         setAvailableYears(years);
     }, []);
 
@@ -176,7 +176,7 @@ export default function Evolutie() {
                                 >
                                     {availableYears.map(year => (
                                         <option key={year.value} value={year.value}>
-                                            {year.label} {year.isCurrent ? '(Huidig)' : ''}
+                                            {year.label}{year.isCurrent ? ' (Huidig)' : ''}
                                         </option>
                                     ))}
                                 </select>
@@ -202,7 +202,7 @@ export default function Evolutie() {
                             >
                                 {availableYears.map(year => (
                                     <option key={year.value} value={year.value}>
-                                        {year.label} {year.isCurrent ? '(Huidig)' : ''}
+                                        {year.label}{year.isCurrent ? ' (Huidig)' : ''}
                                     </option>
                                 ))}
                             </select>
@@ -295,10 +295,10 @@ export default function Evolutie() {
                     </div>
                 )}
                 
-                {/* Evolution Cards Grid - Same as Highscores */}
+                {/* Evolution Cards Grid - Optimized 2-column layout */}
                 {!error && selectedStudent && Object.keys(grouped_data).length > 0 && (
                     <div className="space-y-8">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
                             {Object.entries(grouped_data).map(([categoryName, testsInCategory]) => (
                                 <EvolutionCard
                                     key={`${categoryName}-${selectedYear}`}
