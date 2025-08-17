@@ -23,7 +23,6 @@ export default function TestDetailBeheer() {
     const [editingNorm, setEditingNorm] = useState(null);
     const fileInputRef = useRef(null);
     const [isTestModalOpen, setIsTestModalOpen] = useState(false);
-    const [isTestDetailsOpen, setIsTestDetailsOpen] = useState(false);
     const [isNormenExpanded, setIsNormenExpanded] = useState(false);
     const [selectedNorms, setSelectedNorms] = useState([]);
     const [itemsToDelete, setItemsToDelete] = useState(null);
@@ -364,7 +363,9 @@ export default function TestDetailBeheer() {
             </div>
         );
     }
-const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
+
+    const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
+    
     return (
           <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
             <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
@@ -378,12 +379,12 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                         Terug naar testbeheer
                     </Link>
                     
-                    {/* Test Details Card - volledige breedte op mobiel */}
+                    {/* Test Details Card - altijd uitgevouwen, geen breadcrumb meer */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
                         <div className="p-4 lg:p-6">
-                            <div className="flex justify-between items-start">
+                            <div className="flex justify-between items-start mb-6">
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center space-x-3 mb-4">
+                                    <div className="flex items-center space-x-3 mb-6">
                                         <h1 className="text-xl lg:text-3xl font-bold text-slate-900 truncate">{test?.naam}</h1>
                                         <button 
                                             onClick={() => setIsTestModalOpen(true)}
@@ -393,55 +394,24 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                             <PencilIcon className="h-4 w-4 lg:h-5 lg:w-5"/> 
                                         </button>
                                     </div>
-                                    
-                                    {/* Compacte preview info - volledige breedte op mobiel */}
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
-                                            <div className="bg-slate-50 rounded-xl p-3 lg:p-4">
-                                                <div className="text-xs lg:text-sm text-slate-500 font-medium">Categorie</div>
-                                                <div className="text-base lg:text-lg font-semibold text-slate-900">{test?.categorie || '-'}</div>
-                                            </div>
-                                            <div className="bg-slate-50 rounded-xl p-3 lg:p-4">
-                                                <div className="text-xs lg:text-sm text-slate-500 font-medium">Eenheid</div>
-                                                <div className="text-base lg:text-lg font-semibold text-slate-900">{test?.eenheid || '-'}</div>
-                                            </div>
-                                        </div>
-                                    
-                                       {/* Beschrijving preview - alleen eerste paar woorden */}
-                                        {test?.beschrijving && (
-                                            <div className="bg-slate-50 rounded-xl p-3 lg:p-4">
-                                                <div className="text-xs lg:text-sm text-slate-500 font-medium mb-2">Testbeschrijving</div>
-                                                {parsedBeschrijving?.doel ? (
-                                                    <p className="text-sm lg:text-base text-slate-700 leading-relaxed line-clamp-2">
-                                                        <strong>Doel:</strong> {parsedBeschrijving.doel.substring(0, 100)}...
-                                                    </p>
-                                                ) : (
-                                                    <p className="text-sm lg:text-base text-slate-700 leading-relaxed line-clamp-2">
-                                                        {test.beschrijving.substring(0, 100)}...
-                                                    </p>
-                                                )}
-                                                <button 
-                                                    onClick={() => setIsTestDetailsOpen(true)}
-                                                    className="text-purple-600 hover:text-purple-700 text-xs lg:text-sm font-medium mt-2"
-                                                >
-                                                    Volledige beschrijving lezen...
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
                                 </div>
-                                
-                                <button 
-                                    onClick={() => setIsTestDetailsOpen(!isTestDetailsOpen)}
-                                    className="p-2 text-slate-400 hover:text-slate-600 transition-colors ml-4"
-                                >
-                                    <ChevronDownIcon className={`h-6 w-6 transform transition-transform ${isTestDetailsOpen ? 'rotate-180' : ''}`} />
-                                </button>
                             </div>
                             
-                            {/* Uitklapbare details - gestructureerde beschrijving */}
-                            {isTestDetailsOpen && parsedBeschrijving && (
-                                <div className="pt-6 border-t border-slate-200 space-y-6">
+                            {/* Compacte info grid */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                                <div className="bg-slate-50 rounded-xl p-4">
+                                    <div className="text-sm text-slate-500 font-medium mb-1">Categorie</div>
+                                    <div className="text-lg font-semibold text-slate-900">{test?.categorie || '-'}</div>
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-4">
+                                    <div className="text-sm text-slate-500 font-medium mb-1">Eenheid</div>
+                                    <div className="text-lg font-semibold text-slate-900">{test?.eenheid || '-'}</div>
+                                </div>
+                            </div>
+                            
+                            {/* Gestructureerde beschrijving - altijd zichtbaar */}
+                            {test?.beschrijving && parsedBeschrijving && (
+                                <div className="space-y-6">
                                     {parsedBeschrijving.doel && (
                                         <div>
                                             <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center">
