@@ -34,7 +34,7 @@ export default function TestDetailBeheer() {
 
     const getNormIdentifier = (norm) => `${norm.leeftijd}-${norm.geslacht}-${norm.punt}-${norm.score_min}`;
 
-    const fetchData = useCallback(async () => {
+   const fetchData = useCallback(async () => {
         const testRef = doc(db, 'testen', testId);
         const testSnap = await getDoc(testRef);
         if (testSnap.exists()) {
@@ -82,6 +82,73 @@ export default function TestDetailBeheer() {
     const normenToShow = useMemo(() => {
         return isNormenExpanded ? gefilterdeNormen : gefilterdeNormen.slice(0, PREVIEW_COUNT);
     }, [gefilterdeNormen, isNormenExpanded]);
+
+// Parse gestructureerde beschrijving
+    const parseTestBeschrijving = (beschrijving) => {
+        if (!beschrijving) return null;
+        
+        const sections = {};
+        const lines = beschrijving.split('\n').filter(line => line.trim());
+        
+        let currentSection = null;
+        let currentContent = [];
+        
+        lines.forEach(line => {
+            const trimmedLine = line.trim();
+            
+            // Check voor sectie headers
+            if (trimmedLine.toLowerCase().startsWith('doel:')) {
+                if (currentSection) {
+                    sections[currentSection] = currentContent.join('\n');
+                }
+                currentSection = 'doel';
+                currentContent = [trimmedLine.substring(5).trim()];
+            } else if (trimmedLine.toLowerCase().startsWith('procedure:')) {
+                if (currentSection) {
+                    sections[currentSection] = currentContent.join('\n');
+                }
+                currentSection = 'procedure';
+                currentContent = [];
+            } else if (trimmedLine.toLowerCase().startsWith('benodigdheden:')) {
+                if (currentSection) {
+                    sections[currentSection] = currentContent.join('\n');
+                }
+                currentSection = 'benodigdheden';
+                currentContent = [trimmedLine.substring(14).trim()];
+            } else if (currentSection) {
+                currentContent.push(trimmedLine);
+            }
+        });
+        
+        // Voeg laatste sectie toe
+        if (currentSection) {
+            sections[currentSection] = currentContent.join('\n');
+        }
+        
+        return Object.keys(sections).length > 0 ? sections : { beschrijving: beschrijving };
+    };
+
+    const renderBeschrijvingContent = (content, type) => {
+        if (type === 'procedure') {
+            // Split op nummers en maak een geordende lijst
+            const steps = content.split(/\d+\./).filter(step => step.trim());
+            return (
+                <ol className="list-decimal list-inside space-y-2 text-slate-700">
+                    {steps.map((step, index) => (
+                        <li key={index} className="leading-relaxed">
+                            {step.trim()}
+                        </li>
+                    ))}
+                </ol>
+            );
+        }
+        
+        return (
+            <p className="text-slate-700 leading-relaxed">
+                {content}
+            </p>
+        );
+    };
 
     const handleSaveNewNorm = async () => {
         if (!newNorm.leeftijd || !newNorm.score_min || !newNorm.punt) {
@@ -299,7 +366,7 @@ export default function TestDetailBeheer() {
     }
 
     return (
-        <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
             <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
             <TestFormModal isOpen={isTestModalOpen} onClose={() => setIsTestModalOpen(false)} onTestSaved={fetchData} testData={test} schoolId={profile?.school_id} />
             
@@ -340,21 +407,25 @@ export default function TestDetailBeheer() {
                                             </div>
                                         </div>
                                     
-                                        {/* Beschrijving preview - volledige breedte */}
+                                       {/* Beschrijving preview - alleen eerste paar woorden */}
                                         {test?.beschrijving && (
                                             <div className="bg-slate-50 rounded-xl p-3 lg:p-4">
-                                                <div className="text-xs lg:text-sm text-slate-500 font-medium mb-2">Beschrijving</div>
-                                                <p className="text-sm lg:text-base text-slate-700 leading-relaxed line-clamp-3">
-                                                    {test.beschrijving}
-                                                </p>
-                                                {test.beschrijving.length > 150 && (
-                                                    <button 
-                                                        onClick={() => setIsTestDetailsOpen(true)}
-                                                        className="text-purple-600 hover:text-purple-700 text-xs lg:text-sm font-medium mt-2"
-                                                    >
-                                                        Lees meer...
-                                                    </button>
+                                                <div className="text-xs lg:text-sm text-slate-500 font-medium mb-2">Testbeschrijving</div>
+                                                {parsedBeschrijving?.doel ? (
+                                                    <p className="text-sm lg:text-base text-slate-700 leading-relaxed line-clamp-2">
+                                                        <strong>Doel:</strong> {parsedBeschrijving.doel.substring(0, 100)}...
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-sm lg:text-base text-slate-700 leading-relaxed line-clamp-2">
+                                                        {test.beschrijving.substring(0, 100)}...
+                                                    </p>
                                                 )}
+                                                <button 
+                                                    onClick={() => setIsTestDetailsOpen(true)}
+                                                    className="text-purple-600 hover:text-purple-700 text-xs lg:text-sm font-medium mt-2"
+                                                >
+                                                    Volledige beschrijving lezen...
+                                                </button>
                                             </div>
                                         )}
                                     </div>
@@ -368,13 +439,57 @@ export default function TestDetailBeheer() {
                                 </button>
                             </div>
                             
-                            {/* Uitklapbare details - volledige beschrijving */}
-                            {isTestDetailsOpen && (
-                                <div className="pt-6 border-t border-slate-200">
-                                    <h3 className="text-lg font-semibold text-slate-900 mb-3">Volledige beschrijving</h3>
-                                    <div className="bg-slate-50 rounded-xl p-4">
-                                        <p className="text-slate-700 leading-relaxed">{test?.beschrijving || 'Geen beschrijving beschikbaar.'}</p>
-                                    </div>
+                            {/* Uitklapbare details - gestructureerde beschrijving */}
+                            {isTestDetailsOpen && parsedBeschrijving && (
+                                <div className="pt-6 border-t border-slate-200 space-y-6">
+                                    {parsedBeschrijving.doel && (
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center">
+                                                <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium mr-3">
+                                                    Doel
+                                                </span>
+                                            </h3>
+                                            <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                                                {renderBeschrijvingContent(parsedBeschrijving.doel, 'doel')}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {parsedBeschrijving.procedure && (
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center">
+                                                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium mr-3">
+                                                    Procedure
+                                                </span>
+                                            </h3>
+                                            <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                                                {renderBeschrijvingContent(parsedBeschrijving.procedure, 'procedure')}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {parsedBeschrijving.benodigdheden && (
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center">
+                                                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium mr-3">
+                                                    Benodigdheden
+                                                </span>
+                                            </h3>
+                                            <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                                                {renderBeschrijvingContent(parsedBeschrijving.benodigdheden, 'benodigdheden')}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Fallback voor niet-gestructureerde beschrijving */}
+                                    {parsedBeschrijving.beschrijving && (
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-slate-900 mb-3">Beschrijving</h3>
+                                            <div className="bg-slate-50 rounded-xl p-4">
+                                                <p className="text-slate-700 leading-relaxed">{parsedBeschrijving.beschrijving}</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
