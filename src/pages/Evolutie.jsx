@@ -132,7 +132,7 @@ export default function Evolutie() {
                 
                 {/* Header */}
                 <div className="text-center">
-                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2 pt-4">
+                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2 pt-8">
                         {selectedStudent ? selectedStudent.naam : pageTitle}
                     </h1>
                     <p className="text-slate-600 mb-4">
