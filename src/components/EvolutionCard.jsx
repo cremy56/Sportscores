@@ -318,7 +318,7 @@ useEffect(() => {
             <div />
             <h2 className="text-base sm:text-xl font-bold text-gray-800 flex items-center gap-1 sm:gap-2 justify-center col-start-2">
               <TrophyIcon className="h-4 w-4 sm:h-6 sm:w-6 text-purple-600" />
-              <span className="text-sm sm:text-xl truncate">{categoryName}</span>
+              <span className="text-sm sm:text-xl">{categoryName}</span>
             </h2>
             <div className="flex justify-end">
               <div className="flex items-center gap-1 bg-white/50 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-1">
