@@ -541,37 +541,6 @@ export default function TestafnameDetail() {
                         </div>
                     </div>
 
-                    {/* Statistieken */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <StatCard
-                            icon={UserGroupIcon}
-                            title="Totaal Leerlingen"
-                            value={stats.totaal}
-                            color="blue"
-                        />
-                        <StatCard
-                            icon={CheckIcon}
-                            title="Scores Ingevoerd"
-                            value={stats.compleet}
-                            subtitle={`${stats.percentage}% compleet`}
-                            color={stats.percentage === 100 ? "green" : stats.percentage > 50 ? "blue" : "red"}
-                        />
-                        <StatCard
-                            icon={ChartBarIcon}
-                            title="Gemiddelde Score"
-                            value={details.leerlingen.filter(l => l.punt !== null).length > 0 
-                                ? (details.leerlingen
-                                    .filter(l => l.punt !== null)
-                                    .reduce((sum, l) => sum + l.punt, 0) / 
-                                   details.leerlingen.filter(l => l.punt !== null).length
-                                  ).toFixed(1)
-                                : '-'
-                            }
-                            subtitle={`/ ${details.max_punten} punten`}
-                            color="purple"
-                        />
-                    </div>
-
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Score Verdeling */}
                         <div className="lg:col-span-1">
@@ -692,6 +661,33 @@ export default function TestafnameDetail() {
                                 )}
                             </div>
                         </div>
+                        {/* ▼▼▼ NIEUWE, SUBTIELE STATISTIEKEN SECTIE TOEGEVOEGD ▼▼▼ */}
+                    <div className="text-center">
+                        <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block shadow-lg">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Overzicht Testafname</h3>
+                            <div className="flex items-center space-x-6 text-sm text-gray-600 flex-wrap justify-center gap-x-6 gap-y-3">
+                                <div className="flex items-center" title="Totaal aantal leerlingen">
+                                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                                    <div><span className="font-bold text-gray-800">{stats.totaal}</span> Leerlingen</div>
+                                </div>
+                                <div className="flex items-center" title="Aantal ingevoerde scores">
+                                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                                    <div><span className="font-bold text-gray-800">{stats.compleet}</span> Scores ({stats.percentage}%)</div>
+                                </div>
+                                <div className="flex items-center" title="Gemiddelde score">
+                                    <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
+                                    <div>
+                                        Gemiddelde: <span className="font-bold text-gray-800">
+                                        {details.leerlingen.filter(l => l.punt !== null).length > 0 
+                                            ? (details.leerlingen.filter(l => l.punt !== null).reduce((sum, l) => sum + l.punt, 0) / details.leerlingen.filter(l => l.punt !== null).length).toFixed(1)
+                                            : '-'
+                                        } / {details.max_punten}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     </div>
                     
                     {/* Enhanced Testafname Acties */}
