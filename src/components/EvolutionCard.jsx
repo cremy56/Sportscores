@@ -277,14 +277,6 @@ useEffect(() => {
     setSelectedDataPoint(data);
   }, []);
 
-  const getTrendIcon = (direction) => {
-    switch (direction) {
-      case 'up': return '📈';
-      case 'down': return '📉';
-      default: return '➡️';
-    }
-  };
-
   if (!scoresAnalysis) {
     return (
       <div className="bg-white/70 backdrop-blur-lg rounded-2xl sm:rounded-3xl shadow-lg border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-full">
@@ -311,7 +303,7 @@ useEffect(() => {
     );
   }
 
-  const { scores, firstScore, lastScore, improvement, isImprovement, average, trendDirection, totalScores } = scoresAnalysis;
+  const { scores, firstScore, lastScore, totalScores } = scoresAnalysis;
 
  return (
     <div 
@@ -321,22 +313,18 @@ useEffect(() => {
     >
       {/* Header (met aangepaste performanceIndicator) */}
       <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-3 sm:p-6 border-b border-white/20">
-        <div className="flex items-center justify-between mb-2 sm:mb-3">
-          <h2 className="text-base sm:text-xl font-bold text-gray-800 flex items-center gap-1 sm:gap-2">
-            <TrophyIcon className="h-4 w-4 sm:h-6 sm:w-6 text-purple-600" />
-            <span className="text-sm sm:text-xl truncate">{categoryName}</span>
-          </h2>
-          <div className="flex items-center gap-1 sm:gap-2">
-            {performanceIndicator && (
-              <div className={`px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-xs font-medium ${performanceIndicator.color}`}>
-                <span className="hidden sm:inline">{performanceIndicator.icon} {performanceIndicator.level}</span>
-                <span className="sm:hidden">{performanceIndicator.icon}</span>
+        {/* AANGEPAST: Gecentreerde titel met test count rechts */}
+        <div className="grid grid-cols-3 items-center mb-2 sm:mb-3">
+            <div />
+            <h2 className="text-base sm:text-xl font-bold text-gray-800 flex items-center gap-1 sm:gap-2 justify-center col-start-2">
+              <TrophyIcon className="h-4 w-4 sm:h-6 sm:w-6 text-purple-600" />
+              <span className="text-sm sm:text-xl truncate">{categoryName}</span>
+            </h2>
+            <div className="flex justify-end">
+              <div className="flex items-center gap-1 bg-white/50 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-1">
+                <span className="text-xs text-gray-600">{currentIndex + 1}/{tests.length}</span>
               </div>
-            )}
-            <div className="flex items-center gap-1 bg-white/50 rounded-full px-1.5 py-0.5 sm:px-2 sm:py-1">
-              <span className="text-xs text-gray-600">{currentIndex + 1}/{tests.length}</span>
             </div>
-          </div>
         </div>
         
         <div className="flex justify-between items-center">
@@ -402,32 +390,23 @@ useEffect(() => {
           )}
         </div>
 
+        {/* AANGEPAST: Trend vervangen door Status indicator */}
         <div className="text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Trend</p>
-          <p className="font-bold text-gray-800 text-xs sm:text-sm">
-            {getTrendIcon(trendDirection)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Status</p>
+            {performanceIndicator ? (
+              <div className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${performanceIndicator.color}`}>
+                {performanceIndicator.icon} {performanceIndicator.level}
+              </div>
+            ) : (
+              <p className="font-bold text-gray-800 text-sm mt-1">-</p>
+            )}
+          <p className="text-xs text-gray-500 mt-1.5">
             {totalScores} scores
           </p>
         </div>
       </div>
 
-      {/* Improvement Indicator - Mobile */}
-      {improvement !== 0 && (
-        <div className={`px-3 sm:px-6 py-2 text-center text-xs sm:text-sm font-medium ${
-          isImprovement 
-            ? 'bg-green-100 text-green-800' 
-            : 'bg-red-100 text-red-800'
-        }`}>
-          {isImprovement ? '📈' : '📉'} 
-          {isImprovement ? 'Verbetering' : 'Verslechtering'}: 
-          {Math.abs(improvement).toFixed(2)} {currentTest.eenheid}
-          <span className="ml-2 text-xs opacity-75 hidden sm:inline">
-            (Gemiddelde: {average.toFixed(2)} {currentTest.eenheid})
-          </span>
-        </div>
-      )}
+     {/* VERWIJDERD: Improvement Indicator balk */}
 
      {/* Error State */}
      {error && (
