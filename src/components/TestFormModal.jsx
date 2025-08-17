@@ -12,6 +12,10 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
     const [scoreRichting, setScoreRichting] = useState('hoog');
     const [beschrijving, setBeschrijving] = useState('');
     const [loading, setLoading] = useState(false);
+    
+    // --- NIEUWE STATE VELDEN ---
+    const [isActief, setIsActief] = useState(true);
+    const [maxPunten, setMaxPunten] = useState(20);
 
     const isEditing = !!testData;
 
@@ -23,12 +27,18 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
                 setEenheid(testData.eenheid || '');
                 setScoreRichting(testData.score_richting || 'hoog');
                 setBeschrijving(testData.beschrijving || '');
+                // Vul nieuwe velden als de data bestaat, anders standaardwaarde
+                setIsActief(testData.is_actief !== undefined ? testData.is_actief : true);
+                setMaxPunten(testData.max_punten || 20);
             } else {
+                // Reset alle velden voor een nieuwe test
                 setNaam('');
                 setCategorie('Kracht');
                 setEenheid('');
                 setScoreRichting('hoog');
                 setBeschrijving('');
+                setIsActief(true);
+                setMaxPunten(20);
             }
         }
     }, [testData, isEditing, isOpen]);
@@ -42,12 +52,15 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
         setLoading(true);
         const loadingToast = toast.loading('Test opslaan...');
 
+        // --- OBJECT UITGEBREID MET NIEUWE VELDEN ---
         const testObject = { 
             naam, 
             categorie, 
             eenheid, 
             score_richting: scoreRichting, 
-            beschrijving 
+            beschrijving,
+            is_actief: isActief,
+            max_punten: Number(maxPunten) // Zorg ervoor dat het als getal wordt opgeslagen
         };
 
         try {
@@ -55,9 +68,8 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
                 const testRef = doc(db, 'testen', testData.id);
                 await updateDoc(testRef, testObject);
             } else {
-                // Voeg school_id en created_at toe voor nieuwe testen
                 testObject.school_id = schoolId;
-                testObject.created_at = serverTimestamp();
+                testObject.created_at = serverTimestamp(); // Wordt correct toegevoegd
                 await addDoc(collection(db, 'testen'), testObject);
             }
             toast.success(`Test succesvol ${isEditing ? 'bijgewerkt' : 'aangemaakt'}!`);
@@ -94,12 +106,7 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
                                             <div>
                                                 <label className="block text-sm font-medium">Categorie</label>
                                                 <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className="w-full mt-1 p-2 border rounded-md">
-                                                    <option>Kracht</option>
-                                                    <option>Snelheid</option>
-                                                    <option>Uithoudingsvermogen</option>
-                                                    <option>Lenigheid</option>
-                                                    <option>Coördinatie</option>
-                                                    <option>Sportprestaties</option>
+                                                    <option>Kracht</option><option>Snelheid</option><option>Uithoudingsvermogen</option><option>Lenigheid</option><option>Coördinatie</option><option>Sportprestaties</option>
                                                 </select>
                                             </div>
                                             <div>
@@ -113,6 +120,21 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
                                                     <option value="laag">Lager is beter</option>
                                                 </select>
                                             </div>
+                                            
+                                            {/* --- NIEUWE FORMULIER VELDEN --- */}
+                                            <div>
+                                                <label className="block text-sm font-medium">Max. Punten</label>
+                                                <input type="number" value={maxPunten} onChange={(e) => setMaxPunten(e.target.value)} required className="w-full mt-1 p-2 border rounded-md" />
+                                            </div>
+
+                                            <div className="sm:col-span-2 flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                                <label htmlFor="is_actief" className="font-medium text-gray-700">Zichtbaar op highscore pagina?</label>
+                                                <div className="relative inline-block w-10 align-middle select-none">
+                                                    <input type="checkbox" name="is_actief" id="is_actief" checked={isActief} onChange={(e) => setIsActief(e.target.checked)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                                    <label htmlFor="is_actief" className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                                                </div>
+                                            </div>
+                                            
                                             <div className="sm:col-span-2">
                                                 <label className="block text-sm font-medium">Beschrijving (optioneel)</label>
                                                 <textarea value={beschrijving} onChange={(e) => setBeschrijving(e.target.value)} rows="3" className="w-full mt-1 p-2 border rounded-md"></textarea>
@@ -132,6 +154,11 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
                         </Transition.Child>
                     </div>
                 </div>
+                {/* Voeg deze CSS toe aan je globale stylesheet (bv. index.css) voor de toggle switch */}
+                <style jsx global>{`
+                    .toggle-checkbox:checked { right: 0; border-color: #6d28d9; }
+                    .toggle-checkbox:checked + .toggle-label { background-color: #6d28d9; }
+                `}</style>
             </Dialog>
         </Transition.Root>
     );
