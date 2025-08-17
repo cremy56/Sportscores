@@ -19,7 +19,7 @@ export default function CategoryCard({ categoryName, tests }) {
   if (tests.length === 0) {
     return (
       <div className="bg-white/60 p-4 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg flex flex-col h-full">
-        <h2 className="text-xl font-bold text-gray-800">{categoryName}</h2>
+        <h2 className="text-xl font-bold text-gray-800 text-center">{categoryName}</h2>
         <div className="flex-grow flex items-center justify-center">
           <p className="text-gray-600 text-center mt-2">
             Geen testen gevonden in deze categorie.
