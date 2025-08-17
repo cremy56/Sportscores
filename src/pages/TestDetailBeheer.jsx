@@ -367,7 +367,7 @@ export default function TestDetailBeheer() {
     const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
     
     return (
-          <div className=" bg-slate-50 overflow-y-auto">
+          <div className="min-h-screen bg-slate-50 overflow-y-auto">
             <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
             <TestFormModal isOpen={isTestModalOpen} onClose={() => setIsTestModalOpen(false)} onTestSaved={fetchData} testData={test} schoolId={profile?.school_id} />
             
