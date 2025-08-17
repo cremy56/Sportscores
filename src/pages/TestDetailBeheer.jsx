@@ -31,6 +31,19 @@ export default function TestDetailBeheer() {
     // Aantal items om te tonen in preview
     const PREVIEW_COUNT = 5;
 
+    // DE FIX: Deze useEffect past de achtergrond van het #root element aan.
+    useEffect(() => {
+        const root = document.getElementById('root');
+        if (root) {
+            root.classList.add('bg-slate-50');
+        }
+        return () => {
+            if (root) {
+                root.classList.remove('bg-slate-50');
+            }
+        };
+    }, []);
+
     const getNormIdentifier = (norm) => `${norm.leeftijd}-${norm.geslacht}-${norm.punt}-${norm.score_min}`;
 
    const fetchData = useCallback(async () => {
@@ -353,7 +366,8 @@ export default function TestDetailBeheer() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-50">
+            // De loading state heeft geen div nodig omdat de body al de juiste achtergrond krijgt
+            <div className="flex items-center justify-center min-h-screen">
                 <div className="bg-white p-8 rounded-2xl shadow-sm">
                     <div className="flex items-center space-x-4">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
@@ -367,11 +381,12 @@ export default function TestDetailBeheer() {
     const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
     
     return (
-          <div className="min-h-screen bg-slate-50">
+          // Container div heeft geen classes meer nodig.
+          <div>
             <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
             <TestFormModal isOpen={isTestModalOpen} onClose={() => setIsTestModalOpen(false)} onTestSaved={fetchData} testData={test} schoolId={profile?.school_id} />
             
-            <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6 pt-24">
+            <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6 pt-24 pb-12">
                     
                     {/* Terug link */}
                     <Link to="/testbeheer" className="inline-flex items-center text-sm text-slate-600 hover:text-purple-700 font-medium transition-colors">
@@ -379,7 +394,7 @@ export default function TestDetailBeheer() {
                         Terug naar testbeheer
                     </Link>
                     
-                    {/* Test Details Card - altijd uitgevouwen, geen breadcrumb meer */}
+                    {/* Test Details Card */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
                         <div className="p-4 lg:p-6">
                             <div className="flex justify-between items-start mb-6">
