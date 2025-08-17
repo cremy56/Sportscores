@@ -75,7 +75,7 @@ export default function Highscores() {
                         <img
                             src={school?.logo_url || '/logo.png'}
                             alt={`${school?.naam || 'Sportscores'} Logo`}
-                            className="h-12 w-auto object-contain"
+                            className="h-20 w-auto object-contain max-w-xs"
                             onError={(e) => {
                                 e.target.src = '/logo.png'; // Fallback
                             }}
