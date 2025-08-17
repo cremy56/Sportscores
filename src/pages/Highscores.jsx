@@ -71,11 +71,11 @@ export default function Highscores() {
                 
                 {/* Compacte Header */}
                 <div className="text-center mb-8">
-                    <div className="flex justify-center mb-4">
+                    <div className="flex justify-center mb-4 pt-8">
                         <img
                             src={school?.logo_url || '/logo.png'}
                             alt={`${school?.naam || 'Sportscores'} Logo`}
-                            className="h-20 w-auto object-contain max-w-xs"
+                            className="h-12 w-auto object-contain"
                             onError={(e) => {
                                 e.target.src = '/logo.png'; // Fallback
                             }}
