@@ -71,7 +71,7 @@ export default function Highscores() {
             <div className="max-w-7xl mx-auto mb-12">
                 <div className="text-center">
                     <div className="flex justify-center mb-6">
-                        <div className="bg-gradient-to-br from-purple-100 to-blue-100 p-6 rounded-3xl shadow-lg">
+                        {/* div className="bg-gradient-to-br from-purple-100 to-blue-100 p-6 rounded-3xl shadow-lg">*/}
                             <img
                                 src={school?.logo_url || '/logo.png'}
                                 alt={`${school?.naam || 'Sportscores'} Logo`}
@@ -80,7 +80,7 @@ export default function Highscores() {
                                     e.target.src = '/logo.png'; // Fallback
                                 }}
                             />
-                        </div>
+                        {/*</div>*/}
                     </div>
                     
                     <p className="text-xl text-gray-600 font-medium mb-8">
