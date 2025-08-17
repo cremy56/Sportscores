@@ -397,8 +397,8 @@ export default function TestDetailBeheer() {
                                 </div>
                             </div>
                             
-                           {/* Info grid - alle items in dezelfde stijl */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                           {/* Basis info row */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                                 <div className="bg-slate-50 rounded-xl p-4">
                                     <div className="text-sm text-slate-500 font-medium mb-1">Categorie</div>
                                     <div className="text-lg font-semibold text-slate-900">{test?.categorie || '-'}</div>
@@ -407,28 +407,40 @@ export default function TestDetailBeheer() {
                                     <div className="text-sm text-slate-500 font-medium mb-1">Eenheid</div>
                                     <div className="text-lg font-semibold text-slate-900">{test?.eenheid || '-'}</div>
                                 </div>
+                            </div>
                                 
+                                {/* Gestructureerde inhoud */}
+                            <div className="space-y-6">
                                 {/* Doel */}
                                 {parsedBeschrijving?.doel && (
-                                    <div className="bg-slate-50 rounded-xl p-4">
-                                        <div className="text-sm text-slate-500 font-medium mb-1">Doel</div>
-                                        <div className="text-base text-slate-700 leading-relaxed">{parsedBeschrijving.doel}</div>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                                        <div className="text-sm text-blue-700 font-semibold mb-2 flex items-center">
+                                            <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                                            Doel van de test
+                                        </div>
+                                        <div className="text-slate-700 leading-relaxed">{parsedBeschrijving.doel}</div>
                                     </div>
                                 )}
                                 
                                 {/* Benodigdheden */}
                                 {parsedBeschrijving?.benodigdheden && (
-                                    <div className="bg-slate-50 rounded-xl p-4">
-                                        <div className="text-sm text-slate-500 font-medium mb-1">Benodigdheden</div>
-                                        <div className="text-base text-slate-700 leading-relaxed">{parsedBeschrijving.benodigdheden}</div>
+                                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                        <div className="text-sm text-amber-700 font-semibold mb-2 flex items-center">
+                                            <div className="w-2 h-2 bg-amber-500 rounded-full mr-2"></div>
+                                            Benodigdheden
+                                        </div>
+                                        <div className="text-slate-700 leading-relaxed">{parsedBeschrijving.benodigdheden}</div>
                                     </div>
                                 )}
                                 
                                 {/* Procedure */}
                                 {parsedBeschrijving?.procedure && (
-                                    <div className="bg-slate-50 rounded-xl p-4 sm:col-span-2 lg:col-span-3">
-                                        <div className="text-sm text-slate-500 font-medium mb-2">Procedure</div>
-                                        <div className="text-base text-slate-700">
+                                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                                        <div className="text-sm text-green-700 font-semibold mb-3 flex items-center">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                            Uitvoering procedure
+                                        </div>
+                                        <div className="text-slate-700">
                                             {renderBeschrijvingContent(parsedBeschrijving.procedure, 'procedure')}
                                         </div>
                                     </div>
