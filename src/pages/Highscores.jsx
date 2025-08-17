@@ -83,10 +83,6 @@ export default function Highscores() {
                         </div>
                     </div>
                     
-                    <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-                        {school?.naam || 'School'} Highscores
-                    </h1>
-                    
                     <p className="text-xl text-gray-600 font-medium mb-8">
                         De beste tijden van onze school!
                     </p>
