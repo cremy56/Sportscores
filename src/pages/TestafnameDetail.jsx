@@ -21,12 +21,24 @@ import {
 
 
 function formatScore(score, eenheid) {
-    if (eenheid === 'seconden' || eenheid === 'minuten') {
+    if (score === null || score === undefined) return '-';
+    
+    const eenheidLower = eenheid?.toLowerCase();
+
+    // Speciale opmaak voor 'aantal'
+    if (eenheidLower === 'aantal') {
+        return `${score}x`;
+    }
+    
+    // Speciale opmaak voor tijd
+    if (eenheidLower === 'min' || eenheidLower === 'sec' || eenheidLower === 'minuten' || eenheidLower === 'seconden') {
         const mins = Math.floor(score / 60);
         const secs = Math.round(score % 60);
         return `${mins}'${secs.toString().padStart(2, '0')}"`;
     }
-    return score;
+    
+    // Standaard opmaak voor alle andere eenheden (bv. meter)
+    return `${score} ${eenheid}`;
 }
 
 function getScoreColorClass(punt, maxPunten = 20) {
