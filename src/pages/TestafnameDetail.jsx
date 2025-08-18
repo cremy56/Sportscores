@@ -678,56 +678,216 @@ export default function TestafnameDetail() {
                                 <div className="max-h-96 overflow-y-auto">
                                     <ul className="divide-y divide-gray-200/70">
                                         {details.leerlingen?.map(lid => (
-                                            <li key={lid.id} className="p-4 hover:bg-gray-50/50 transition-colors">
-                                                <div className="space-y-3">
-                                                    {/* Naam */}
-                                                    <div className="font-medium text-gray-900 text-lg">
-                                                        {lid.naam}
-                                                    </div>
+                                            <li 
+                                                key={lid.id} 
+                                                className="relative overflow-hidden hover:bg-gray-50/50 transition-colors"
+                                                style={{
+                                                    transform: swipeState.id === lid.id ? `translateX(${swipeState.translateX}px)` : 'translateX(0)',
+                                                    transition: swipeState.id === lid.id && swipeState.translateX === 0 ? 'transform 0.3s ease' : 'none'
+                                                }}
+                                                onTouchStart={(e) => {
+                                                    if (editingScore.id === lid.score_id) return;
                                                     
-                                                    {/* Score en Punt op één lijn */}
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="text-center">
-                                                            {editingScore.id === lid.score_id ? (
-                                                                <div className="relative">
-                                                                    <input
-                                                                        type="number"
-                                                                        step="any"
-                                                                        value={editingScore.score}
-                                                                        onChange={e => handleScoreChange(e.target.value)}
-                                                                        onKeyPress={e => e.key === 'Enter' && handleUpdateScore()}
-                                                                        className={`w-32 p-3 border-2 rounded-lg text-center ${
-                                                                            editingScore.validation?.valid === false 
-                                                                                ? 'border-red-500 bg-red-50' 
-                                                                                : 'border-purple-500 bg-purple-50'
-                                                                        }`}
-                                                                        placeholder="Score"
-                                                                        autoFocus
-                                                                    />
-                                                                    {editingScore.validation?.valid === false && (
-                                                                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 text-xs text-red-600 whitespace-nowrap">
-                                                                            {editingScore.validation.message}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <span className="font-bold text-2xl text-purple-700">
-                                                                    {lid.score !== null ? formatScore(lid.score, details.eenheid) : '-'}
-                                                                </span>
-                                                            )}
+                                                    const touch = e.touches[0];
+                                                    const startX = touch.clientX;
+                                                    const startTime = Date.now();
+                                                    
+                                                    // Long press timer for edit
+                                                    const timer = setTimeout(() => {
+                                                        navigator.vibrate && navigator.vibrate(50);
+                                                        handleEditClick(lid.score_id, lid.score);
+                                                    }, 500);
+                                                    setLongPressTimer(timer);
+                                                    
+                                                    const handleTouchMove = (e) => {
+                                                        const currentTouch = e.touches[0];
+                                                        const deltaX = currentTouch.clientX - startX;
+                                                        const deltaTime = Date.now() - startTime;
+                                                        
+                                                        // Cancel long press if moving
+                                                        if (Math.abs(deltaX) > 10) {
+                                                            clearTimeout(timer);
+                                                        }
+                                                        
+                                                        // Only allow swipe left and after 100ms to avoid conflicts
+                                                        if (deltaX < -20 && deltaTime > 100) {
+                                                            e.preventDefault();
+                                                            const constrainedDelta = Math.max(deltaX, -100);
+                                                            setSwipeState({ id: lid.id, translateX: constrainedDelta, isDeleting: false });
+                                                        }
+                                                    };
+                                                    
+                                                    const handleTouchEnd = (e) => {
+                                                        clearTimeout(timer);
+                                                        setLongPressTimer(null);
+                                                        
+                                                        if (swipeState.id === lid.id) {
+                                                            if (swipeState.translateX < -50) {
+                                                                // Show delete confirmation
+                                                                if (lid.score !== null) {
+                                                                    handleDeleteScore(lid.score_id, lid.naam);
+                                                                }
+                                                            }
+                                                            // Reset swipe
+                                                            setSwipeState({ id: null, translateX: 0, isDeleting: false });
+                                                        }
+                                                        
+                                                        document.removeEventListener('touchmove', handleTouchMove);
+                                                        document.removeEventListener('touchend', handleTouchEnd);
+                                                    };
+                                                    
+                                                    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+                                                    document.addEventListener('touchend', handleTouchEnd);
+                                                }}
+                                                onTouchEnd={() => {
+                                                    if (longPressTimer) {
+                                                        clearTimeout(longPressTimer);
+                                                        setLongPressTimer(null);
+                                                    }
+                                                }}
+                                            >
+                                                {/* Delete indicator - only visible when swiping */}
+                                                {swipeState.id === lid.id && swipeState.translateX < -20 && lid.score !== null && (
+                                                    <div className="absolute right-0 top-0 h-full w-20 bg-red-500 flex items-center justify-center">
+                                                        <TrashIcon className="h-6 w-6 text-white" />
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="p-4">
+                                                    {/* Desktop Layout - alles op één lijn */}
+                                                    <div className="hidden lg:flex lg:items-center lg:justify-between">
+                                                        <div className="font-medium text-gray-900 text-lg flex-shrink-0">
+                                                            {lid.naam}
                                                         </div>
                                                         
-                                                        <div className="text-center">
-                                                            <span className={`font-bold text-2xl ${getScoreColorClass(lid.punt, details.max_punten)}`}>
-                                                                {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
-                                                            </span>
+                                                        <div className="flex items-center gap-8">
+                                                            <div className="text-center">
+                                                                {editingScore.id === lid.score_id ? (
+                                                                    <div className="relative">
+                                                                        <input
+                                                                            type="number"
+                                                                            step="any"
+                                                                            value={editingScore.score}
+                                                                            onChange={e => handleScoreChange(e.target.value)}
+                                                                            onKeyPress={e => e.key === 'Enter' && handleUpdateScore()}
+                                                                            className={`w-32 p-2 border-2 rounded-lg text-center ${
+                                                                                editingScore.validation?.valid === false 
+                                                                                    ? 'border-red-500 bg-red-50' 
+                                                                                    : 'border-purple-500 bg-purple-50'
+                                                                            }`}
+                                                                            placeholder="Score"
+                                                                            autoFocus
+                                                                        />
+                                                                        {editingScore.validation?.valid === false && (
+                                                                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 text-xs text-red-600 whitespace-nowrap">
+                                                                                {editingScore.validation.message}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="font-bold text-xl text-purple-700">
+                                                                        {lid.score !== null ? formatScore(lid.score, details.eenheid) : '-'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            <div className="text-center">
+                                                                <span className={`font-bold text-xl ${getScoreColorClass(lid.punt, details.max_punten)}`}>
+                                                                    {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
+                                                                </span>
+                                                            </div>
+                                                            
+                                                            <div className="flex items-center gap-2">
+                                                                {editingScore.id === lid.score_id ? (
+                                                                    <>
+                                                                        <button 
+                                                                            onClick={handleUpdateScore}
+                                                                            disabled={updating || !editingScore.validation?.valid}
+                                                                            title="Opslaan" 
+                                                                            className="p-2 text-green-600 hover:bg-green-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                        >
+                                                                            <CheckIcon className="h-5 w-5"/>
+                                                                        </button>
+                                                                        <button 
+                                                                            onClick={cancelEdit}
+                                                                            disabled={updating}
+                                                                            title="Annuleren" 
+                                                                            className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-colors disabled:opacity-50"
+                                                                        >
+                                                                            <XMarkIcon className="h-5 w-5"/>
+                                                                        </button>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <button 
+                                                                            onClick={() => handleEditClick(lid.score_id, lid.score)}
+                                                                            title="Wijzigen" 
+                                                                            className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
+                                                                        >
+                                                                            <PencilSquareIcon className="h-5 w-5"/>
+                                                                        </button>
+                                                                        {lid.score !== null && (
+                                                                            <button 
+                                                                                onClick={() => handleDeleteScore(lid.score_id, lid.naam)}
+                                                                                title="Verwijderen" 
+                                                                                className="p-2 text-red-500 hover:bg-red-100 rounded-full transition-colors"
+                                                                            >
+                                                                                <TrashIcon className="h-5 w-5"/>
+                                                                            </button>
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    
-                                                    {/* Actie knoppen */}
-                                                    <div className="flex justify-center items-center gap-3 pt-2">
-                                                        {editingScore.id === lid.score_id ? (
-                                                            <>
+
+                                                    {/* Mobile Layout - gestapeld */}
+                                                    <div className="lg:hidden space-y-3">
+                                                        <div className="font-medium text-gray-900 text-lg">
+                                                            {lid.naam}
+                                                        </div>
+                                                        
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="text-center">
+                                                                {editingScore.id === lid.score_id ? (
+                                                                    <div className="relative">
+                                                                        <input
+                                                                            type="number"
+                                                                            step="any"
+                                                                            value={editingScore.score}
+                                                                            onChange={e => handleScoreChange(e.target.value)}
+                                                                            onKeyPress={e => e.key === 'Enter' && handleUpdateScore()}
+                                                                            className={`w-32 p-3 border-2 rounded-lg text-center ${
+                                                                                editingScore.validation?.valid === false 
+                                                                                    ? 'border-red-500 bg-red-50' 
+                                                                                    : 'border-purple-500 bg-purple-50'
+                                                                            }`}
+                                                                            placeholder="Score"
+                                                                            autoFocus
+                                                                        />
+                                                                        {editingScore.validation?.valid === false && (
+                                                                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 text-xs text-red-600 whitespace-nowrap">
+                                                                                {editingScore.validation.message}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="font-bold text-2xl text-purple-700">
+                                                                        {lid.score !== null ? formatScore(lid.score, details.eenheid) : '-'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            <div className="text-center">
+                                                                <span className={`font-bold text-2xl ${getScoreColorClass(lid.punt, details.max_punten)}`}>
+                                                                    {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Mobile actie knoppen - alleen bij editing */}
+                                                        {editingScore.id === lid.score_id && (
+                                                            <div className="flex justify-center items-center gap-3 pt-2">
                                                                 <button 
                                                                     onClick={handleUpdateScore}
                                                                     disabled={updating || !editingScore.validation?.valid}
@@ -744,26 +904,17 @@ export default function TestafnameDetail() {
                                                                 >
                                                                     <XMarkIcon className="h-6 w-6"/>
                                                                 </button>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <button 
-                                                                    onClick={() => handleEditClick(lid.score_id, lid.score)}
-                                                                    title="Wijzigen" 
-                                                                    className="p-3 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
-                                                                >
-                                                                    <PencilSquareIcon className="h-6 w-6"/>
-                                                                </button>
-                                                                {lid.score !== null && (
-                                                                    <button 
-                                                                        onClick={() => handleDeleteScore(lid.score_id, lid.naam)}
-                                                                        title="Verwijderen" 
-                                                                        className="p-3 text-red-500 hover:bg-red-100 rounded-full transition-colors"
-                                                                    >
-                                                                        <TrashIcon className="h-6 w-6"/>
-                                                                    </button>
-                                                                )}
-                                                            </>
+                                                            </div>
+                                                        )}
+                                                        
+                                                        {/* Mobile instructies */}
+                                                        {editingScore.id !== lid.score_id && (
+                                                            <div className="text-center">
+                                                                <p className="text-xs text-gray-500 mt-2">
+                                                                    Houd ingedrukt om te bewerken
+                                                                    {lid.score !== null && " • Swipe links om te verwijderen"}
+                                                                </p>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>
