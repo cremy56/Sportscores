@@ -582,7 +582,7 @@ export default function TestafnameDetail() {
 
     return (
         <div>
-            <div className="max-w-6xl mx-auto px-4 py-3 lg:px-8 lg:py-8 space-y-6 pb-12">
+            <div className="max-w-6xl mx-auto px-4 py-1 lg:px-8 lg:py-8 space-y-6 pb-12">
                 <Link to="/scores" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 mb-6 font-medium transition-colors">
                     <ArrowLeftIcon className="h-4 w-4 mr-2" />
                     Terug naar overzicht
