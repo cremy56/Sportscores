@@ -527,7 +527,7 @@ export default function TestafnameDetail() {
                 
                 <div className="space-y-6">
                     {/* Header */}
-                    <div className="bg-white/80 p-6 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-lg">
+                   <div className="bg-white/80 p-6 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-lg">
                         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                             <div>
                                 <h1 className="text-3xl font-bold text-gray-800">{details.test_naam}</h1>
