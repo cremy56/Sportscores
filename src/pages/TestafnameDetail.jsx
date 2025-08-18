@@ -19,30 +19,7 @@ import {
     ExclamationTriangleIcon
 } from '@heroicons/react/24/solid';
 
-useEffect(() => {
-    const root = document.getElementById('root');
-    if (root) {
-        root.classList.add('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
-    }
-    return () => {
-        if (root) {
-            root.classList.remove('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
-        }
-    };
-}, []);
-// 2. Update loading state (remove background classes):
-if (loading) {
-    return (
-        <div className="flex items-center justify-center min-h-screen">
-            <div className="bg-white p-8 rounded-2xl shadow-sm">
-                <div className="flex items-center space-x-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                    <span className="text-gray-700 font-medium">Details laden...</span>
-                </div>
-            </div>
-        </div>
-    );
-}
+
 
 function formatScore(score, eenheid) {
     if (score === null || score === undefined) return '-';
@@ -342,6 +319,31 @@ export default function TestafnameDetail() {
         }
         setLoading(false);
     }, [groepId, testId, datum]);
+
+useEffect(() => {
+    const root = document.getElementById('root');
+    if (root) {
+        root.classList.add('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
+    }
+    return () => {
+        if (root) {
+            root.classList.remove('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
+        }
+    };
+}, []);
+// 2. Update loading state (remove background classes):
+if (loading) {
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <div className="bg-white p-8 rounded-2xl shadow-sm">
+                <div className="flex items-center space-x-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                    <span className="text-gray-700 font-medium">Details laden...</span>
+                </div>
+            </div>
+        </div>
+    );
+}
 
     useEffect(() => { 
         fetchDetails(); 
