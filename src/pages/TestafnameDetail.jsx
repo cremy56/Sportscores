@@ -763,7 +763,7 @@ export default function TestafnameDetail() {
 
                         {/* Statistieken Sectie */}
                         <div className="lg:col-span-3">
-                            <div className="text-center">
+                            <div className="text-left">
                                 <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block shadow-lg">
                                     <h3 className="text-lg font-semibold text-gray-800 mb-4">Overzicht Testafname</h3>
                                     <div className="flex items-center space-x-6 text-sm text-gray-600 flex-wrap justify-center gap-x-6 gap-y-3">
@@ -839,31 +839,6 @@ export default function TestafnameDetail() {
                                 <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
                                 Verwijder Testafname
                             </button>
-                        </div>
-
-                        {/* Quick Actions */}
-                        <div className="mt-6 pt-6 border-t border-gray-200/70">
-                            <h4 className="text-lg font-medium text-gray-900 mb-3">Snelle Acties</h4>
-                            <div className="flex flex-wrap gap-3">
-                                <button
-                                    onClick={() => navigate('/nieuwe-testafname')}
-                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
-                                >
-                                    Nieuwe Testafname
-                                </button>
-                                <button
-                                    onClick={() => navigate(`/test/${testId}`)}
-                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
-                                >
-                                    Test Details
-                                </button>
-                                <button
-                                    onClick={() => navigate(`/groep/${groepId}`)}
-                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
-                                >
-                                    Groep Details
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>
