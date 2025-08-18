@@ -793,20 +793,7 @@ export default function TestafnameDetail() {
                                             <div className="font-bold text-gray-800">{stats.compleet} ({stats.percentage}%)</div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center" title="Eenheid van de test">
-                                        <div className="w-3 h-3 bg-purple-500 rounded-full mr-3"></div>
-                                        <div>
-                                            <div className="text-sm text-gray-600">Eenheid</div>
-                                            <div className="font-bold text-gray-800">{details.eenheid || 'Punten'}</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center" title="Maximum aantal punten">
-                                        <div className="w-3 h-3 bg-orange-500 rounded-full mr-3"></div>
-                                        <div>
-                                            <div className="text-sm text-gray-600">Max Punten</div>
-                                            <div className="font-bold text-gray-800">{details.max_punten}</div>
-                                        </div>
-                                    </div>
+                                   
                                 </div>
                             </div>
                         </div>
