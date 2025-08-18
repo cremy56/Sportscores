@@ -782,15 +782,14 @@ export default function TestafnameDetail() {
                                     <div className="flex items-center" title="Totaal aantal leerlingen">
                                         <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
                                         <div>
-                                            <div className="text-sm text-gray-600">Totaal Leerlingen</div>
-                                            <div className="font-bold text-gray-800">{stats.totaal}</div>
+                                            <div className="text-sm text-gray-600">Totaal Leerlingen: {stats.totaal}</div>
+                                    
                                         </div>
                                     </div>
                                     <div className="flex items-center" title="Aantal ingevoerde scores">
                                         <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
                                         <div>
-                                            <div className="text-sm text-gray-600">Scores Ingevoerd</div>
-                                            <div className="font-bold text-gray-800">{stats.compleet} ({stats.percentage}%)</div>
+                                            <div className="text-sm text-gray-600">Scores Ingevoerd: {stats.compleet} ({stats.percentage}%)</div>
                                         </div>
                                     </div>
                                    
