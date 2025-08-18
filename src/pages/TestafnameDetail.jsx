@@ -758,7 +758,7 @@ export default function TestafnameDetail() {
                                                             {lid.naam}
                                                         </div>
                                                         
-                                                        <div className="flex items-center gap-8">
+                                                        <div className="flex items-left gap-8">
                                                             <div className="text-center">
                                                                 {editingScore.id === lid.score_id ? (
                                                                     <div className="relative">
