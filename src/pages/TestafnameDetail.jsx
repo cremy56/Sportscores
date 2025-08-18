@@ -678,65 +678,70 @@ export default function TestafnameDetail() {
                                     <ul className="divide-y divide-gray-200/70">
                                         {details.leerlingen?.map(lid => (
                                             <li key={lid.id} className="p-4 hover:bg-gray-50/50 transition-colors">
-                                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                                    <div className="font-medium text-gray-900">
+                                                                <div className="space-y-3">
+                                                    {/* Naam */}
+                                                    <div className="font-medium text-gray-900 text-lg">
                                                         {lid.naam}
                                                     </div>
                                                     
-                                                    <div className="text-center">
-                                                        {editingScore.id === lid.score_id ? (
-                                                            <div className="relative">
-                                                                <input
-                                                                    type="number"
-                                                                    step="any"
-                                                                    value={editingScore.score}
-                                                                    onChange={e => handleScoreChange(e.target.value)}
-                                                                    onKeyPress={e => e.key === 'Enter' && handleUpdateScore()}
-                                                                    className={`w-24 p-2 border-2 rounded-md text-center mx-auto ${
-                                                                        editingScore.validation?.valid === false 
-                                                                            ? 'border-red-500 bg-red-50' 
-                                                                            : 'border-purple-500 bg-purple-50'
-                                                                    }`}
-                                                                    placeholder="Score"
-                                                                    autoFocus
-                                                                />
-                                                                {editingScore.validation?.valid === false && (
-                                                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 text-xs text-red-600 whitespace-nowrap">
-                                                                        {editingScore.validation.message}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="font-bold text-lg text-purple-700">
-                                                                {lid.score !== null ? formatScore(lid.score, details.eenheid) : '-'}
+                                                    {/* Score en Punt op één lijn */}
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="text-center">
+                                                            {editingScore.id === lid.score_id ? (
+                                                                <div className="relative">
+                                                                    <input
+                                                                        type="number"
+                                                                        step="any"
+                                                                        value={editingScore.score}
+                                                                        onChange={e => handleScoreChange(e.target.value)}
+                                                                        onKeyPress={e => e.key === 'Enter' && handleUpdateScore()}
+                                                                        className={`w-32 p-3 border-2 rounded-lg text-center ${
+                                                                            editingScore.validation?.valid === false 
+                                                                                ? 'border-red-500 bg-red-50' 
+                                                                                : 'border-purple-500 bg-purple-50'
+                                                                        }`}
+                                                                        placeholder="Score"
+                                                                        autoFocus
+                                                                    />
+                                                                    {editingScore.validation?.valid === false && (
+                                                                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 text-xs text-red-600 whitespace-nowrap">
+                                                                            {editingScore.validation.message}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="font-bold text-2xl text-purple-700">
+                                                                    {lid.score !== null ? formatScore(lid.score, details.eenheid) : '-'}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        <div className="text-center">
+                                                            <span className={`font-bold text-2xl ${getScoreColorClass(lid.punt, details.max_punten)}`}>
+                                                                {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
                                                             </span>
-                                                        )}
+                                                        </div>
                                                     </div>
                                                     
-                                                    <div className="text-center">
-                                                        <span className={`font-bold text-lg ${getScoreColorClass(lid.punt, details.max_punten)}`}>
-                                                            {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
-                                                        </span>
-                                                    </div>
-                                                    
-                                                    <div className="flex justify-center items-center gap-2">
+                                                    {/* Actie knoppen */}
+                                                    <div className="flex justify-center items-center gap-3 pt-2">
                                                         {editingScore.id === lid.score_id ? (
                                                             <>
                                                                 <button 
                                                                     onClick={handleUpdateScore}
                                                                     disabled={updating || !editingScore.validation?.valid}
                                                                     title="Opslaan" 
-                                                                    className="p-2 text-green-600 hover:bg-green-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                    className="p-3 text-green-600 hover:bg-green-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                                 >
-                                                                    <CheckIcon className="h-5 w-5"/>
+                                                                    <CheckIcon className="h-6 w-6"/>
                                                                 </button>
                                                                 <button 
                                                                     onClick={cancelEdit}
                                                                     disabled={updating}
                                                                     title="Annuleren" 
-                                                                    className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-colors disabled:opacity-50"
+                                                                    className="p-3 text-red-600 hover:bg-red-100 rounded-full transition-colors disabled:opacity-50"
                                                                 >
-                                                                    <XMarkIcon className="h-5 w-5"/>
+                                                                    <XMarkIcon className="h-6 w-6"/>
                                                                 </button>
                                                             </>
                                                         ) : (
@@ -744,17 +749,17 @@ export default function TestafnameDetail() {
                                                                 <button 
                                                                     onClick={() => handleEditClick(lid.score_id, lid.score)}
                                                                     title="Wijzigen" 
-                                                                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
+                                                                    className="p-3 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
                                                                 >
-                                                                    <PencilSquareIcon className="h-5 w-5"/>
+                                                                    <PencilSquareIcon className="h-6 w-6"/>
                                                                 </button>
                                                                 {lid.score !== null && (
                                                                     <button 
                                                                         onClick={() => handleDeleteScore(lid.score_id, lid.naam)}
                                                                         title="Verwijderen" 
-                                                                        className="p-2 text-red-500 hover:bg-red-100 rounded-full transition-colors"
+                                                                        className="p-3 text-red-500 hover:bg-red-100 rounded-full transition-colors"
                                                                     >
-                                                                        <TrashIcon className="h-5 w-5"/>
+                                                                        <TrashIcon className="h-6 w-6"/>
                                                                     </button>
                                                                 )}
                                                             </>
@@ -807,43 +812,43 @@ export default function TestafnameDetail() {
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4">
                             {/* Export Data */}
                             <button
                                 onClick={exportToCSV}
                                 disabled={details.leerlingen.length === 0}
-                                className="flex items-center justify-center px-4 py-3 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex flex-col items-center justify-center px-3 py-4 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
-                                Exporteer CSV
+                                <DocumentArrowDownIcon className="h-6 w-6 mb-1" />
+                                <span className="text-sm text-center">Exporteer CSV</span>
                             </button>
 
                             {/* Print Report */}
                             <button
                                 onClick={() => window.print()}
-                                className="flex items-center justify-center px-4 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+                                className="flex flex-col items-center justify-center px-3 py-4 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
                             >
-                                <ClipboardDocumentListIcon className="h-5 w-5 mr-2" />
-                                Print Rapport
+                                <ClipboardDocumentListIcon className="h-6 w-6 mb-1" />
+                                <span className="text-sm text-center">Print Rapport</span>
                             </button>
 
                             {/* Refresh Data */}
                             <button
                                 onClick={fetchDetails}
                                 disabled={loading}
-                                className="flex items-center justify-center px-4 py-3 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium disabled:opacity-50"
+                                className="flex flex-col items-center justify-center px-3 py-4 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium disabled:opacity-50"
                             >
-                                <ArrowPathIcon className={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                                Vernieuwen
+                                <ArrowPathIcon className={`h-6 w-6 mb-1 ${loading ? 'animate-spin' : ''}`} />
+                                <span className="text-sm text-center">Vernieuwen</span>
                             </button>
 
                             {/* Delete Test Session */}
                             <button
                                 onClick={() => setShowDeleteConfirm(true)}
-                                className="flex items-center justify-center px-4 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium"
+                                className="flex flex-col items-center justify-center px-3 py-4 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium"
                             >
-                                <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
-                                Verwijder Testafname
+                                <ExclamationTriangleIcon className="h-6 w-6 mb-1" />
+                                <span className="text-sm text-center">Verwijder Testafname</span>
                             </button>
                         </div>
                     </div>
