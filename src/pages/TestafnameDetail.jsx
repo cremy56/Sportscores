@@ -19,8 +19,6 @@ import {
     ExclamationTriangleIcon
 } from '@heroicons/react/24/solid';
 
-
-
 function formatScore(score, eenheid) {
     if (score === null || score === undefined) return '-';
     
@@ -45,7 +43,6 @@ function formatScore(score, eenheid) {
 function getScoreColorClass(punt, maxPunten = 20) {
     if (punt === null || punt === undefined) return 'text-gray-400';
 
-    // ▼▼▼ AANGEPASTE LOGICA MET VASTE PUNTGRENZEN ▼▼▼
     if (punt < 10) { // Onvoldoende
         return 'text-red-600';
     }
@@ -110,7 +107,7 @@ function ScoreDistributionChart({ leerlingen, maxPunten = 20 }) {
         
         if (punten.length === 0) return null;
 
-         const uitstekendDrempel = 18; // Alles van 18 en hoger
+        const uitstekendDrempel = 18; // Alles van 18 en hoger
         const goedDrempel = 14;       // Goed: 14, 15, 16, 17
         const voldoendeDrempel = 10;    // Voldoende: 10, 11, 12, 13
         // Onvoldoende is alles onder de 10
@@ -257,9 +254,16 @@ export default function TestafnameDetail() {
         };
     }, [details.leerlingen]);
 
+    // FIXED: Remove fetchDetails from dependency array to prevent infinite loop
     const fetchDetails = useCallback(async () => {
-        if (!groepId || !testId || !datum) return;
+        if (!groepId || !testId || !datum) {
+            console.warn('Missing required params:', { groepId, testId, datum });
+            setLoading(false);
+            return;
+        }
+        
         setLoading(true);
+        console.log('Fetching details for:', { groepId, testId, datum });
 
         try {
             const [groupSnap, testSnap] = await Promise.all([
@@ -268,16 +272,39 @@ export default function TestafnameDetail() {
             ]);
 
             if (!groupSnap.exists() || !testSnap.exists()) {
-                throw new Error("Groep of test niet gevonden");
+                console.error('Document not found:', { 
+                    groupExists: groupSnap.exists(), 
+                    testExists: testSnap.exists() 
+                });
+                toast.error("Groep of test niet gevonden");
+                setLoading(false);
+                return;
             }
 
             const groupData = groupSnap.data();
             const testData = testSnap.data();
-            const dayStart = new Date(datum);
+            
+            // FIXED: Better date parsing
+            let targetDate;
+            try {
+                targetDate = new Date(datum);
+                if (isNaN(targetDate.getTime())) {
+                    throw new Error('Invalid date');
+                }
+            } catch (error) {
+                console.error('Invalid date format:', datum);
+                toast.error("Ongeldige datum");
+                setLoading(false);
+                return;
+            }
+
+            const dayStart = new Date(targetDate);
             dayStart.setHours(0, 0, 0, 0);
 
-            const dayEnd = new Date(datum);
+            const dayEnd = new Date(targetDate);
             dayEnd.setHours(23, 59, 59, 999);
+
+            console.log('Date range:', { dayStart, dayEnd });
 
             const scoresQuery = query(collection(db, 'scores'), 
                 where('groep_id', '==', groepId),
@@ -285,25 +312,64 @@ export default function TestafnameDetail() {
                 where('datum', '>=', dayStart),
                 where('datum', '<=', dayEnd)
             );
+            
             const scoresSnap = await getDocs(scoresQuery);
+            console.log('Found scores:', scoresSnap.docs.length);
+            
             const scoresMap = new Map(scoresSnap.docs.map(d => [d.data().leerling_id, { id: d.id, ...d.data() }]));
 
             const leerlingIds = groupData.leerling_ids || [];
+            console.log('Leerling IDs:', leerlingIds.length);
+            
             let leerlingenData = [];
             if (leerlingIds.length > 0) {
-                const leerlingenQuery = query(collection(db, 'toegestane_gebruikers'), where('__name__', 'in', leerlingIds));
-                const leerlingenSnap = await getDocs(leerlingenQuery);
-                leerlingenData = leerlingenSnap.docs.map(d => {
-                    const scoreInfo = scoresMap.get(d.id);
-                    return {
-                        id: d.id,
-                        naam: d.data().naam,
-                        score: scoreInfo?.score ?? null,
-                        punt: scoreInfo?.rapportpunt ?? null,
-                        score_id: scoreInfo?.id
-                    };
-                });
+                // FIXED: Handle large arrays by batching queries if needed
+                if (leerlingIds.length > 10) {
+                    // Firestore 'in' queries are limited to 10 items
+                    const batches = [];
+                    for (let i = 0; i < leerlingIds.length; i += 10) {
+                        const batch = leerlingIds.slice(i, i + 10);
+                        const leerlingenQuery = query(
+                            collection(db, 'toegestane_gebruikers'), 
+                            where('__name__', 'in', batch)
+                        );
+                        batches.push(getDocs(leerlingenQuery));
+                    }
+                    
+                    const batchResults = await Promise.all(batches);
+                    const allDocs = batchResults.flatMap(snap => snap.docs);
+                    
+                    leerlingenData = allDocs.map(d => {
+                        const scoreInfo = scoresMap.get(d.id);
+                        return {
+                            id: d.id,
+                            naam: d.data().naam,
+                            score: scoreInfo?.score ?? null,
+                            punt: scoreInfo?.rapportpunt ?? null,
+                            score_id: scoreInfo?.id
+                        };
+                    });
+                } else {
+                    const leerlingenQuery = query(
+                        collection(db, 'toegestane_gebruikers'), 
+                        where('__name__', 'in', leerlingIds)
+                    );
+                    const leerlingenSnap = await getDocs(leerlingenQuery);
+                    
+                    leerlingenData = leerlingenSnap.docs.map(d => {
+                        const scoreInfo = scoresMap.get(d.id);
+                        return {
+                            id: d.id,
+                            naam: d.data().naam,
+                            score: scoreInfo?.score ?? null,
+                            punt: scoreInfo?.rapportpunt ?? null,
+                            score_id: scoreInfo?.id
+                        };
+                    });
+                }
             }
+            
+            console.log('Final leerlingen data:', leerlingenData.length);
             
             setDetails({
                 groep_naam: groupData.naam,
@@ -314,41 +380,33 @@ export default function TestafnameDetail() {
             });
 
         } catch (error) {
-            toast.error("Details konden niet worden geladen.");
-            console.error(error);
+            console.error("Error fetching details:", error);
+            toast.error("Details konden niet worden geladen: " + error.message);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
-    }, [groepId, testId, datum]);
+    }, []); // FIXED: Empty dependency array
 
-useEffect(() => {
-    const root = document.getElementById('root');
-    if (root) {
-        root.classList.add('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
-    }
-    return () => {
+    // FIXED: Separate useEffect with proper dependencies
+    useEffect(() => {
+        if (groepId && testId && datum) {
+            fetchDetails();
+            setNewDate(datum.split('T')[0]);
+        }
+    }, [groepId, testId, datum, fetchDetails]);
+
+    // Background effect
+    useEffect(() => {
+        const root = document.getElementById('root');
         if (root) {
-            root.classList.remove('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
+            root.classList.add('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
         }
-    };
-}, []);
-// 2. Update loading state (remove background classes):
-if (loading) {
-    return (
-        <div className="flex items-center justify-center min-h-screen">
-            <div className="bg-white p-8 rounded-2xl shadow-sm">
-                <div className="flex items-center space-x-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                    <span className="text-gray-700 font-medium">Details laden...</span>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-    useEffect(() => { 
-        fetchDetails(); 
-        setNewDate(datum.split('T')[0]); // Zorg dat de input een YYYY-MM-DD string krijgt
-    }, [fetchDetails, datum]);
+        return () => {
+            if (root) {
+                root.classList.remove('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
+            }
+        };
+    }, []);
 
     const handleEditClick = (scoreId, currentScore) => {
         setEditingScore({ 
@@ -508,25 +566,28 @@ if (loading) {
         setEditingScore({ id: null, score: '', validation: null });
     };
 
+    // FIXED: Single loading check at the top
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Details laden...</p>
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="bg-white p-8 rounded-2xl shadow-sm">
+                    <div className="flex items-center space-x-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                        <span className="text-gray-700 font-medium">Details laden...</span>
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div> {/* Remove all background classes */}
-        <div className="max-w-6xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6 pb-12"> {/* Add padding like TestDetailBeheer */}
-            <Link to="/scores" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 mb-6 font-medium transition-colors">
-                <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                Terug naar overzicht
-            </Link>
-                
+        <div>
+            <div className="max-w-6xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6 pb-12">
+                <Link to="/scores" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 mb-6 font-medium transition-colors">
+                    <ArrowLeftIcon className="h-4 w-4 mr-2" />
+                    Terug naar overzicht
+                </Link>
+                    
                 <div className="space-y-6">
                     {/* Header */}
                    <div className="bg-white/80 p-6 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-lg">
@@ -699,33 +760,36 @@ if (loading) {
                                 )}
                             </div>
                         </div>
-                        {/* ▼▼▼ NIEUWE, SUBTIELE STATISTIEKEN SECTIE TOEGEVOEGD ▼▼▼ */}
-                    <div className="text-center">
-                        <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block shadow-lg">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Overzicht Testafname</h3>
-                            <div className="flex items-center space-x-6 text-sm text-gray-600 flex-wrap justify-center gap-x-6 gap-y-3">
-                                <div className="flex items-center" title="Totaal aantal leerlingen">
-                                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                                    <div><span className="font-bold text-gray-800">{stats.totaal}</span> Leerlingen</div>
-                                </div>
-                                <div className="flex items-center" title="Aantal ingevoerde scores">
-                                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                                    <div><span className="font-bold text-gray-800">{stats.compleet}</span> Scores ({stats.percentage}%)</div>
-                                </div>
-                                <div className="flex items-center" title="Gemiddelde score">
-                                    <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
-                                    <div>
-                                        Gemiddelde: <span className="font-bold text-gray-800">
-                                        {details.leerlingen.filter(l => l.punt !== null).length > 0 
-                                            ? (details.leerlingen.filter(l => l.punt !== null).reduce((sum, l) => sum + l.punt, 0) / details.leerlingen.filter(l => l.punt !== null).length).toFixed(1)
-                                            : '-'
-                                        } / {details.max_punten}
-                                        </span>
+
+                        {/* Statistieken Sectie */}
+                        <div className="lg:col-span-3">
+                            <div className="text-center">
+                                <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block shadow-lg">
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Overzicht Testafname</h3>
+                                    <div className="flex items-center space-x-6 text-sm text-gray-600 flex-wrap justify-center gap-x-6 gap-y-3">
+                                        <div className="flex items-center" title="Totaal aantal leerlingen">
+                                            <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                                            <div><span className="font-bold text-gray-800">{stats.totaal}</span> Leerlingen</div>
+                                        </div>
+                                        <div className="flex items-center" title="Aantal ingevoerde scores">
+                                            <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                                            <div><span className="font-bold text-gray-800">{stats.compleet}</span> Scores ({stats.percentage}%)</div>
+                                        </div>
+                                        <div className="flex items-center" title="Gemiddelde score">
+                                            <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
+                                            <div>
+                                                Gemiddelde: <span className="font-bold text-gray-800">
+                                                {details.leerlingen.filter(l => l.punt !== null).length > 0 
+                                                    ? (details.leerlingen.filter(l => l.punt !== null).reduce((sum, l) => sum + l.punt, 0) / details.leerlingen.filter(l => l.punt !== null).length).toFixed(1)
+                                                    : '-'
+                                                } / {details.max_punten}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
                     </div>
                     
                     {/* Enhanced Testafname Acties */}
