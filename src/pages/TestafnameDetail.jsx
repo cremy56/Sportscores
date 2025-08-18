@@ -584,8 +584,9 @@ export default function TestafnameDetail() {
 
     return (
         <div>
-            <div className="max-w-6xl mx-auto px-4 py-1 lg:px-8 lg:py-8 space-y-6 pb-12">
-                <Link to="/scores" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 mb-6 font-medium transition-colors">
+            {/* AANGEPAST: padding (py, lg:py) en margin (mb) aangepast voor minder witruimte */}
+            <div className="max-w-6xl mx-auto px-4 lg:px-8 pt-24 pb-16 space-y-6">
+                <Link to="/scores" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 font-medium transition-colors">
                     <ArrowLeftIcon className="h-4 w-4 mr-2" />
                     Terug naar overzicht
                 </Link>
@@ -593,49 +594,43 @@ export default function TestafnameDetail() {
                 <div className="space-y-6">
                     {/* Header */}
                    <div className="bg-white/80 p-6 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-lg">
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                            <div>
-                                <h1 className="text-3xl font-bold text-gray-800">{details.test_naam}</h1>
-                                <div className="flex items-center justify-between mb-2 text-gray-600">
-                                    <div className="flex items-center">
-                                        <UserGroupIcon className="h-4 w-4 mr-1" />
-                                        <span className="text-sm">{details.groep_naam}</span>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <CalendarIcon className="h-4 w-4 mr-1" />
-                                        {editingDate ? (
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="date"
-                                                    value={newDate}
-                                                    onChange={(e) => setNewDate(e.target.value)}
-                                                    className="px-2 py-1 border border-gray-300 rounded text-sm"
-                                                />
-                                                <button
-                                                    onClick={handleUpdateDate}
-                                                    className="text-green-600 hover:text-green-800"
-                                                >
-                                                    <CheckIcon className="h-4 w-4" />
-                                                </button>
-                                                <button onClick={() => {setEditingDate(false); setNewDate(datum.split('T')[0]);}} className="text-red-600 hover:text-red-800"><XMarkIcon className="h-4 w-4" /></button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm">{new Date(datum).toLocaleDateString('nl-BE', { 
-                                                    day: '2-digit',
-                                                    month: '2-digit',
-                                                    year: 'numeric'
-                                                })}</span>
-                                                <button
-                                                    onClick={() => setEditingDate(true)}
-                                                    className="text-blue-600 hover:text-blue-800"
-                                                    title="Datum wijzigen"
-                                                >
-                                                    <PencilSquareIcon className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
+                        {/* AANGEPAST: Nieuwe header layout */}
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-800">{details.test_naam}</h1>
+                            <div className="flex items-center flex-wrap gap-x-6 gap-y-2 text-gray-600 mt-2">
+                                <div className="flex items-center">
+                                    <UserGroupIcon className="h-4 w-4 mr-1.5" />
+                                    <span className="text-sm">{details.groep_naam}</span>
+                                </div>
+                                <div className="flex items-center">
+                                    <CalendarIcon className="h-4 w-4 mr-1.5" />
+                                    {editingDate ? (
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="date"
+                                                value={newDate}
+                                                onChange={(e) => setNewDate(e.target.value)}
+                                                className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                            />
+                                            <button onClick={handleUpdateDate} className="text-green-600 hover:text-green-800">
+                                                <CheckIcon className="h-4 w-4" />
+                                            </button>
+                                            <button onClick={() => {setEditingDate(false); setNewDate(datum.split('T')[0]);}} className="text-red-600 hover:text-red-800">
+                                                <XMarkIcon className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm">{new Date(datum).toLocaleDateString('nl-BE', { 
+                                                day: '2-digit',
+                                                month: '2-digit',
+                                                year: 'numeric'
+                                            })}</span>
+                                            <button onClick={() => setEditingDate(true)} className="text-blue-600 hover:text-blue-800" title="Datum wijzigen">
+                                                <PencilSquareIcon className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -678,7 +673,7 @@ export default function TestafnameDetail() {
                                         {details.leerlingen?.map(lid => (
                                             <li 
                                                 key={lid.id} 
-                                                className="relative overflow-hidden hover:bg-gray-50/50 transition-colors"
+                                                className="relative overflow-hidden hover:bg-gray-50/50 transition-colors px-4 py-3 lg:px-0 lg:py-0" // Padding voor mobiel
                                                 style={{
                                                     transform: swipeState.id === lid.id ? `translateX(${swipeState.translateX}px)` : 'translateX(0)',
                                                     transition: swipeState.id === lid.id && swipeState.translateX === 0 ? 'transform 0.3s ease' : 'none'
@@ -751,15 +746,17 @@ export default function TestafnameDetail() {
                                                     </div>
                                                 )}
                                                 
-                                                <div className="p-4">
-                                                    {/* Desktop Layout - alles op één lijn */}
-                                                    <div className="hidden lg:flex lg:items-center lg:justify-between">
-                                                        <div className="font-medium text-gray-900 text-lg flex-shrink-0">
+                                                <div className="p-0 lg:p-4">
+                                                    {/* AANGEPAST: Desktop Layout met flexbox voor centreren */}
+                                                    <div className="hidden lg:flex lg:items-center">
+                                                        {/* Naam (links) */}
+                                                        <div className="w-1/3 font-medium text-gray-900 text-lg truncate">
                                                             {lid.naam}
                                                         </div>
                                                         
-                                                        <div className="flex items-center gap-8">
-                                                            <div className="text-center">
+                                                        {/* Scores (midden) */}
+                                                        <div className="flex-grow flex justify-center items-center gap-8">
+                                                            <div className="text-center w-36">
                                                                 {editingScore.id === lid.score_id ? (
                                                                     <div className="relative">
                                                                         <input
@@ -788,54 +785,54 @@ export default function TestafnameDetail() {
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            
-                                                            <div className="text-center">
+                                                            <div className="text-center w-24">
                                                                 <span className={`font-bold text-xl ${getScoreColorClass(lid.punt, details.max_punten)}`}>
                                                                     {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
                                                                 </span>
                                                             </div>
-                                                            
-                                                            <div className="flex items-center gap-2">
-                                                                {editingScore.id === lid.score_id ? (
-                                                                    <>
+                                                        </div>
+                                                        
+                                                        {/* Acties (rechts) */}
+                                                        <div className="w-1/3 flex justify-end items-center gap-2">
+                                                            {editingScore.id === lid.score_id ? (
+                                                                <>
+                                                                    <button 
+                                                                        onClick={handleUpdateScore}
+                                                                        disabled={updating || !editingScore.validation?.valid}
+                                                                        title="Opslaan" 
+                                                                        className="p-2 text-green-600 hover:bg-green-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                    >
+                                                                        <CheckIcon className="h-5 w-5"/>
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={cancelEdit}
+                                                                        disabled={updating}
+                                                                        title="Annuleren" 
+                                                                        className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-colors disabled:opacity-50"
+                                                                    >
+                                                                        <XMarkIcon className="h-5 w-5"/>
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <button 
+                                                                        onClick={() => handleEditClick(lid.score_id, lid.score)}
+                                                                        title="Wijzigen" 
+                                                                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
+                                                                    >
+                                                                        <PencilSquareIcon className="h-5 w-5"/>
+                                                                    </button>
+                                                                    {lid.score !== null && (
                                                                         <button 
-                                                                            onClick={handleUpdateScore}
-                                                                            disabled={updating || !editingScore.validation?.valid}
-                                                                            title="Opslaan" 
-                                                                            className="p-2 text-green-600 hover:bg-green-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            onClick={() => handleDeleteScore(lid.score_id, lid.naam)}
+                                                                            title="Verwijderen" 
+                                                                            className="p-2 text-red-500 hover:bg-red-100 rounded-full transition-colors"
                                                                         >
-                                                                            <CheckIcon className="h-5 w-5"/>
+                                                                            <TrashIcon className="h-5 w-5"/>
                                                                         </button>
-                                                                        <button 
-                                                                            onClick={cancelEdit}
-                                                                            disabled={updating}
-                                                                            title="Annuleren" 
-                                                                            className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-colors disabled:opacity-50"
-                                                                        >
-                                                                            <XMarkIcon className="h-5 w-5"/>
-                                                                        </button>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <button 
-                                                                            onClick={() => handleEditClick(lid.score_id, lid.score)}
-                                                                            title="Wijzigen" 
-                                                                            className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
-                                                                        >
-                                                                            <PencilSquareIcon className="h-5 w-5"/>
-                                                                        </button>
-                                                                        {lid.score !== null && (
-                                                                            <button 
-                                                                                onClick={() => handleDeleteScore(lid.score_id, lid.naam)}
-                                                                                title="Verwijderen" 
-                                                                                className="p-2 text-red-500 hover:bg-red-100 rounded-full transition-colors"
-                                                                            >
-                                                                                <TrashIcon className="h-5 w-5"/>
-                                                                            </button>
-                                                                        )}
-                                                                    </>
-                                                                )}
-                                                            </div>
+                                                                    )}
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </div>
 
