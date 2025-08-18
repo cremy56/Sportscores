@@ -266,7 +266,7 @@ export default function ScoresOverzicht() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600 mx-auto"></div>
                     <p className="mt-4 text-gray-600">Gegevens laden...</p>
@@ -278,162 +278,165 @@ export default function ScoresOverzicht() {
     return (
         <>
             <Toaster position="top-center" />
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
-                {/* Header */}
-                <div className="max-w-7xl mx-auto mb-8">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div>
-                            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
-                                Testafnames
-                            </h1>
-                            <p className="text-gray-600 mt-1">
-                                Beheer en bekijk alle testresultaten
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => navigate('/nieuwe-testafname')}
-                            className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 font-medium"
-                        >
-                            <PlusIcon className="h-5 w-5 mr-2" />
-                            Nieuwe Afname
-                        </button>
-                    </div>
-                </div>
-
-                <div className="max-w-7xl mx-auto">
-                    
-
-                    {/* Filters */}
-                    <FilterBar 
-                        filters={filters}
-                        onFiltersChange={setFilters}
-                        groepen={groepen}
-                        testen={testen}
-                    />
-
-                    {/* Testafnames lijst */}
-                    <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
-                        {filteredEvaluaties.length > 0 ? (
-                            <>
-                                <div className="p-6 border-b border-gray-200/70">
-                                    <div className="flex justify-between items-center">
-                                        <h2 className="text-xl font-semibold text-gray-900">
-                                            Testafnames ({filteredEvaluaties.length})
-                                        </h2>
-                                        {(filters.search || filters.groep || filters.test) && (
-                                            <button
-                                                onClick={clearFilters}
-                                                className="text-sm text-purple-600 hover:text-purple-800 font-medium"
-                                            >
-                                                Filters wissen
-                                            </button>
-                                        )}
-                                    </div>
+            <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
+                <div className="absolute inset-0 overflow-auto">
+                    <div className="p-4 lg:p-8">
+                        {/* Header */}
+                        <div className="max-w-7xl mx-auto mb-8">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <div>
+                                    <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
+                                        Testafnames
+                                    </h1>
+                                    <p className="text-gray-600 mt-1">
+                                        Beheer en bekijk alle testresultaten
+                                    </p>
                                 </div>
-                                <ul className="divide-y divide-gray-200/70">
-                                    {filteredEvaluaties.map((item, index) => (
-                                        <li key={`${item.groep_id}-${item.test_id}-${item.datum}`} className="group hover:bg-purple-50/50 transition-colors">
-                                            <div 
-                                                onClick={() => navigate(`/testafname/${item.groep_id}/${item.test_id}/${item.datum}`)}
-                                                className="flex items-center justify-between p-6 cursor-pointer"
-                                            >
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="flex-1">
-                                                            <p className="font-semibold text-lg text-gray-900 group-hover:text-purple-700 transition-colors">
-                                                                {item.test_naam}
-                                                            </p>
-                                                            <p className="text-sm text-gray-600 mt-1">
-                                                                {item.groep_naam} • {item.leerling_count} leerling{item.leerling_count !== 1 ? 'en' : ''}
-                                                            </p>
+                                <button
+                                    onClick={() => navigate('/nieuwe-testafname')}
+                                    className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 font-medium"
+                                >
+                                    <PlusIcon className="h-5 w-5 mr-2" />
+                                    Nieuwe Afname
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="max-w-7xl mx-auto">
+                            {/* Filters */}
+                            <FilterBar 
+                                filters={filters}
+                                onFiltersChange={setFilters}
+                                groepen={groepen}
+                                testen={testen}
+                            />
+
+                            {/* Testafnames lijst */}
+                            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+                                {filteredEvaluaties.length > 0 ? (
+                                    <>
+                                        <div className="p-6 border-b border-gray-200/70">
+                                            <div className="flex justify-between items-center">
+                                                <h2 className="text-xl font-semibold text-gray-900">
+                                                    Testafnames ({filteredEvaluaties.length})
+                                                </h2>
+                                                {(filters.search || filters.groep || filters.test) && (
+                                                    <button
+                                                        onClick={clearFilters}
+                                                        className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+                                                    >
+                                                        Filters wissen
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <ul className="divide-y divide-gray-200/70">
+                                            {filteredEvaluaties.map((item, index) => (
+                                                <li key={`${item.groep_id}-${item.test_id}-${item.datum}`} className="group hover:bg-purple-50/50 transition-colors">
+                                                    <div 
+                                                        onClick={() => navigate(`/testafname/${item.groep_id}/${item.test_id}/${item.datum}`)}
+                                                        className="flex items-center justify-between p-6 cursor-pointer"
+                                                    >
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="flex-1">
+                                                                    <p className="font-semibold text-lg text-gray-900 group-hover:text-purple-700 transition-colors">
+                                                                        {item.test_naam}
+                                                                    </p>
+                                                                    <p className="text-sm text-gray-600 mt-1">
+                                                                        {item.groep_naam} • {item.leerling_count} leerling{item.leerling_count !== 1 ? 'en' : ''}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="text-right hidden sm:block">
+                                                                    <p className="text-sm font-medium text-gray-900">
+                                                                        {new Date(item.datum).toLocaleDateString('nl-BE', { 
+                                                                            day: '2-digit', 
+                                                                            month: 'short', 
+                                                                            year: 'numeric' 
+                                                                        })}
+                                                                    </p>
+                                                                    <p className="text-xs text-gray-500 mt-1">
+                                                                        {new Date(item.datum).toLocaleDateString('nl-BE', { weekday: 'long' })}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div className="text-right hidden sm:block">
-                                                            <p className="text-sm font-medium text-gray-900">
-                                                                {new Date(item.datum).toLocaleDateString('nl-BE', { 
-                                                                    day: '2-digit', 
-                                                                    month: 'short', 
-                                                                    year: 'numeric' 
-                                                                })}
-                                                            </p>
-                                                            <p className="text-xs text-gray-500 mt-1">
-                                                                {new Date(item.datum).toLocaleDateString('nl-BE', { weekday: 'long' })}
-                                                            </p>
+                                                        <div className="flex items-center gap-2 ml-4">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setModal({ type: 'confirm', data: item });
+                                                                }}
+                                                                className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
+                                                                title="Verwijder testafname"
+                                                            >
+                                                                <TrashIcon className="h-5 w-5" />
+                                                            </button>
+                                                            <ChevronRightIcon className="h-6 w-6 text-gray-400 group-hover:text-purple-700 transition-all group-hover:translate-x-1" />
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div className="flex items-center gap-2 ml-4">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setModal({ type: 'confirm', data: item });
-                                                        }}
-                                                        className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
-                                                        title="Verwijder testafname"
-                                                    >
-                                                        <TrashIcon className="h-5 w-5" />
-                                                    </button>
-                                                    <ChevronRightIcon className="h-6 w-6 text-gray-400 group-hover:text-purple-700 transition-all group-hover:translate-x-1" />
-                                                </div>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </>
-                        ) : (
-                            <div className="text-center py-16">
-                                {filters.search || filters.groep || filters.test ? (
-                                    <div>
-                                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                                            Geen resultaten gevonden
-                                        </h3>
-                                        <p className="text-gray-600 mb-4">
-                                            Probeer andere filterinstellingen
-                                        </p>
-                                        <button
-                                            onClick={clearFilters}
-                                            className="text-purple-600 hover:text-purple-800 font-medium"
-                                        >
-                                            Alle filters wissen
-                                        </button>
-                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </>
                                 ) : (
-                                    <div>
-                                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                                            Geen Testafnames Gevonden
-                                        </h3>
-                                        <p className="text-gray-600 mb-6">
-                                            Er zijn nog geen scores ingevoerd. Begin met je eerste testafname.
-                                        </p>
-                                      
+                                    <div className="text-center py-16">
+                                        {filters.search || filters.groep || filters.test ? (
+                                            <div>
+                                                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                                                    Geen resultaten gevonden
+                                                </h3>
+                                                <p className="text-gray-600 mb-4">
+                                                    Probeer andere filterinstellingen
+                                                </p>
+                                                <button
+                                                    onClick={clearFilters}
+                                                    className="text-purple-600 hover:text-purple-800 font-medium"
+                                                >
+                                                    Alle filters wissen
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                                                    Geen Testafnames Gevonden
+                                                </h3>
+                                                <p className="text-gray-600 mb-6">
+                                                    Er zijn nog geen scores ingevoerd. Begin met je eerste testafname.
+                                                </p>
+                                              
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
-                        )}
-                    </div>
-                </div>
-                {/* ▼▼▼ NIEUWE, SUBTIELE STATISTIEKEN-FOOTER TOEGEVOEGD ▼▼▼ */}
-                    <div className="mt-12 text-center">
-                        <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block shadow-lg">
-                            <div className="flex items-center space-x-6 text-sm text-gray-600 flex-wrap justify-center gap-x-6 gap-y-3">
-                                <div className="flex items-center" title="Totaal aantal testafnames">
-                                    <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
-                                    <div><span className="font-bold text-gray-800">{stats.total}</span> Totaal</div>
-                                </div>
-                                <div className="flex items-center" title="Aantal testafnames deze maand">
-                                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                                    <div><span className="font-bold text-gray-800">{stats.thisMonth}</span> Deze Maand</div>
-                                </div>
-                                <div className="flex items-center" title="Aantal unieke groepen met scores">
-                                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                                    <div><span className="font-bold text-gray-800">{stats.uniqueGroepen}</span> Groepen</div>
-                                </div>
-                                <div className="flex items-center" title="Aantal unieke testen met scores">
-                                    <div className="w-3 h-3 bg-orange-500 rounded-full mr-2"></div>
-                                    <div><span className="font-bold text-gray-800">{stats.uniqueTesten}</span> Testen</div>
+
+                            {/* Statistieken footer */}
+                            <div className="mt-12 text-center pb-8">
+                                <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block shadow-lg">
+                                    <div className="flex items-center space-x-6 text-sm text-gray-600 flex-wrap justify-center gap-x-6 gap-y-3">
+                                        <div className="flex items-center" title="Totaal aantal testafnames">
+                                            <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
+                                            <div><span className="font-bold text-gray-800">{stats.total}</span> Totaal</div>
+                                        </div>
+                                        <div className="flex items-center" title="Aantal testafnames deze maand">
+                                            <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                                            <div><span className="font-bold text-gray-800">{stats.thisMonth}</span> Deze Maand</div>
+                                        </div>
+                                        <div className="flex items-center" title="Aantal unieke groepen met scores">
+                                            <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                                            <div><span className="font-bold text-gray-800">{stats.uniqueGroepen}</span> Groepen</div>
+                                        </div>
+                                        <div className="flex items-center" title="Aantal unieke testen met scores">
+                                            <div className="w-3 h-3 bg-orange-500 rounded-full mr-2"></div>
+                                            <div><span className="font-bold text-gray-800">{stats.uniqueTesten}</span> Testen</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
             </div>
 
             <ConfirmModal
