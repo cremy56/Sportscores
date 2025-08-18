@@ -640,7 +640,7 @@ export default function TestafnameDetail() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Score Verdeling */}
                         <div className="lg:col-span-1">
                             <ScoreDistributionChart 
@@ -653,12 +653,25 @@ export default function TestafnameDetail() {
                         <div className="lg:col-span-2">
                             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
                                 <div className="p-6 border-b border-gray-200/70">
-                                    <h2 className="text-xl font-semibold text-gray-900">
-                                        Individuele Scores
-                                    </h2>
-                                    <p className="text-sm text-gray-600 mt-1">
-                                        Klik op het potlood-icoon om een score te bewerken
-                                    </p>
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <h2 className="text-xl font-semibold text-gray-900">
+                                                Individuele Scores
+                                            </h2>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                                Klik op het potlood-icoon om een score te bewerken
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-sm text-gray-600">Gemiddelde</div>
+                                            <div className="text-lg font-bold text-purple-700">
+                                                {details.leerlingen.filter(l => l.punt !== null).length > 0 
+                                                    ? (details.leerlingen.filter(l => l.punt !== null).reduce((sum, l) => sum + l.punt, 0) / details.leerlingen.filter(l => l.punt !== null).length).toFixed(1)
+                                                    : '-'
+                                                } / {details.max_punten}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 
                                 <div className="max-h-96 overflow-y-auto">
@@ -761,30 +774,37 @@ export default function TestafnameDetail() {
                             </div>
                         </div>
 
-                        {/* Statistieken Sectie */}
-                        <div className="lg:col-span-2">
-                            <div className="text-left">
-                                <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block shadow-lg">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Overzicht Testafname</h3>
-                                    <div className="flex items-center space-x-6 text-sm text-gray-600 flex-wrap justify-center gap-x-6 gap-y-3">
-                                        <div className="flex items-center" title="Totaal aantal leerlingen">
-                                            <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                                            <div><span className="font-bold text-gray-800">{stats.totaal}</span> Leerlingen</div>
+                        {/* Testafname Details - Nu even breed als Score Verdeling */}
+                        <div className="lg:col-span-1">
+                            <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-lg">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-4">Testafname Details</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center" title="Totaal aantal leerlingen">
+                                        <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
+                                        <div>
+                                            <div className="text-sm text-gray-600">Totaal Leerlingen</div>
+                                            <div className="font-bold text-gray-800">{stats.totaal}</div>
                                         </div>
-                                        <div className="flex items-center" title="Aantal ingevoerde scores">
-                                            <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                                            <div><span className="font-bold text-gray-800">{stats.compleet}</span> Scores ({stats.percentage}%)</div>
+                                    </div>
+                                    <div className="flex items-center" title="Aantal ingevoerde scores">
+                                        <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+                                        <div>
+                                            <div className="text-sm text-gray-600">Scores Ingevoerd</div>
+                                            <div className="font-bold text-gray-800">{stats.compleet} ({stats.percentage}%)</div>
                                         </div>
-                                        <div className="flex items-center" title="Gemiddelde score">
-                                            <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
-                                            <div>
-                                                Gemiddelde: <span className="font-bold text-gray-800">
-                                                {details.leerlingen.filter(l => l.punt !== null).length > 0 
-                                                    ? (details.leerlingen.filter(l => l.punt !== null).reduce((sum, l) => sum + l.punt, 0) / details.leerlingen.filter(l => l.punt !== null).length).toFixed(1)
-                                                    : '-'
-                                                } / {details.max_punten}
-                                                </span>
-                                            </div>
+                                    </div>
+                                    <div className="flex items-center" title="Eenheid van de test">
+                                        <div className="w-3 h-3 bg-purple-500 rounded-full mr-3"></div>
+                                        <div>
+                                            <div className="text-sm text-gray-600">Eenheid</div>
+                                            <div className="font-bold text-gray-800">{details.eenheid || 'Punten'}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center" title="Maximum aantal punten">
+                                        <div className="w-3 h-3 bg-orange-500 rounded-full mr-3"></div>
+                                        <div>
+                                            <div className="text-sm text-gray-600">Max Punten</div>
+                                            <div className="font-bold text-gray-800">{details.max_punten}</div>
                                         </div>
                                     </div>
                                 </div>
