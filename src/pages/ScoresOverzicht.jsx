@@ -285,7 +285,7 @@ export default function ScoresOverzicht() {
                         <div className="max-w-7xl mx-auto mb-8">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <div>
-                                    <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
+                                    <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 pt-12">
                                         Testafnames
                                     </h1>
                                     <p className="text-gray-600 mt-1">
