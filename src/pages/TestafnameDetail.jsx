@@ -641,8 +641,8 @@ export default function TestafnameDetail() {
                     </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Score Verdeling */}
-                        <div className="lg:col-span-1">
+                        {/* Score Verdeling - HIDDEN ON MOBILE */}
+                        <div className="hidden lg:block lg:col-span-1">
                             <ScoreDistributionChart 
                                 leerlingen={details.leerlingen} 
                                 maxPunten={details.max_punten}
@@ -650,7 +650,7 @@ export default function TestafnameDetail() {
                         </div>
 
                         {/* Scores Lijst */}
-                        <div className="lg:col-span-2">
+                        <div className="col-span-1 lg:col-span-2">
                             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
                                 <div className="p-6 border-b border-gray-200/70">
                                     <div className="flex justify-between items-center">
@@ -774,8 +774,8 @@ export default function TestafnameDetail() {
                             </div>
                         </div>
 
-                        {/* Testafname Details - Nu even breed als Score Verdeling */}
-                        <div className="lg:col-span-1">
+                        {/* Testafname Details - HIDDEN ON MOBILE */}
+                        <div className="hidden lg:block lg:col-span-1">
                             <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-lg">
                                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Testafname Details</h3>
                                 <div className="space-y-4">
