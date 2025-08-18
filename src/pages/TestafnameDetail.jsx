@@ -659,9 +659,7 @@ export default function TestafnameDetail() {
                                             <h2 className="text-xl font-semibold text-gray-900">
                                                 Individuele Scores
                                             </h2>
-                                            <p className="text-sm text-gray-600 mt-1">
-                                                Klik op het potlood-icoon om een score te bewerken
-                                            </p>
+                                            
                                         </div>
                                         <div className="text-right">
                                             <div className="text-sm text-gray-600">Gemiddelde</div>
