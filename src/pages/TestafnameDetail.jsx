@@ -19,6 +19,30 @@ import {
     ExclamationTriangleIcon
 } from '@heroicons/react/24/solid';
 
+useEffect(() => {
+    const root = document.getElementById('root');
+    if (root) {
+        root.classList.add('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
+    }
+    return () => {
+        if (root) {
+            root.classList.remove('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
+        }
+    };
+}, []);
+// 2. Update loading state (remove background classes):
+if (loading) {
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <div className="bg-white p-8 rounded-2xl shadow-sm">
+                <div className="flex items-center space-x-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                    <span className="text-gray-700 font-medium">Details laden...</span>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function formatScore(score, eenheid) {
     if (score === null || score === undefined) return '-';
@@ -494,12 +518,12 @@ export default function TestafnameDetail() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
-            <div className="max-w-6xl mx-auto">
-                <Link to="/scores" className="flex items-center text-sm text-gray-600 hover:text-purple-700 mb-6 font-medium transition-colors">
-                    <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                    Terug naar overzicht
-                </Link>
+        <div> {/* Remove all background classes */}
+        <div className="max-w-6xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6 pb-12"> {/* Add padding like TestDetailBeheer */}
+            <Link to="/scores" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 mb-6 font-medium transition-colors">
+                <ArrowLeftIcon className="h-4 w-4 mr-2" />
+                Terug naar overzicht
+            </Link>
                 
                 <div className="space-y-6">
                     {/* Header */}
