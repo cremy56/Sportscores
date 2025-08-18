@@ -240,6 +240,7 @@ export default function TestafnameDetail() {
     const [updating, setUpdating] = useState(false);
     const [swipeState, setSwipeState] = useState({ id: null, translateX: 0, isDeleting: false });
     const [longPressTimer, setLongPressTimer] = useState(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // FIXED: Added missing state
 
     const stats = useMemo(() => {
         const leerlingenMetScore = details.leerlingen.filter(l => l.score !== null);
@@ -678,7 +679,7 @@ export default function TestafnameDetail() {
                                     <ul className="divide-y divide-gray-200/70">
                                         {details.leerlingen?.map(lid => (
                                             <li key={lid.id} className="p-4 hover:bg-gray-50/50 transition-colors">
-                                                                <div className="space-y-3">
+                                                <div className="space-y-3">
                                                     {/* Naam */}
                                                     <div className="font-medium text-gray-900 text-lg">
                                                         {lid.naam}
@@ -788,7 +789,6 @@ export default function TestafnameDetail() {
                                         <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
                                         <div>
                                             <div className="text-sm text-gray-600">Totaal Leerlingen: {stats.totaal}</div>
-                                    
                                         </div>
                                     </div>
                                     <div className="flex items-center" title="Aantal ingevoerde scores">
@@ -797,7 +797,6 @@ export default function TestafnameDetail() {
                                             <div className="text-sm text-gray-600">Scores Ingevoerd: {stats.compleet} ({stats.percentage}%)</div>
                                         </div>
                                     </div>
-                                   
                                 </div>
                             </div>
                         </div>
