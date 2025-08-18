@@ -762,7 +762,7 @@ export default function TestafnameDetail() {
                         </div>
 
                         {/* Statistieken Sectie */}
-                        <div className="lg:col-span-3">
+                        <div className="lg:col-span-2">
                             <div className="text-left">
                                 <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 inline-block shadow-lg">
                                     <h3 className="text-lg font-semibold text-gray-800 mb-4">Overzicht Testafname</h3>
