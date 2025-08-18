@@ -238,7 +238,8 @@ export default function TestafnameDetail() {
     const [editingDate, setEditingDate] = useState(false);
     const [newDate, setNewDate] = useState('');
     const [updating, setUpdating] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [swipeState, setSwipeState] = useState({ id: null, translateX: 0, isDeleting: false });
+    const [longPressTimer, setLongPressTimer] = useState(null);
 
     const stats = useMemo(() => {
         const leerlingenMetScore = details.leerlingen.filter(l => l.score !== null);
@@ -594,13 +595,13 @@ export default function TestafnameDetail() {
                         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                             <div>
                                 <h1 className="text-3xl font-bold text-gray-800">{details.test_naam}</h1>
-                                <div className="flex items-center gap-4 mt-2 text-gray-600">
+                                <div className="flex items-center justify-between mb-2 text-gray-600">
                                     <div className="flex items-center">
-                                        <UserGroupIcon className="h-5 w-5 mr-1" />
-                                        <span>{details.groep_naam}</span>
+                                        <UserGroupIcon className="h-4 w-4 mr-1" />
+                                        <span className="text-sm">{details.groep_naam}</span>
                                     </div>
                                     <div className="flex items-center">
-                                        <CalendarIcon className="h-5 w-5 mr-1" />
+                                        <CalendarIcon className="h-4 w-4 mr-1" />
                                         {editingDate ? (
                                             <div className="flex items-center gap-2">
                                                 <input
@@ -619,11 +620,10 @@ export default function TestafnameDetail() {
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-2">
-                                                <span>{new Date(datum).toLocaleDateString('nl-BE', { 
-                                                    weekday: 'long', 
-                                                    year: 'numeric', 
-                                                    month: 'long', 
-                                                    day: 'numeric' 
+                                                <span className="text-sm">{new Date(datum).toLocaleDateString('nl-BE', { 
+                                                    day: '2-digit',
+                                                    month: '2-digit',
+                                                    year: 'numeric'
                                                 })}</span>
                                                 <button
                                                     onClick={() => setEditingDate(true)}
