@@ -120,9 +120,6 @@ export default function Groepsbeheer() {
             </div>
           </div>
 
-          {/* --- DESKTOP BUTTON: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
-         
-
           {groepen.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto">
               <div className="mb-6">

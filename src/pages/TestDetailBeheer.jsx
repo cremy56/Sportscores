@@ -1,502 +1,297 @@
-// src/pages/TestDetailBeheer.jsx
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+// src/pages/GroupDetail.jsx
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc, onSnapshot, updateDoc, setDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import toast from 'react-hot-toast';
-import { useOutletContext } from 'react-router-dom';
-import { ArrowLeftIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowUpTrayIcon, ChevronDownIcon, EllipsisVerticalIcon } from '@heroicons/react/24/solid';
-import Papa from 'papaparse';
-import TestFormModal from '../components/TestFormModal';
-import ConfirmModal from '../components/ConfirmModal'; 
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, arrayUnion, arrayRemove } from 'firebase/firestore';
+import toast, { Toaster } from 'react-hot-toast';
+import { TrashIcon, PlusIcon, ArrowLeftIcon, UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
-export default function TestDetailBeheer() {
-    const { testId } = useParams();
-    const { profile } = useOutletContext();
-    const [test, setTest] = useState(null);
-    const [normDocument, setNormDocument] = useState(null); 
-    const [loading, setLoading] = useState(true);
-    const [selectedLeeftijd, setSelectedLeeftijd] = useState('all');
-    const [selectedGeslacht, setSelectedGeslacht] = useState('all');
-    const [isAdding, setIsAdding] = useState(false);
-    const [newNorm, setNewNorm] = useState({ leeftijd: '', geslacht: 'M', score_min: '', punt: '' });
-    const [editingNorm, setEditingNorm] = useState(null);
-    const fileInputRef = useRef(null);
-    const [isTestModalOpen, setIsTestModalOpen] = useState(false);
-    const [isNormenExpanded, setIsNormenExpanded] = useState(false);
-    const [selectedNorms, setSelectedNorms] = useState([]);
-    const [itemsToDelete, setItemsToDelete] = useState(null);
-    const [showMobileMenu, setShowMobileMenu] = useState({});
+// --- Modal om leerlingen toe te voegen ---
+// De modal ontvangt nu de volledige 'group' prop
+function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-     useEffect(() => {
-        console.log("PROFIEL ontvangen in TestDetailBeheer:", profile);
-    }, [profile]);
-
-    // VEILIGERE CHECK: Controleer of 'profile' en 'profile.role' bestaan voordat we de waarde vergelijken.
-   const isAdmin = profile?.rol?.toLowerCase() === 'administrator';
-
-    // --- EINDE VAN DE AANPASSING ---
-
-    // Aantal items om te tonen in preview
-    const PREVIEW_COUNT = 5;
-
-    useEffect(() => {
-        const root = document.getElementById('root');
-        if (root) {
-            root.classList.add('bg-slate-50');
-        }
-        return () => {
-            if (root) {
-                root.classList.remove('bg-slate-50');
-            }
-        };
-    }, []);
-
-    const getNormIdentifier = (norm) => `${norm.leeftijd}-${norm.geslacht}-${norm.punt}-${norm.score_min}`;
-
-    const fetchData = useCallback(async () => {
-        const testRef = doc(db, 'testen', testId);
-        const testSnap = await getDoc(testRef);
-        if (testSnap.exists()) {
-            setTest({ id: testSnap.id, ...testSnap.data() });
-        } else { toast.error("Kon testdetails niet laden."); }
-    }, [testId]);
-
-    useEffect(() => {
-        fetchData();
-        const normDocRef = doc(db, 'normen', testId);
-        const unsubscribe = onSnapshot(normDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                const sortedPuntenSchaal = (data.punten_schaal || []).sort((a, b) => {
-                    if (a.leeftijd !== b.leeftijd) return a.leeftijd - b.leeftijd;
-                    if (a.geslacht !== b.geslacht) return a.geslacht.localeCompare(b.geslacht);
-                    return a.punt - b.punt;
-                });
-                setNormDocument({ id: docSnap.id, ...data, punten_schaal: sortedPuntenSchaal });
-            } else {
-                setNormDocument({ id: testId, punten_schaal: [], score_richting: 'hoog', school_id: profile.school_id });
-            }
-            setLoading(false);
-        }, (error) => {
-            console.error("Fout bij ophalen normen:", error);
-            toast.error("Kon normen niet laden.");
-            setLoading(false);
-        });
-        return () => unsubscribe();
-    }, [testId, fetchData, profile.school_id]);
-    
-    const puntenSchaal = useMemo(() => normDocument?.punten_schaal || [], [normDocument]);
-    const uniekeLeeftijden = useMemo(() => [...new Set(puntenSchaal.map(n => n.leeftijd))].sort((a, b) => a - b), [puntenSchaal]);
-    const uniekeGeslachten = useMemo(() => [...new Set(puntenSchaal.map(n => n.geslacht))], [puntenSchaal]);
-
-    const gefilterdeNormen = useMemo(() => {
-        return puntenSchaal.filter(norm => {
-            const leeftijdMatch = selectedLeeftijd === 'all' || norm.leeftijd === Number(selectedLeeftijd);
-            const geslachtMatch = selectedGeslacht === 'all' || norm.geslacht === selectedGeslacht;
-            return leeftijdMatch && geslachtMatch;
-        });
-    }, [puntenSchaal, selectedLeeftijd, selectedGeslacht]);
-
-    const normenToShow = useMemo(() => {
-        return isNormenExpanded ? gefilterdeNormen : gefilterdeNormen.slice(0, PREVIEW_COUNT);
-    }, [gefilterdeNormen, isNormenExpanded]);
-
-    const parseTestBeschrijving = (beschrijving) => {
-        if (!beschrijving) return null;
-        const sections = {};
-        const lines = beschrijving.split('\n').filter(line => line.trim());
-        let currentSection = null;
-        let currentContent = [];
-        lines.forEach(line => {
-            const trimmedLine = line.trim();
-            if (trimmedLine.toLowerCase().startsWith('doel:')) {
-                if (currentSection) sections[currentSection] = currentContent.join('\n');
-                currentSection = 'doel';
-                currentContent = [trimmedLine.substring(5).trim()];
-            } else if (trimmedLine.toLowerCase().startsWith('procedure:')) {
-                if (currentSection) sections[currentSection] = currentContent.join('\n');
-                currentSection = 'procedure';
-                currentContent = [];
-            } else if (trimmedLine.toLowerCase().startsWith('benodigdheden:')) {
-                if (currentSection) sections[currentSection] = currentContent.join('\n');
-                currentSection = 'benodigdheden';
-                currentContent = [trimmedLine.substring(14).trim()];
-            } else if (currentSection) {
-                currentContent.push(trimmedLine);
-            }
-        });
-        if (currentSection) sections[currentSection] = currentContent.join('\n');
-        return Object.keys(sections).length > 0 ? sections : { beschrijving: beschrijving };
-    };
-
-    const renderBeschrijvingContent = (content, type) => {
-        if (type === 'procedure') {
-            const steps = content.split(/\d+\./).filter(step => step.trim());
-            return (
-                <ol className="list-decimal list-inside space-y-2 text-slate-700">
-                    {steps.map((step, index) => <li key={index} className="leading-relaxed">{step.trim()}</li>)}
-                </ol>
-            );
-        }
-        return <p className="text-slate-700 leading-relaxed">{content}</p>;
-    };
-
-    const handleSaveNewNorm = async () => {
-        if (!newNorm.leeftijd || !newNorm.score_min || !newNorm.punt) {
-            toast.error("Vul alle velden in.");
-            return;
-        }
-        try {
-            const normDocRef = doc(db, 'normen', testId);
-            await updateDoc(normDocRef, {
-                punten_schaal: arrayUnion({
-                    leeftijd: Number(newNorm.leeftijd),
-                    geslacht: newNorm.geslacht,
-                    score_min: Number(newNorm.score_min),
-                    punt: Number(newNorm.punt)
-                })
-            });
-            setNewNorm({ leeftijd: '', geslacht: 'M', score_min: '', punt: '' });
-            setIsAdding(false);
-            toast.success("Norm toegevoegd!");
-        } catch (error) {
-            toast.error("Kon norm niet toevoegen.");
-        }
-    };
-
-    const handleUpdateNorm = async () => {
-        if (!editingNorm.current.leeftijd || !editingNorm.current.score_min || !editingNorm.current.punt) {
-            toast.error("Vul alle velden in.");
-            return;
-        }
-        try {
-            const normDocRef = doc(db, 'normen', testId);
-            await updateDoc(normDocRef, { punten_schaal: arrayRemove(editingNorm.original) });
-            await updateDoc(normDocRef, {
-                punten_schaal: arrayUnion({
-                    leeftijd: Number(editingNorm.current.leeftijd),
-                    geslacht: editingNorm.current.geslacht,
-                    score_min: Number(editingNorm.current.score_min),
-                    punt: Number(editingNorm.current.punt)
-                })
-            });
-            setEditingNorm(null);
-            toast.success("Norm bijgewerkt!");
-        } catch (error) {
-            toast.error("Kon norm niet bijwerken.");
-        }
-    };
-
-    const executeDelete = async () => {
-        try {
-            const normDocRef = doc(db, 'normen', testId);
-            if (Array.isArray(itemsToDelete)) {
-                const normsToDelete = itemsToDelete.map(id => gefilterdeNormen.find(norm => getNormIdentifier(norm) === id)).filter(Boolean);
-                for (const norm of normsToDelete) {
-                    await updateDoc(normDocRef, { punten_schaal: arrayRemove(norm) });
-                }
-                setSelectedNorms([]);
-                toast.success(`${normsToDelete.length} norm(en) verwijderd!`);
-            } else {
-                await updateDoc(normDocRef, { punten_schaal: arrayRemove(itemsToDelete) });
-                toast.success("Norm verwijderd!");
-            }
-            setItemsToDelete(null);
-        } catch (error) {
-            toast.error("Kon norm(en) niet verwijderen.");
-        }
-    };
-
-    const handleCsvUpload = (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-        const loadingToast = toast.loading('CSV-bestand verwerken...');
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            bom: true,
-            transformHeader: header => header.trim(),
-            complete: async (results) => {
-                toast.dismiss(loadingToast);
-                const requiredHeaders = ['leeftijd', 'geslacht', 'score_min', 'punt'];
-                if (!requiredHeaders.every(h => results.meta.fields.includes(h))) {
-                    toast.error(`CSV mist verplichte kolommen: ${requiredHeaders.join(', ')}`);
-                    return;
-                }
-                const uploadPromise = new Promise(async (resolve, reject) => {
-                    try {
-                        const normen = results.data.map(row => ({
-                            leeftijd: Number(row.leeftijd),
-                            geslacht: (row.geslacht || '').trim().toUpperCase(),
-                            score_min: Number(row.score_min),
-                            punt: Number(row.punt)
-                        })).filter(norm => !isNaN(norm.leeftijd) && !isNaN(norm.score_min) && !isNaN(norm.punt) && ['M', 'V'].includes(norm.geslacht));
-                        if (normen.length === 0) return reject(new Error("Geen geldige rijen gevonden."));
-                        const normDocRef = doc(db, 'normen', testId);
-                        const bestaandeIdentifiers = new Set(puntenSchaal.map(getNormIdentifier));
-                        const uniekeNieuweNormen = normen.filter(norm => !bestaandeIdentifiers.has(getNormIdentifier(norm)));
-                        if (uniekeNieuweNormen.length === 0) {
-                            resolve("Alle normen in het bestand bestonden al.");
-                            return;
-                        }
-                        const samengevoegdeSchaal = [...puntenSchaal, ...uniekeNieuweNormen];
-                        await setDoc(normDocRef, { punten_schaal: samengevoegdeSchaal, test_id: testId, school_id: profile.school_id }, { merge: true });
-                        resolve(`${uniekeNieuweNormen.length} nieuwe normen geïmporteerd!`);
-                    } catch (error) {
-                        reject(error);
-                    }
-                });
-                toast.promise(uploadPromise, {
-                    loading: 'Normen importeren...',
-                    success: (message) => message,
-                    error: (err) => `Fout: ${err.message || "Onbekende fout."}`
-                });
-            },
-            error: (parseError) => {
-                toast.dismiss(loadingToast);
-                toast.error("Kon het CSV-bestand niet lezen.");
-            }
-        });
-        event.target.value = '';
-    };
-
-    const handleSelectNorm = (normIdentifier) => {
-        setSelectedNorms(prev => prev.includes(normIdentifier) ? prev.filter(id => id !== normIdentifier) : [...prev, normIdentifier]);
-    };
-
-    const handleSelectAll = (e) => {
-        if (e.target.checked) {
-            setSelectedNorms(gefilterdeNormen.map(getNormIdentifier));
-        } else {
-            setSelectedNorms([]);
-        }
-    };
-
-    const toggleMobileMenu = (normId) => {
-        setShowMobileMenu(prev => ({ ...prev, [normId]: !prev[normId] }));
-    };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="bg-white p-8 rounded-2xl shadow-sm">
-                    <div className="flex items-center space-x-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                        <span className="text-gray-700 font-medium">Laden...</span>
-                    </div>
-                </div>
-            </div>
-        );
+  useEffect(() => {
+    // Stop als de zoekterm te kort is of als de groep (en dus school_id) niet beschikbaar is
+    if (searchTerm.length < 2 || !group?.school_id) {
+      setSearchResults([]);
+      return;
     }
 
-    const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
-    
-    return (
-        <div>
-            <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
-            <TestFormModal isOpen={isTestModalOpen} onClose={() => setIsTestModalOpen(false)} onTestSaved={fetchData} testData={test} schoolId={profile?.school_id} />
-            
-            <div className="max-w-7xl mx-auto px-4 pt-8 pb-12 lg:px-8 space-y-6">
-                <Link to="/testbeheer" className="inline-flex items-center text-sm text-slate-600 hover:text-purple-700 font-medium transition-colors">
-                    <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                    Terug naar {isAdmin ? 'testbeheer' : 'sporttesten'}
-                </Link>
-                
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
-                    <div className="p-4 lg:p-6">
-                        <div className="flex justify-between items-start mb-6">
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center space-x-3 mb-6">
-                                    <h1 className="text-xl lg:text-3xl font-bold text-slate-900 truncate">{test?.naam}</h1>
-                                    {isAdmin && (
-                                        <button 
-                                            onClick={() => setIsTestModalOpen(true)}
-                                            className="flex-shrink-0 p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                            title="Bewerk test"
-                                        >
-                                            <PencilIcon className="h-4 w-4 lg:h-5 lg:w-5"/> 
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                            <div className="bg-slate-50 rounded-xl p-4">
-                                <div className="text-sm text-slate-500 font-medium mb-1">Categorie</div>
-                                <div className="text-lg font-semibold text-slate-900">{test?.categorie || '-'}</div>
-                            </div>
-                            <div className="bg-slate-50 rounded-xl p-4">
-                                <div className="text-sm text-slate-500 font-medium mb-1">Eenheid</div>
-                                <div className="text-lg font-semibold text-slate-900">{test?.eenheid || '-'}</div>
-                            </div>
-                        </div>
-                            
-                        <div className="space-y-6">
-                            {parsedBeschrijving?.doel && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                                    <div className="text-sm text-blue-700 font-semibold mb-2 flex items-center">
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                                        Doel van de test
-                                    </div>
-                                    <div className="text-slate-700 leading-relaxed">{parsedBeschrijving.doel}</div>
-                                </div>
-                            )}
-                            {parsedBeschrijving?.benodigdheden && (
-                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                                    <div className="text-sm text-amber-700 font-semibold mb-2 flex items-center">
-                                        <div className="w-2 h-2 bg-amber-500 rounded-full mr-2"></div>
-                                        Benodigdheden
-                                    </div>
-                                    <div className="text-slate-700 leading-relaxed">{parsedBeschrijving.benodigdheden}</div>
-                                </div>
-                            )}
-                            {parsedBeschrijving?.procedure && (
-                                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                                    <div className="text-sm text-green-700 font-semibold mb-3 flex items-center">
-                                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                                        Uitvoering procedure
-                                    </div>
-                                    <div className="text-slate-700">
-                                        {renderBeschrijvingContent(parsedBeschrijving.procedure, 'procedure')}
-                                    </div>
-                                </div>
-                            )}
-                            {parsedBeschrijving?.beschrijving && (
-                                <div className="bg-slate-50 rounded-xl p-4">
-                                    <div className="text-sm text-slate-500 font-medium mb-2">Beschrijving</div>
-                                    <div className="text-base text-slate-700 leading-relaxed">{parsedBeschrijving.beschrijving}</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+    const delayDebounceFn = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const searchTermLower = searchTerm.toLowerCase();
+        const usersRef = collection(db, 'toegestane_gebruikers');
+        
+        // --- QUERY AANGEPAST ---
+        const q = query(
+          usersRef,
+          where('school_id', '==', group.school_id), // <-- TOEGEVOEGD: Filter op school
+          where('rol', '==', 'leerling'),
+          where('naam_keywords', 'array-contains', searchTermLower)
+        );
 
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
-                    <div className="p-4 lg:p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Prestatienormen</h2>
-                            <button onClick={() => setIsNormenExpanded(!isNormenExpanded)} className="p-2 text-slate-400 hover:text-slate-600">
-                                <ChevronDownIcon className={`h-5 w-5 transform transition-transform ${isNormenExpanded ? 'rotate-180' : ''}`} />
-                            </button>
-                        </div>
-                        
-                        {isNormenExpanded && (
-                            <div className="space-y-4 mb-6">
-                                <div className="flex flex-col lg:flex-row gap-4">
-                                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <select value={selectedLeeftijd} onChange={(e) => setSelectedLeeftijd(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-purple-500 focus:ring-purple-500">
-                                            <option value="all">Alle leeftijden</option>
-                                            {uniekeLeeftijden.map(leeftijd => <option key={leeftijd} value={leeftijd}>{leeftijd} jaar</option>)}
-                                        </select>
-                                        <select value={selectedGeslacht} onChange={(e) => setSelectedGeslacht(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-purple-500 focus:ring-purple-500">
-                                            <option value="all">Alle geslachten</option>
-                                            {uniekeGeslachten.map(geslacht => <option key={geslacht} value={geslacht}>{geslacht === 'M' ? 'Mannelijk' : 'Vrouwelijk'}</option>)}
-                                        </select>
-                                    </div>
-                                    
-                                    {isAdmin && (
-                                        <div className="flex gap-2">
-                                            <button onClick={() => setIsAdding(true)} className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium">Nieuwe norm</button>
-                                            <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-slate-600 text-white rounded-xl hover:bg-slate-700 font-medium">
-                                                <ArrowUpTrayIcon className="h-4 w-4 mr-2 inline" />
-                                                Import CSV
-                                            </button>
-                                            <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" />
-                                        </div>
-                                    )}
-                                </div>
-                                {isAdmin && selectedNorms.length > 0 && (
-                                    <div className="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-200">
-                                        <span className="text-purple-700 font-medium">{selectedNorms.length} item(s) geselecteerd</span>
-                                        <button onClick={() => setItemsToDelete(selectedNorms)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Verwijder geselecteerde</button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+        const querySnapshot = await getDocs(q);
+        const results = querySnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(student => !group.leerling_ids.includes(student.id));
+        
+        setSearchResults(results);
+      } catch (error) {
+        console.error("Fout bij zoeken naar leerlingen:", error);
+        toast.error("Kon niet zoeken naar leerlingen.");
+      }
+      setLoading(false);
+    }, 300);
 
-                        {gefilterdeNormen.length === 0 ? (
-                            <div className="text-center py-12 text-slate-500">Geen normen gevonden</div>
-                        ) : (
-                            <>
-                                {isAdmin && isAdding && (
-                                    <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
-                                       {/* Form to add new norm */}
-                                    </div>
-                                )}
-                                <div className="hidden lg:block overflow-hidden rounded-xl border border-slate-200">
-                                    <table className="min-w-full bg-white">
-                                        <thead className="bg-slate-50">
-                                            <tr>
-                                                {isAdmin && <th className="py-4 px-6"><input type="checkbox" onChange={handleSelectAll} checked={gefilterdeNormen.length > 0 && selectedNorms.length === gefilterdeNormen.length} className="rounded" /></th>}
-                                                <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Leeftijd</th>
-                                                <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Geslacht</th>
-                                                <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Min. Score</th>
-                                                <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Punt</th>
-                                                {isAdmin && <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Acties</th>}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-200">
-                                            {normenToShow.map((norm) => {
-                                                const normId = getNormIdentifier(norm);
-                                                const isEditingThis = editingNorm?.original && getNormIdentifier(editingNorm.original) === normId;
-                                                return (
-                                                    <tr key={normId} className="hover:bg-slate-50">
-                                                        {isAdmin && <td className="py-4 px-6"><input type="checkbox" checked={selectedNorms.includes(normId)} onChange={() => handleSelectNorm(normId)} className="rounded" /></td>}
-                                                        {isEditingThis ? (
-                                                            <>
-                                                                {/* Editing inputs */}
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <td className="py-4 px-6 font-medium text-slate-900">{norm.leeftijd} jaar</td>
-                                                                <td className="py-4 px-6 text-slate-700">{norm.geslacht}</td>
-                                                                <td className="py-4 px-6 font-semibold text-slate-900">{norm.score_min}</td>
-                                                                <td className="py-4 px-6 font-semibold text-purple-700">{norm.punt}</td>
-                                                            </>
-                                                        )}
-                                                        {isAdmin && <td className="py-4 px-6">{/* Action buttons */}</td>}
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div className="lg:hidden space-y-3">
-                                    {normenToShow.map((norm) => {
-                                        const normId = getNormIdentifier(norm);
-                                        const isEditingThis = editingNorm?.original && getNormIdentifier(editingNorm.original) === normId;
-                                        return (
-                                            <div key={normId} className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-                                                <div className="flex items-start justify-between mb-3">
-                                                    <div className="flex items-center space-x-3">
-                                                        {isAdmin && <input type="checkbox" checked={selectedNorms.includes(normId)} onChange={() => handleSelectNorm(normId)} className="rounded" />}
-                                                        <div>
-                                                            <div className="font-semibold text-slate-900">{norm.leeftijd} jaar • {norm.geslacht}</div>
-                                                            <div className="text-sm text-slate-500">Score: {norm.score_min} → Punt: {norm.punt}</div>
-                                                        </div>
-                                                    </div>
-                                                    {isAdmin && <div className="relative">{/* Mobile menu button */}</div>}
-                                                </div>
-                                                {isAdmin && isEditingThis && <div className="pt-3 border-t">{/* Mobile editing form */}</div>}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                {gefilterdeNormen.length > PREVIEW_COUNT && (
-                                    <div className="flex justify-center pt-6">
-                                        <button onClick={() => setIsNormenExpanded(!isNormenExpanded)} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium">
-                                            {isNormenExpanded ? 'Toon minder' : `Toon alle ${gefilterdeNormen.length} normen`}
-                                        </button>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, group]); // Dependency is nu de hele 'group'
+
+  const handleAddStudent = async (student) => {
+    const groupRef = doc(db, 'groepen', group.id);
+    try {
+      await updateDoc(groupRef, {
+        leerling_ids: arrayUnion(student.id)
+      });
+      toast.success('Leerling toegevoegd!');
+      onStudentAdded();
+      setSearchTerm('');
+      setSearchResults([]);
+    } catch (error) {
+      console.error("Fout bij toevoegen leerling:", error);
+      toast.error("Kon leerling niet toevoegen.");
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20 w-full max-w-lg">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Leerling Toevoegen</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
+            <XMarkIcon className="h-6 w-6" />
+          </button>
         </div>
+        
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Zoek op voor- of achternaam..."
+          className="w-full px-4 py-3 bg-white/60 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
+        />
+        
+        <div className="mt-6 max-h-60 overflow-y-auto">
+          {loading && <p className="text-center text-gray-500 py-4">Zoeken...</p>}
+          {!loading && searchResults.length > 0 && (
+            <ul className="space-y-2">
+              {searchResults.map(student => (
+                <li key={student.id} className="flex justify-between items-center p-3 bg-gray-50/70 rounded-lg">
+                  <span>{student.naam}</span>
+                  <button onClick={() => handleAddStudent(student)} className="text-purple-600 hover:text-purple-800 p-1 rounded-full hover:bg-purple-100">
+                    <UserPlusIcon className="h-6 w-6" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!loading && searchTerm.length > 1 && searchResults.length === 0 && <p className="text-center text-gray-600 py-4">Geen leerlingen gevonden.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
 
+// --- Hoofdcomponent ---
+export default function GroupDetail() {
+  const { groepId } = useParams();
+  const [group, setGroup] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+
+  const fetchGroupData = useCallback(async () => {
+    if (!groepId) return;
+    const groupRef = doc(db, 'groepen', groepId);
+    
+    try {
+      const docSnap = await getDoc(groupRef);
+      if (docSnap.exists()) {
+        const groupData = { id: docSnap.id, ...docSnap.data() };
+        setGroup(groupData);
+
+        if (groupData.leerling_ids && groupData.leerling_ids.length > 0) {
+          const membersPromises = groupData.leerling_ids.map(id => getDoc(doc(db, 'toegestane_gebruikers', id)));
+          const membersDocs = await Promise.all(membersPromises);
+          const membersData = membersDocs.filter(doc => doc.exists()).map(doc => ({ id: doc.id, ...doc.data() }));
+          setMembers(membersData);
+        } else {
+          setMembers([]);
+        }
+      } else {
+        toast.error("Groep niet gevonden.");
+      }
+    } catch (error) {
+      toast.error("Groepsdetails konden niet worden geladen.");
+      console.error(error);
+    }
+    setLoading(false);
+  }, [groepId]);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchGroupData();
+  }, [fetchGroupData]);
+
+  const handleRemoveStudent = async (studentId) => {
+    const groupRef = doc(db, 'groepen', groepId);
+    try {
+      await updateDoc(groupRef, {
+        leerling_ids: arrayRemove(studentId)
+      });
+      toast.success('Leerling verwijderd!');
+      fetchGroupData(); // Herlaad de data
+    } catch (error) {
+      console.error("Fout bij verwijderen leerling:", error);
+      toast.error("Kon leerling niet verwijderen.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-2xl shadow-sm">
+          <div className="flex items-center space-x-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            <span className="text-gray-700 font-medium">Groepsdetails laden...</span>
+          </div>
+        </div>
+      </div>
     );
+  }
+
+  if (!group) {
+    return (
+      <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Groep niet gevonden</h3>
+            <p className="text-gray-600 mb-4">De opgevraagde groep bestaat niet of u heeft geen toegang.</p>
+            <Link to="/groepsbeheer" className="inline-flex items-center text-purple-600 hover:text-purple-700">
+              <ArrowLeftIcon className="h-5 w-5 mr-2" />
+              Terug naar groepenoverzicht
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Toaster position="top-center" />
+      <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+          
+          {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
+          <div className="lg:hidden mb-8">
+            <div className="flex justify-between items-center">
+              <div className="flex-1 min-w-0">
+                <Link to="/groepsbeheer" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
+                  <ArrowLeftIcon className="h-4 w-4 mr-1 transition-transform group-hover:-translate-x-1" />
+                  <span className="text-sm">Terug</span>
+                </Link>
+                <h1 className="text-2xl font-bold text-gray-800 truncate">{group.naam}</h1>
+              </div>
+              <button
+                onClick={() => setIsAddStudentModalOpen(true)}
+                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg ml-4"
+              >
+                <PlusIcon className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
+          <div className="hidden lg:block mb-12">
+            <Link to="/groepsbeheer" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
+              <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
+              Terug naar groepenoverzicht
+            </Link>
+            <div className="flex justify-between items-center">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{group.naam}</h1>
+              <button
+                onClick={() => setIsAddStudentModalOpen(true)}
+                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+              >
+                <PlusIcon className="h-6 w-6" />
+                <span className="ml-2">Leerling Toevoegen</span>
+              </button>
+            </div>
+          </div>
+
+          {/* --- CONTENT --- */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+            <h2 className="font-bold text-xl text-gray-800 mb-6">Groepsleden</h2>
+            <div className="flow-root">
+              <ul className="-my-4 divide-y divide-gray-200">
+                {members.length > 0 ? (
+                  members.map((lid) => (
+                    <li key={lid.id} className="flex items-center py-4 space-x-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-md font-medium text-gray-900 truncate">{lid.naam}</p>
+                        <p className="text-sm text-gray-500 truncate">{lid.email}</p>
+                      </div>
+                      <button 
+                        onClick={() => handleRemoveStudent(lid.id)} 
+                        className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-center text-gray-500 py-12">
+                    <div className="mb-4">
+                      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <UserPlusIcon className="w-8 h-8 text-purple-600" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-800 mb-2">Geen Groepsleden</h3>
+                      <p className="text-gray-600">Deze groep heeft nog geen leden. Voeg leerlingen toe om te beginnen.</p>
+                    </div>
+                  </li>
+                )}
+              </ul>
+            </div>
+          </div>
+
+          {/* Statistics */}
+          {members.length > 0 && (
+            <div className="mt-8 text-center">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4 inline-block">
+                <div className="flex items-center justify-center space-x-8 text-sm text-slate-600 flex-wrap gap-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                    <span>{members.length} {members.length === 1 ? 'Leerling' : 'Leerlingen'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <AddStudentModal 
+        group={group}
+        isOpen={isAddStudentModalOpen}
+        onClose={() => setIsAddStudentModalOpen(false)}
+        onStudentAdded={fetchGroupData}
+      />
+    </>
+  );
 }
