@@ -89,12 +89,12 @@ export default function Groepsbeheer() {
     <>
       <Toaster position="top-center" />
       <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8">
+        <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
         
           {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
           <div className="lg:hidden mb-8">
             <div className="flex justify-between items-center">
-              <h1 className="text-2xl font-bold text-gray-800 pt-24">Mijn groepen</h1>
+              <h1 className="text-2xl font-bold text-gray-800">Mijn groepen</h1>
               <button
                 onClick={() => setShowModal(true)}
                 className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg"
