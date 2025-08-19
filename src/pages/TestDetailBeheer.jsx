@@ -29,7 +29,7 @@ export default function TestDetailBeheer() {
     const [showMobileMenu, setShowMobileMenu] = useState({});
 
     // Bepaal de rol van de gebruiker
-    const isAdmin = profile.role === 'administrator';
+    const isAdmin = profile?.role?.toLowerCase() === 'administrator';
 
     // Aantal items om te tonen in preview
     const PREVIEW_COUNT = 5;
