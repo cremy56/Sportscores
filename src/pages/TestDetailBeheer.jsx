@@ -40,18 +40,6 @@ export default function TestDetailBeheer() {
     // Aantal items om te tonen in preview
     const PREVIEW_COUNT = 5;
 
-    useEffect(() => {
-        const root = document.getElementById('root');
-        if (root) {
-            root.classList.add('bg-slate-50');
-        }
-        return () => {
-            if (root) {
-                root.classList.remove('bg-slate-50');
-            }
-        };
-    }, []);
-
     const getNormIdentifier = (norm) => `${norm.leeftijd}-${norm.geslacht}-${norm.punt}-${norm.score_min}`;
 
     const fetchData = useCallback(async () => {
@@ -279,11 +267,28 @@ export default function TestDetailBeheer() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
                 <div className="bg-white p-8 rounded-2xl shadow-sm">
                     <div className="flex items-center space-x-4">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                        <span className="text-gray-700 font-medium">Laden...</span>
+                        <span className="text-gray-700 font-medium">Testdetails laden...</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!test) {
+        return (
+            <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+                <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto">
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">Test niet gevonden</h3>
+                        <p className="text-gray-600 mb-4">De opgevraagde test bestaat niet of u heeft geen toegang.</p>
+                        <Link to="/testbeheer" className="inline-flex items-center text-purple-600 hover:text-purple-700">
+                            <ArrowLeftIcon className="h-5 w-5 mr-2" />
+                            Terug naar {isAdmin ? 'testbeheer' : 'sporttesten'}
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -293,210 +298,423 @@ export default function TestDetailBeheer() {
     const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
     
     return (
-        <div>
+        <>
             <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
             <TestFormModal isOpen={isTestModalOpen} onClose={() => setIsTestModalOpen(false)} onTestSaved={fetchData} testData={test} schoolId={profile?.school_id} />
             
-            <div className="max-w-7xl mx-auto px-4 pt-8 pb-12 lg:px-8 space-y-6">
-                <Link to="/testbeheer" className="inline-flex items-center text-sm text-slate-600 hover:text-purple-700 font-medium transition-colors">
-                    <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                    Terug naar {isAdmin ? 'testbeheer' : 'sporttesten'}
-                </Link>
-                
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
-                    <div className="p-4 lg:p-6">
-                        <div className="flex justify-between items-start mb-6">
+            <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+                <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+                    
+                    {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
+                    <div className="lg:hidden mb-8">
+                        <div className="flex justify-between items-center">
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center space-x-3 mb-6">
-                                    <h1 className="text-xl lg:text-3xl font-bold text-slate-900 truncate">{test?.naam}</h1>
-                                    {isAdmin && (
-                                        <button 
-                                            onClick={() => setIsTestModalOpen(true)}
-                                            className="flex-shrink-0 p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                            title="Bewerk test"
-                                        >
-                                            <PencilIcon className="h-4 w-4 lg:h-5 lg:w-5"/> 
-                                        </button>
-                                    )}
-                                </div>
+                                <Link to="/testbeheer" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
+                                    <ArrowLeftIcon className="h-4 w-4 mr-1 transition-transform group-hover:-translate-x-1" />
+                                    <span className="text-sm">Terug</span>
+                                </Link>
+                                <h1 className="text-2xl font-bold text-gray-800 truncate">{test?.naam}</h1>
                             </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                            <div className="bg-slate-50 rounded-xl p-4">
-                                <div className="text-sm text-slate-500 font-medium mb-1">Categorie</div>
-                                <div className="text-lg font-semibold text-slate-900">{test?.categorie || '-'}</div>
-                            </div>
-                            <div className="bg-slate-50 rounded-xl p-4">
-                                <div className="text-sm text-slate-500 font-medium mb-1">Eenheid</div>
-                                <div className="text-lg font-semibold text-slate-900">{test?.eenheid || '-'}</div>
-                            </div>
-                        </div>
-                            
-                        <div className="space-y-6">
-                            {parsedBeschrijving?.doel && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                                    <div className="text-sm text-blue-700 font-semibold mb-2 flex items-center">
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                                        Doel van de test
-                                    </div>
-                                    <div className="text-slate-700 leading-relaxed">{parsedBeschrijving.doel}</div>
-                                </div>
-                            )}
-                            {parsedBeschrijving?.benodigdheden && (
-                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                                    <div className="text-sm text-amber-700 font-semibold mb-2 flex items-center">
-                                        <div className="w-2 h-2 bg-amber-500 rounded-full mr-2"></div>
-                                        Benodigdheden
-                                    </div>
-                                    <div className="text-slate-700 leading-relaxed">{parsedBeschrijving.benodigdheden}</div>
-                                </div>
-                            )}
-                            {parsedBeschrijving?.procedure && (
-                                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                                    <div className="text-sm text-green-700 font-semibold mb-3 flex items-center">
-                                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                                        Uitvoering procedure
-                                    </div>
-                                    <div className="text-slate-700">
-                                        {renderBeschrijvingContent(parsedBeschrijving.procedure, 'procedure')}
-                                    </div>
-                                </div>
-                            )}
-                            {parsedBeschrijving?.beschrijving && (
-                                <div className="bg-slate-50 rounded-xl p-4">
-                                    <div className="text-sm text-slate-500 font-medium mb-2">Beschrijving</div>
-                                    <div className="text-base text-slate-700 leading-relaxed">{parsedBeschrijving.beschrijving}</div>
-                                </div>
+                            {isAdmin && (
+                                <button 
+                                    onClick={() => setIsTestModalOpen(true)}
+                                    className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg ml-4"
+                                    title="Bewerk test"
+                                >
+                                    <PencilIcon className="h-6 w-6"/>
+                                </button>
                             )}
                         </div>
                     </div>
-                </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
-                    <div className="p-4 lg:p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Prestatienormen</h2>
-                            <button onClick={() => setIsNormenExpanded(!isNormenExpanded)} className="p-2 text-slate-400 hover:text-slate-600">
-                                <ChevronDownIcon className={`h-5 w-5 transform transition-transform ${isNormenExpanded ? 'rotate-180' : ''}`} />
-                            </button>
+                    {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
+                    <div className="hidden lg:block mb-12">
+                        <Link to="/testbeheer" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
+                            <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
+                            Terug naar {isAdmin ? 'testbeheer' : 'sporttesten'}
+                        </Link>
+                        <div className="flex justify-between items-center">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{test?.naam}</h1>
+                            {isAdmin && (
+                                <button 
+                                    onClick={() => setIsTestModalOpen(true)}
+                                    className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                                    title="Bewerk test"
+                                >
+                                    <PencilIcon className="h-6 w-6 mr-2"/>
+                                    <span>Bewerk Test</span>
+                                </button>
+                            )}
                         </div>
-                        
-                        {isNormenExpanded && (
-                            <div className="space-y-4 mb-6">
-                                <div className="flex flex-col lg:flex-row gap-4">
-                                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <select value={selectedLeeftijd} onChange={(e) => setSelectedLeeftijd(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-purple-500 focus:ring-purple-500">
-                                            <option value="all">Alle leeftijden</option>
-                                            {uniekeLeeftijden.map(leeftijd => <option key={leeftijd} value={leeftijd}>{leeftijd} jaar</option>)}
-                                        </select>
-                                        <select value={selectedGeslacht} onChange={(e) => setSelectedGeslacht(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-purple-500 focus:ring-purple-500">
-                                            <option value="all">Alle geslachten</option>
-                                            {uniekeGeslachten.map(geslacht => <option key={geslacht} value={geslacht}>{geslacht === 'M' ? 'Mannelijk' : 'Vrouwelijk'}</option>)}
-                                        </select>
+                    </div>
+
+                    {/* --- CONTENT --- */}
+                    <div className="space-y-6">
+                        {/* Test info sectie */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                                <div className="bg-slate-50 rounded-xl p-4">
+                                    <div className="text-sm text-slate-500 font-medium mb-1">Categorie</div>
+                                    <div className="text-lg font-semibold text-slate-900">{test?.categorie || '-'}</div>
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-4">
+                                    <div className="text-sm text-slate-500 font-medium mb-1">Eenheid</div>
+                                    <div className="text-lg font-semibold text-slate-900">{test?.eenheid || '-'}</div>
+                                </div>
+                            </div>
+                                
+                            <div className="space-y-6">
+                                {parsedBeschrijving?.doel && (
+                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                                        <div className="text-sm text-blue-700 font-semibold mb-2 flex items-center">
+                                            <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                                            Doel van de test
+                                        </div>
+                                        <div className="text-slate-700 leading-relaxed">{parsedBeschrijving.doel}</div>
                                     </div>
-                                    
-                                    {isAdmin && (
-                                        <div className="flex gap-2">
-                                            <button onClick={() => setIsAdding(true)} className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium">Nieuwe norm</button>
-                                            <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-slate-600 text-white rounded-xl hover:bg-slate-700 font-medium">
-                                                <ArrowUpTrayIcon className="h-4 w-4 mr-2 inline" />
-                                                Import CSV
-                                            </button>
-                                            <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" />
+                                )}
+                                {parsedBeschrijving?.benodigdheden && (
+                                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                        <div className="text-sm text-amber-700 font-semibold mb-2 flex items-center">
+                                            <div className="w-2 h-2 bg-amber-500 rounded-full mr-2"></div>
+                                            Benodigdheden
+                                        </div>
+                                        <div className="text-slate-700 leading-relaxed">{parsedBeschrijving.benodigdheden}</div>
+                                    </div>
+                                )}
+                                {parsedBeschrijving?.procedure && (
+                                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                                        <div className="text-sm text-green-700 font-semibold mb-3 flex items-center">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                            Uitvoering procedure
+                                        </div>
+                                        <div className="text-slate-700">
+                                            {renderBeschrijvingContent(parsedBeschrijving.procedure, 'procedure')}
+                                        </div>
+                                    </div>
+                                )}
+                                {parsedBeschrijving?.beschrijving && (
+                                    <div className="bg-slate-50 rounded-xl p-4">
+                                        <div className="text-sm text-slate-500 font-medium mb-2">Beschrijving</div>
+                                        <div className="text-base text-slate-700 leading-relaxed">{parsedBeschrijving.beschrijving}</div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Normen sectie */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Prestatienormen</h2>
+                                <button onClick={() => setIsNormenExpanded(!isNormenExpanded)} className="p-2 text-slate-400 hover:text-slate-600">
+                                    <ChevronDownIcon className={`h-5 w-5 transform transition-transform ${isNormenExpanded ? 'rotate-180' : ''}`} />
+                                </button>
+                            </div>
+                            
+                            {isNormenExpanded && (
+                                <div className="space-y-4 mb-6">
+                                    <div className="flex flex-col lg:flex-row gap-4">
+                                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <select value={selectedLeeftijd} onChange={(e) => setSelectedLeeftijd(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-purple-500 focus:ring-purple-500">
+                                                <option value="all">Alle leeftijden</option>
+                                                {uniekeLeeftijden.map(leeftijd => <option key={leeftijd} value={leeftijd}>{leeftijd} jaar</option>)}
+                                            </select>
+                                            <select value={selectedGeslacht} onChange={(e) => setSelectedGeslacht(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-purple-500 focus:ring-purple-500">
+                                                <option value="all">Alle geslachten</option>
+                                                {uniekeGeslachten.map(geslacht => <option key={geslacht} value={geslacht}>{geslacht === 'M' ? 'Mannelijk' : 'Vrouwelijk'}</option>)}
+                                            </select>
+                                        </div>
+                                        
+                                        {isAdmin && (
+                                            <div className="flex gap-2">
+                                                <button onClick={() => setIsAdding(true)} className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium">Nieuwe norm</button>
+                                                <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-slate-600 text-white rounded-xl hover:bg-slate-700 font-medium">
+                                                    <ArrowUpTrayIcon className="h-4 w-4 mr-2 inline" />
+                                                    Import CSV
+                                                </button>
+                                                <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {isAdmin && selectedNorms.length > 0 && (
+                                        <div className="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-200">
+                                            <span className="text-purple-700 font-medium">{selectedNorms.length} item(s) geselecteerd</span>
+                                            <button onClick={() => setItemsToDelete(selectedNorms)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Verwijder geselecteerde</button>
                                         </div>
                                     )}
                                 </div>
-                                {isAdmin && selectedNorms.length > 0 && (
-                                    <div className="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-200">
-                                        <span className="text-purple-700 font-medium">{selectedNorms.length} item(s) geselecteerd</span>
-                                        <button onClick={() => setItemsToDelete(selectedNorms)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Verwijder geselecteerde</button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                            )}
 
-                        {gefilterdeNormen.length === 0 ? (
-                            <div className="text-center py-12 text-slate-500">Geen normen gevonden</div>
-                        ) : (
-                            <>
-                                {isAdmin && isAdding && (
-                                    <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
-                                       {/* Form to add new norm */}
+                            {gefilterdeNormen.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <ArrowUpTrayIcon className="w-8 h-8 text-purple-600" />
                                     </div>
-                                )}
-                                <div className="hidden lg:block overflow-hidden rounded-xl border border-slate-200">
-                                    <table className="min-w-full bg-white">
-                                        <thead className="bg-slate-50">
-                                            <tr>
-                                                {isAdmin && <th className="py-4 px-6"><input type="checkbox" onChange={handleSelectAll} checked={gefilterdeNormen.length > 0 && selectedNorms.length === gefilterdeNormen.length} className="rounded" /></th>}
-                                                <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Leeftijd</th>
-                                                <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Geslacht</th>
-                                                <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Min. Score</th>
-                                                <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Punt</th>
-                                                {isAdmin && <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Acties</th>}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-200">
-                                            {normenToShow.map((norm) => {
-                                                const normId = getNormIdentifier(norm);
-                                                const isEditingThis = editingNorm?.original && getNormIdentifier(editingNorm.original) === normId;
-                                                return (
-                                                    <tr key={normId} className="hover:bg-slate-50">
-                                                        {isAdmin && <td className="py-4 px-6"><input type="checkbox" checked={selectedNorms.includes(normId)} onChange={() => handleSelectNorm(normId)} className="rounded" /></td>}
-                                                        {isEditingThis ? (
-                                                            <>
-                                                                {/* Editing inputs */}
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <td className="py-4 px-6 font-medium text-slate-900">{norm.leeftijd} jaar</td>
-                                                                <td className="py-4 px-6 text-slate-700">{norm.geslacht}</td>
-                                                                <td className="py-4 px-6 font-semibold text-slate-900">{norm.score_min}</td>
-                                                                <td className="py-4 px-6 font-semibold text-purple-700">{norm.punt}</td>
-                                                            </>
-                                                        )}
-                                                        {isAdmin && <td className="py-4 px-6">{/* Action buttons */}</td>}
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
+                                    <h3 className="text-xl font-bold text-gray-800 mb-2">Geen Normen Gevonden</h3>
+                                    <p className="text-gray-600">Er zijn nog geen prestatienormen voor deze test. {isAdmin ? 'Voeg normen toe om te beginnen.' : ''}</p>
                                 </div>
-                                <div className="lg:hidden space-y-3">
-                                    {normenToShow.map((norm) => {
-                                        const normId = getNormIdentifier(norm);
-                                        const isEditingThis = editingNorm?.original && getNormIdentifier(editingNorm.original) === normId;
-                                        return (
-                                            <div key={normId} className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-                                                <div className="flex items-start justify-between mb-3">
-                                                    <div className="flex items-center space-x-3">
-                                                        {isAdmin && <input type="checkbox" checked={selectedNorms.includes(normId)} onChange={() => handleSelectNorm(normId)} className="rounded" />}
-                                                        <div>
-                                                            <div className="font-semibold text-slate-900">{norm.leeftijd} jaar • {norm.geslacht}</div>
-                                                            <div className="text-sm text-slate-500">Score: {norm.score_min} → Punt: {norm.punt}</div>
-                                                        </div>
-                                                    </div>
-                                                    {isAdmin && <div className="relative">{/* Mobile menu button */}</div>}
-                                                </div>
-                                                {isAdmin && isEditingThis && <div className="pt-3 border-t">{/* Mobile editing form */}</div>}
+                            ) : (
+                                <>
+                                    {isAdmin && isAdding && (
+                                        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
+                                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                                                <input
+                                                    type="number"
+                                                    placeholder="Leeftijd"
+                                                    value={newNorm.leeftijd}
+                                                    onChange={(e) => setNewNorm({...newNorm, leeftijd: e.target.value})}
+                                                    className="p-2 border border-slate-300 rounded-lg"
+                                                />
+                                                <select
+                                                    value={newNorm.geslacht}
+                                                    onChange={(e) => setNewNorm({...newNorm, geslacht: e.target.value})}
+                                                    className="p-2 border border-slate-300 rounded-lg"
+                                                >
+                                                    <option value="M">M</option>
+                                                    <option value="V">V</option>
+                                                </select>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    placeholder="Min. Score"
+                                                    value={newNorm.score_min}
+                                                    onChange={(e) => setNewNorm({...newNorm, score_min: e.target.value})}
+                                                    className="p-2 border border-slate-300 rounded-lg"
+                                                />
+                                                <input
+                                                    type="number"
+                                                    placeholder="Punt"
+                                                    value={newNorm.punt}
+                                                    onChange={(e) => setNewNorm({...newNorm, punt: e.target.value})}
+                                                    className="p-2 border border-slate-300 rounded-lg"
+                                                />
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                                {gefilterdeNormen.length > PREVIEW_COUNT && (
-                                    <div className="flex justify-center pt-6">
-                                        <button onClick={() => setIsNormenExpanded(!isNormenExpanded)} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium">
-                                            {isNormenExpanded ? 'Toon minder' : `Toon alle ${gefilterdeNormen.length} normen`}
-                                        </button>
+                                            <div className="flex gap-2">
+                                                <button onClick={handleSaveNewNorm} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                                    <CheckIcon className="h-4 w-4 mr-1 inline" />
+                                                    Opslaan
+                                                </button>
+                                                <button onClick={() => {setIsAdding(false); setNewNorm({ leeftijd: '', geslacht: 'M', score_min: '', punt: '' });}} className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700">
+                                                    <XMarkIcon className="h-4 w-4 mr-1 inline" />
+                                                    Annuleren
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Desktop table */}
+                                    <div className="hidden lg:block overflow-hidden rounded-xl border border-slate-200">
+                                        <table className="min-w-full bg-white">
+                                            <thead className="bg-slate-50">
+                                                <tr>
+                                                    {isAdmin && <th className="py-4 px-6"><input type="checkbox" onChange={handleSelectAll} checked={gefilterdeNormen.length > 0 && selectedNorms.length === gefilterdeNormen.length} className="rounded" /></th>}
+                                                    <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Leeftijd</th>
+                                                    <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Geslacht</th>
+                                                    <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Min. Score</th>
+                                                    <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Punt</th>
+                                                    {isAdmin && <th className="py-4 px-6 text-left text-sm font-semibold text-slate-700">Acties</th>}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-200">
+                                                {normenToShow.map((norm) => {
+                                                    const normId = getNormIdentifier(norm);
+                                                    const isEditingThis = editingNorm?.original && getNormIdentifier(editingNorm.original) === normId;
+                                                    return (
+                                                        <tr key={normId} className="hover:bg-slate-50">
+                                                            {isAdmin && <td className="py-4 px-6"><input type="checkbox" checked={selectedNorms.includes(normId)} onChange={() => handleSelectNorm(normId)} className="rounded" /></td>}
+                                                            {isEditingThis ? (
+                                                                <>
+                                                                    <td className="py-4 px-6">
+                                                                        <input
+                                                                            type="number"
+                                                                            value={editingNorm.current.leeftijd}
+                                                                            onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, leeftijd: e.target.value}})}
+                                                                            className="w-20 p-2 border border-slate-300 rounded-lg text-sm"
+                                                                        />
+                                                                    </td>
+                                                                    <td className="py-4 px-6">
+                                                                        <select
+                                                                            value={editingNorm.current.geslacht}
+                                                                            onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, geslacht: e.target.value}})}
+                                                                            className="w-16 p-2 border border-slate-300 rounded-lg text-sm"
+                                                                        >
+                                                                            <option value="M">M</option>
+                                                                            <option value="V">V</option>
+                                                                        </select>
+                                                                    </td>
+                                                                    <td className="py-4 px-6">
+                                                                        <input
+                                                                            type="number"
+                                                                            step="0.01"
+                                                                            value={editingNorm.current.score_min}
+                                                                            onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, score_min: e.target.value}})}
+                                                                            className="w-24 p-2 border border-slate-300 rounded-lg text-sm"
+                                                                        />
+                                                                    </td>
+                                                                    <td className="py-4 px-6">
+                                                                        <input
+                                                                            type="number"
+                                                                            value={editingNorm.current.punt}
+                                                                            onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, punt: e.target.value}})}
+                                                                            className="w-20 p-2 border border-slate-300 rounded-lg text-sm"
+                                                                        />
+                                                                    </td>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <td className="py-4 px-6 font-medium text-slate-900">{norm.leeftijd} jaar</td>
+                                                                    <td className="py-4 px-6 text-slate-700">{norm.geslacht}</td>
+                                                                    <td className="py-4 px-6 font-semibold text-slate-900">{norm.score_min}</td>
+                                                                    <td className="py-4 px-6 font-semibold text-purple-700">{norm.punt}</td>
+                                                                </>
+                                                            )}
+                                                            {isAdmin && (
+                                                                <td className="py-4 px-6">
+                                                                    {isEditingThis ? (
+                                                                        <div className="flex gap-2">
+                                                                            <button onClick={handleUpdateNorm} className="p-1 text-green-600 hover:bg-green-100 rounded">
+                                                                                <CheckIcon className="h-4 w-4" />
+                                                                            </button>
+                                                                            <button onClick={() => setEditingNorm(null)} className="p-1 text-red-600 hover:bg-red-100 rounded">
+                                                                                <XMarkIcon className="h-4 w-4" />
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex gap-2">
+                                                                            <button onClick={() => setEditingNorm({original: norm, current: {...norm}})} className="p-1 text-blue-600 hover:bg-blue-100 rounded">
+                                                                                <PencilIcon className="h-4 w-4" />
+                                                                            </button>
+                                                                            <button onClick={() => setItemsToDelete(norm)} className="p-1 text-red-600 hover:bg-red-100 rounded">
+                                                                                <TrashIcon className="h-4 w-4" />
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                            )}
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                )}
-                            </>
-                        )}
+                                    
+                                    {/* Mobile cards */}
+                                    <div className="lg:hidden space-y-3">
+                                        {normenToShow.map((norm) => {
+                                            const normId = getNormIdentifier(norm);
+                                            const isEditingThis = editingNorm?.original && getNormIdentifier(editingNorm.original) === normId;
+                                            return (
+                                                <div key={normId} className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+                                                    <div className="flex items-start justify-between mb-3">
+                                                        <div className="flex items-center space-x-3">
+                                                            {isAdmin && <input type="checkbox" checked={selectedNorms.includes(normId)} onChange={() => handleSelectNorm(normId)} className="rounded" />}
+                                                            <div>
+                                                                <div className="font-semibold text-slate-900">{norm.leeftijd} jaar • {norm.geslacht}</div>
+                                                                <div className="text-sm text-slate-500">Score: {norm.score_min} → Punt: {norm.punt}</div>
+                                                            </div>
+                                                        </div>
+                                                        {isAdmin && (
+                                                            <div className="relative">
+                                                                <button onClick={() => toggleMobileMenu(normId)} className="p-1 text-slate-400 hover:text-slate-600">
+                                                                    <EllipsisVerticalIcon className="h-5 w-5" />
+                                                                </button>
+                                                                {showMobileMenu[normId] && (
+                                                                    <div className="absolute right-0 top-8 bg-white border border-slate-200 rounded-lg shadow-lg z-10 min-w-32">
+                                                                        <button onClick={() => {setEditingNorm({original: norm, current: {...norm}}); setShowMobileMenu({});}} className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center">
+                                                                            <PencilIcon className="h-4 w-4 mr-2" />
+                                                                            Bewerk
+                                                                        </button>
+                                                                        <button onClick={() => {setItemsToDelete(norm); setShowMobileMenu({});}} className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 text-red-600 flex items-center">
+                                                                            <TrashIcon className="h-4 w-4 mr-2" />
+                                                                            Verwijder
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {isAdmin && isEditingThis && (
+                                                        <div className="pt-3 border-t border-slate-200">
+                                                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                                                <input
+                                                                    type="number"
+                                                                    placeholder="Leeftijd"
+                                                                    value={editingNorm.current.leeftijd}
+                                                                    onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, leeftijd: e.target.value}})}
+                                                                    className="p-2 border border-slate-300 rounded-lg text-sm"
+                                                                />
+                                                                <select
+                                                                    value={editingNorm.current.geslacht}
+                                                                    onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, geslacht: e.target.value}})}
+                                                                    className="p-2 border border-slate-300 rounded-lg text-sm"
+                                                                >
+                                                                    <option value="M">M</option>
+                                                                    <option value="V">V</option>
+                                                                </select>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    placeholder="Min. Score"
+                                                                    value={editingNorm.current.score_min}
+                                                                    onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, score_min: e.target.value}})}
+                                                                    className="p-2 border border-slate-300 rounded-lg text-sm"
+                                                                />
+                                                                <input
+                                                                    type="number"
+                                                                    placeholder="Punt"
+                                                                    value={editingNorm.current.punt}
+                                                                    onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, punt: e.target.value}})}
+                                                                    className="p-2 border border-slate-300 rounded-lg text-sm"
+                                                                />
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <button onClick={handleUpdateNorm} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+                                                                    <CheckIcon className="h-4 w-4 mr-1 inline" />
+                                                                    Opslaan
+                                                                </button>
+                                                                <button onClick={() => setEditingNorm(null)} className="px-3 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-sm">
+                                                                    <XMarkIcon className="h-4 w-4 mr-1 inline" />
+                                                                    Annuleren
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    
+                                    {gefilterdeNormen.length > PREVIEW_COUNT && (
+                                        <div className="flex justify-center pt-6">
+                                            <button onClick={() => setIsNormenExpanded(!isNormenExpanded)} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium">
+                                                {isNormenExpanded ? 'Toon minder' : `Toon alle ${gefilterdeNormen.length} normen`}
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
                     </div>
+
+                    {/* Statistics */}
+                    {gefilterdeNormen.length > 0 && (
+                        <div className="mt-8 text-center">
+                            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4 inline-block">
+                                <div className="flex items-center justify-center space-x-8 text-sm text-slate-600 flex-wrap gap-4">
+                                    <div className="flex items-center space-x-2">
+                                        <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                                        <span>{gefilterdeNormen.length} {gefilterdeNormen.length === 1 ? 'Norm' : 'Normen'}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full"></div>
+                                        <span>{uniekeLeeftijden.length} Leeftijdsgroepen</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
-        </div>
-
+        </>
     );
 }
