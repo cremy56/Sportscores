@@ -3,7 +3,7 @@ import { Outlet, NavLink, useOutletContext, Link, useLocation } from 'react-rout
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { Toaster } from 'react-hot-toast';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react'; // useMemo toegevoegd
 import { UserCircleIcon } from '@heroicons/react/24/outline';
 import { Bars3Icon } from '@heroicons/react/24/solid';
 
@@ -12,9 +12,14 @@ export default function Layout() {
   const location = useLocation();
   const [activeRole, setActiveRole] = useState(profile?.rol || 'leerling');
 
+  // AANGEPAST: Maak een "gesimuleerd" profiel aan op basis van de geselecteerde rol.
+  // Dit object wordt doorgegeven aan alle onderliggende pagina's.
+  const simulatedProfile = useMemo(() => ({
+    ...profile,
+    rol: activeRole,
+  }), [profile, activeRole]);
+
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator';
-  
-  // AANGEPAST: Dynamische link teksten
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
   const testbeheerLinkText = activeRole === 'administrator' ? 'Testbeheer' : 'Sporttesten';
 
@@ -25,7 +30,6 @@ export default function Layout() {
   const menuRef = useRef();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // AANGEPAST: routeTitles bijgewerkt voor dynamische tekst
   const routeTitles = {
     '/': 'Highscores',
     '/evolutie': evolutieLinkText,
@@ -106,7 +110,6 @@ export default function Layout() {
                     Scores
                   </NavLink>
                 </li>
-                 {/* AANGEPAST: Testbeheer link nu zichtbaar voor leerkrachten */}
                 <li>
                   <NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
                     {testbeheerLinkText}
@@ -144,7 +147,6 @@ export default function Layout() {
               <>
                 <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
                 <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
-                {/* AANGEPAST: Testbeheer link in mobiel menu */}
                 <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
               </>
             )}
@@ -208,7 +210,8 @@ export default function Layout() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Outlet context={{ profile, school, activeRole }} />
+        {/* AANGEPAST: Geef het gemodificeerde 'simulatedProfile' door ipv het originele 'profile' */}
+        <Outlet context={{ profile: simulatedProfile, school }} />
       </main>
     </div>
   );
