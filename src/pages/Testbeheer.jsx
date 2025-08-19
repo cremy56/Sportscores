@@ -18,7 +18,7 @@ export default function Testbeheer() {
     const [modal, setModal] = useState({ type: null, data: null });
 
 // Bepaal de rol van de gebruiker
-    const isAdmin = profile.role === 'administrator';
+    const isAdmin = profile?.rol?.toLowerCase() === 'administrator';
 
     useEffect(() => {
         if (!profile?.school_id) {
