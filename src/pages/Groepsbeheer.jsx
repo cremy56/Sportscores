@@ -94,7 +94,7 @@ export default function Groepsbeheer() {
           {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
           <div className="lg:hidden mb-8">
             <div className="flex justify-between items-center">
-              <h1 className="text-2xl font-bold text-gray-800 pt-8">Mijn groepen</h1>
+              <h1 className="text-2xl font-bold text-gray-800 pt-24">Mijn groepen</h1>
               <button
                 onClick={() => setShowModal(true)}
                 className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg"
