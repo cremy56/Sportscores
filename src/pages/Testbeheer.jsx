@@ -100,7 +100,7 @@ export default function Testbeheer() {
                     <div className="lg:hidden mb-8">
                         <div className="flex justify-between items-center">
                             <h1 className="text-2xl font-bold text-gray-800">
-                                {isAdmin ? "Testbeheer" : "Sporttesten"}
+                                {"Sporttesten"}
                             </h1>
                             {isAdmin && (
                                 <button
@@ -117,7 +117,7 @@ export default function Testbeheer() {
                     <div className="hidden lg:block mb-12">
                         <div className="flex justify-between items-center">
                             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-                                {isAdmin ? "Testbeheer" : "Sporttesten"}
+                                {"Sporttesten"}
                             </h1>
                             {isAdmin && (
                                 <button
