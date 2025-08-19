@@ -109,16 +109,19 @@ export default function Testbeheer() {
                                             <p className="text-sm text-gray-500">{test.categorie}</p>
                                         </div>
                                         <div className="flex items-center gap-4">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setModal({ type: 'confirm', data: test });
-                                                }}
-                                                className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
-                                                aria-label="Verwijder test"
-                                            >
-                                                <TrashIcon className="h-5 w-5" />
-                                            </button>
+                                            {/* Enkel tonen als de gebruiker een administrator is */}
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setModal({ type: 'confirm', data: test });
+                                                    }}
+                                                    className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
+                                                    aria-label="Verwijder test"
+                                                >
+                                                    <TrashIcon className="h-5 w-5" />
+                                                </button>
+                                            )}
                                             <ChevronRightIcon className="h-6 w-6 text-gray-400 group-hover:text-purple-700 transition-transform group-hover:translate-x-1" />
                                         </div>
                                     </div>
