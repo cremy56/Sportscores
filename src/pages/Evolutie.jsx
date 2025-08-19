@@ -80,7 +80,7 @@ export default function Evolutie() {
     }, {});
 
     const pageTitle = (profile?.rol === 'leerkracht' || profile?.rol === 'administrator') 
-        ? '' 
+        ? 'Evolutie leerlingen' 
         : 'Mijn Evolutie';
 
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
@@ -128,7 +128,7 @@ export default function Evolutie() {
                             ? selectedYear === 'all'
                                 ? 'Evolutie overzicht over alle schooljaren'
                                 : `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
-                            : 'Bekijk je sportieve vooruitgang'
+                            : ''
                         }
                     </p>
                     <div className="flex justify-center mb-6">
