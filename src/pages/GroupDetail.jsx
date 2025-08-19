@@ -197,48 +197,92 @@ export default function GroupDetail() {
       <Toaster position="top-center" />
       <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
-          <div className="max-w-4xl mx-auto">
+          
+          {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
+          <div className="lg:hidden mb-8">
+            <div className="flex justify-between items-center">
+              <div className="flex-1 min-w-0">
+                <Link to="/groepsbeheer" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
+                  <ArrowLeftIcon className="h-4 w-4 mr-1 transition-transform group-hover:-translate-x-1" />
+                  <span className="text-sm">Terug</span>
+                </Link>
+                <h1 className="text-2xl font-bold text-gray-800 truncate">{group.naam}</h1>
+              </div>
+              <button
+                onClick={() => setIsAddStudentModalOpen(true)}
+                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg ml-4"
+              >
+                <PlusIcon className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
+          <div className="hidden lg:block mb-12">
             <Link to="/groepsbeheer" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
               <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
               Terug naar groepenoverzicht
             </Link>
-            
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-gray-900">{group.naam}</h1>
-                <button
-                  onClick={() => setIsAddStudentModalOpen(true)}
-                  className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full sm:px-5 sm:py-3 sm:rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
-                >
-                  <PlusIcon className="h-6 w-6" />
-                  <span className="hidden sm:inline sm:ml-2">Leerling Toevoegen</span>
-                </button>
-              </div>
-              
-              <h2 className="font-bold text-xl text-gray-800 mb-4">Groepsleden</h2>
-              <div className="flow-root">
-                <ul className="-my-4 divide-y divide-gray-200">
-                  {members.length > 0 ? (
-                    members.map((lid) => (
-                      <li key={lid.id} className="flex items-center py-4 space-x-4">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-md font-medium text-gray-900 truncate">{lid.naam}</p>
-                          <p className="text-sm text-gray-500 truncate">{lid.email}</p>
-                        </div>
-                        <button onClick={() => handleRemoveStudent(lid.id)} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors">
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
-                      </li>
-                    ))
-                  ) : (
-                    <li className="text-center text-gray-500 py-8">
-                      Deze groep heeft nog geen leden. Voeg leerlingen toe om te beginnen.
-                    </li>
-                  )}
-                </ul>
-              </div>
+            <div className="flex justify-between items-center">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{group.naam}</h1>
+              <button
+                onClick={() => setIsAddStudentModalOpen(true)}
+                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+              >
+                <PlusIcon className="h-6 w-6" />
+                <span className="ml-2">Leerling Toevoegen</span>
+              </button>
             </div>
           </div>
+
+          {/* --- CONTENT --- */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+            <h2 className="font-bold text-xl text-gray-800 mb-6">Groepsleden</h2>
+            <div className="flow-root">
+              <ul className="-my-4 divide-y divide-gray-200">
+                {members.length > 0 ? (
+                  members.map((lid) => (
+                    <li key={lid.id} className="flex items-center py-4 space-x-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-md font-medium text-gray-900 truncate">{lid.naam}</p>
+                        <p className="text-sm text-gray-500 truncate">{lid.email}</p>
+                      </div>
+                      <button 
+                        onClick={() => handleRemoveStudent(lid.id)} 
+                        className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-center text-gray-500 py-12">
+                    <div className="mb-4">
+                      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <UserPlusIcon className="w-8 h-8 text-purple-600" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-800 mb-2">Geen Groepsleden</h3>
+                      <p className="text-gray-600">Deze groep heeft nog geen leden. Voeg leerlingen toe om te beginnen.</p>
+                    </div>
+                  </li>
+                )}
+              </ul>
+            </div>
+          </div>
+
+          {/* Statistics */}
+          {members.length > 0 && (
+            <div className="mt-8 text-center">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4 inline-block">
+                <div className="flex items-center justify-center space-x-8 text-sm text-slate-600 flex-wrap gap-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                    <span>{members.length} {members.length === 1 ? 'Leerling' : 'Leerlingen'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
