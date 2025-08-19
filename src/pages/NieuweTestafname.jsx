@@ -101,7 +101,6 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
     }
 }
 
-
 function getScoreColorClass(punt) {
     if (punt === null || punt === undefined) return 'text-gray-400';
     if (punt < 5) return 'text-red-600';
@@ -259,104 +258,129 @@ export default function NieuweTestafname() {
     const validScoresCount = Object.values(scores).filter(s => s.score && String(s.score).trim() !== '').length;
 
     if (loading) {
-        return <div className="p-8">Gegevens laden...</div>;
+        return (
+            <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
+                <div className="bg-white p-8 rounded-2xl shadow-sm">
+                    <div className="flex items-center space-x-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                        <span className="text-gray-700 font-medium">Gegevens laden...</span>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 lg:p-8">
-            <div className="max-w-4xl mx-auto">
-                <Link to="/scores" className="flex items-center text-sm text-gray-600 hover:text-purple-700 mb-4 font-medium">
-                    <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                    Annuleren en terug
-                </Link>
-                
-                <div className="bg-white p-6 rounded-xl shadow-md border">
-                    <h1 className="text-3xl font-bold mb-6 text-gray-800">Nieuwe Testafname</h1>
+        <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+            <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+                <div className="max-w-4xl mx-auto">
+                    <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
+                        <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
+                        Annuleren en terug naar scores
+                    </Link>
                     
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="md:col-span-1">
-                                <label htmlFor="date-input" className="block text-sm font-medium text-gray-700 mb-2">Datum</label>
-                                <input type="date" id="date-input" value={datum} onChange={e => setDatum(e.target.value)} className="w-full p-2 border rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500" />
-                            </div>
-                            <div className="md:col-span-2 grid grid-cols-2 gap-4">
-                                <div>
-                                    <label htmlFor="group-select" className="block text-sm font-medium text-gray-700 mb-2">Kies een groep</label>
-                                    <select 
-                                        id="group-select" 
-                                        value={selectedGroep?.id || ''} 
-                                        onChange={(e) => setSelectedGroep(groepen.find(g => g.id === e.target.value) || null)} 
-                                        className="w-full p-2 border rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500"
-                                    >
-                                        <option value="">-- Selecteer --</option>
-                                        {groepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}
-                                    </select>
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                        <h1 className="text-3xl font-bold mb-8 text-gray-800">Nieuwe Testafname</h1>
+                        
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="md:col-span-1">
+                                    <label htmlFor="date-input" className="block text-sm font-medium text-gray-700 mb-2">Datum</label>
+                                    <input 
+                                        type="date" 
+                                        id="date-input" 
+                                        value={datum} 
+                                        onChange={e => setDatum(e.target.value)} 
+                                        className="w-full p-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all" 
+                                    />
                                 </div>
-                                <div>
-                                    <label htmlFor="test-select" className="block text-sm font-medium text-gray-700 mb-2">Kies een test</label>
-                                    <select 
-                                        id="test-select" 
-                                        value={selectedTest?.id || ''} 
-                                        onChange={(e) => setSelectedTest(testen.find(t => t.id === e.target.value) || null)} 
-                                        disabled={!selectedGroep} 
-                                        className="w-full p-2 border rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100"
-                                    >
-                                        <option value="">-- Selecteer --</option>
-                                        {testen.map(t => <option key={t.id} value={t.id}>{t.naam} ({t.eenheid})</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                       {selectedGroep && selectedTest && (
-                        <div className="border-t pt-6 mt-6">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-xl font-semibold text-gray-800">Scores invoeren</h2>
-                                <div className="text-sm text-gray-600">{validScoresCount} / {leerlingen.length} ingevoerd</div>
-                            </div>
-                            
-                            <div className="space-y-3">
-                                {leerlingen.map(lid => (
-                                    <div key={lid.id} className="grid grid-cols-3 items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                                        <div className="font-medium text-gray-900">{lid.data.naam}</div>
-                                        <div>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 text-right"
-                                                placeholder={`Score in ${selectedTest.eenheid}`}
-                                                value={scores[lid.id]?.score || ''}
-                                                onChange={(e) => handleScoreChange(lid.id, e.target.value)}
-                                            />
-                                        </div>
-                                        <div className={`text-center font-bold text-xl transition-colors ${getScoreColorClass(scores[lid.id]?.rapportpunt)}`}>
-                                            {scores[lid.id]?.isCalculating ? (
-                                                <span className="text-gray-400 animate-pulse">...</span>
-                                            ) : (
-                                                scores[lid.id]?.rapportpunt !== null && scores[lid.id]?.rapportpunt !== undefined 
-                                                    ? `${scores[lid.id]?.rapportpunt} pt` 
-                                                    : '-'
-                                            )}
-                                        </div>
+                                <div className="md:col-span-2 grid grid-cols-2 gap-6">
+                                    <div>
+                                        <label htmlFor="group-select" className="block text-sm font-medium text-gray-700 mb-2">Kies een groep</label>
+                                        <select 
+                                            id="group-select" 
+                                            value={selectedGroep?.id || ''} 
+                                            onChange={(e) => setSelectedGroep(groepen.find(g => g.id === e.target.value) || null)} 
+                                            className="w-full p-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                                        >
+                                            <option value="">-- Selecteer groep --</option>
+                                            {groepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}
+                                        </select>
                                     </div>
-                                ))}
+                                    <div>
+                                        <label htmlFor="test-select" className="block text-sm font-medium text-gray-700 mb-2">Kies een test</label>
+                                        <select 
+                                            id="test-select" 
+                                            value={selectedTest?.id || ''} 
+                                            onChange={(e) => setSelectedTest(testen.find(t => t.id === e.target.value) || null)} 
+                                            disabled={!selectedGroep} 
+                                            className="w-full p-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all disabled:bg-gray-50 disabled:cursor-not-allowed"
+                                        >
+                                            <option value="">-- Selecteer test --</option>
+                                            {testen.map(t => <option key={t.id} value={t.id}>{t.naam} ({t.eenheid})</option>)}
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
-                            
-                            <div className="flex justify-end mt-8">
-                                <button 
-                                    onClick={handleSaveScores}
-                                    disabled={isSaving || validScoresCount === 0}
-                                    className="flex items-center justify-center bg-purple-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <CheckCircleIcon className="h-5 w-5 mr-2" />
-                                    {isSaving ? 'Opslaan...' : `${validScoresCount} Score${validScoresCount !== 1 ? 's' : ''} Opslaan`}
-                                </button>
+
+                           {selectedGroep && selectedTest && (
+                            <div className="border-t border-gray-200 pt-8">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-xl font-semibold text-gray-800">Scores invoeren</h2>
+                                    <div className="text-sm text-gray-600 bg-gray-50 px-3 py-1 rounded-full">
+                                        {validScoresCount} / {leerlingen.length} ingevoerd
+                                    </div>
+                                </div>
+                                
+                                {leerlingen.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl">
+                                        Deze groep heeft geen leerlingen. Voeg eerst leerlingen toe aan de groep.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {leerlingen.map(lid => (
+                                            <div key={lid.id} className="grid grid-cols-3 items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                                                <div className="font-medium text-gray-900">{lid.data.naam}</div>
+                                                <div>
+                                                    <input
+                                                        type="text"
+                                                        inputMode="decimal"
+                                                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-right transition-all"
+                                                        placeholder={`Score in ${selectedTest.eenheid}`}
+                                                        value={scores[lid.id]?.score || ''}
+                                                        onChange={(e) => handleScoreChange(lid.id, e.target.value)}
+                                                    />
+                                                </div>
+                                                <div className={`text-center font-bold text-xl transition-colors ${getScoreColorClass(scores[lid.id]?.rapportpunt)}`}>
+                                                    {scores[lid.id]?.isCalculating ? (
+                                                        <span className="text-gray-400 animate-pulse">...</span>
+                                                    ) : (
+                                                        scores[lid.id]?.rapportpunt !== null && scores[lid.id]?.rapportpunt !== undefined 
+                                                            ? `${scores[lid.id]?.rapportpunt} pt` 
+                                                            : '-'
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                
+                                <div className="flex justify-end mt-8">
+                                    <button 
+                                        onClick={handleSaveScores}
+                                        disabled={isSaving || validScoresCount === 0}
+                                        className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
+                                    >
+                                        <CheckCircleIcon className="h-5 w-5 mr-2" />
+                                        {isSaving ? 'Opslaan...' : `${validScoresCount} Score${validScoresCount !== 1 ? 's' : ''} Opslaan`}
+                                    </button>
+                                </div>
                             </div>
+                        )}
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
-        </div>
         </div>
     );
 }
