@@ -164,11 +164,11 @@ export default function GroupDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 flex items-center justify-center p-4">
-        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20">
-          <div className="flex items-center space-x-3">
+      <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-2xl shadow-sm">
+          <div className="flex items-center space-x-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            <p className="text-lg font-medium text-gray-700">Groepsdetails laden...</p>
+            <span className="text-gray-700 font-medium">Groepsdetails laden...</span>
           </div>
         </div>
       </div>
@@ -176,52 +176,67 @@ export default function GroupDetail() {
   }
 
   if (!group) {
-    return <div className="text-center p-8">Groep niet gevonden.</div>;
+    return (
+      <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Groep niet gevonden</h3>
+            <p className="text-gray-600 mb-4">De opgevraagde groep bestaat niet of u heeft geen toegang.</p>
+            <Link to="/groepsbeheer" className="inline-flex items-center text-purple-600 hover:text-purple-700">
+              <ArrowLeftIcon className="h-5 w-5 mr-2" />
+              Terug naar groepenoverzicht
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <>
       <Toaster position="top-center" />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
-        <div className="max-w-4xl mx-auto">
-          <Link to="/groepsbeheer" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
-            <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
-            Terug naar groepenoverzicht
-          </Link>
-          
-          <div className="bg-white/80 backdrop-blur-lg p-8 rounded-3xl shadow-2xl border border-white/20">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-              <h1 className="text-3xl font-bold text-gray-900">{group.naam}</h1>
-              <button
-                onClick={() => setIsAddStudentModalOpen(true)}
-                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full sm:px-5 sm:py-3 sm:rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
-              >
-                <PlusIcon className="h-6 w-6" />
-                <span className="hidden sm:inline sm:ml-2">Leerling Toevoegen</span>
-              </button>
-            </div>
+      <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+          <div className="max-w-4xl mx-auto">
+            <Link to="/groepsbeheer" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
+              <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
+              Terug naar groepenoverzicht
+            </Link>
             
-            <h2 className="font-bold text-xl text-gray-800 mb-4">Groepsleden</h2>
-            <div className="flow-root">
-              <ul className="-my-4 divide-y divide-gray-200/70">
-                {members.length > 0 ? (
-                  members.map((lid) => (
-                    <li key={lid.id} className="flex items-center py-4 space-x-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-md font-medium text-gray-900 truncate">{lid.naam}</p>
-                        <p className="text-sm text-gray-500 truncate">{lid.email}</p>
-                      </div>
-                      <button onClick={() => handleRemoveStudent(lid.id)} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors">
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-gray-900">{group.naam}</h1>
+                <button
+                  onClick={() => setIsAddStudentModalOpen(true)}
+                  className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full sm:px-5 sm:py-3 sm:rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                >
+                  <PlusIcon className="h-6 w-6" />
+                  <span className="hidden sm:inline sm:ml-2">Leerling Toevoegen</span>
+                </button>
+              </div>
+              
+              <h2 className="font-bold text-xl text-gray-800 mb-4">Groepsleden</h2>
+              <div className="flow-root">
+                <ul className="-my-4 divide-y divide-gray-200">
+                  {members.length > 0 ? (
+                    members.map((lid) => (
+                      <li key={lid.id} className="flex items-center py-4 space-x-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-md font-medium text-gray-900 truncate">{lid.naam}</p>
+                          <p className="text-sm text-gray-500 truncate">{lid.email}</p>
+                        </div>
+                        <button onClick={() => handleRemoveStudent(lid.id)} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors">
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-center text-gray-500 py-8">
+                      Deze groep heeft nog geen leden. Voeg leerlingen toe om te beginnen.
                     </li>
-                  ))
-                ) : (
-                  <li className="text-center text-gray-500 py-8">
-                    Deze groep heeft nog geen leden. Voeg leerlingen toe om te beginnen.
-                  </li>
-                )}
-              </ul>
+                  )}
+                </ul>
+              </div>
             </div>
           </div>
         </div>
