@@ -281,11 +281,27 @@ export default function ScoresOverzicht() {
             <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
                 <div className="absolute inset-0 overflow-auto">
                     <div className="p-4 lg:p-8">
-                        {/* Header */}
-                        <div className="max-w-7xl mx-auto mb-8">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
+                        <div className="lg:hidden max-w-7xl mx-auto mb-8">
+                            <div className="flex justify-between items-center pt-12">
                                 <div>
-                                    <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 pt-12">
+                                    <h1 className="text-2xl font-bold text-gray-800">Testafnames</h1>
+                                    <p className="text-gray-600 text-sm">Beheer en bekijk alle testresultaten</p>
+                                </div>
+                                <button
+                                    onClick={() => navigate('/nieuwe-testafname')}
+                                    className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg"
+                                >
+                                    <PlusIcon className="h-6 w-6" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
+                        <div className="hidden lg:block max-w-7xl mx-auto mb-8">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-12">
+                                <div>
+                                    <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
                                         Testafnames
                                     </h1>
                                     <p className="text-gray-600 mt-1">
