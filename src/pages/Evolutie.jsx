@@ -80,7 +80,7 @@ export default function Evolutie() {
     }, {});
 
     const pageTitle = (profile?.rol === 'leerkracht' || profile?.rol === 'administrator') 
-        ? 'Portfolio' 
+        ? '' 
         : 'Mijn Evolutie';
 
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
