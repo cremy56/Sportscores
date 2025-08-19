@@ -28,8 +28,14 @@ export default function TestDetailBeheer() {
     const [itemsToDelete, setItemsToDelete] = useState(null);
     const [showMobileMenu, setShowMobileMenu] = useState({});
 
-    // Bepaal de rol van de gebruiker
-    const isAdmin = profile?.role?.toLowerCase() === 'administrator';
+     useEffect(() => {
+        console.log("PROFIEL ontvangen in TestDetailBeheer:", profile);
+    }, [profile]);
+
+    // VEILIGERE CHECK: Controleer of 'profile' en 'profile.role' bestaan voordat we de waarde vergelijken.
+    const isAdmin = profile && profile.role && profile.role.toLowerCase() === 'administrator';
+
+    // --- EINDE VAN DE AANPASSING ---
 
     // Aantal items om te tonen in preview
     const PREVIEW_COUNT = 5;
