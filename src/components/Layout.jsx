@@ -1,20 +1,22 @@
 // src/components/Layout.jsx
 import { Outlet, NavLink, useOutletContext, Link, useLocation } from 'react-router-dom';
-import { auth } from '../firebase'; // Importeer Firebase auth
-import { signOut } from 'firebase/auth'; // Importeer de signOut functie
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
 import { Toaster } from 'react-hot-toast';
 import { useState, useRef, useEffect } from 'react';
-import { UserCircleIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'; // Cog6ToothIcon toegevoegd
+import { UserCircleIcon } from '@heroicons/react/24/outline';
 import { Bars3Icon } from '@heroicons/react/24/solid';
 
 export default function Layout() {
-  // Haal nu ook 'school' op uit de context die door ProtectedRoute wordt geleverd
   const { profile, school } = useOutletContext();
   const location = useLocation();
   const [activeRole, setActiveRole] = useState(profile?.rol || 'leerling');
 
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator';
+  
+  // AANGEPAST: Dynamische link teksten
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
+  const testbeheerLinkText = activeRole === 'administrator' ? 'Testbeheer' : 'Sporttesten';
 
   const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
   const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
@@ -23,13 +25,14 @@ export default function Layout() {
   const menuRef = useRef();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // AANGEPAST: routeTitles bijgewerkt voor dynamische tekst
   const routeTitles = {
     '/': 'Highscores',
-    '/evolutie': profile?.rol === 'leerkracht' || profile?.rol === 'administrator' ? 'Portfolio' : 'Mijn Evolutie',
+    '/evolutie': evolutieLinkText,
     '/groepsbeheer': 'Groepsbeheer',
     '/scores': 'Scores',
     '/leerlingbeheer': 'Leerlingbeheer',
-    '/testbeheer': 'Testbeheer',
+    '/testbeheer': testbeheerLinkText,
     '/schoolbeheer': 'Schoolbeheer',
     '/wachtwoord-wijzigen': 'Wachtwoord wijzigen',
   };
@@ -70,7 +73,7 @@ export default function Layout() {
 
             <NavLink to="/" className="block h-8">
               <img
-                src="/logo.png" // Gebruik altijd het website logo
+                src="/logo.png"
                 alt="Sportscores Logo"
                 className="h-full w-auto object-contain"
               />
@@ -103,6 +106,12 @@ export default function Layout() {
                     Scores
                   </NavLink>
                 </li>
+                 {/* AANGEPAST: Testbeheer link nu zichtbaar voor leerkrachten */}
+                <li>
+                  <NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                    {testbeheerLinkText}
+                  </NavLink>
+                </li>
               </>
             )}
 
@@ -111,11 +120,6 @@ export default function Layout() {
                 <li>
                   <NavLink to="/leerlingbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
                     Leerlingbeheer
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
-                    Testbeheer
                   </NavLink>
                 </li>
                 <li>
@@ -140,13 +144,14 @@ export default function Layout() {
               <>
                 <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
                 <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
+                {/* AANGEPAST: Testbeheer link in mobiel menu */}
+                <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
               </>
             )}
 
             {activeRole === 'administrator' && (
               <>
                 <li><NavLink to="/leerlingbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Leerlingbeheer</NavLink></li>
-                <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Testbeheer</NavLink></li>
                 <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
               </>
             )}
@@ -167,7 +172,6 @@ export default function Layout() {
                   <p className="text-sm text-gray-500">Ingelogd als</p>
                   <p className="font-semibold text-gray-900">{profile?.naam || profile?.email}</p>
                   
-                  {/* --- AANGEPAST: School logo en naam --- */}
                   <div className="flex items-center mt-2">
                     {school?.logo_url && (
                       <img src={school.logo_url} alt={`${school.naam} logo`} className="h-8 w-8 rounded-full mr-2 object-cover" />
