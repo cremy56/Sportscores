@@ -6,6 +6,7 @@ import { collection, query, where, onSnapshot, deleteDoc, doc, getDocs } from 'f
 import toast, { Toaster } from 'react-hot-toast';
 import TestFormModal from '../components/TestFormModal';
 import ConfirmModal from '../components/ConfirmModal';
+import PageHeader from '../components/PageHeader'; // Importeer PageHeader
 import { PlusIcon, TrashIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 export default function Testbeheer() {
@@ -15,6 +16,9 @@ export default function Testbeheer() {
     const navigate = useNavigate();
 
     const [modal, setModal] = useState({ type: null, data: null });
+
+// Bepaal de rol van de gebruiker
+    const isAdmin = profile.role === 'administrator';
 
     useEffect(() => {
         if (!profile?.school_id) {
@@ -82,21 +86,15 @@ export default function Testbeheer() {
        <>
         <Toaster position="top-center" />
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
-            {/* --- Responsive Header --- */}
-            <div className="max-w-7xl mx-auto mb-8">
-                <div className="flex justify-between items-center">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-                        Testen
-                    </h1>
-                    <button
-                        onClick={() => setModal({ type: 'form', data: null })}
-                        className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full sm:px-5 sm:py-3 sm:rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
-                    >
-                        <PlusIcon className="h-6 w-6" />
-                        <span className="hidden sm:inline sm:ml-2">Nieuwe Test</span>
-                    </button>
-                </div>
-            </div>
+           
+                 {/* --- Aangepaste Header --- */}
+            <PageHeader
+                title={isAdmin ? "Testbeheer" : "Sporttesten"}
+                showCreateButton={isAdmin}
+                createButtonText="Nieuwe Test"
+                onCreateClick={() => setModal({ type: 'form', data: null })}
+                createButtonIcon={PlusIcon}
+            />
 
             {/* --- Content --- */}
             <div className="max-w-7xl mx-auto">
