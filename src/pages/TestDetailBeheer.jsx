@@ -287,7 +287,7 @@ export default function TestDetailBeheer() {
                         <p className="text-gray-600 mb-4">De opgevraagde test bestaat niet of u heeft geen toegang.</p>
                         <Link to="/testbeheer" className="inline-flex items-center text-purple-600 hover:text-purple-700">
                             <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                            Terug naar {isAdmin ? 'testbeheer' : 'sporttesten'}
+                            Terug naar {'sporttesten'}
                         </Link>
                     </div>
                 </div>
