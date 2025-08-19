@@ -238,31 +238,30 @@ export default function Leerlingbeheer() {
     return (
         <>
             <Toaster position="top-center" />
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
-                <div className="max-w-7xl mx-auto space-y-6">
-                    {/* Header */}
-                    <div className="bg-white/70 backdrop-blur-lg rounded-3xl shadow-lg border border-white/20 p-6">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <div className="flex items-center space-x-3">
-                                <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center">
-                                    <UsersIcon className="w-6 h-6 text-purple-600" />
+            <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+                <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+                    
+                    {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
+                    <div className="lg:hidden mb-8">
+                        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-6">
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                    <UsersIcon className="w-8 h-8 text-purple-600" />
                                 </div>
-                                <div>
-                                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Leerlingbeheer</h1>
-                                    <p className="text-sm text-gray-600">
-                                        {totalCount !== null ? `Totaal ${totalCount} leerlingen` : 'Leerlingen beheren'}
-                                    </p>
-                                </div>
+                                <h1 className="text-2xl font-bold text-gray-800">Leerlingbeheer</h1>
+                                <p className="text-sm text-gray-600">
+                                    {totalCount !== null ? `Totaal ${totalCount} leerlingen` : 'Leerlingen beheren'}
+                                </p>
                             </div>
                             
-                            <div className="flex flex-wrap gap-2">
+                            <div className="grid grid-cols-3 gap-3">
                                 <button 
                                     onClick={exportToCSV}
                                     disabled={gefilterdeLeerlingen.length === 0}
-                                    className="flex items-center bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+                                    className="flex flex-col items-center justify-center px-3 py-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-                                    <span className="hidden sm:inline">Exporteer</span>
+                                    <ArrowDownTrayIcon className="h-6 w-6 mb-1" />
+                                    <span className="text-sm text-center">Exporteer</span>
                                 </button>
                                 <input
                                     type="file"
@@ -273,32 +272,75 @@ export default function Leerlingbeheer() {
                                 />
                                 <button 
                                     onClick={() => fileInputRef.current.click()}
-                                    className="flex items-center bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105"
+                                    className="flex flex-col items-center justify-center px-3 py-4 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors font-medium"
                                 >
-                                    <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-                                    <span className="hidden sm:inline">Importeer</span>
+                                    <ArrowUpTrayIcon className="h-6 w-6 mb-1" />
+                                    <span className="text-sm text-center">Importeer</span>
                                 </button>
-                                
                                 <button
                                     onClick={() => setModal({ type: 'form', data: null })}
-                                    className="flex items-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105"
+                                    className="flex flex-col items-center justify-center px-3 py-4 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium"
                                 >
-                                    <PlusIcon className="h-4 w-4 mr-2" />
-                                    <span className="hidden sm:inline">Nieuwe Leerling</span>
+                                    <PlusIcon className="h-6 w-6 mb-1" />
+                                    <span className="text-sm text-center">Nieuwe</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
+                    <div className="hidden lg:block mb-12">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Leerlingbeheer</h1>
+                                <p className="text-gray-600">
+                                    {totalCount !== null ? `Totaal ${totalCount} leerlingen` : 'Leerlingen beheren'}
+                                </p>
+                            </div>
+                            
+                            <div className="flex gap-4">
+                                <button 
+                                    onClick={exportToCSV}
+                                    disabled={gefilterdeLeerlingen.length === 0}
+                                    className="flex items-center bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                                >
+                                    <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                                    Exporteer
+                                </button>
+                                <input
+                                    type="file"
+                                    accept=".csv"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                />
+                                <button 
+                                    onClick={() => fileInputRef.current.click()}
+                                    className="flex items-center bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                                >
+                                    <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
+                                    Importeer
+                                </button>
+                                <button
+                                    onClick={() => setModal({ type: 'form', data: null })}
+                                    className="flex items-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                                >
+                                    <PlusIcon className="h-5 w-5 mr-2" />
+                                    Nieuwe Leerling
                                 </button>
                             </div>
                         </div>
                     </div>
 
                     {/* Search */}
-                    <div className="relative">
+                    <div className="relative mb-8">
                         <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
                         <input
                             type="text"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             placeholder="Zoek leerlingen op naam of e-mail (minimaal 2 karakters)..."
-                            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors duration-200"
+                            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300"
                         />
                         {loading && (
                             <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
@@ -308,11 +350,13 @@ export default function Leerlingbeheer() {
                     </div>
 
                     {/* Results */}
-                    <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                         {searchTerm.length < 2 ? (
                             <div className="text-center p-12">
-                                <UsersIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                                <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <UsersIcon className="w-8 h-8 text-purple-600" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-800 mb-2">
                                     Zoek naar leerlingen
                                 </h3>
                                 <p className="text-gray-600">
@@ -320,11 +364,18 @@ export default function Leerlingbeheer() {
                                 </p>
                             </div>
                         ) : loading ? (
-                            <div className="text-center p-12 text-gray-600">Resultaten laden...</div>
+                            <div className="text-center p-12">
+                                <div className="flex items-center justify-center space-x-4">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                                    <span className="text-gray-700 font-medium">Resultaten laden...</span>
+                                </div>
+                            </div>
                         ) : gefilterdeLeerlingen.length === 0 ? (
                             <div className="text-center p-12">
-                                <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                                <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <MagnifyingGlassIcon className="w-8 h-8 text-gray-400" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-800 mb-2">
                                     Geen resultaten gevonden
                                 </h3>
                                 <p className="text-gray-600">
@@ -332,24 +383,24 @@ export default function Leerlingbeheer() {
                                 </p>
                             </div>
                         ) : (
-                            <ul className="divide-y divide-gray-200/70">
+                            <ul className="divide-y divide-slate-200">
                                 {gefilterdeLeerlingen.map(leerling => (
                                     <li key={leerling.id}>
-                                        <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-gray-50 transition-colors">
+                                        <div className="flex items-center justify-between p-6 hover:bg-slate-50 transition-colors">
                                             <div>
-                                                <p className="text-lg font-semibold text-gray-900">{leerling.naam}</p>
-                                                <p className="text-sm text-gray-500">{leerling.email}</p>
+                                                <p className="text-lg font-bold text-gray-900">{leerling.naam}</p>
+                                                <p className="text-sm text-gray-600">{leerling.email}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => setModal({ type: 'form', data: leerling })}
-                                                    className="p-2 text-gray-500 rounded-full hover:bg-blue-100 hover:text-blue-600"
+                                                    className="p-2 text-gray-500 rounded-full hover:bg-blue-100 hover:text-blue-600 transition-all duration-200"
                                                 >
                                                     <PencilIcon className="h-5 w-5" />
                                                 </button>
                                                 <button
                                                     onClick={() => setModal({ type: 'confirm', data: leerling })}
-                                                    className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600"
+                                                    className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-all duration-200"
                                                 >
                                                     <TrashIcon className="h-5 w-5" />
                                                 </button>
