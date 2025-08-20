@@ -395,13 +395,13 @@ export default function AdValvas() {
     return () => clearInterval(slideTimer);
   }, [testHighscores.length]);
 
-  // Nieuws wisselen elke 8 seconden
+  // Nieuws wisselen elke 15 seconden
   useEffect(() => {
     if (sportNews.length === 0) return;
     
     const newsTimer = setInterval(() => {
       setNewsIndex((prev) => (prev + 1) % sportNews.length);
-    }, 8000);
+    }, 15000);
     return () => clearInterval(newsTimer);
   }, [sportNews.length]);
   
@@ -470,7 +470,7 @@ export default function AdValvas() {
   const currentTestData = testHighscores[currentTestIndex];
 
   return (
-    <div className="fixed inset-0 bg-slate-50 overflow-y-auto pb-16">
+    <div className="min-h-screen bg-slate-50 pb-20">
       <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
         
         {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
@@ -534,12 +534,12 @@ export default function AdValvas() {
             {/* Test Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-5xl mx-auto">
               <div className="text-center mb-8">
-                <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-2xl px-6 py-3 mb-6 border border-purple-200">
-                  <Trophy className="h-6 w-6 lg:h-8 lg:w-8 text-purple-600" />
-                  <span className="text-purple-700 text-sm font-bold uppercase tracking-wider">Top 3</span>
-                </div>
-                <h2 className="text-3xl lg:text-5xl font-bold text-gray-800 mb-4 tracking-tight">
-                  {currentTestData.test.naam}
+                <h2 className="text-3xl lg:text-5xl font-bold text-gray-800 mb-4 tracking-tight flex items-center justify-center space-x-4">
+                  <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-2xl px-6 py-3 border border-purple-200">
+                    <Trophy className="h-6 w-6 lg:h-8 lg:w-8 text-purple-600" />
+                    <span className="text-purple-700 text-sm font-bold uppercase tracking-wider">Top 3</span>
+                  </div>
+                  <span>{currentTestData.test.naam}</span>
                 </h2>
                 <p className="text-gray-600 text-lg lg:text-xl">
                   {currentTestData.test.categorie || 'Sporttest'}
@@ -634,13 +634,13 @@ export default function AdValvas() {
           100% { transform: translateX(-100%); }
         }
         .animate-marquee {
-          animation: marquee 25s linear infinite;
+          animation: marquee 30s linear infinite;
         }
         
         /* Mobile optimizations */
         @media (max-width: 1024px) {
           .animate-marquee {
-            animation: marquee 20s linear infinite;
+            animation: marquee 25s linear infinite;
             font-size: 16px;
           }
         }
