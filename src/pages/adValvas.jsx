@@ -470,7 +470,7 @@ export default function AdValvas() {
   const currentTestData = testHighscores[currentTestIndex];
 
   return (
-    <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-slate-50 overflow-y-auto pb-16">
       <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
         
         {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
@@ -484,10 +484,9 @@ export default function AdValvas() {
                 onError={(e) => { e.target.src = '/logo.png'; }} 
               />
               <div className="text-center">
-                <h1 className="text-xl font-bold text-gray-800">
-                  {school?.naam || 'Sportscores'}
+                <h1 className="text-xl font-black text-gray-800 font-mono tracking-wider">
+                  Sport Dashboard
                 </h1>
-                <p className="text-purple-600 text-sm font-medium">Sport Dashboard</p>
               </div>
             </div>
             <div className="text-center">
@@ -512,10 +511,9 @@ export default function AdValvas() {
                 onError={(e) => { e.target.src = '/logo.png'; }} 
               />
               <div>
-                <h1 className="text-3xl font-bold text-gray-800">
-                  {school?.naam || 'Sportscores'}
+                <h1 className="text-3xl font-black text-gray-800 font-mono tracking-wider">
+                  Sport Dashboard
                 </h1>
-                <p className="text-purple-600 text-lg font-medium">Sport Dashboard</p>
               </div>
             </div>
             
@@ -532,45 +530,47 @@ export default function AdValvas() {
 
         {/* Main Content */}
         {testHighscores.length > 0 && currentTestData ? (
-          <div className={`transition-all duration-500 ${animationClass}`}>
-            {/* Test Title */}
-            <div className="text-center mb-8 lg:mb-12">
-              <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-2xl px-6 py-3 mb-4 border border-purple-200">
-                <Trophy className="h-6 w-6 lg:h-8 lg:w-8 text-purple-600" />
-                <span className="text-purple-700 text-sm font-bold uppercase tracking-wider">Top 3</span>
+          <div className={`transition-all duration-500 ${animationClass} mb-8`}>
+            {/* Test Card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-5xl mx-auto">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-2xl px-6 py-3 mb-6 border border-purple-200">
+                  <Trophy className="h-6 w-6 lg:h-8 lg:w-8 text-purple-600" />
+                  <span className="text-purple-700 text-sm font-bold uppercase tracking-wider">Top 3</span>
+                </div>
+                <h2 className="text-3xl lg:text-5xl font-bold text-gray-800 mb-4 tracking-tight">
+                  {currentTestData.test.naam}
+                </h2>
+                <p className="text-gray-600 text-lg lg:text-xl">
+                  {currentTestData.test.categorie || 'Sporttest'}
+                </p>
               </div>
-              <h2 className="text-3xl lg:text-5xl font-bold text-gray-800 mb-4 tracking-tight">
-                {currentTestData.test.naam}
-              </h2>
-              <p className="text-gray-600 text-lg lg:text-xl">
-                {currentTestData.test.categorie || 'Sporttest'}
-              </p>
-            </div>
 
-            {/* Podium */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
-              {currentTestData.scores.map((score, index) => (
-                <PodiumCard key={score.id} score={score} position={index + 1} />
-              ))}
-            </div>
+              {/* Podium */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
+                {currentTestData.scores.map((score, index) => (
+                  <PodiumCard key={score.id} score={score} position={index + 1} />
+                ))}
+              </div>
 
-            {/* Test Indicator */}
-            <div className="flex justify-center space-x-2 mb-8">
-              {testHighscores.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                    currentTestIndex === index 
-                      ? 'bg-purple-600 scale-110' 
-                      : 'bg-gray-300 hover:bg-gray-400'
-                  }`}
-                />
-              ))}
+              {/* Test Indicator */}
+              <div className="flex justify-center space-x-2">
+                {testHighscores.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                      currentTestIndex === index 
+                        ? 'bg-purple-600 scale-110' 
+                        : 'bg-gray-300 hover:bg-gray-400'
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         ) : (
           // Empty State
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto mb-8">
             <div className="mb-6">
               <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Trophy className="w-8 h-8 text-purple-600" />
@@ -579,32 +579,6 @@ export default function AdValvas() {
               <p className="text-gray-600 leading-relaxed">
                 Zodra er sportscores worden ingevoerd, verschijnen hier de toppers!
               </p>
-            </div>
-          </div>
-        )}
-
-        {/* Statistics */}
-        {testHighscores.length > 0 && (
-          <div className="mt-16">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-center">
-                <div className="flex items-center justify-center space-x-3">
-                  <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                  <span className="text-slate-600 font-medium">
-                    {testHighscores.length} {testHighscores.length === 1 ? 'Actieve Test' : 'Actieve Testen'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-center space-x-3">
-                  <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full"></div>
-                  <span className="text-slate-600 font-medium">
-                    {testHighscores.reduce((total, test) => total + test.scores.length, 0)} Totaal Scores
-                  </span>
-                </div>
-                <div className="flex items-center justify-center space-x-3">
-                  <div className="w-3 h-3 bg-gradient-to-r from-teal-500 to-green-500 rounded-full"></div>
-                  <span className="text-slate-600 font-medium">Live Dashboard</span>
-                </div>
-              </div>
             </div>
           </div>
         )}
