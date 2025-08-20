@@ -68,18 +68,34 @@ function getScoreColorClass(punt) {
 // NIEUW: Helper functie om tijd geleden te formatteren
 function formatTimeAgo(pastDate, referenceDate) {
     const seconds = Math.floor((referenceDate - pastDate) / 1000);
+    
+    // Minder dan een dag
+    if (seconds < 86400) {
+        return "Vandaag";
+    }
+
     const days = Math.floor(seconds / 86400);
 
-    if (days > 30) {
-        return `${Math.floor(days / 30)} maand(en) geleden`;
+    // Minder dan een week
+    if (days < 7) {
+        return `${days} ${days === 1 ? 'dag' : 'dagen'} geleden`;
     }
-    if (days > 7) {
-        return `${Math.floor(days / 7)} week/weken geleden`;
+
+    // Minder dan een maand (ongeveer)
+    if (days < 30) {
+        const weeks = Math.floor(days / 7);
+        return `${weeks} ${weeks === 1 ? 'week' : 'weken'} geleden`;
     }
-    if (days > 1) {
-        return `${days} dag(en) geleden`;
+
+    // Maanden
+    if (days < 365) {
+        const months = Math.floor(days / 30);
+        return `${months} ${months === 1 ? 'maand' : 'maanden'} geleden`;
     }
-    return "Vandaag";
+
+    // Jaren
+    const years = Math.floor(days / 365);
+    return `${years} ${years === 1 ? 'jaar' : 'jaren'} geleden`;
 }
 
 // --- HOOFDCOMPONENT ---
