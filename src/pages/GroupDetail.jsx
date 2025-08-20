@@ -1,20 +1,34 @@
 // src/pages/GroupDetail.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, arrayUnion, arrayRemove } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 import { TrashIcon, PlusIcon, ArrowLeftIcon, UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ClipboardDocumentListIcon } from '@heroicons/react/24/solid';
+
+// --- HELPER FUNCTIE: Bepaal start/eind van het schooljaar ---
+function getSchoolYear(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-11
+    
+    // Schooljaar loopt van 1 september tot 31 augustus
+    const startYear = month >= 8 ? year : year - 1; // Als het sep of later is, start het schooljaar dit jaar. Anders vorig jaar.
+    
+    return {
+        start: new Date(startYear, 8, 1), // 1 september
+        end: new Date(startYear + 1, 7, 31, 23, 59, 59) // 31 augustus
+    };
+}
+
 
 // --- Modal om leerlingen toe te voegen ---
-// De modal ontvangt nu de volledige 'group' prop
 function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Stop als de zoekterm te kort is of als de groep (en dus school_id) niet beschikbaar is
     if (searchTerm.length < 2 || !group?.school_id) {
       setSearchResults([]);
       return;
@@ -26,10 +40,9 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
         const searchTermLower = searchTerm.toLowerCase();
         const usersRef = collection(db, 'toegestane_gebruikers');
         
-        // --- QUERY AANGEPAST ---
         const q = query(
           usersRef,
-          where('school_id', '==', group.school_id), // <-- TOEGEVOEGD: Filter op school
+          where('school_id', '==', group.school_id),
           where('rol', '==', 'leerling'),
           where('naam_keywords', 'array-contains', searchTermLower)
         );
@@ -48,7 +61,7 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, group]); // Dependency is nu de hele 'group'
+  }, [searchTerm, group]);
 
   const handleAddStudent = async (student) => {
     const groupRef = doc(db, 'groepen', group.id);
@@ -114,9 +127,14 @@ export default function GroupDetail() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  
+  // AANGEPAST: State voor de scores en laadstatus
+  const [scoresByLeerling, setScoresByLeerling] = useState(new Map());
+  const [loadingScores, setLoadingScores] = useState(true);
 
   const fetchGroupData = useCallback(async () => {
     if (!groepId) return;
+    setLoading(true);
     const groupRef = doc(db, 'groepen', groepId);
     
     try {
@@ -128,7 +146,10 @@ export default function GroupDetail() {
         if (groupData.leerling_ids && groupData.leerling_ids.length > 0) {
           const membersPromises = groupData.leerling_ids.map(id => getDoc(doc(db, 'toegestane_gebruikers', id)));
           const membersDocs = await Promise.all(membersPromises);
-          const membersData = membersDocs.filter(doc => doc.exists()).map(doc => ({ id: doc.id, ...doc.data() }));
+          const membersData = membersDocs
+            .filter(doc => doc.exists())
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .sort((a,b) => a.naam.localeCompare(b.naam)); // Sorteer leerlingen op naam
           setMembers(membersData);
         } else {
           setMembers([]);
@@ -144,9 +165,65 @@ export default function GroupDetail() {
   }, [groepId]);
 
   useEffect(() => {
-    setLoading(true);
     fetchGroupData();
   }, [fetchGroupData]);
+  
+  // AANGEPAST: Nieuwe useEffect om scores op te halen zodra de leden bekend zijn
+  useEffect(() => {
+    const fetchScoresForGroup = async () => {
+        if (members.length === 0) {
+            setLoadingScores(false);
+            return;
+        }
+
+        setLoadingScores(true);
+        try {
+            const leerlingIds = members.map(m => m.id);
+            const schoolYear = getSchoolYear(new Date());
+
+            // Haal alle scores op voor de hele groep in dit schooljaar
+            const scoresQuery = query(collection(db, 'scores'),
+                where('leerling_id', 'in', leerlingIds),
+                where('datum', '>=', schoolYear.start),
+                where('datum', '<=', schoolYear.end)
+            );
+            const scoresSnapshot = await getDocs(scoresQuery);
+            const scoresData = scoresSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            // Haal de namen van de testen op
+            const testIds = [...new Set(scoresData.map(s => s.test_id))];
+            let testNamen = new Map();
+            if (testIds.length > 0) {
+                const testenQuery = query(collection(db, 'testen'), where('__name__', 'in', testIds));
+                const testenSnapshot = await getDocs(testenQuery);
+                testenSnapshot.docs.forEach(d => testNamen.set(d.id, d.data().naam));
+            }
+            
+            // Groepeer scores per leerling
+            const scoresMap = new Map();
+            scoresData.forEach(score => {
+                const leerlingScores = scoresMap.get(score.leerling_id) || [];
+                scoresMap.set(score.leerling_id, [
+                    ...leerlingScores, 
+                    { 
+                        ...score, 
+                        test_naam: testNamen.get(score.test_id) || 'Onbekende Test' 
+                    }
+                ]);
+            });
+
+            setScoresByLeerling(scoresMap);
+        } catch (error) {
+            console.error("Fout bij ophalen scores:", error);
+            toast.error("Kon de testgeschiedenis niet laden.");
+        } finally {
+            setLoadingScores(false);
+        }
+    };
+
+    fetchScoresForGroup();
+  }, [members]);
+
 
   const handleRemoveStudent = async (studentId) => {
     const groupRef = doc(db, 'groepen', groepId);
@@ -155,7 +232,7 @@ export default function GroupDetail() {
         leerling_ids: arrayRemove(studentId)
       });
       toast.success('Leerling verwijderd!');
-      fetchGroupData(); // Herlaad de data
+      fetchGroupData();
     } catch (error) {
       console.error("Fout bij verwijderen leerling:", error);
       toast.error("Kon leerling niet verwijderen.");
@@ -198,7 +275,6 @@ export default function GroupDetail() {
       <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
           
-          {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
           <div className="lg:hidden mb-8">
             <div className="flex justify-between items-center">
               <div className="flex-1 min-w-0">
@@ -217,7 +293,6 @@ export default function GroupDetail() {
             </div>
           </div>
 
-          {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
           <div className="hidden lg:block mb-12">
             <Link to="/groepsbeheer" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
               <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
@@ -235,26 +310,45 @@ export default function GroupDetail() {
             </div>
           </div>
 
-          {/* --- CONTENT --- */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
-            <h2 className="font-bold text-xl text-gray-800 mb-6">Groepsleden</h2>
+            <h2 className="font-bold text-xl text-gray-800 mb-6">Groepsleden ({members.length})</h2>
             <div className="flow-root">
               <ul className="-my-4 divide-y divide-gray-200">
                 {members.length > 0 ? (
-                  members.map((lid) => (
-                    <li key={lid.id} className="flex items-center py-4 space-x-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-md font-medium text-gray-900 truncate">{lid.naam}</p>
-                        <p className="text-sm text-gray-500 truncate">{lid.email}</p>
-                      </div>
-                      <button 
-                        onClick={() => handleRemoveStudent(lid.id)} 
-                        className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
-                    </li>
-                  ))
+                  members.map((lid) => {
+                    const afgenomenTesten = scoresByLeerling.get(lid.id) || [];
+                    return (
+                        <li key={lid.id} className="flex items-center py-4 space-x-4">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-md font-medium text-gray-900 truncate">{lid.naam}</p>
+                                <p className="text-sm text-gray-500 truncate">{lid.email}</p>
+                                
+                                {/* AANGEPAST: Weergave van afgenomen testen */}
+                                {loadingScores ? (
+                                    <p className="text-xs text-gray-400 mt-2">Testgeschiedenis laden...</p>
+                                ) : (
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {afgenomenTesten.length > 0 ? (
+                                            afgenomenTesten.map(score => (
+                                                <span key={score.id} className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full font-medium">
+                                                    {score.test_naam} ({score.datum.toDate().toLocaleDateString('nl-BE')})
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <p className="text-xs text-gray-500 italic">Nog geen testen afgenomen dit schooljaar.</p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            <button 
+                                onClick={() => handleRemoveStudent(lid.id)} 
+                                className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
+                            >
+                                <TrashIcon className="h-5 w-5" />
+                            </button>
+                        </li>
+                    );
+                  })
                 ) : (
                   <li className="text-center text-gray-500 py-12">
                     <div className="mb-4">
@@ -269,20 +363,6 @@ export default function GroupDetail() {
               </ul>
             </div>
           </div>
-
-          {/* Statistics */}
-          {members.length > 0 && (
-            <div className="mt-8 text-center">
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4 inline-block">
-                <div className="flex items-center justify-center space-x-8 text-sm text-slate-600 flex-wrap gap-4">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                    <span>{members.length} {members.length === 1 ? 'Leerling' : 'Leerlingen'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
