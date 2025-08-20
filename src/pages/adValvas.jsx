@@ -227,21 +227,19 @@ export default function AdValvas() {
             );
         case 'daily_activity':
         case 'sport_fact':
-            // Variabele hernoemd naar 'Icon' met een hoofdletter
-            const Icon = item.type === 'daily_activity' ? BookOpen : BarChart3; 
+            const icon = item.type === 'daily_activity' ? BookOpen : BarChart3;
             const color = item.type === 'daily_activity' ? "from-green-500 to-emerald-600" : "from-blue-500 to-cyan-600";
             return (
                 <div className={`bg-gradient-to-br ${color} rounded-2xl shadow-lg p-10 max-w-6xl mx-auto text-white`}>
                     <div className="text-center">
-                        {/* Correcte JSX-syntax gebruikt om het icoon te renderen */}
-                        <Icon className="h-16 w-16 mx-auto mb-6 opacity-90" />
+                        {icon({ className: "h-16 w-16 mx-auto mb-6 opacity-90" })}
                         <h2 className="text-2xl lg:text-4xl font-bold leading-tight">{item.data.text}</h2>
                     </div>
                 </div>
             );
         default: return null;
     }
-};
+  };
 
   if (loading) {
       return (
