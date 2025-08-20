@@ -457,7 +457,7 @@ export default function AdValvas() {
   if (loading) {
     return (
       <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+        <div className="bg-white p-8 rounded-2xl shadow-sm">
           <div className="flex items-center space-x-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
             <span className="text-gray-700 font-medium">Sport dashboard laden...</span>
@@ -470,122 +470,122 @@ export default function AdValvas() {
   const currentTestData = testHighscores[currentTestIndex];
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
-        
-        {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
-        <div className="lg:hidden mb-8">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="flex items-center space-x-4">
-              <img 
-                src={school?.logo_url || "/logo.png"} 
-                alt="School Logo" 
-                className="h-12 w-auto object-contain rounded-lg shadow-sm" 
-                onError={(e) => { e.target.src = '/logo.png'; }} 
-              />
+    <div className="fixed inset-0 bg-slate-50 flex flex-col">
+      {/* Main Content Area - scrollable with fixed footer */}
+      <div className="flex-1 overflow-y-auto pb-16 lg:pb-16">
+        <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-16 lg:pb-8">
+          
+          {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
+          <div className="lg:hidden mb-8">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="flex items-center space-x-4">
+                <img 
+                  src={school?.logo_url || "/logo.png"} 
+                  alt="School Logo" 
+                  className="h-12 w-auto object-contain rounded-lg shadow-sm" 
+                  onError={(e) => { e.target.src = '/logo.png'; }} 
+                />
+                <div className="text-center">
+                  <h1 className="text-xl font-black text-gray-800 font-mono tracking-wider">
+                    Sport Dashboard
+                  </h1>
+                </div>
+              </div>
               <div className="text-center">
-                <h1 className="text-xl font-black text-gray-800 font-mono tracking-wider">
-                  Sport Dashboard
-                </h1>
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-black text-gray-800 font-mono tracking-wider">
-                {formatTime(currentTime)}
-              </div>
-              <div className="text-gray-600 text-sm">
-                {formatDate(currentTime)}
+                <div className="text-2xl font-black text-gray-800 font-mono tracking-wider">
+                  {formatTime(currentTime)}
+                </div>
+                <div className="text-gray-600 text-sm">
+                  {formatDate(currentTime)}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
-        <div className="hidden lg:block mb-12">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-6">
-              <img 
-                src={school?.logo_url || "/logo.png"} 
-                alt="School Logo" 
-                className="h-16 w-auto object-contain rounded-lg shadow-sm" 
-                onError={(e) => { e.target.src = '/logo.png'; }} 
-              />
-              <div>
-                <h1 className="text-3xl font-black text-gray-800 font-mono tracking-wider">
-                  Sport Dashboard
-                </h1>
+          {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
+          <div className="hidden lg:block mb-8">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-6">
+                <img 
+                  src={school?.logo_url || "/logo.png"} 
+                  alt="School Logo" 
+                  className="h-16 w-auto object-contain rounded-lg shadow-sm" 
+                  onError={(e) => { e.target.src = '/logo.png'; }} 
+                />
+                <div>
+                  <h1 className="text-3xl font-black text-gray-800 font-mono tracking-wider">
+                    Sport Dashboard
+                  </h1>
+                </div>
               </div>
-            </div>
-            
-            <div className="text-right">
-              <div className="text-4xl font-black text-gray-800 font-mono tracking-wider">
-                {formatTime(currentTime)}
-              </div>
-              <div className="text-gray-600 text-lg">
-                {formatDate(currentTime)}
+              
+              <div className="text-right">
+                <div className="text-4xl font-black text-gray-800 font-mono tracking-wider">
+                  {formatTime(currentTime)}
+                </div>
+                <div className="text-gray-600 text-lg">
+                  {formatDate(currentTime)}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Main Content */}
-        {testHighscores.length > 0 && currentTestData ? (
-          <div className={`transition-all duration-500 ${animationClass} mb-8`}>
-            {/* Test Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-5xl mx-auto">
-              <div className="text-center mb-8">
-                <h2 className="text-3xl lg:text-5xl font-bold text-gray-800 mb-4 tracking-tight flex items-center justify-center space-x-4">
-                  <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-2xl px-6 py-3 border border-purple-200">
-                    <Trophy className="h-6 w-6 lg:h-8 lg:w-8 text-purple-600" />
-                    <span className="text-purple-700 text-sm font-bold uppercase tracking-wider">Top 3</span>
-                  </div>
-                  <span>{currentTestData.test.naam}</span>
-                </h2>
-                <p className="text-gray-600 text-lg lg:text-xl">
-                  {currentTestData.test.categorie || 'Sporttest'}
+          {/* Main Content */}
+          {testHighscores.length > 0 && currentTestData ? (
+            <div className={`transition-all duration-500 ${animationClass} mb-8`}>
+              {/* Test Card */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-5xl mx-auto">
+                <div className="text-center mb-8">
+                  <h2 className="text-3xl lg:text-5xl font-bold text-gray-800 mb-4 tracking-tight flex items-center justify-center space-x-4">
+                    <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-2xl px-6 py-3 border border-purple-200">
+                      <Trophy className="h-6 w-6 lg:h-8 lg:w-8 text-purple-600" />
+                      <span className="text-purple-700 text-sm font-bold uppercase tracking-wider">Top 3</span>
+                    </div>
+                    <span>{currentTestData.test.naam}</span>
+                  </h2>
+                </div>
+
+                {/* Podium */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
+                  {currentTestData.scores.map((score, index) => (
+                    <PodiumCard key={score.id} score={score} position={index + 1} />
+                  ))}
+                </div>
+
+                {/* Test Indicator */}
+                <div className="flex justify-center space-x-2">
+                  {testHighscores.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                        currentTestIndex === index 
+                          ? 'bg-purple-600 scale-110' 
+                          : 'bg-gray-300 hover:bg-gray-400'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Empty State
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto mb-8">
+              <div className="mb-6">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trophy className="w-8 h-8 text-purple-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">Nog geen scores</h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Zodra er sportscores worden ingevoerd, verschijnen hier de toppers!
                 </p>
               </div>
-
-              {/* Podium */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
-                {currentTestData.scores.map((score, index) => (
-                  <PodiumCard key={score.id} score={score} position={index + 1} />
-                ))}
-              </div>
-
-              {/* Test Indicator */}
-              <div className="flex justify-center space-x-2">
-                {testHighscores.map((_, index) => (
-                  <div
-                    key={index}
-                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                      currentTestIndex === index 
-                        ? 'bg-purple-600 scale-110' 
-                        : 'bg-gray-300 hover:bg-gray-400'
-                    }`}
-                  />
-                ))}
-              </div>
             </div>
-          </div>
-        ) : (
-          // Empty State
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto mb-8">
-            <div className="mb-6">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trophy className="w-8 h-8 text-purple-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Nog geen scores</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Zodra er sportscores worden ingevoerd, verschijnen hier de toppers!
-              </p>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Live Sport News Ticker */}
-      <div className="bg-slate-900 border-t border-slate-700">
+      {/* Live Sport News Ticker - Fixed bottom, alleen zichtbaar op desktop */}
+      <div className="hidden lg:block bg-slate-900 border-t border-slate-700 fixed bottom-0 left-0 right-0 z-50">
         <div className="flex items-center h-16 overflow-hidden">
           <div className="flex items-center bg-red-600 px-4 h-full">
             <div className="flex items-center space-x-2">
@@ -610,7 +610,7 @@ export default function AdValvas() {
 
           <div className="flex items-center space-x-4 px-4 text-white/60">
             {lastNewsRefresh && (
-              <div className="hidden lg:flex items-center space-x-1 text-xs">
+              <div className="flex items-center space-x-1 text-xs">
                 <Clock className="h-3 w-3" />
                 <span>Laatste update: {formatTime(lastNewsRefresh)}</span>
               </div>
@@ -622,7 +622,7 @@ export default function AdValvas() {
               title="Vernieuw sport nieuws"
             >
               <Activity className={`h-4 w-4 ${newsLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden lg:inline">Refresh</span>
+              <span>Refresh</span>
             </button>
           </div>
         </div>
@@ -635,14 +635,6 @@ export default function AdValvas() {
         }
         .animate-marquee {
           animation: marquee 30s linear infinite;
-        }
-        
-        /* Mobile optimizations */
-        @media (max-width: 1024px) {
-          .animate-marquee {
-            animation: marquee 25s linear infinite;
-            font-size: 16px;
-          }
         }
       `}</style>
     </div>
