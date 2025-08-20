@@ -3,9 +3,9 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock } from 'lucide-react';
+import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity } from 'lucide-react';
 
-// --- Helper functies (blijven ongewijzigd) ---
+// --- Helper functies ---
 const formatNameForDisplay = (fullName) => {
   if (!fullName) return 'Onbekend';
   const nameParts = fullName.split(' ');
@@ -27,20 +27,30 @@ function formatScoreWithUnit(score, eenheid) {
   return `${score} ${eenheid}`;
 }
 
-// --- Hoofdcomponent ---
+// Mock sport nieuws data - in productie zou dit van een API komen
+const sportNews = [
+  "🥇 Nafi Thiam wint goud op Diamond League meeting in Brussel!",
+  "🏃‍♂️ Belgian Tornados lopen nieuw nationaal record op 4x400m",
+  "⚽ Rode Duivels kwalificeren zich voor EK 2024 finale",
+  "🏊‍♀️ Valentine Dumont plaatst zich voor Olympische Spelen",
+  "🚴‍♂️ Remco Evenepoel wint etappe in Tour de France",
+  "🏀 Belgian Lions bereiken kwartfinale op EuroBasket",
+  "🎾 Elise Mertens bereikt halve finale op Wimbledon",
+  "🏐 Yellow Tigers winnen Nations League wedstrijd"
+];
+
 export default function AdValvas() {
   const { profile, school } = useOutletContext();
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [currentTestIndex, setCurrentTestIndex] = useState(0);
   const [animationClass, setAnimationClass] = useState('');
-  const [scores, setScores] = useState([]); // Aangepast: generieke naam
-  const [displayMode, setDisplayMode] = useState('recent'); // Nieuwe state: 'recent' of 'highscore'
+  const [testHighscores, setTestHighscores] = useState([]); // Array van {test: testInfo, scores: top3Scores}
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ totalTests: 0, activeStudents: 0 });
+  const [newsIndex, setNewsIndex] = useState(0);
 
-  // AANGEPAST: De data-ophaling is nu veel slimmer
+  // Data ophalen
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchTestHighscores = async () => {
       if (!profile?.school_id) {
         setLoading(false);
         return;
@@ -48,108 +58,80 @@ export default function AdValvas() {
       setLoading(true);
 
       try {
-        // STAP 1: Probeer eerst recente scores op te halen
-        const recentScoresQuery = query(
-          collection(db, 'scores'),
+        // 1. Haal alle actieve testen op
+        const testenQuery = query(
+          collection(db, 'testen'),
           where('school_id', '==', profile.school_id),
-          orderBy('datum', 'desc'),
-          limit(10)
+          where('is_actief', '==', true)
         );
-        const recentScoresSnap = await getDocs(recentScoresQuery);
+        const testenSnap = await getDocs(testenQuery);
+        const allTests = testenSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        if (!recentScoresSnap.empty) {
-            // Als er recente scores zijn, toon die
-            setDisplayMode('recent');
-            const scoresData = recentScoresSnap.docs.map(d => ({ ...d.data(), id: d.id, datum: d.data().datum.toDate() }));
-            const enrichedScores = await enrichScoresWithTestData(scoresData);
-            setScores(enrichedScores);
-        } else {
-            // STAP 2: Geen recente scores? Haal all-time highscores op
-            setDisplayMode('highscore');
-            const highscores = await fetchAllTimeHighscores(profile.school_id);
-            setScores(highscores);
-        }
+        // 2. Voor elke test, haal de top 3 scores op
+        const testHighscorePromises = allTests.map(async (test) => {
+          const direction = test.score_richting === 'laag' ? 'asc' : 'desc';
+          const scoreQuery = query(
+            collection(db, 'scores'),
+            where('test_id', '==', test.id),
+            orderBy('score', direction),
+            limit(3)
+          );
+          const scoreSnap = await getDocs(scoreQuery);
+          
+          const scores = scoreSnap.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+            datum: doc.data().datum?.toDate ? doc.data().datum.toDate() : new Date(doc.data().datum)
+          }));
 
-        // Haal algemene statistieken op
-        const testenQuery = query(collection(db, 'testen'), where('school_id', '==', profile.school_id));
-        const leerlingenQuery = query(collection(db, 'toegestane_gebruikers'), where('school_id', '==', profile.school_id), where('rol', '==', 'leerling'));
-        const [testenSnap, leerlingenSnap] = await Promise.all([getDocs(testenQuery), getDocs(leerlingenQuery)]);
-        setStats({ totalTests: testenSnap.size, activeStudents: leerlingenSnap.size });
+          return scores.length > 0 ? { test, scores } : null;
+        });
+
+        const results = await Promise.all(testHighscorePromises);
+        const validResults = results.filter(Boolean);
+        setTestHighscores(validResults);
 
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching test highscores:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchTestHighscores();
   }, [profile?.school_id]);
 
-  // Helper om score-objecten te verrijken met testinformatie
-  const enrichScoresWithTestData = async (scoresArray) => {
-    const enriched = await Promise.all(
-      scoresArray.map(async (score) => {
-        const testDoc = await getDoc(doc(db, 'testen', score.test_id));
-        const testData = testDoc.exists() ? testDoc.data() : {};
-        return {
-          ...score,
-          test: testData.naam || 'Onbekende test',
-          eenheid: testData.eenheid || '',
-        };
-      })
-    );
-    return enriched;
-  };
-
-  // Helper om all-time highscores op te halen
-  const fetchAllTimeHighscores = async (schoolId) => {
-    // 1. Haal alle testen op
-    const testenQuery = query(collection(db, 'testen'), where('school_id', '==', schoolId));
-    const testenSnap = await getDocs(testenQuery);
-    const allTests = testenSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-    // 2. Voor elke test, haal de beste score op
-    const highscorePromises = allTests.map(async (test) => {
-      const direction = test.score_richting === 'laag' ? 'asc' : 'desc';
-      const scoreQuery = query(
-        collection(db, 'scores'),
-        where('test_id', '==', test.id),
-        orderBy('score', direction),
-        limit(1)
-      );
-      const scoreSnap = await getDocs(scoreQuery);
-      if (!scoreSnap.empty) {
-        const doc = scoreSnap.docs[0];
-        return { ...doc.data(), id: doc.id, datum: doc.data().datum.toDate(), test: test.naam, eenheid: test.eenheid };
-      }
-      return null;
-    });
-
-    const results = await Promise.all(highscorePromises);
-    return results.filter(Boolean); // Filter null-waarden (testen zonder scores) eruit
-  };
-
-
-  // Andere useEffects en functies (tijd, slides, etc.) blijven ongewijzigd
+  // Tijd updaten
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  // Test wisselen elke 5 seconden
   useEffect(() => {
+    if (testHighscores.length === 0) return;
+    
     const slideTimer = setInterval(() => {
       setAnimationClass('animate-pulse');
       setTimeout(() => {
-        setCurrentSlide((prev) => (prev + 1) % 4);
+        setCurrentTestIndex((prev) => (prev + 1) % testHighscores.length);
         setAnimationClass('');
-      }, 8000);
-    }, 8000);
+      }, 300);
+    }, 5000);
     return () => clearInterval(slideTimer);
+  }, [testHighscores.length]);
+
+  // Nieuws wisselen elke 8 seconden
+  useEffect(() => {
+    const newsTimer = setInterval(() => {
+      setNewsIndex((prev) => (prev + 1) % sportNews.length);
+    }, 8000);
+    return () => clearInterval(newsTimer);
   }, []);
   
-  const formatTime = (date) => date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit'});
-  const formatDate = (date) => date.toLocaleDateString('nl-NL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const formatTime = (date) => date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  const formatDate = (date) => date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+  
   const getRelativeTime = (date) => {
     const days = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
     if (days === 0) return 'Vandaag';
@@ -157,144 +139,183 @@ export default function AdValvas() {
     return `${days} dagen geleden`;
   };
 
-  // --- Kaart-componenten ---
-  const HighscoreCard = ({ score, rank }) => (
-     <div className={`bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 ${rank === 1 ? 'border-yellow-500' : rank === 2 ? 'border-gray-400' : rank === 3 ? 'border-orange-500' : 'border-purple-500'}`}>
-        <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${rank === 1 ? 'bg-yellow-500' : rank === 2 ? 'bg-gray-400' : rank === 3 ? 'bg-orange-500' : 'bg-purple-500'}`}>{rank}</div>
-                <div>
-                    <h4 className="font-semibold text-gray-900">{formatNameForDisplay(score.leerling_naam)}</h4>
-                    <p className="text-sm text-gray-500">{score.test}</p>
-                </div>
-            </div>
-            <div className="text-right">
-                <p className="text-2xl font-bold text-purple-700">{formatScoreWithUnit(score.score, score.eenheid)}</p>
-                <p className="text-xs text-gray-500">{getRelativeTime(score.datum)}</p>
-            </div>
+  const PodiumCard = ({ score, position }) => {
+    const podiumColors = {
+      1: { bg: 'bg-gradient-to-br from-yellow-400 to-yellow-600', text: 'text-yellow-900', icon: '🥇' },
+      2: { bg: 'bg-gradient-to-br from-gray-300 to-gray-500', text: 'text-gray-900', icon: '🥈' },
+      3: { bg: 'bg-gradient-to-br from-orange-400 to-orange-600', text: 'text-orange-900', icon: '🥉' }
+    };
+    
+    const style = podiumColors[position];
+    
+    return (
+      <div className={`${style.bg} rounded-3xl p-6 text-center shadow-2xl transform hover:scale-105 transition-all duration-300 ${position === 1 ? 'scale-110' : ''}`}>
+        <div className="text-4xl mb-3">{style.icon}</div>
+        <div className={`${style.text} font-bold text-xl mb-2`}>
+          {formatNameForDisplay(score.leerling_naam)}
         </div>
-    </div>
-  );
-
-  const StatsCard = ({ icon: Icon, title, value, color }) => (
-    <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-500 text-sm font-medium">{title}</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
+        <div className={`${style.text} text-3xl font-black mb-2`}>
+          {formatScoreWithUnit(score.score, score.eenheid || '')}
         </div>
-        <div className={`p-3 rounded-full ${color}`}><Icon className="h-6 w-6 text-white" /></div>
+        <div className={`${style.text} opacity-80 text-sm`}>
+          {getRelativeTime(score.datum)}
+        </div>
       </div>
-    </div>
-  );
-
-  // AANGEPAST: De slide-weergave past de titels aan op basis van de displayMode
-  const renderCurrentSlide = () => {
-    switch (currentSlide) {
-      case 0: case 1:
-        return (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                {displayMode === 'recent' ? '⭐ Recente Prestaties' : '🏆 All-Time Highscores'}
-              </h2>
-              <p className="text-gray-600">
-                {displayMode === 'recent' ? 'De laatste topscores van onze school!' : 'De schoolrecords voor elke test.'}
-              </p>
-            </div>
-            <div className="space-y-4">
-              {scores.slice(0, 5).map((score, index) => (
-                <HighscoreCard key={score.id} score={score} rank={index + 1} />
-              ))}
-            </div>
-          </div>
-        );
-        
-      case 2:
-        return (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">📊 School Statistieken</h2>
-              <p className="text-gray-600">Onze prestaties in cijfers</p>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-2 gap-6">
-              <StatsCard icon={Target} title="Actieve Testen" value={stats.totalTests} color="bg-purple-500" />
-              <StatsCard icon={Users} title="Deelnemers" value={stats.activeStudents} color="bg-blue-500" />
-            </div>
-          </div>
-        );
-        
-      case 3:
-        return (
-          <div className="text-center space-y-8">
-            <div className="bg-gradient-to-br from-purple-600 via-blue-600 to-teal-600 rounded-3xl p-12 text-white shadow-2xl">
-              <Zap className="h-16 w-16 mx-auto mb-6 animate-bounce" />
-              <h2 className="text-4xl font-bold mb-4">Blijf in beweging!</h2>
-              <p className="text-xl text-purple-100">"De enige wedstrijd die ertoe doet, is die tegen jezelf van gisteren"</p>
-            </div>
-          </div>
-        );
-        
-      default: return null;
-    }
+    );
   };
 
   if (loading) {
     return (
-        <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center">
-            <div className="bg-white p-8 rounded-2xl shadow-sm">
-                <div className="flex items-center space-x-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                    <span className="text-gray-700 font-medium">Ad Valvas laden...</span>
-                </div>
-            </div>
+      <div className="fixed inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+        <div className="bg-white/10 backdrop-blur-md p-8 rounded-3xl shadow-2xl border border-white/20">
+          <div className="flex items-center space-x-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/30 border-t-white"></div>
+            <span className="text-white text-xl font-medium">Laden...</span>
+          </div>
         </div>
+      </div>
     );
   }
 
+  const currentTestData = testHighscores[currentTestIndex];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
-      <div className="bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20 mb-8">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-             <div className="flex items-center space-x-4">
-                <img src={school?.logo_url || "/logo.png"} alt="School Logo" className="h-12 w-auto object-contain" onError={(e) => { e.target.src = '/logo.png'; }} />
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Ad Valvas</h1>
-                    <p className="text-gray-600">Digitaal Prikbord - {school?.naam}</p>
-                </div>
-             </div>
-             <div className="text-right">
-                <div className="text-3xl font-bold text-purple-700 font-mono">{formatTime(currentTime)}</div>
-                <div className="text-sm text-gray-600">{formatDate(currentTime)}</div>
-             </div>
+    <div className="fixed inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl animate-pulse"></div>
+      </div>
+
+      {/* Header */}
+      <div className="relative z-10 bg-black/20 backdrop-blur-md border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+            <div className="flex items-center space-x-4">
+              <img 
+                src={school?.logo_url || "/logo.png"} 
+                alt="School Logo" 
+                className="h-12 sm:h-16 w-auto object-contain rounded-lg shadow-lg" 
+                onError={(e) => { e.target.src = '/logo.png'; }} 
+              />
+              <div className="text-center sm:text-left">
+                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  {school?.naam || 'Sportscores'}
+                </h1>
+                <p className="text-blue-200 text-sm sm:text-base font-medium">Sport Dashboard</p>
+              </div>
+            </div>
+            
+            <div className="text-center sm:text-right">
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">
+                {formatTime(currentTime)}
+              </div>
+              <div className="text-blue-200 text-sm sm:text-base font-medium">
+                {formatDate(currentTime)}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 pb-8">
-        <div className={`transition-all duration-300 ${animationClass}`}>
-          {scores.length > 0 ? renderCurrentSlide() : (
-            <div className="text-center py-16">
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 max-w-2xl mx-auto">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Trophy className="w-8 h-8 text-purple-600" />
+      {/* Main Content */}
+      <div className="relative z-10 flex-1 overflow-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {testHighscores.length > 0 && currentTestData ? (
+            <div className={`transition-all duration-500 ${animationClass}`}>
+              {/* Test Title */}
+              <div className="text-center mb-8 sm:mb-12">
+                <div className="inline-flex items-center space-x-3 bg-white/10 backdrop-blur-md rounded-2xl px-6 py-3 mb-4">
+                  <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-400" />
+                  <span className="text-white text-xs sm:text-sm font-medium uppercase tracking-wider">Top 3</span>
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Welkom bij Ad Valvas</h3>
-                <p className="text-slate-600 leading-relaxed">Zodra er scores worden ingevoerd, verschijnen hier de nieuwste prestaties en records!</p>
+                <h2 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white mb-4 tracking-tight">
+                  {currentTestData.test.naam}
+                </h2>
+                <p className="text-blue-200 text-lg sm:text-xl font-medium">
+                  {currentTestData.test.categorie || 'Sporttest'}
+                </p>
+              </div>
+
+              {/* Podium */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 mb-8">
+                {currentTestData.scores.map((score, index) => (
+                  <PodiumCard key={score.id} score={score} position={index + 1} />
+                ))}
+              </div>
+
+              {/* Test Indicator */}
+              <div className="flex justify-center space-x-2 mb-8">
+                {testHighscores.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                      currentTestIndex === index 
+                        ? 'bg-white scale-110' 
+                        : 'bg-white/30 hover:bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            // Empty State
+            <div className="flex items-center justify-center h-96">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Trophy className="w-10 h-10 text-white/60" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">Nog geen scores</h3>
+                <p className="text-blue-200 max-w-md">
+                  Zodra er sportscores worden ingevoerd, verschijnen hier de toppers!
+                </p>
               </div>
             </div>
           )}
         </div>
-
-        {scores.length > 0 && (
-          <div className="flex justify-center mt-8 space-x-2">
-            {[0, 1, 2, 3].map((index) => (
-              <button key={index} onClick={() => setCurrentSlide(index)} className={`w-3 h-3 rounded-full transition-all duration-300 ${currentSlide === index ? 'bg-purple-600 scale-110' : 'bg-gray-300 hover:bg-gray-400'}`} />
-            ))}
-          </div>
-        )}
       </div>
+
+      {/* Sport News Ticker */}
+      <div className="relative z-10 bg-black border-t border-white/10">
+        <div className="flex items-center h-16 overflow-hidden">
+          <div className="flex items-center bg-red-600 px-4 h-full">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              <span className="text-white font-bold text-sm uppercase tracking-wider">Live Sport</span>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-hidden">
+            <div className="animate-marquee whitespace-nowrap text-white text-lg font-medium py-5">
+              {sportNews[newsIndex]} • {sportNews[(newsIndex + 1) % sportNews.length]} • {sportNews[(newsIndex + 2) % sportNews.length]} • 
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 px-4 text-white/60">
+            <Clock className="h-4 w-4" />
+            <span className="text-sm">Updates elke 8s</span>
+          </div>
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes marquee {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+          animation: marquee 25s linear infinite;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+          .animate-marquee {
+            animation: marquee 20s linear infinite;
+            font-size: 16px;
+          }
+        }
+      `}</style>
     </div>
   );
 }
