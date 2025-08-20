@@ -321,8 +321,7 @@ export default function GroupDetail() {
                         <li key={lid.id} className="flex items-center py-4 space-x-4">
                             <div className="flex-1 min-w-0">
                                 <p className="text-md font-medium text-gray-900 truncate">{lid.naam}</p>
-                                <p className="text-sm text-gray-500 truncate">{lid.email}</p>
-                                
+                      
                                 {/* AANGEPAST: Weergave van afgenomen testen */}
                                 {loadingScores ? (
                                     <p className="text-xs text-gray-400 mt-2">Testgeschiedenis laden...</p>
