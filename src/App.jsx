@@ -24,6 +24,7 @@ import NieuweTestafname from './pages/NieuweTestafname';
 import GroupDetail from './pages/GroupDetail';
 import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
 import SchoolBeheer from './pages/SchoolBeheer';
+import AdValvas from './pages/adValvas';
 
 // Helper-component voor de magic link (onveranderd)
 function HandleAuthRedirect() {
@@ -168,7 +169,7 @@ useEffect(() => {
 
                 <Route element={<ProtectedRoute profile={profile} school={school} />}>
                     <Route element={<Layout />}>
-                        <Route path="/" element={<AdValvasDashboard />} />
+                        <Route path="/" element={<AdValvas />} />
                         <Route path="/highscores" element={<Highscores />} />
                         <Route path="/evolutie" element={<Evolutie />} />
                         <Route path="/leerlingbeheer" element={<Leerlingbeheer />} />
