@@ -6,27 +6,29 @@ import { onAuthStateChanged, isSignInWithEmailLink, signInWithEmailLink } from '
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { setupNetworkMonitoring } from './utils/firebaseUtils';
 
-
+// Component Imports
 import Login from './Login';
 import Register from './register';
 import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+import SetupAccount from './pages/SetupAccount';
+import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
+import SchoolBeheer from './pages/SchoolBeheer';
+
+// Pagina Imports
+import AdValvas from './pages/adValvas'; // AANGEPAST: Correcte import
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
-import SetupAccount from './pages/SetupAccount';
-import ProtectedRoute from './components/ProtectedRoute';
 import Leerlingbeheer from './pages/Leerlingbeheer';
 import Groepsbeheer from './pages/Groepsbeheer';
+import GroupDetail from './pages/GroupDetail';
 import Testbeheer from './pages/Testbeheer';
 import TestDetailBeheer from './pages/TestDetailBeheer';
 import ScoresOverzicht from './pages/ScoresOverzicht';
 import TestafnameDetail from './pages/TestafnameDetail';
 import NieuweTestafname from './pages/NieuweTestafname';
-import GroupDetail from './pages/GroupDetail';
-import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
-import SchoolBeheer from './pages/SchoolBeheer';
-import AdValvas from './pages/adValvas';
 
-// Helper-component voor de magic link (onveranderd)
+
 function HandleAuthRedirect() {
     const navigate = useNavigate();
     useEffect(() => {
@@ -57,13 +59,11 @@ function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [school, setSchool] = useState(null);
-  const [loading, setLoading] = useState(true); // Start altijd met laden
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Deze listener is de ENIGE bron van waarheid voor de login-status.
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      // Als de gebruiker uitlogt, wissen we alles en stoppen we met laden.
       if (!currentUser) {
         setProfile(null);
         setSchool(null);
@@ -73,74 +73,53 @@ function App() {
     return () => unsubscribeAuth();
   }, []);
   
-useEffect(() => {
+  useEffect(() => {
     setupNetworkMonitoring();
-}, []);
+  }, []);
 
   useEffect(() => {
-    // Dit effect wordt actief zodra er een gebruiker is.
     if (!user) return;
-
-    // We zetten een real-time listener op voor het profieldocument.
     const unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
       if (docSnap.exists()) {
         setProfile(docSnap.data());
       } else {
-        // EERSTE LOGIN: Het profiel bestaat nog niet. We maken het aan.
         const allowedUserRef = doc(db, 'toegestane_gebruikers', user.email);
         const allowedUserSnap = await getDoc(allowedUserRef);
-
         if (allowedUserSnap.exists()) {
           const initialProfileData = allowedUserSnap.data();
           initialProfileData.email = user.email;
           initialProfileData.onboarding_complete = false;
-          
           await setDoc(doc(db, 'users', user.uid), initialProfileData);
         } else {
-            // Gebruiker is niet toegestaan, maar heeft wel een account.
-            // We stoppen met laden zodat de ProtectedRoute hem kan afhandelen.
             setLoading(false);
         }
       }
     });
-
     return () => unsubscribeProfile();
   }, [user]);
 
   useEffect(() => {
-    // Dit effect wordt actief zodra het profiel is geladen.
     if (!profile) {
-        // Als er een gebruiker is maar (nog) geen profiel, blijven we laden.
-        // Tenzij de gebruiker is uitgelogd, dan is loading al false.
         if(user) setLoading(true);
         return;
     };
-
     if (!profile.school_id) {
-        // Als er een profiel is, maar geen school_id (bv. tijdens onboarding),
-        // zijn we klaar met laden voor dit stadium.
         setSchool(null);
         setLoading(false);
         return;
     }
-
-    // Haal de schoolgegevens op.
     const unsubscribeSchool = onSnapshot(doc(db, 'scholen', profile.school_id), (schoolSnap) => {
       if (schoolSnap.exists()) {
         setSchool({ id: schoolSnap.id, ...schoolSnap.data() });
       } else {
-        console.error("School document niet gevonden!");
         setSchool(null);
       }
-      // DIT is het laatste wat we laden. Nu mag de app getoond worden.
       setLoading(false);
     });
-
     return () => unsubscribeSchool;
-  }, [profile, user]); // Afhankelijk van user en profile
+  }, [profile, user]);
 
   if (loading) {
-    // Toon een laadscherm om de "flits" te voorkomen
     return (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f9fafb' }}>
             <div style={{ border: '4px solid rgba(0, 0, 0, 0.1)', width: '36px', height: '36px', borderRadius: '50%', borderLeftColor: '#8b5cf6', animation: 'spin 1s ease infinite' }}></div>
@@ -169,7 +148,9 @@ useEffect(() => {
 
                 <Route element={<ProtectedRoute profile={profile} school={school} />}>
                     <Route element={<Layout />}>
+                        {/* AANGEPAST: De route voor de homepagina gebruikt nu de correcte 'AdValvas' component */}
                         <Route path="/" element={<AdValvas />} />
+                        
                         <Route path="/highscores" element={<Highscores />} />
                         <Route path="/evolutie" element={<Evolutie />} />
                         <Route path="/leerlingbeheer" element={<Leerlingbeheer />} />
