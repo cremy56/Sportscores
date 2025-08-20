@@ -4,9 +4,10 @@ import { useOutletContext, useNavigate, Link } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { collection, query, where, getDocs, writeBatch, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
-// --- HELPER FUNCTION 1: CALCULATE AGE ---
+// --- HELPER FUNCTIES (bovenaan het bestand) ---
+
 function calculateAge(birthDate, testDate) {
     if (!birthDate || !testDate) return null;
     let age = testDate.getFullYear() - birthDate.getFullYear();
@@ -17,83 +18,39 @@ function calculateAge(birthDate, testDate) {
     return age;
 }
 
-// --- HELPER FUNCTION 2: FETCH NORMS AND CALCULATE POINT ---
 async function calculatePuntFromScore(test, leerling, score, testDatum) {
     if (!test || !leerling || score === null || isNaN(score)) return null;
-
     try {
         const { geboortedatum, geslacht } = leerling;
         if (!geboortedatum || !geslacht) return null;
-
         const leeftijd = calculateAge(geboortedatum.toDate(), testDatum);
-        const normAge = Math.min(leeftijd, 17); // Norms are capped at age 17
-
+        const normAge = Math.min(leeftijd, 17);
         const normRef = doc(db, 'normen', test.id);
         const normSnap = await getDoc(normRef);
-
-        if (!normSnap.exists()) {
-             console.warn(`No norm document found with ID: ${test.id}`);
-             return null;
-        }
-
+        if (!normSnap.exists()) return null;
         const { punten_schaal, score_richting } = normSnap.data();
         if (!punten_schaal || punten_schaal.length === 0) return null;
-        
         const genderMapping = { 'man': 'M', 'vrouw': 'V', 'jongen': 'M', 'meisje': 'V' };
         const mappedGender = genderMapping[geslacht.toLowerCase()] || geslacht.toUpperCase();
-
-        const relevantNorms = punten_schaal
-            .filter(n => n.leeftijd === normAge && n.geslacht === mappedGender)
-            .sort((a, b) => a.punt - b.punt);
-
-        if (relevantNorms.length === 0) {
-            console.warn(`No relevant norms for age: ${normAge}, gender: ${mappedGender}`);
-            return null;
-        }
-
-        // ▼▼▼ UPDATED LOGIC START ▼▼▼
-
+        const relevantNorms = punten_schaal.filter(n => n.leeftijd === normAge && n.geslacht === mappedGender).sort((a, b) => a.punt - b.punt);
+        if (relevantNorms.length === 0) return null;
         let lowerBoundNorm = null;
-
-        // Find the highest norm that the score meets
         for (const norm of relevantNorms) {
-            const meetsRequirement = score_richting === 'laag' 
-                ? score <= norm.score_min 
-                : score >= norm.score_min;
-
+            const meetsRequirement = score_richting === 'laag' ? score <= norm.score_min : score >= norm.score_min;
             if (meetsRequirement) {
                 lowerBoundNorm = norm;
             } else {
-                // For 'hoog' scores, we can stop early once a norm isn't met
                 if (score_richting === 'hoog') break;
             }
         }
-
-        // If no norm was met, return 0
-        if (!lowerBoundNorm) {
-            return 0;
-        }
-
+        if (!lowerBoundNorm) return 0;
         let finalPunt = lowerBoundNorm.punt;
-        
-        // Find the next norm level to check for interpolation
         const upperBoundNorm = relevantNorms.find(n => n.punt === lowerBoundNorm.punt + 1);
-
         if (upperBoundNorm) {
-            const isBetweenNorms = score_richting === 'laag'
-                ? score < lowerBoundNorm.score_min // Better score is smaller
-                : score > lowerBoundNorm.score_min; // Better score is larger
-            
-            // If the score is not exactly on the threshold but better, add 0.5
-            if (isBetweenNorms) {
-                finalPunt += 0.5;
-            }
+            const isBetweenNorms = score_richting === 'laag' ? score < lowerBoundNorm.score_min : score > lowerBoundNorm.score_min;
+            if (isBetweenNorms) finalPunt += 0.5;
         }
-        
         return finalPunt;
-        
-        // ▲▲▲ UPDATED LOGIC END ▲▲▲
-
     } catch (error) {
         console.error("Error during point calculation:", error);
         toast.error("Kon punt niet berekenen.");
@@ -108,6 +65,21 @@ function getScoreColorClass(punt) {
     return 'text-green-600';
 }
 
+// NIEUW: Helper functie om tijd geleden te formatteren
+function formatTimeAgo(date) {
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " jaar geleden";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " maand(en) geleden";
+    interval = seconds / 86400;
+    if (interval > 7) return Math.floor(interval / 7) + " week/weken geleden";
+    if (interval > 1) return Math.floor(interval) + " dag(en) geleden";
+    return "Vandaag";
+}
+
+// --- HOOFDCOMPONENT ---
 export default function NieuweTestafname() {
     const { profile } = useOutletContext();
     const [groepen, setGroepen] = useState([]);
@@ -122,6 +94,9 @@ export default function NieuweTestafname() {
     const navigate = useNavigate();
     const debounceTimeoutRef = useRef(null);
 
+    // NIEUW: State voor de waarschuwings-popup
+    const [warningModal, setWarningModal] = useState({ isOpen: false, message: '', onConfirm: null, onCancel: null });
+    
     // Fetch initial data (groups and tests)
     useEffect(() => {
         if (!profile?.school_id) return;
@@ -152,7 +127,6 @@ export default function NieuweTestafname() {
             setLeerlingen([]);
             return;
         }
-
         const fetchLeerlingen = async () => {
             if (!selectedGroep.leerling_ids || selectedGroep.leerling_ids.length === 0) {
                  setLeerlingen([]);
@@ -163,54 +137,82 @@ export default function NieuweTestafname() {
             const leerlingenData = snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
             setLeerlingen(leerlingenData.sort((a, b) => a.data.naam.localeCompare(b.data.naam)));
         };
-
         fetchLeerlingen();
-        setScores({}); // Reset scores when group changes
+        setScores({});
     }, [selectedGroep]);
 
-    // Debounced effect to calculate points after user stops typing
+    // NIEUW: Effect om te controleren op recente testafnames
     useEffect(() => {
-        if (debounceTimeoutRef.current) {
-            clearTimeout(debounceTimeoutRef.current);
-        }
+        const checkForRecentTests = async () => {
+            if (!selectedGroep || !selectedTest || !selectedGroep.leerling_ids || selectedGroep.leerling_ids.length === 0) {
+                return;
+            }
 
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+            
+            const scoresQuery = query(collection(db, 'scores'),
+                where('test_id', '==', selectedTest.id),
+                where('leerling_id', 'in', selectedGroep.leerling_ids),
+                where('datum', '>=', oneMonthAgo)
+            );
+
+            const querySnapshot = await getDocs(scoresQuery);
+            if (!querySnapshot.empty) {
+                const recentScores = querySnapshot.docs.map(d => d.data());
+                const recentAfname = recentScores.sort((a, b) => b.datum.toMillis() - a.datum.toMillis())[0];
+                const afnameDatum = recentAfname.datum.toDate();
+                const leerkrachtId = recentAfname.leerkracht_id;
+                
+                let leerkrachtNaam = 'een leerkracht';
+                if (leerkrachtId) {
+                    const leerkrachtDoc = await getDoc(doc(db, 'toegestane_gebruikers', leerkrachtId));
+                    if (leerkrachtDoc.exists()) {
+                        leerkrachtNaam = leerkrachtDoc.data().naam;
+                    }
+                }
+
+                const affectedStudentsCount = new Set(recentScores.map(s => s.leerling_id)).size;
+                
+                setWarningModal({
+                    isOpen: true,
+                    message: `${affectedStudentsCount} leerling(en) van deze groep hebben deze test ${formatTimeAgo(afnameDatum)} reeds afgelegd bij ${leerkrachtNaam}.`,
+                    onConfirm: () => setWarningModal({ isOpen: false, message: '', onConfirm: null, onCancel: null }),
+                    onCancel: () => {
+                        setSelectedTest(null);
+                        setWarningModal({ isOpen: false, message: '', onConfirm: null, onCancel: null });
+                    }
+                });
+            }
+        };
+
+        checkForRecentTests();
+    }, [selectedGroep, selectedTest]);
+
+    // Debounced effect to calculate points
+    useEffect(() => {
+        if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
         const studentIdToCalculate = Object.keys(scores).find(id => scores[id]?.isCalculating);
-
         if (studentIdToCalculate && selectedTest) {
             debounceTimeoutRef.current = setTimeout(async () => {
                 const leerling = leerlingen.find(l => l.id === studentIdToCalculate);
                 const scoreToCalc = scores[studentIdToCalculate];
-                
-                // Handle comma as decimal separator
                 const scoreValue = parseFloat(String(scoreToCalc.score).replace(',', '.'));
-
                 if (!isNaN(scoreValue) && leerling) {
                     const newPunt = await calculatePuntFromScore(selectedTest, leerling.data, scoreValue, new Date(datum));
-                    setScores(prev => ({
-                        ...prev,
-                        [studentIdToCalculate]: { ...prev[studentIdToCalculate], rapportpunt: newPunt, isCalculating: false }
-                    }));
+                    setScores(prev => ({ ...prev, [studentIdToCalculate]: { ...prev[studentIdToCalculate], rapportpunt: newPunt, isCalculating: false } }));
                 } else {
-                    setScores(prev => ({
-                        ...prev,
-                        [studentIdToCalculate]: { ...prev[studentIdToCalculate], rapportpunt: null, isCalculating: false }
-                    }));
+                    setScores(prev => ({ ...prev, [studentIdToCalculate]: { ...prev[studentIdToCalculate], rapportpunt: null, isCalculating: false } }));
                 }
-            }, 500); // 500ms debounce delay
+            }, 500);
         }
-
         return () => clearTimeout(debounceTimeoutRef.current);
     }, [scores, selectedTest, datum, leerlingen]);
 
     const handleScoreChange = (leerlingId, newScore) => {
         setScores(prev => ({
             ...prev,
-            [leerlingId]: { 
-                ...prev[leerlingId], 
-                score: newScore, 
-                rapportpunt: null,
-                isCalculating: true 
-            }
+            [leerlingId]: { ...prev[leerlingId], score: newScore, rapportpunt: null, isCalculating: true }
         }));
     };
 
@@ -272,6 +274,34 @@ export default function NieuweTestafname() {
 
     return (
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+            {/* NIEUW: Waarschuwings-popup */}
+            {warningModal.isOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-lg">
+                        <div className="flex items-center mb-4">
+                            <ExclamationTriangleIcon className="h-8 w-8 text-yellow-500 mr-3" />
+                            <h3 className="text-lg font-bold text-gray-900">Recente Testafname Gevonden</h3>
+                        </div>
+                        <p className="text-gray-600 mb-6">{warningModal.message}</p>
+                        <p className="text-gray-800 font-medium mb-6">Wenst u deze test toch opnieuw af te nemen?</p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={warningModal.onCancel}
+                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                            >
+                                Nee
+                            </button>
+                            <button
+                                onClick={warningModal.onConfirm}
+                                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                            >
+                                Ja
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
                 <div className="max-w-4xl mx-auto">
                     <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
