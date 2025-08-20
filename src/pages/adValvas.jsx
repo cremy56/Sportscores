@@ -1,9 +1,9 @@
 // src/pages/adValvas.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Trophy, Quote, Flame, BookOpen, BarChart3, Clock } from 'lucide-react';
+import { Trophy, Quote, Flame, BookOpen, BarChart3, TrendingDown, Clock, Activity } from 'lucide-react';
 
 // --- Helper functies ---
 const formatNameForDisplay = (fullName) => {
@@ -27,6 +27,14 @@ function formatScoreWithUnit(score, eenheid) {
   return `${score} ${eenheid}`;
 }
 
+const getRelativeTime = (date) => {
+    const days = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
+    if (days === 0) return 'Vandaag';
+    if (days === 1) return 'Gisteren';
+    return `${days} dagen geleden`;
+};
+
+
 // --- Fallback Data ---
 const FALLBACK_QUOTES = [
   { text: "De enige slechte training is de training die je niet doet.", author: "Onbekend" },
@@ -35,6 +43,7 @@ const FALLBACK_QUOTES = [
 const FALLBACK_FACTS = [
   "Wist je dat 30 minuten sporten per dag je risico op hartziekte met 40% vermindert?"
 ];
+
 
 // --- Live Data Functies ---
 async function fetchLiveQuote() {
@@ -54,6 +63,7 @@ async function fetchLiveFact() {
         const response = await fetch('https://uselessfacts.jsph.pl/random.json?language=en');
         if (!response.ok) throw new Error('API response not OK');
         const data = await response.json();
+        // Noot: Dit is een algemene feiten-API. Een specifieke, gratis sport-feiten API is moeilijk te vinden.
         return `Wist je dat: ${data.text}`;
     } catch (error) {
         console.warn("Live fact API mislukt, fallback wordt gebruikt.", error);
@@ -61,36 +71,6 @@ async function fetchLiveFact() {
     }
 }
 
-// AANGEPAST: Functie om live sportnieuws op te halen
-async function fetchSportsNews() {
-    const rssFeeds = [
-        'https://www.sporza.be/nl/feeds/rss.xml',
-        'https://www.hln.be/sport/rss.xml',
-        'https://nos.nl/rss/sport.xml'
-    ];
-    
-    const promises = rssFeeds.map(feedUrl => 
-        fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`)
-            .then(response => {
-                if (!response.ok) throw new Error(`Feed error: ${response.status}`);
-                return response.json();
-            })
-    );
-    
-    const results = await Promise.allSettled(promises);
-    
-    let allItems = [];
-    results.forEach(result => {
-        if (result.status === 'fulfilled' && result.value.status === 'ok') {
-            allItems.push(...result.value.items);
-        } else {
-            console.warn('Kon een RSS feed niet laden:', result.reason || result.value?.message);
-        }
-    });
-
-    // Shuffle en limiteer het aantal items
-    return allItems.sort(() => 0.5 - Math.random()).slice(0, 15);
-}
 
 // --- Hoofdcomponent ---
 export default function AdValvas() {
@@ -100,7 +80,6 @@ export default function AdValvas() {
   const [currentContentIndex, setCurrentContentIndex] = useState(0);
   const [animationClass, setAnimationClass] = useState('');
   const [loading, setLoading] = useState(true);
-  const [tickerText, setTickerText] = useState('Recente sportprestaties worden geladen...'); // State voor de live feed
 
   // Data ophalen en content genereren
   useEffect(() => {
@@ -110,7 +89,9 @@ export default function AdValvas() {
         return;
       }
       setLoading(true);
+
       try {
+        // Stap 1: Haal de 10 meest recente scores op
         const recentScoresQuery = query(
           collection(db, 'scores'),
           where('school_id', '==', profile.school_id),
@@ -119,63 +100,70 @@ export default function AdValvas() {
         );
         const recentScoresSnap = await getDocs(recentScoresQuery);
         const recentScores = recentScoresSnap.docs.map(d => ({ ...d.data(), id: d.id, datum: d.data().datum.toDate() }));
+        
+        // Stap 2: Genereer content op basis van de opgehaalde scores
         const items = await generateContentItems(recentScores);
         setContentItems(items);
+
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
+
     fetchDataAndGenerateContent();
   }, [profile?.school_id]);
   
-  // AANGEPAST: Aparte useEffect om de live nieuwsfeed te laden
-  useEffect(() => {
-    const loadNews = async () => {
-      const newsItems = await fetchSportsNews();
-      if (newsItems.length > 0) {
-        const tickerString = newsItems.map(item => item.title).join(' • ');
-        setTickerText(tickerString);
-      } else {
-        setTickerText('Geen recent sportnieuws gevonden.');
-      }
-    };
-    loadNews();
-  }, []);
-
   // Functie om de content voor de carrousel te genereren
   const generateContentItems = async (recentScores) => {
     const items = [];
+    
+    // --- CONDITIONELE CONTENT: Dagelijkse Activiteit ---
     const today = new Date().toDateString();
     const todaysScores = recentScores.filter(s => s.datum.toDateString() === today);
     if (todaysScores.length > 0) {
         const groupCount = new Set(todaysScores.map(s => s.groep_id)).size;
         const groupText = groupCount === 1 ? '1 klas' : `${groupCount} klassen`;
-        items.push({ type: 'daily_activity', data: { text: `Vandaag waren er sporttesten in ${groupText}! 💪` }, priority: 4 });
+        items.push({
+            type: 'daily_activity',
+            data: { text: `Vandaag waren er sporttesten in ${groupText}! 💪` },
+            priority: 4
+        });
     }
 
+    // --- CONDITIONELE CONTENT: Breaking News (Nieuwe Records) ---
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const veryRecentScores = recentScores.filter(s => s.datum >= yesterday);
+
     for (const score of veryRecentScores) {
         const testDoc = await getDoc(doc(db, 'testen', score.test_id));
         if (!testDoc.exists()) continue;
+        
         const testData = testDoc.data();
         const direction = testData.score_richting === 'laag' ? 'asc' : 'desc';
+
         const recordQuery = query(collection(db, 'scores'), where('test_id', '==', score.test_id), orderBy('score', direction), limit(1));
         const recordSnap = await getDocs(recordQuery);
+
+        // Als de recente score HET all-time record is, maak een nieuwsitem
         if (!recordSnap.empty && recordSnap.docs[0].id === score.id) {
             items.push({
                 type: 'breaking_news',
-                data: { text: `🔥 NIEUW RECORD! ${formatNameForDisplay(score.leerling_naam)} verbeterde het schoolrecord ${testData.naam} met ${formatScoreWithUnit(score.score, testData.eenheid)}!` },
+                data: {
+                    text: `🔥 NIEUW RECORD! ${formatNameForDisplay(score.leerling_naam)} verbeterde het schoolrecord ${testData.naam} met ${formatScoreWithUnit(score.score, testData.eenheid)}!`,
+                },
                 priority: 5
             });
         }
     }
 
+    // --- Dynamische content ---
     items.push({ type: 'quote', data: await fetchLiveQuote(), priority: 2 });
     items.push({ type: 'sport_fact', data: { text: await fetchLiveFact() }, priority: 1 });
+
+    // Sorteer op prioriteit (hoogste eerst) en retourneer
     return items.sort((a, b) => b.priority - a.priority);
   };
   
@@ -200,7 +188,7 @@ export default function AdValvas() {
   const formatTime = (date) => date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
   const formatDate = (date) => date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
   
-  // Render Functies
+  // --- Render Functies ---
   const renderContentItem = (item) => {
     switch (item.type) {
         case 'quote':
@@ -297,34 +285,6 @@ export default function AdValvas() {
           )}
         </div>
       </div>
-      
-      {/* AANGEPAST: Live Ticker onderaan */}
-      <div className="bg-gray-900 text-white p-4 overflow-hidden mt-auto">
-          <div className="flex items-center space-x-4 mb-2">
-            <div className="bg-red-500 px-3 py-1 rounded-full text-sm font-semibold">
-              LIVE
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-400">
-              <Clock className="h-4 w-4" />
-              <span>Recent Sportnieuws</span>
-            </div>
-          </div>
-          <div className="text-lg">
-            <div className="animate-marquee whitespace-nowrap">
-              {tickerText}
-            </div>
-          </div>
-      </div>
-      
-       <style jsx>{`
-        @keyframes marquee {
-          0% { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
-        }
-        .animate-marquee {
-          animation: marquee 45s linear infinite;
-        }
-      `}</style>
     </div>
   );
 }
