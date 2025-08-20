@@ -168,7 +168,8 @@ useEffect(() => {
 
                 <Route element={<ProtectedRoute profile={profile} school={school} />}>
                     <Route element={<Layout />}>
-                        <Route path="/" element={<Highscores />} />
+                        <Route path="/" element={<AdValvasDashboard />} />
+                        <Route path="/highscores" element={<Highscores />} />
                         <Route path="/evolutie" element={<Evolutie />} />
                         <Route path="/leerlingbeheer" element={<Leerlingbeheer />} />
                         <Route path="/groepsbeheer" element={<Groepsbeheer />} />

@@ -31,7 +31,8 @@ export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const routeTitles = {
-    '/': 'Highscores',
+    '/': 'Home',
+    '/highscores': 'Highscores',
     '/evolutie': evolutieLinkText,
     '/groepsbeheer': 'Groepsbeheer',
     '/scores': 'Scores',
@@ -89,6 +90,11 @@ export default function Layout() {
           <ul className="hidden md:flex items-center space-x-8 flex-grow mx-8">
             <li>
               <NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                Home
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
                 Highscores
               </NavLink>
             </li>
@@ -140,7 +146,8 @@ export default function Layout() {
           `}
             onClick={() => setMobileMenuOpen(false)}
           >
-            <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
+            <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
+            <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
 
             {isTeacherOrAdmin && (
