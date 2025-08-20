@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Trophy, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity, Star, ChevronRight, Newspaper, Flame, ArrowUp, ArrowDown, Crown } from 'lucide-react';
+import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity } from 'lucide-react';
 
 // --- Helper functies ---
 const formatNameForDisplay = (fullName) => {
@@ -27,82 +27,182 @@ function formatScoreWithUnit(score, eenheid) {
   return `${score} ${eenheid}`;
 }
 
-// --- Sport Nieuws API (Vereenvoudigd voor dashboard) ---
+// --- Sport Nieuws API Functies ---
 class SportNewsAPI {
   constructor() {
     this.newsCache = [];
     this.lastFetch = 0;
-    this.cacheExpiry = 15 * 60 * 1000; // 15 minuten cache
+    this.cacheExpiry = 10 * 60 * 1000; // 10 minuten cache
     
+    // API configuratie - voeg hier je eigen API keys toe
+    this.apis = {
+      newsapi: {
+        key: process.env.REACT_APP_NEWSAPI_KEY || 'YOUR_NEWSAPI_KEY_HERE',
+        baseUrl: 'https://newsapi.org/v2/everything'
+      },
+      mediastack: {
+        key: process.env.REACT_APP_MEDIASTACK_KEY || 'YOUR_MEDIASTACK_KEY_HERE',
+        baseUrl: 'https://api.mediastack.com/v1/news'
+      },
+      thenewsapi: {
+        key: process.env.REACT_APP_THENEWSAPI_KEY || 'YOUR_THENEWSAPI_KEY_HERE',
+        baseUrl: 'https://api.thenewsapi.com/v1/news/top'
+      }
+    };
+    
+    // Fallback nieuws voor als APIs niet beschikbaar zijn
     this.fallbackNews = [
-      { title: "🏃‍♂️ Nieuwe sportscores worden dagelijks toegevoegd aan het systeem", category: "Info" },
-      { title: "⚽ Bekijk je persoonlijke prestaties in het dashboard", category: "Tip" },
-      { title: "🏆 Top 3 klassementen worden real-time bijgewerkt", category: "Feature" },
-      { title: "🥇 Stel doelen en track je vooruitgang over tijd", category: "Motivatie" },
-      { title: "🚴‍♂️ Vergelijk je scores met klasgenoten", category: "Social" }
+      "🏃‍♂️ Laatste sportuitslagen worden geladen...",
+      "⚽ Belgische sport nieuws wordt opgehaald...",
+      "🏆 Live sport updates komen eraan...",
+      "🥇 Actueel sport nieuws wordt verzameld...",
+      "🚴‍♂️ Sport headlines worden geüpdatet...",
+      "🏊‍♀️ Verse sportuitslagen onderweg...",
+      "🎾 Sport nieuws feed wordt gesynchroniseerd...",
+      "🏀 Belgische sport updates in voorbereiding..."
     ];
   }
 
-  async fetchSportsNews() {
-    const now = Date.now();
-    if (this.newsCache.length > 0 && (now - this.lastFetch) < this.cacheExpiry) {
-      return this.newsCache;
-    }
-
+  // Nieuws ophalen van NewsAPI (gratis tier: 1000 requests/maand)
+  async fetchFromNewsAPI() {
     try {
-      // Probeer RSS feeds voor Belgisch sportneuws
+      const url = new URL(this.apis.newsapi.baseUrl);
+      url.searchParams.append('q', 'sport OR voetbal OR atletiek OR tennis OR basketbal OR wielrennen');
+      url.searchParams.append('language', 'nl');
+      url.searchParams.append('sortBy', 'publishedAt');
+      url.searchParams.append('pageSize', '20');
+      url.searchParams.append('apiKey', this.apis.newsapi.key);
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`NewsAPI error: ${response.status}`);
+      
+      const data = await response.json();
+      
+      return data.articles?.map(article => ({
+        title: this.formatNewsTitle(article.title),
+        source: article.source.name,
+        publishedAt: new Date(article.publishedAt),
+        url: article.url
+      })) || [];
+    } catch (error) {
+      console.log('NewsAPI niet beschikbaar:', error.message);
+      return [];
+    }
+  }
+
+  // Nieuws ophalen van MediaStack (gratis tier: 1000 requests/maand)
+  async fetchFromMediaStack() {
+    try {
+      const url = new URL(this.apis.mediastack.baseUrl);
+      url.searchParams.append('access_key', this.apis.mediastack.key);
+      url.searchParams.append('categories', 'sports');
+      url.searchParams.append('countries', 'be,nl');
+      url.searchParams.append('languages', 'nl,en');
+      url.searchParams.append('limit', '20');
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`MediaStack error: ${response.status}`);
+      
+      const data = await response.json();
+      
+      return data.data?.map(article => ({
+        title: this.formatNewsTitle(article.title),
+        source: article.source,
+        publishedAt: new Date(article.published_at),
+        url: article.url
+      })) || [];
+    } catch (error) {
+      console.log('MediaStack niet beschikbaar:', error.message);
+      return [];
+    }
+  }
+
+  // Nieuws ophalen van TheNewsAPI (gratis tier: 1000 requests/maand)
+  async fetchFromTheNewsAPI() {
+    try {
+      const url = new URL(this.apis.thenewsapi.baseUrl);
+      url.searchParams.append('api_token', this.apis.thenewsapi.key);
+      url.searchParams.append('categories', 'sports');
+      url.searchParams.append('locale', 'be,nl');
+      url.searchParams.append('limit', '20');
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`TheNewsAPI error: ${response.status}`);
+      
+      const data = await response.json();
+      
+      return data.data?.map(article => ({
+        title: this.formatNewsTitle(article.title),
+        source: article.source,
+        publishedAt: new Date(article.published_at),
+        url: article.url
+      })) || [];
+    } catch (error) {
+      console.log('TheNewsAPI niet beschikbaar:', error.message);
+      return [];
+    }
+  }
+
+  // Open source sport nieuws via RSS feeds
+  async fetchFromRSSFeeds() {
+    try {
+      // Gebruik RSS2JSON service voor gratis RSS parsing
       const rssFeeds = [
         'https://www.sporza.be/nl/feeds/rss.xml',
-        'https://www.hln.be/sport/rss.xml'
+        'https://www.hln.be/sport/rss.xml',
+        'https://nos.nl/rss/sport.xml'
       ];
 
-      const feedPromises = rssFeeds.slice(0, 1).map(async (feedUrl) => {
+      const feedPromises = rssFeeds.map(async (feedUrl) => {
         try {
-          const rssToJsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}&count=5`;
+          const rssToJsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}&count=10`;
           const response = await fetch(rssToJsonUrl);
           if (!response.ok) throw new Error(`RSS feed error: ${response.status}`);
           
           const data = await response.json();
-          return data.items?.slice(0, 5).map(item => ({
+          
+          return data.items?.map(item => ({
             title: this.formatNewsTitle(item.title),
-            category: "Sport Nieuws",
+            source: data.feed?.title || 'Sport Nieuws',
             publishedAt: new Date(item.pubDate),
             url: item.link
           })) || [];
         } catch (error) {
+          console.log(`RSS feed ${feedUrl} niet beschikbaar:`, error.message);
           return [];
         }
       });
 
       const results = await Promise.all(feedPromises);
-      const allNews = results.flat();
-
-      if (allNews.length > 0) {
-        this.newsCache = allNews.slice(0, 5);
-      } else {
-        this.newsCache = this.fallbackNews;
-      }
-      
-      this.lastFetch = now;
-      return this.newsCache;
+      return results.flat();
     } catch (error) {
-      this.newsCache = this.fallbackNews;
-      return this.newsCache;
+      console.log('RSS feeds niet beschikbaar:', error.message);
+      return [];
     }
   }
 
+  // Nieuws titel formatteren voor ticker
   formatNewsTitle(title) {
     if (!title) return '';
+    
+    // Verwijder site namen en overbodige info
     let formatted = title.replace(/\s*-\s*(Sporza|HLN|NOS|RTL|VTM).*$/, '');
     
+    // Voeg sport emoji toe op basis van inhoud
     const sportEmojis = {
-      'voetbal|football': '⚽',
+      'voetbal|football|soccer': '⚽',
       'tennis': '🎾',
-      'basketbal': '🏀',
+      'basketbal|basket': '🏀',
       'wielrennen|cycling': '🚴‍♂️',
       'atletiek|athletics': '🏃‍♂️',
       'zwemmen|swimming': '🏊‍♀️',
-      'olympisch|olympic': '🏅'
+      'hockey': '🏑',
+      'volleyball|volley': '🏐',
+      'formule|f1': '🏎️',
+      'olympisch|olympic': '🏅',
+      'goud|gold': '🥇',
+      'zilver|silver': '🥈',
+      'brons|bronze': '🥉'
     };
 
     for (const [keywords, emoji] of Object.entries(sportEmojis)) {
@@ -111,30 +211,122 @@ class SportNewsAPI {
         break;
       }
     }
+
     return formatted.trim();
+  }
+
+  // Hoofd functie om nieuws op te halen
+  async fetchSportsNews() {
+    const now = Date.now();
+    
+    // Gebruik cache als nog geldig
+    if (this.newsCache.length > 0 && (now - this.lastFetch) < this.cacheExpiry) {
+      return this.newsCache;
+    }
+
+    console.log('Sport nieuws ophalen van APIs...');
+    
+    try {
+      // Probeer alle APIs parallel
+      const [newsApiResults, mediaStackResults, theNewsApiResults, rssResults] = await Promise.allSettled([
+        this.fetchFromNewsAPI(),
+        this.fetchFromMediaStack(),
+        this.fetchFromTheNewsAPI(),
+        this.fetchFromRSSFeeds()
+      ]);
+
+      // Verzamel alle succesvolle resultaten
+      let allNews = [];
+      
+      [newsApiResults, mediaStackResults, theNewsApiResults, rssResults].forEach(result => {
+        if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+          allNews = [...allNews, ...result.value];
+        }
+      });
+
+      // Sorteer op publicatiedatum (nieuwste eerst)
+      allNews.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+      
+      // Verwijder duplicaten op basis van titel
+      const uniqueNews = allNews.filter((article, index, self) => 
+        index === self.findIndex(t => t.title.toLowerCase() === article.title.toLowerCase())
+      );
+
+      // Gebruik de eerste 15 nieuwsberichten
+      this.newsCache = uniqueNews.slice(0, 15);
+      this.lastFetch = now;
+      
+      console.log(`${this.newsCache.length} sport nieuwsberichten geladen`);
+      
+      // Als er geen nieuws is, gebruik fallback
+      if (this.newsCache.length === 0) {
+        this.newsCache = this.fallbackNews.map(title => ({ title }));
+      }
+      
+      return this.newsCache;
+      
+    } catch (error) {
+      console.error('Fout bij ophalen sport nieuws:', error);
+      
+      // Gebruik fallback nieuws bij fout
+      this.newsCache = this.fallbackNews.map(title => ({ title }));
+      return this.newsCache;
+    }
+  }
+
+  // Force refresh van nieuws
+  async refreshNews() {
+    this.newsCache = [];
+    this.lastFetch = 0;
+    return this.fetchSportsNews();
   }
 }
 
 export default function AdValvas() {
   const { profile, school } = useOutletContext();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTestIndex, setCurrentTestIndex] = useState(0);
+  const [animationClass, setAnimationClass] = useState('');
   const [testHighscores, setTestHighscores] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [records, setRecords] = useState([]);
-  const [improvements, setImprovements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [newsIndex, setNewsIndex] = useState(0);
   const [sportNews, setSportNews] = useState([]);
   const [newsAPI] = useState(() => new SportNewsAPI());
-  const [dashboardStats, setDashboardStats] = useState({
-    totalTests: 0,
-    totalScores: 0,
-    activeGroups: 0,
-    todayScores: 0
-  });
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [lastNewsRefresh, setLastNewsRefresh] = useState(null);
 
-  // Data ophalen
+  // Sport nieuws ophalen
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const loadSportsNews = async () => {
+      setNewsLoading(true);
+      try {
+        const news = await newsAPI.fetchSportsNews();
+        setSportNews(news.map(article => article.title));
+        setLastNewsRefresh(new Date());
+      } catch (error) {
+        console.error('Fout bij laden sport nieuws:', error);
+        // Gebruik fallback bij fout
+        setSportNews([
+          "🏃‍♂️ Sport nieuws wordt geladen...",
+          "⚽ Belgische sport updates komen eraan...",
+          "🏆 Live sportuitslagen onderweg..."
+        ]);
+      } finally {
+        setNewsLoading(false);
+      }
+    };
+
+    loadSportsNews();
+
+    // Herlaad nieuws elke 10 minuten
+    const newsRefreshInterval = setInterval(loadSportsNews, 10 * 60 * 1000);
+    
+    return () => clearInterval(newsRefreshInterval);
+  }, [newsAPI]);
+
+  // Test scores ophalen
+  useEffect(() => {
+    const fetchTestHighscores = async () => {
       if (!profile?.school_id) {
         setLoading(false);
         return;
@@ -142,7 +334,6 @@ export default function AdValvas() {
       setLoading(true);
 
       try {
-        // 1. Haal alle actieve testen op
         const testenQuery = query(
           collection(db, 'testen'),
           where('school_id', '==', profile.school_id),
@@ -151,8 +342,7 @@ export default function AdValvas() {
         const testenSnap = await getDocs(testenQuery);
         const allTests = testenSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        // 2. Top scores per test
-        const testHighscorePromises = allTests.slice(0, 6).map(async (test) => {
+        const testHighscorePromises = allTests.map(async (test) => {
           const direction = test.score_richting === 'laag' ? 'asc' : 'desc';
           const scoreQuery = query(
             collection(db, 'scores'),
@@ -171,90 +361,19 @@ export default function AdValvas() {
           return scores.length > 0 ? { test, scores } : null;
         });
 
-        const highscoreResults = await Promise.all(testHighscorePromises);
-        setTestHighscores(highscoreResults.filter(Boolean));
-
-        // 3. Recente activiteit (laatste scores)
-        const recentScoresQuery = query(
-          collection(db, 'scores'),
-          orderBy('datum', 'desc'),
-          limit(10)
-        );
-        const recentScoresSnap = await getDocs(recentScoresQuery);
-        const recentActivities = await Promise.all(
-          recentScoresSnap.docs.map(async (scoreDoc) => {
-            const scoreData = scoreDoc.data();
-            const testDoc = await getDoc(doc(db, 'testen', scoreData.test_id));
-            return {
-              id: scoreDoc.id,
-              ...scoreData,
-              datum: scoreData.datum?.toDate ? scoreData.datum.toDate() : new Date(scoreData.datum),
-              testNaam: testDoc.exists() ? testDoc.data().naam : 'Onbekende test'
-            };
-          })
-        );
-        setRecentActivity(recentActivities);
-
-        // 4. Dashboard statistieken
-        const totalScoresQuery = query(collection(db, 'scores'));
-        const totalScoresSnap = await getDocs(totalScoresQuery);
-        
-        const groepenQuery = query(
-          collection(db, 'groepen'),
-          where('school_id', '==', profile.school_id)
-        );
-        const groepenSnap = await getDocs(groepenQuery);
-
-        const today = new Date();
-        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const todayScores = totalScoresSnap.docs.filter(doc => {
-          const scoreDate = doc.data().datum?.toDate ? doc.data().datum.toDate() : new Date(doc.data().datum);
-          return scoreDate >= todayStart;
-        });
-
-        setDashboardStats({
-          totalTests: allTests.length,
-          totalScores: totalScoresSnap.size,
-          activeGroups: groepenSnap.size,
-          todayScores: todayScores.length
-        });
-
-        // 5. Mock records en verbeteringen (in productie uit database)
-        setRecords([
-          { leerling: "Emma V.", test: "100m sprint", score: "12.34s", type: "School Record", datum: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) },
-          { leerling: "Lucas M.", test: "Verspringen", score: "4.82m", type: "Jaargroep Record", datum: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) },
-          { leerling: "Sophie D.", test: "800m", score: "2'45\"", type: "Persoonlijk Record", datum: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) }
-        ]);
-
-        setImprovements([
-          { leerling: "Thomas K.", test: "Sit-ups", verbetering: "+15", percentage: 25, datum: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
-          { leerling: "Anna R.", test: "Cooper test", verbetering: "+180m", percentage: 12, datum: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000) },
-          { leerling: "Milan B.", test: "Flexibiliteit", verbetering: "+8cm", percentage: 32, datum: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) }
-        ]);
+        const results = await Promise.all(testHighscorePromises);
+        const validResults = results.filter(Boolean);
+        setTestHighscores(validResults);
 
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('Error fetching test highscores:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDashboardData();
+    fetchTestHighscores();
   }, [profile?.school_id]);
-
-  // Sport nieuws ophalen
-  useEffect(() => {
-    const loadSportsNews = async () => {
-      try {
-        const news = await newsAPI.fetchSportsNews();
-        setSportNews(news);
-      } catch (error) {
-        console.error('Fout bij laden sport nieuws:', error);
-        setSportNews(newsAPI.fallbackNews);
-      }
-    };
-    loadSportsNews();
-  }, [newsAPI]);
 
   // Tijd updaten
   useEffect(() => {
@@ -262,6 +381,30 @@ export default function AdValvas() {
     return () => clearInterval(timer);
   }, []);
 
+  // Test wisselen elke 5 seconden
+  useEffect(() => {
+    if (testHighscores.length === 0) return;
+    
+    const slideTimer = setInterval(() => {
+      setAnimationClass('animate-pulse');
+      setTimeout(() => {
+        setCurrentTestIndex((prev) => (prev + 1) % testHighscores.length);
+        setAnimationClass('');
+      }, 300);
+    }, 5000);
+    return () => clearInterval(slideTimer);
+  }, [testHighscores.length]);
+
+  // Nieuws wisselen elke 8 seconden
+  useEffect(() => {
+    if (sportNews.length === 0) return;
+    
+    const newsTimer = setInterval(() => {
+      setNewsIndex((prev) => (prev + 1) % sportNews.length);
+    }, 8000);
+    return () => clearInterval(newsTimer);
+  }, [sportNews.length]);
+  
   const formatTime = (date) => date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
   const formatDate = (date) => date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
   
@@ -272,279 +415,218 @@ export default function AdValvas() {
     return `${days} dagen geleden`;
   };
 
+  // Manual news refresh functie
+  const handleNewsRefresh = async () => {
+    setNewsLoading(true);
+    try {
+      const news = await newsAPI.refreshNews();
+      setSportNews(news.map(article => article.title));
+      setLastNewsRefresh(new Date());
+    } catch (error) {
+      console.error('Fout bij handmatig vernieuwen nieuws:', error);
+    } finally {
+      setNewsLoading(false);
+    }
+  };
+
+  const PodiumCard = ({ score, position }) => {
+    const podiumColors = {
+      1: { bg: 'bg-gradient-to-br from-yellow-400 to-yellow-600', text: 'text-yellow-900', icon: '🥇' },
+      2: { bg: 'bg-gradient-to-br from-gray-300 to-gray-500', text: 'text-gray-900', icon: '🥈' },
+      3: { bg: 'bg-gradient-to-br from-orange-400 to-orange-600', text: 'text-orange-900', icon: '🥉' }
+    };
+    
+    const style = podiumColors[position];
+    
+    return (
+      <div className={`${style.bg} rounded-3xl p-6 text-center shadow-2xl transform hover:scale-105 transition-all duration-300 ${position === 1 ? 'scale-110' : ''}`}>
+        <div className="text-4xl mb-3">{style.icon}</div>
+        <div className={`${style.text} font-bold text-xl mb-2`}>
+          {formatNameForDisplay(score.leerling_naam)}
+        </div>
+        <div className={`${style.text} text-3xl font-black mb-2`}>
+          {formatScoreWithUnit(score.score, score.eenheid || '')}
+        </div>
+        <div className={`${style.text} opacity-80 text-sm`}>
+          {getRelativeTime(score.datum)}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-2xl shadow-sm">
+      <div className="fixed inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+        <div className="bg-white/10 backdrop-blur-md p-8 rounded-3xl shadow-2xl border border-white/20">
           <div className="flex items-center space-x-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            <span className="text-gray-700 font-medium">Dashboard laden...</span>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/30 border-t-white"></div>
+            <span className="text-white text-xl font-medium">Laden...</span>
           </div>
         </div>
       </div>
     );
   }
 
+  const currentTestData = testHighscores[currentTestIndex];
+
   return (
-    <>
-      <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
-          
-          {/* Header met tijd */}
-          <div className="mb-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
-                  Sport Dashboard
+    <div className="fixed inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl animate-pulse"></div>
+      </div>
+
+      {/* Header */}
+      <div className="relative z-10 bg-black/20 backdrop-blur-md border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+            <div className="flex items-center space-x-4">
+              <img 
+                src={school?.logo_url || "/logo.png"} 
+                alt="School Logo" 
+                className="h-12 sm:h-16 w-auto object-contain rounded-lg shadow-lg" 
+                onError={(e) => { e.target.src = '/logo.png'; }} 
+              />
+              <div className="text-center sm:text-left">
+                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  {school?.naam || 'Sportscores'}
                 </h1>
-                <p className="text-gray-600">
-                  {school?.naam || 'Welkom bij'} - Live overzicht van alle sportprestaties
-                </p>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl sm:text-3xl font-bold text-gray-900 font-mono">
-                  {formatTime(currentTime)}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {formatDate(currentTime)}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Dashboard Statistieken */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-100 p-2 rounded-xl">
-                  <Target className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalTests}</p>
-                  <p className="text-sm text-gray-600">Actieve Testen</p>
-                </div>
+                <p className="text-blue-200 text-sm sm:text-base font-medium">Sport Dashboard</p>
               </div>
             </div>
             
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center space-x-3">
-                <div className="bg-green-100 p-2 rounded-xl">
-                  <Activity className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalScores}</p>
-                  <p className="text-sm text-gray-600">Totaal Scores</p>
-                </div>
+            <div className="text-center sm:text-right">
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">
+                {formatTime(currentTime)}
               </div>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center space-x-3">
-                <div className="bg-purple-100 p-2 rounded-xl">
-                  <Users className="h-6 w-6 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{dashboardStats.activeGroups}</p>
-                  <p className="text-sm text-gray-600">Groepen</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center space-x-3">
-                <div className="bg-orange-100 p-2 rounded-xl">
-                  <Zap className="h-6 w-6 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{dashboardStats.todayScores}</p>
-                  <p className="text-sm text-gray-600">Vandaag</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            {/* Linker kolom - Top Prestaties */}
-            <div className="lg:col-span-2 space-y-8">
-              
-              {/* Records en Highlights */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Crown className="h-6 w-6 text-yellow-600" />
-                  <h2 className="text-xl font-bold text-gray-900">🏆 Records & Highlights</h2>
-                </div>
-                
-                <div className="space-y-4">
-                  {records.map((record, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
-                      <div className="flex items-center space-x-4">
-                        <div className="text-2xl">
-                          {record.type === 'School Record' ? '🥇' : record.type === 'Jaargroep Record' ? '🥈' : '⭐'}
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{record.leerling}</p>
-                          <p className="text-sm text-gray-600">{record.test}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-gray-900">{record.score}</p>
-                        <p className="text-xs text-gray-500">{getRelativeTime(record.datum)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Top 3 per Test */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Trophy className="h-6 w-6 text-purple-600" />
-                  <h2 className="text-xl font-bold text-gray-900">🏆 Top Prestaties</h2>
-                </div>
-                
-                <div className="space-y-6">
-                  {testHighscores.slice(0, 3).map((testData, testIndex) => (
-                    <div key={testIndex} className="border border-slate-200 rounded-xl p-4">
-                      <h3 className="font-bold text-gray-900 mb-4">{testData.test.naam}</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {testData.scores.map((score, index) => {
-                          const positions = ['🥇', '🥈', '🥉'];
-                          const bgColors = ['bg-yellow-100 border-yellow-300', 'bg-gray-100 border-gray-300', 'bg-orange-100 border-orange-300'];
-                          return (
-                            <div key={score.id} className={`${bgColors[index]} border rounded-lg p-3 text-center`}>
-                              <div className="text-2xl mb-2">{positions[index]}</div>
-                              <p className="font-bold text-gray-900">{formatNameForDisplay(score.leerling_naam)}</p>
-                              <p className="text-lg font-bold text-gray-800">{formatScoreWithUnit(score.score, score.eenheid)}</p>
-                              <p className="text-xs text-gray-500">{getRelativeTime(score.datum)}</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Grootste Verbeteringen */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <TrendingUp className="h-6 w-6 text-green-600" />
-                  <h2 className="text-xl font-bold text-gray-900">🔥 Grootste Verbeteringen</h2>
-                </div>
-                
-                <div className="space-y-4">
-                  {improvements.map((improvement, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
-                      <div className="flex items-center space-x-4">
-                        <div className="bg-green-100 p-2 rounded-full">
-                          <ArrowUp className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{improvement.leerling}</p>
-                          <p className="text-sm text-gray-600">{improvement.test}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-green-600">{improvement.verbetering}</p>
-                        <p className="text-sm text-green-500">+{improvement.percentage}%</p>
-                        <p className="text-xs text-gray-500">{getRelativeTime(improvement.datum)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Rechter kolom - Activiteit en Nieuws */}
-            <div className="space-y-8">
-              
-              {/* Recente Activiteit */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Clock className="h-6 w-6 text-blue-600" />
-                  <h2 className="text-xl font-bold text-gray-900">📊 Recente Activiteit</h2>
-                </div>
-                
-                <div className="space-y-3">
-                  {recentActivity.slice(0, 8).map((activity, index) => (
-                    <div key={activity.id} className="flex items-center space-x-3 p-3 hover:bg-slate-50 rounded-lg transition-colors">
-                      <div className="bg-blue-100 p-2 rounded-full">
-                        <Activity className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{formatNameForDisplay(activity.leerling_naam)}</p>
-                        <p className="text-xs text-gray-600">{activity.testNaam}</p>
-                        <p className="text-xs text-gray-500">{getRelativeTime(activity.datum)}</p>
-                      </div>
-                      <div className="text-sm font-bold text-gray-800">
-                        {formatScoreWithUnit(activity.score, activity.eenheid)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sport Nieuws */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Newspaper className="h-6 w-6 text-indigo-600" />
-                  <h2 className="text-xl font-bold text-gray-900">📰 Sport Nieuws</h2>
-                </div>
-                
-                <div className="space-y-4">
-                  {sportNews.slice(0, 5).map((news, index) => (
-                    <div key={index} className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-                      <div className="flex items-start space-x-3">
-                        <div className="bg-indigo-100 p-1 rounded">
-                          <Star className="h-4 w-4 text-indigo-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-900 leading-relaxed">{news.title}</p>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">
-                              {news.category}
-                            </span>
-                            {news.url && (
-                              <ChevronRight className="h-4 w-4 text-gray-400" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Komende Tests/Evenementen */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Calendar className="h-6 w-6 text-purple-600" />
-                  <h2 className="text-xl font-bold text-gray-900">📅 Komende Evenementen</h2>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
-                    <p className="font-medium text-gray-900">Atletiek Championships</p>
-                    <p className="text-sm text-gray-600">15 maart 2024</p>
-                    <p className="text-xs text-purple-600">Inschrijvingen open</p>
-                  </div>
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="font-medium text-gray-900">Cooper Test Week</p>
-                    <p className="text-sm text-gray-600">22-26 maart 2024</p>
-                    <p className="text-xs text-blue-600">Voor alle groepen</p>
-                  </div>
-                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="font-medium text-gray-900">Sport Gala</p>
-                    <p className="text-sm text-gray-600">5 april 2024</p>
-                    <p className="text-xs text-green-600">Prijsuitreiking</p>
-                  </div>
-                </div>
+              <div className="text-blue-200 text-sm sm:text-base font-medium">
+                {formatDate(currentTime)}
               </div>
             </div>
           </div>
         </div>
       </div>
-    </>
+
+      {/* Main Content */}
+      <div className="relative z-10 flex-1 overflow-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {testHighscores.length > 0 && currentTestData ? (
+            <div className={`transition-all duration-500 ${animationClass}`}>
+              {/* Test Title */}
+              <div className="text-center mb-8 sm:mb-12">
+                <div className="inline-flex items-center space-x-3 bg-white/10 backdrop-blur-md rounded-2xl px-6 py-3 mb-4">
+                  <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-400" />
+                  <span className="text-white text-xs sm:text-sm font-medium uppercase tracking-wider">Top 3</span>
+                </div>
+                <h2 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white mb-4 tracking-tight">
+                  {currentTestData.test.naam}
+                </h2>
+                <p className="text-blue-200 text-lg sm:text-xl font-medium">
+                  {currentTestData.test.categorie || 'Sporttest'}
+                </p>
+              </div>
+
+              {/* Podium */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 mb-8">
+                {currentTestData.scores.map((score, index) => (
+                  <PodiumCard key={score.id} score={score} position={index + 1} />
+                ))}
+              </div>
+
+              {/* Test Indicator */}
+              <div className="flex justify-center space-x-2 mb-8">
+                {testHighscores.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                      currentTestIndex === index 
+                        ? 'bg-white scale-110' 
+                        : 'bg-white/30 hover:bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            // Empty State
+            <div className="flex items-center justify-center h-96">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Trophy className="w-10 h-10 text-white/60" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">Nog geen scores</h3>
+                <p className="text-blue-200 max-w-md">
+                  Zodra er sportscores worden ingevoerd, verschijnen hier de toppers!
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Live Sport News Ticker */}
+      <div className="relative z-10 bg-black border-t border-white/10">
+        <div className="flex items-center h-16 overflow-hidden">
+          <div className="flex items-center bg-red-600 px-4 h-full">
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${newsLoading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400 animate-pulse'}`}></div>
+              <span className="text-white font-bold text-sm uppercase tracking-wider">
+                {newsLoading ? 'Loading' : 'Live Sport'}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-hidden">
+            <div className="animate-marquee whitespace-nowrap text-white text-lg font-medium py-5">
+              {sportNews.length > 0 ? (
+                <>
+                  {sportNews[newsIndex]} • {sportNews[(newsIndex + 1) % sportNews.length]} • {sportNews[(newsIndex + 2) % sportNews.length]} • 
+                </>
+              ) : (
+                "🏃‍♂️ Sport nieuws wordt geladen... • ⚽ Live updates komen eraan... • "
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-4 px-4 text-white/60">
+            {lastNewsRefresh && (
+              <div className="hidden sm:flex items-center space-x-1 text-xs">
+                <Clock className="h-3 w-3" />
+                <span>Laatste update: {formatTime(lastNewsRefresh)}</span>
+              </div>
+            )}
+            <button
+              onClick={handleNewsRefresh}
+              disabled={newsLoading}
+              className="flex items-center space-x-1 text-xs hover:text-white transition-colors disabled:opacity-50"
+              title="Vernieuw sport nieuws"
+            >
+              <Activity className={`h-4 w-4 ${newsLoading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes marquee {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+          animation: marquee 25s linear infinite;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+          .animate-marquee {
+            animation: marquee 20s linear infinite;
+            font-size: 16px;
+          }
+        }
+      `}</style>
+    </div>
   );
 }
