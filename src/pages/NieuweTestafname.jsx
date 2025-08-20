@@ -186,11 +186,13 @@ export default function NieuweTestafname() {
                     ? new Intl.ListFormat('nl-BE', { style: 'long', type: 'conjunction' }).format(teacherNames)
                     : 'een leerkracht';
 
-                const affectedStudentsCount = new Set(recentScores.map(s => s.leerling_id)).size;
-                
+             const affectedStudentsCount = new Set(recentScores.map(s => s.leerling_id)).size;
+                const noun = affectedStudentsCount === 1 ? 'leerling' : 'leerlingen';
+                const verb = affectedStudentsCount === 1 ? 'heeft' : 'hebben';
+
                 setWarningModal({
                     isOpen: true,
-                    message: `${affectedStudentsCount} leerling(en) van deze groep hebben deze test ${formatTimeAgo(afnameDatum, geselecteerdeDatum)} reeds afgelegd bij ${leerkrachtTekst}.`,
+                    message: `${affectedStudentsCount} ${noun} van deze groep ${verb} deze test ${formatTimeAgo(afnameDatum, geselecteerdeDatum)} reeds afgelegd bij ${leerkrachtTekst}.`,
                     onConfirm: () => setWarningModal({ isOpen: false, message: '', onConfirm: null, onCancel: null }),
                     onCancel: () => {
                         setSelectedTest(null);
