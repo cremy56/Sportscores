@@ -66,16 +66,19 @@ function getScoreColorClass(punt) {
 }
 
 // NIEUW: Helper functie om tijd geleden te formatteren
-function formatTimeAgo(date) {
-    const now = new Date();
-    const seconds = Math.floor((now - date) / 1000);
-    let interval = seconds / 31536000;
-    if (interval > 1) return Math.floor(interval) + " jaar geleden";
-    interval = seconds / 2592000;
-    if (interval > 1) return Math.floor(interval) + " maand(en) geleden";
-    interval = seconds / 86400;
-    if (interval > 7) return Math.floor(interval / 7) + " week/weken geleden";
-    if (interval > 1) return Math.floor(interval) + " dag(en) geleden";
+function formatTimeAgo(pastDate, referenceDate) {
+    const seconds = Math.floor((referenceDate - pastDate) / 1000);
+    const days = Math.floor(seconds / 86400);
+
+    if (days > 30) {
+        return `${Math.floor(days / 30)} maand(en) geleden`;
+    }
+    if (days > 7) {
+        return `${Math.floor(days / 7)} week/weken geleden`;
+    }
+    if (days > 1) {
+        return `${days} dag(en) geleden`;
+    }
     return "Vandaag";
 }
 
@@ -141,56 +144,64 @@ export default function NieuweTestafname() {
         setScores({});
     }, [selectedGroep]);
 
-    useEffect(() => {
-    const checkForRecentTests = async () => {
-        // Controleer of alle benodigde data aanwezig is
-        if (!selectedGroep || !selectedTest || !datum || !selectedGroep.leerling_ids || selectedGroep.leerling_ids.length === 0) {
-            return;
-        }
-
-        // Fout 1 OPGELOST: Bepaal de periode op basis van de geselecteerde datum
-        const geselecteerdeDatum = new Date(datum);
-        const oneMonthAgo = new Date(geselecteerdeDatum);
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-        
-        const scoresQuery = query(collection(db, 'scores'),
-            where('test_id', '==', selectedTest.id),
-            where('leerling_id', 'in', selectedGroep.leerling_ids),
-            where('datum', '>=', oneMonthAgo),
-            where('datum', '<', geselecteerdeDatum) // Zoek naar testen VOOR de geselecteerde datum
-        );
-
-        const querySnapshot = await getDocs(scoresQuery);
-        if (!querySnapshot.empty) {
-            const recentScores = querySnapshot.docs.map(d => d.data());
-            const recentAfname = recentScores.sort((a, b) => b.datum.toMillis() - a.datum.toMillis())[0];
-            const afnameDatum = recentAfname.datum.toDate();
-            const leerkrachtId = recentAfname.leerkracht_id;
-            
-            let leerkrachtNaam = 'een leerkracht';
-            if (leerkrachtId) {
-                const leerkrachtDoc = await getDoc(doc(db, 'toegestane_gebruikers', leerkrachtId));
-                if (leerkrachtDoc.exists()) {
-                    leerkrachtNaam = leerkrachtDoc.data().naam;
-                }
+   useEffect(() => {
+        const checkForRecentTests = async () => {
+            if (!selectedGroep || !selectedTest || !datum || !selectedGroep.leerling_ids || selectedGroep.leerling_ids.length === 0) {
+                return;
             }
 
-            const affectedStudentsCount = new Set(recentScores.map(s => s.leerling_id)).size;
+            const geselecteerdeDatum = new Date(datum);
+            const oneMonthAgo = new Date(geselecteerdeDatum);
+            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
             
-            setWarningModal({
-                isOpen: true,
-                message: `${affectedStudentsCount} leerling(en) van deze groep hebben deze test ${formatTimeAgo(afnameDatum)} reeds afgelegd bij ${leerkrachtNaam}.`,
-                onConfirm: () => setWarningModal({ isOpen: false, message: '', onConfirm: null, onCancel: null }),
-                onCancel: () => {
-                    setSelectedTest(null);
-                    setWarningModal({ isOpen: false, message: '', onConfirm: null, onCancel: null });
-                }
-            });
-        }
-    };
+            const scoresQuery = query(collection(db, 'scores'),
+                where('test_id', '==', selectedTest.id),
+                where('leerling_id', 'in', selectedGroep.leerling_ids),
+                where('datum', '>=', oneMonthAgo),
+                where('datum', '<', geselecteerdeDatum)
+            );
 
-    checkForRecentTests();
-}, [selectedGroep, selectedTest, datum]); // Fout 2 OPGELOST: 'datum' toegevoegd aan dependencies
+            const querySnapshot = await getDocs(scoresQuery);
+            if (!querySnapshot.empty) {
+                const recentScores = querySnapshot.docs.map(d => d.data());
+                const mostRecentAfname = recentScores.sort((a, b) => b.datum.toMillis() - a.datum.toMillis())[0];
+                const afnameDatum = mostRecentAfname.datum.toDate();
+
+                // Haal alle unieke leerkracht IDs op
+                const teacherIds = [...new Set(recentScores.map(s => s.leerkracht_id).filter(Boolean))];
+                let teacherNames = [];
+
+                if (teacherIds.length > 0) {
+                    const leerkrachtenQuery = query(collection(db, 'toegestane_gebruikers'), where('__name__', 'in', teacherIds));
+                    const leerkrachtenSnap = await getDocs(leerkrachtenQuery);
+                    const leerkrachtenMap = new Map(leerkrachtenSnap.docs.map(d => [d.id, d.data().naam]));
+                    
+                    teacherNames = teacherIds.map(id => {
+                        if (id === auth.currentUser.uid) return 'jezelf';
+                        return leerkrachtenMap.get(id) || 'een onbekende leerkracht';
+                    });
+                }
+                
+                const leerkrachtTekst = teacherNames.length > 0 
+                    ? new Intl.ListFormat('nl-BE', { style: 'long', type: 'conjunction' }).format(teacherNames)
+                    : 'een leerkracht';
+
+                const affectedStudentsCount = new Set(recentScores.map(s => s.leerling_id)).size;
+                
+                setWarningModal({
+                    isOpen: true,
+                    message: `${affectedStudentsCount} leerling(en) van deze groep hebben deze test ${formatTimeAgo(afnameDatum, geselecteerdeDatum)} reeds afgelegd bij ${leerkrachtTekst}.`,
+                    onConfirm: () => setWarningModal({ isOpen: false, message: '', onConfirm: null, onCancel: null }),
+                    onCancel: () => {
+                        setSelectedTest(null);
+                        setWarningModal({ isOpen: false, message: '', onConfirm: null, onCancel: null });
+                    }
+                });
+            }
+        };
+
+        checkForRecentTests();
+    }, [selectedGroep, selectedTest, datum]);
 
     // Debounced effect to calculate points
     useEffect(() => {
