@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity } from 'lucide-react';
+import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity, Quote, Flame, BookOpen, BarChart3, TrendingDown } from 'lucide-react';
 
 // --- Helper functies ---
 const formatNameForDisplay = (fullName) => {
@@ -27,7 +27,78 @@ function formatScoreWithUnit(score, eenheid) {
   return `${score} ${eenheid}`;
 }
 
-// --- Sport Nieuws API Functies ---
+// --- Content Types ---
+const CONTENT_TYPES = {
+  HIGHSCORES: 'highscores',
+  QUOTE: 'quote',
+  BREAKING_NEWS: 'breaking_news',
+  DAILY_ACTIVITY: 'daily_activity',
+  WEEKLY_STATS: 'weekly_stats',
+  MONTHLY_MILESTONE: 'monthly_milestone',
+  SEASON_STATS: 'season_stats',
+  SPORT_FACT: 'sport_fact',
+  UPCOMING_EVENT: 'upcoming_event'
+};
+
+// --- Motiverende Sportquotes ---
+const SPORT_QUOTES = [
+  {
+    text: "Champions worden niet gemaakt in de gymzaal. Champions worden gemaakt van iets diep in hen: een verlangen, een droom, een visie.",
+    author: "Muhammad Ali"
+  },
+  {
+    text: "Succes is geen toeval. Het is hard werk, doorzettingsvermogen, leren, studeren, opoffering en vooral liefde voor wat je doet.",
+    author: "Pelé"
+  },
+  {
+    text: "Het gaat er niet om hoe sterk je bent, maar hoe sterk je kunt worden.",
+    author: "Onbekend"
+  },
+  {
+    text: "Elke expert was ooit een beginner. Elke professional was ooit een amateur.",
+    author: "Robin Sharma"
+  },
+  {
+    text: "Je lichaam kan het. Het is je geest die je moet overtuigen.",
+    author: "Onbekend"
+  },
+  {
+    text: "Sport doet niet alleen goed voor je lichaam, maar ook voor je geest.",
+    author: "Onbekend"
+  },
+  {
+    text: "Winnen betekent niet altijd eerste zijn. Winnen betekent beter worden dan je gisteren was.",
+    author: "Onbekend"
+  },
+  {
+    text: "De enige slechte training is de training die je niet doet.",
+    author: "Onbekend"
+  },
+  {
+    text: "Dromen worden werkelijkheid als je je inzet en hard werkt.",
+    author: "Serena Williams"
+  },
+  {
+    text: "Sport leert je dat falen niet het einde is, maar het begin van iets beters.",
+    author: "Onbekend"
+  }
+];
+
+// --- Sport Feiten ---
+const SPORT_FACTS = [
+  "Wist je dat 30 minuten sporten per dag je risico op hartziekte met 40% vermindert?",
+  "Sport verbetert je geheugen en concentratie door meer zuurstof naar je hersenen te sturen.",
+  "Regelmatig bewegen kan je levensverwachting met gemiddeld 7 jaar verlengen.",
+  "Sport helpt bij het produceren van endorfines, de natuurlijke 'gelukshormonen' van je lichaam.",
+  "Je spieren hebben 48-72 uur nodig om volledig te herstellen na intensieve training.",
+  "Sport kan je slaapkwaliteit met tot 65% verbeteren.",
+  "10.000 stappen per dag kan je risico op diabetes type 2 halveren.",
+  "Sport verhoogt je zelfvertrouwen en vermindert stress en angst.",
+  "Kinderen die sporten presteren gemiddeld 15% beter op school.",
+  "Sport in teamverband verbetert je sociale vaardigheden en samenwerking."
+];
+
+// --- Sport Nieuws API Functies (unchanged from original) ---
 class SportNewsAPI {
   constructor() {
     this.newsCache = [];
@@ -285,7 +356,8 @@ class SportNewsAPI {
 export default function AdValvas() {
   const { profile, school } = useOutletContext();
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [currentTestIndex, setCurrentTestIndex] = useState(0);
+  const [contentItems, setContentItems] = useState([]);
+  const [currentContentIndex, setCurrentContentIndex] = useState(0);
   const [animationClass, setAnimationClass] = useState('');
   const [testHighscores, setTestHighscores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -294,6 +366,89 @@ export default function AdValvas() {
   const [newsAPI] = useState(() => new SportNewsAPI());
   const [newsLoading, setNewsLoading] = useState(true);
   const [lastNewsRefresh, setLastNewsRefresh] = useState(null);
+
+  // Content genereren
+  const generateContentItems = async () => {
+    const items = [];
+    
+    // Voeg highscores toe
+    testHighscores.forEach(testData => {
+      items.push({
+        type: CONTENT_TYPES.HIGHSCORES,
+        data: testData,
+        priority: 1
+      });
+    });
+
+    // Breaking news records (simulatie - in productie uit database)
+    const mockBreakingNews = [
+      {
+        text: "🔥 NIEUW RECORD! Emma K. verbeterde het schoolrecord push-ups met 47x!",
+        date: new Date(),
+        test: "Push-up",
+        student: "Emma K.",
+        score: "47x"
+      }
+    ];
+
+    mockBreakingNews.forEach(news => {
+      const daysSince = Math.floor((new Date() - news.date) / (1000 * 60 * 60 * 24));
+      if (daysSince <= 3) {
+        items.push({
+          type: CONTENT_TYPES.BREAKING_NEWS,
+          data: news,
+          priority: 5
+        });
+      }
+    });
+
+    // Dagelijkse activiteit (simulatie)
+    items.push({
+      type: CONTENT_TYPES.DAILY_ACTIVITY,
+      data: {
+        text: "Vandaag legde klas 4B de coopertest af - super resultaten! 💪",
+        icon: BookOpen,
+        color: "from-green-500 to-emerald-600"
+      },
+      priority: 2
+    });
+
+    // Wekelijkse stats (simulatie)
+    items.push({
+      type: CONTENT_TYPES.WEEKLY_STATS,
+      data: {
+        text: "Deze week werden er 89 nieuwe scores geregistreerd! 📊",
+        icon: BarChart3,
+        color: "from-blue-500 to-cyan-600"
+      },
+      priority: 2
+    });
+
+    // Sport quotes
+    const randomQuote = SPORT_QUOTES[Math.floor(Math.random() * SPORT_QUOTES.length)];
+    items.push({
+      type: CONTENT_TYPES.QUOTE,
+      data: randomQuote,
+      priority: 1
+    });
+
+    // Sport feiten
+    const randomFact = SPORT_FACTS[Math.floor(Math.random() * SPORT_FACTS.length)];
+    items.push({
+      type: CONTENT_TYPES.SPORT_FACT,
+      data: {
+        text: randomFact,
+        icon: Target,
+        color: "from-purple-500 to-indigo-600"
+      },
+      priority: 1
+    });
+
+    // Sorteer op prioriteit
+    items.sort((a, b) => b.priority - a.priority);
+    
+    return items;
+  };
 
   // Sport nieuws ophalen
   useEffect(() => {
@@ -305,7 +460,6 @@ export default function AdValvas() {
         setLastNewsRefresh(new Date());
       } catch (error) {
         console.error('Fout bij laden sport nieuws:', error);
-        // Gebruik fallback bij fout
         setSportNews([
           "🏃‍♂️ Sport nieuws wordt geladen...",
           "⚽ Belgische sport updates komen eraan...",
@@ -317,10 +471,7 @@ export default function AdValvas() {
     };
 
     loadSportsNews();
-
-    // Herlaad nieuws elke 10 minuten
     const newsRefreshInterval = setInterval(loadSportsNews, 10 * 60 * 1000);
-    
     return () => clearInterval(newsRefreshInterval);
   }, [newsAPI]);
 
@@ -365,6 +516,10 @@ export default function AdValvas() {
         const validResults = results.filter(Boolean);
         setTestHighscores(validResults);
 
+        // Genereer content items na het laden van highscores
+        const items = await generateContentItems();
+        setContentItems(items);
+
       } catch (error) {
         console.error('Error fetching test highscores:', error);
       } finally {
@@ -375,25 +530,36 @@ export default function AdValvas() {
     fetchTestHighscores();
   }, [profile?.school_id]);
 
+  // Update content items wanneer testHighscores veranderen
+  useEffect(() => {
+    const updateContent = async () => {
+      if (testHighscores.length > 0) {
+        const items = await generateContentItems();
+        setContentItems(items);
+      }
+    };
+    updateContent();
+  }, [testHighscores]);
+
   // Tijd updaten
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Test wisselen elke 5 seconden
+  // Content wisselen elke 8 seconden
   useEffect(() => {
-    if (testHighscores.length === 0) return;
+    if (contentItems.length === 0) return;
     
     const slideTimer = setInterval(() => {
       setAnimationClass('animate-pulse');
       setTimeout(() => {
-        setCurrentTestIndex((prev) => (prev + 1) % testHighscores.length);
+        setCurrentContentIndex((prev) => (prev + 1) % contentItems.length);
         setAnimationClass('');
       }, 300);
-    }, 5000);
+    }, 8000);
     return () => clearInterval(slideTimer);
-  }, [testHighscores.length]);
+  }, [contentItems.length]);
 
   // Nieuws wisselen elke 15 seconden
   useEffect(() => {
@@ -440,7 +606,7 @@ export default function AdValvas() {
     
     return (
       <div className={`${style.bg} rounded-2xl p-6 text-center shadow-lg transform hover:scale-105 transition-all duration-300 ${position === 1 ? 'scale-105' : ''}`}>
-        <div className="text-3xl mb-3">{style.icon}</div>
+        <div className="text-5xl mb-4">{style.icon}</div>
         <div className={`${style.text} font-bold text-lg mb-2`}>
           {formatNameForDisplay(score.leerling_naam)}
         </div>
@@ -452,6 +618,75 @@ export default function AdValvas() {
         </div>
       </div>
     );
+  };
+
+  const renderContentItem = (item) => {
+    switch (item.type) {
+      case CONTENT_TYPES.HIGHSCORES:
+        return (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-6xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl lg:text-5xl font-bold text-gray-800 mb-6 tracking-tight">
+                {item.data.test.naam}
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+              {item.data.scores.map((score, index) => (
+                <PodiumCard key={score.id} score={score} position={index + 1} />
+              ))}
+            </div>
+          </div>
+        );
+
+      case CONTENT_TYPES.QUOTE:
+        return (
+          <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-lg p-10 max-w-6xl mx-auto text-white">
+            <div className="text-center">
+              <Quote className="h-12 w-12 mx-auto mb-6 opacity-80" />
+              <blockquote className="text-2xl lg:text-3xl font-medium leading-relaxed mb-6 italic">
+                "{item.data.text}"
+              </blockquote>
+              <cite className="text-lg opacity-90 font-semibold">
+                — {item.data.author}
+              </cite>
+            </div>
+          </div>
+        );
+
+      case CONTENT_TYPES.BREAKING_NEWS:
+        return (
+          <div className="bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl shadow-lg p-10 max-w-6xl mx-auto text-white">
+            <div className="text-center">
+              <div className="inline-flex items-center space-x-3 bg-white/20 rounded-full px-6 py-3 mb-6">
+                <Flame className="h-6 w-6 animate-pulse" />
+                <span className="font-bold uppercase tracking-wider">Breaking News</span>
+              </div>
+              <h2 className="text-2xl lg:text-4xl font-bold leading-tight">
+                {item.data.text}
+              </h2>
+            </div>
+          </div>
+        );
+
+      case CONTENT_TYPES.DAILY_ACTIVITY:
+      case CONTENT_TYPES.WEEKLY_STATS:
+      case CONTENT_TYPES.SPORT_FACT:
+        const IconComponent = item.data.icon;
+        return (
+          <div className={`bg-gradient-to-br ${item.data.color} rounded-2xl shadow-lg p-10 max-w-6xl mx-auto text-white`}>
+            <div className="text-center">
+              <IconComponent className="h-16 w-16 mx-auto mb-6 opacity-90" />
+              <h2 className="text-2xl lg:text-4xl font-bold leading-tight">
+                {item.data.text}
+              </h2>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
   };
 
   if (loading) {
@@ -467,7 +702,7 @@ export default function AdValvas() {
     );
   }
 
-  const currentTestData = testHighscores[currentTestIndex];
+  const currentItem = contentItems[currentContentIndex];
 
   return (
     <div className="fixed inset-0 bg-slate-50 flex flex-col">
@@ -531,40 +766,22 @@ export default function AdValvas() {
           </div>
 
           {/* Main Content */}
-          {testHighscores.length > 0 && currentTestData ? (
+          {contentItems.length > 0 && currentItem ? (
             <div className={`transition-all duration-500 ${animationClass} mb-8`}>
-              {/* Test Card */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-5xl mx-auto">
-                <div className="text-center mb-8">
-                  <h2 className="text-3xl lg:text-5xl font-bold text-gray-800 mb-4 tracking-tight flex items-center justify-center space-x-4">
-                    <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-2xl px-6 py-3 border border-purple-200">
-                      <Trophy className="h-6 w-6 lg:h-8 lg:w-8 text-purple-600" />
-                      <span className="text-purple-700 text-sm font-bold uppercase tracking-wider">Top 3</span>
-                    </div>
-                    <span>{currentTestData.test.naam}</span>
-                  </h2>
-                </div>
-
-                {/* Podium */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-8">
-                  {currentTestData.scores.map((score, index) => (
-                    <PodiumCard key={score.id} score={score} position={index + 1} />
-                  ))}
-                </div>
-
-                {/* Test Indicator */}
-                <div className="flex justify-center space-x-2">
-                  {testHighscores.map((_, index) => (
-                    <div
-                      key={index}
-                      className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                        currentTestIndex === index 
-                          ? 'bg-purple-600 scale-110' 
-                          : 'bg-gray-300 hover:bg-gray-400'
-                      }`}
-                    />
-                  ))}
-                </div>
+              {renderContentItem(currentItem)}
+              
+              {/* Content Indicators */}
+              <div className="flex justify-center space-x-2 mt-8">
+                {contentItems.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                      currentContentIndex === index 
+                        ? 'bg-purple-600 scale-110' 
+                        : 'bg-gray-300 hover:bg-gray-400'
+                    }`}
+                  />
+                ))}
               </div>
             </div>
           ) : (
@@ -574,9 +791,9 @@ export default function AdValvas() {
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Trophy className="w-8 h-8 text-purple-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">Nog geen scores</h3>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">Dashboard wordt voorbereid</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Zodra er sportscores worden ingevoerd, verschijnen hier de toppers!
+                  Zodra er sportscores worden ingevoerd, komt het dashboard tot leven!
                 </p>
               </div>
             </div>
