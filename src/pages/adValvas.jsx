@@ -641,577 +641,35 @@ const SPORT_FACTS = [
 
 // --- GEAVANCEERDE Live Sport News & Feed API ---
 class LiveSportsFeedAPI {
-  constructor() {
-    this.newsCache = [];
-    this.scoresCache = [];
-    this.lastFetch = 0;
-    this.cacheExpiry = 5 * 60 * 1000; // 5 minuten cache
-    this.retryCount = 0;
-    this.maxRetries = 3;
-    this.isOnline = navigator.onLine;
-    this.fallbackMessage = "Geen live sportinfo op dit ogenblik";
-    
-    // Monitor online status
-    window.addEventListener('online', () => { this.isOnline = true; });
-    window.addEventListener('offline', () => { this.isOnline = false; });
-    
-    // Meerdere API bronnen voor betere betrouwbaarheid
-    this.apiSources = [
-      {
-        name: 'NewsAPI',
-        endpoint: 'https://newsapi.org/v2/everything',
-        key: process.env.REACT_APP_NEWSAPI_KEY,
-        queryParams: {
-          q: 'sport belgië OR sports belgium OR belgian football OR red devils OR jupiler pro league',
-          language: 'nl',
-          sortBy: 'publishedAt',
-          pageSize: 20
-        }
-      },
-      {
-        name: 'RSS2JSON',
-        endpoint: 'https://api.rss2json.com/v1/api.json',
-        key: process.env.REACT_APP_RSS2JSON_KEY,
-        feeds: [
-          'https://www.sporza.be/nl/feeds/rss.xml',
-          'https://www.hln.be/sport/rss.xml',
-          'https://nos.nl/rss/sport.xml'
-        ]
-      },
-      {
-        name: 'AllOrigins',
-        endpoint: 'https://api.allorigins.win/get',
-        feeds: [
-          'https://www.nieuwsblad.be/sport/rss.xml',
-          'https://www.gva.be/sport/rss.xml'
-        ]
-      }
-    ];
-    
-    // Sport scores API bronnen (gratis opties)
-    this.scoresAPIs = [
-      {
-        name: 'TheSportsDB',
-        endpoint: 'https://www.thesportsdb.com/api/v1/json/3',
-        endpoints: {
-          belgianLeague: '/eventsnext.php?id=4334', // Jupiler Pro League
-          championsLeague: '/eventsnext.php?id=4480',
-          premierLeague: '/eventsnext.php?id=4328'
-        }
-      },
-      {
-        name: 'API-Sports',
-        endpoint: 'https://api-sports.io/v1/fixtures',
-        key: process.env.REACT_APP_API_SPORTS_KEY,
-        leagues: ['belgianProLeague', 'championsLeague']
-      }
-    ];
-  }
-
-  // Controleer internet verbinding
-  async checkConnectivity() {
-    if (!this.isOnline) return false;
-    
-    try {
-      const response = await fetch('https://www.google.com/generate_204', {
-        method: 'HEAD',
-        mode: 'no-cors',
-        cache: 'no-cache',
-        timeout: 3000
-      });
-      return true;
-    } catch (error) {
-      this.isOnline = false;
-      return false;
-    }
-  }
-
-  // Fetch nieuws van verschillende bronnen
-  async fetchNewsFromSources() {
-    const allNews = [];
-    
-    for (const source of this.apiSources) {
-      try {
-        let newsData = [];
-        
-        if (source.name === 'NewsAPI' && source.key) {
-          newsData = await this.fetchFromNewsAPI(source);
-        } else if (source.name === 'RSS2JSON') {
-          newsData = await this.fetchFromRSSFeeds(source);
-        } else if (source.name === 'AllOrigins') {
-          newsData = await this.fetchFromAllOrigins(source);
-        }
-        
-        if (newsData.length > 0) {
-          console.log(`✅ ${source.name}: ${newsData.length} nieuwsartikelen opgehaald`);
-          allNews.push(...newsData);
-        }
-        
-      } catch (error) {
-        console.warn(`❌ ${source.name} fout:`, error.message);
-        continue; // Probeer volgende bron
-      }
-    }
-    
-    return allNews;
-  }
-
-  // NewsAPI implementatie
-  async fetchFromNewsAPI(source) {
-    if (!source.key || source.key.includes('YOUR_')) {
-      throw new Error('NewsAPI key niet geconfigureerd');
-    }
-    
-    const url = new URL(source.endpoint);
-    Object.keys(source.queryParams).forEach(key => {
-      url.searchParams.append(key, source.queryParams[key]);
-    });
-    url.searchParams.append('apiKey', source.key);
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      timeout: 10000,
-      headers: {
-        'User-Agent': 'SportDashboard/2.0'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`NewsAPI HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.status === 'error') {
-      throw new Error(`NewsAPI Error: ${data.message}`);
-    }
-    
-    return (data.articles || [])
-      .filter(article => article.title && !article.title.includes('[Removed]'))
-      .map(article => ({
-        title: this.formatNewsTitle(article.title),
-        source: article.source.name,
-        publishedAt: new Date(article.publishedAt),
-        url: article.url,
-        description: article.description
-      }));
-  }
-
-  // RSS feeds via RSS2JSON
-  async fetchFromRSSFeeds(source) {
-    const allFeedNews = [];
-    
-    for (const feedUrl of source.feeds) {
-      try {
-        const url = new URL(source.endpoint);
-        url.searchParams.append('rss_url', feedUrl);
-        url.searchParams.append('count', '15');
-        if (source.key && !source.key.includes('YOUR_')) {
-          url.searchParams.append('api_key', source.key);
-        }
-        
-        const response = await fetch(url, { timeout: 8000 });
-        if (!response.ok) continue;
-        
-        const data = await response.json();
-        
-        if (data.status === 'ok' && data.items) {
-          const feedNews = data.items
-            .filter(item => item.title && item.pubDate)
-            .map(item => ({
-              title: this.formatNewsTitle(item.title),
-              source: this.extractSourceFromURL(feedUrl),
-              publishedAt: new Date(item.pubDate),
-              url: item.link,
-              description: item.description
-            }));
-          
-          allFeedNews.push(...feedNews);
-        }
-        
-      } catch (error) {
-        console.warn(`RSS feed ${feedUrl} fout:`, error.message);
-        continue;
-      }
-    }
-    
-    return allFeedNews;
-  }
-
-  // AllOrigins RSS parsing
-  async fetchFromAllOrigins(source) {
-    const allNews = [];
-    
-    for (const feedUrl of source.feeds) {
-      try {
-        const url = new URL(source.endpoint);
-        url.searchParams.append('url', feedUrl);
-        
-        const response = await fetch(url, { timeout: 10000 });
-        if (!response.ok) continue;
-        
-        const data = await response.json();
-        
-        if (data.contents) {
-          // Basis XML parsing voor RSS feeds
-          const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(data.contents, 'text/xml');
-          const items = xmlDoc.getElementsByTagName('item');
-          
-          for (let i = 0; i < Math.min(items.length, 10); i++) {
-            const item = items[i];
-            const title = item.getElementsByTagName('title')[0]?.textContent;
-            const pubDate = item.getElementsByTagName('pubDate')[0]?.textContent;
-            const link = item.getElementsByTagName('link')[0]?.textContent;
-            const description = item.getElementsByTagName('description')[0]?.textContent;
-            
-            if (title && pubDate) {
-              allNews.push({
-                title: this.formatNewsTitle(title),
-                source: this.extractSourceFromURL(feedUrl),
-                publishedAt: new Date(pubDate),
-                url: link,
-                description: description
-              });
-            }
-          }
-        }
-        
-      } catch (error) {
-        console.warn(`AllOrigins feed ${feedUrl} fout:`, error.message);
-        continue;
-      }
-    }
-    
-    return allNews;
-  }
-
-  // Fetch sport uitslagen
-  async fetchSportScores() {
-    const allScores = [];
-    
-    for (const api of this.scoresAPIs) {
-      try {
-        if (api.name === 'TheSportsDB') {
-          const scores = await this.fetchFromSportsDB(api);
-          allScores.push(...scores);
-        } else if (api.name === 'API-Sports' && api.key) {
-          const scores = await this.fetchFromAPISports(api);
-          allScores.push(...scores);
-        }
-      } catch (error) {
-        console.warn(`❌ ${api.name} scores fout:`, error.message);
-        continue;
-      }
-    }
-    
-    return allScores;
-  }
-
-  // TheSportsDB uitslagen
-  async fetchFromSportsDB(api) {
-    const scores = [];
-    
-    for (const [league, endpoint] of Object.entries(api.endpoints)) {
-      try {
-        const response = await fetch(api.endpoint + endpoint, { timeout: 8000 });
-        if (!response.ok) continue;
-        
-        const data = await response.json();
-        
-        if (data.events) {
-          data.events.slice(0, 5).forEach(event => {
-            if (event.strEvent && event.dateEvent) {
-              scores.push({
-                title: `⚽ ${event.strEvent}: ${event.strHomeTeam} vs ${event.strAwayTeam}`,
-                league: this.formatLeagueName(league),
-                date: new Date(event.dateEvent),
-                time: event.strTime,
-                source: 'TheSportsDB'
-              });
-            }
-          });
-        }
-        
-      } catch (error) {
-        console.warn(`SportsDB ${league} fout:`, error.message);
-        continue;
-      }
-    }
-    
-    return scores;
-  }
-
-  // API-Sports uitslagen
-  async fetchFromAPISports(api) {
-    if (!api.key || api.key.includes('YOUR_')) {
-      throw new Error('API-Sports key niet geconfigureerd');
-    }
-    
-    const scores = [];
-    // Implementatie voor API-Sports indien gewenst
-    // Dit is een betaalde API, dus alleen implementeren met geldige key
-    
-    return scores;
-  }
-
-  // Helper functies
-  extractSourceFromURL(url) {
-    const sourceMap = {
-      'sporza.be': 'Sporza',
-      'hln.be': 'Het Laatste Nieuws', 
-      'nos.nl': 'NOS Sport',
-      'nieuwsblad.be': 'Het Nieuwsblad',
-      'gva.be': 'Gazet van Antwerpen',
-      'vtm.be': 'VTM Nieuws',
-      'rtl.be': 'RTL Sport'
-    };
-    
-    for (const [domain, name] of Object.entries(sourceMap)) {
-      if (url.includes(domain)) return name;
-    }
-    
-    return 'Sport Nieuws';
-  }
-
-  formatLeagueName(league) {
-    const leagueMap = {
-      'belgianLeague': 'Jupiler Pro League',
-      'championsLeague': 'Champions League', 
-      'premierLeague': 'Premier League'
-    };
-    
-    return leagueMap[league] || league;
-  }
-
-  formatNewsTitle(title) {
-    if (!title) return '';
-    
-    // Schoon titel op
-    let formatted = title
-      .replace(/\s*-\s*(Sporza|HLN|NOS|RTL|VTM|Het Laatste Nieuws|Het Nieuwsblad|GVA).*$/i, '')
-      .replace(/^\d{2}:\d{2}\s*-?\s*/, '')
-      .replace(/\s*\|\s*.*$/, '')
-      .trim();
-    
-    // Sport emoji's toevoegen
-    const emojiMap = {
-      'voetbal|football|soccer|jupiler|rode duivels|red devils|champions league|europa league': '⚽',
-      'tennis|atp|wta|roland garros|wimbledon': '🎾',
-      'basketbal|basket|lions': '🏀',  
-      'wielrennen|cycling|tour de france|ronde van vlaanderen': '🚴‍♂️',
-      'atletiek|athletics|memorial|marathon': '🏃‍♂️',
-      'zwemmen|swimming': '🏊‍♀️',
-      'hockey|red lions|red panthers': '🏑',
-      'volleyball|yellow tigers': '🏐',
-      'formule|f1|racing': '🏎️',
-      'olympisch|olympic': '🏅',
-      'goud|gold|kampioen|winner': '🥇',
-      'transfer|contract': '💰',
-      'blessure|injury': '🏥',
-      'training|stage': '💪',
-      'overwinning|victory|wint': '🎉'
-    };
-
-    for (const [keywords, emoji] of Object.entries(emojiMap)) {
-      if (new RegExp(keywords, 'i').test(formatted)) {
-        formatted = `${emoji} ${formatted}`;
-        break;
-      }
-    }
-
-    // Standaard sport emoji als geen match
-    if (!/^[\u{1F300}-\u{1F9FF}]/u.test(formatted)) {
-      formatted = `🏆 ${formatted}`;
-    }
-
-    return formatted;
-  }
-
-  // Filter sport gerelateerde content
-  filterSportContent(items) {
-    const sportKeywords = [
-      'sport', 'voetbal', 'football', 'tennis', 'basketbal', 'wielrennen', 
-      'atletiek', 'zwemmen', 'hockey', 'volleyball', 'golf', 'racing',
-      'marathon', 'olympisch', 'kampioen', 'competitie', 'wedstrijd',
-      'match', 'tournament', 'league', 'red lions', 'red panthers', 
-      'rode duivels', 'yellow tigers', 'belgian lions', 'jupiler pro league'
-    ];
-
-    const excludeKeywords = [
-      'politiek', 'politics', 'economie', 'crime', 'accident', 
-      'weather', 'weer', 'verkeer', 'entertainment', 'showbizz'
-    ];
-
-    return items.filter(item => {
-      const content = `${item.title} ${item.description || ''}`.toLowerCase();
-      
-      const hasSportContent = sportKeywords.some(keyword => 
-        content.includes(keyword.toLowerCase())
-      );
-      
-      const hasExcludedContent = excludeKeywords.some(keyword =>
-        content.includes(keyword.toLowerCase())
-      );
-      
-      // Alleen recente content (laatste 7 dagen)
-      const isRecent = item.publishedAt && 
-        (Date.now() - item.publishedAt.getTime()) < (7 * 24 * 60 * 60 * 1000);
-      
-      return hasSportContent && !hasExcludedContent && isRecent;
-    });
-  }
-
-  // Remove duplicates
-  removeDuplicates(items) {
-    const seen = new Set();
-    return items.filter(item => {
-      const normalized = item.title
-        .toLowerCase()
-        .replace(/[^\w\s]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-      
-      if (seen.has(normalized)) return false;
-      seen.add(normalized);
-      return true;
-    });
-  }
-
-  // Hoofd fetch functie
   async fetchLiveSportsData() {
-    const now = Date.now();
-    
-    // Gebruik cache als geldig
-    if (this.newsCache.length > 0 && (now - this.lastFetch) < this.cacheExpiry) {
-      return {
-        news: this.newsCache,
-        scores: this.scoresCache,
-        fromCache: true
-      };
-    }
-
-    // Check verbinding
-    const isConnected = await this.checkConnectivity();
-    if (!isConnected) {
-      console.warn('🚫 Geen internetverbinding - gebruik fallback');
-      return {
-        news: [{ title: this.fallbackMessage, source: 'System', publishedAt: new Date() }],
-        scores: [],
-        fromCache: false,
-        offline: true
-      };
-    }
-
-    console.log('🔄 Live sport data ophalen...');
-
     try {
-      // Parallel fetch van nieuws en scores
-      const [newsData, scoresData] = await Promise.allSettled([
-        Promise.race([
-          this.fetchNewsFromSources(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('News timeout')), 15000))
-        ]),
-        Promise.race([
-          this.fetchSportScores(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Scores timeout')), 10000))
-        ])
-      ]);
-
-      // Verwerk nieuws
-      let allNews = [];
-      if (newsData.status === 'fulfilled' && Array.isArray(newsData.value)) {
-        allNews = newsData.value;
-        console.log(`✅ ${allNews.length} nieuwsartikelen opgehaald`);
+      // De URL van je gedeployde Cloud Function
+      const proxyUrl = 'https://europe-west1-jouw-project-id.cloudfunctions.net/getSportNews';
+      
+      const response = await fetch(proxyUrl);
+      
+      if (!response.ok) {
+        console.error('Proxy Error:', response.statusText);
+        return { news: [], scores: [], offline: true };
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        return { news: data.news, scores: [], offline: false };
       } else {
-        console.warn('❌ Nieuws ophalen mislukt:', newsData.reason?.message);
+        return { news: [], scores: [], offline: true };
       }
-
-      // Verwerk scores  
-      let allScores = [];
-      if (scoresData.status === 'fulfilled' && Array.isArray(scoresData.value)) {
-        allScores = scoresData.value;
-        console.log(`✅ ${allScores.length} uitslagen opgehaald`);
-      } else {
-        console.warn('❌ Scores ophalen mislukt:', scoresData.reason?.message);
-      }
-
-      // Filter en sorteer
-      const filteredNews = this.filterSportContent(allNews);
-      const uniqueNews = this.removeDuplicates(filteredNews);
-      const sortedNews = uniqueNews.sort((a, b) => 
-        new Date(b.publishedAt) - new Date(a.publishedAt)
-      );
-
-      // Update cache
-      this.newsCache = sortedNews.slice(0, 25);
-      this.scoresCache = allScores.slice(0, 10); 
-      this.lastFetch = now;
-      this.retryCount = 0;
-
-      // Fallback als geen data
-      if (this.newsCache.length === 0) {
-        this.newsCache = [{ 
-          title: this.fallbackMessage, 
-          source: 'System', 
-          publishedAt: new Date() 
-        }];
-      }
-
-      console.log(`✅ Cache updated: ${this.newsCache.length} nieuws, ${this.scoresCache.length} scores`);
-
-      return {
-        news: this.newsCache,
-        scores: this.scoresCache,
-        fromCache: false,
-        offline: false
-      };
-
+      
     } catch (error) {
-      console.error('❌ Live sport data fetch fout:', error);
-      this.retryCount++;
-      
-      // Retry logic
-      if (this.retryCount < this.maxRetries) {
-        console.log(`🔄 Retry ${this.retryCount}/${this.maxRetries} over 60 seconden...`);
-        setTimeout(() => this.fetchLiveSportsData(), 60000);
-      }
-      
-      return {
-        news: [{ 
-          title: this.fallbackMessage, 
-          source: 'System', 
-          publishedAt: new Date() 
-        }],
-        scores: [],
-        fromCache: false,
-        offline: true,
-        error: error.message
-      };
+      console.error('Fout bij ophalen live feed via proxy:', error);
+      return { news: [], scores: [], offline: true };
     }
   }
 
-  // Force refresh
+  // Je kan een refresh methode behouden als je Caching in de proxy complexer maakt
   async refreshData() {
-    console.log('🔄 Handmatige refresh van live sport data...');
-    this.newsCache = [];
-    this.scoresCache = [];
-    this.lastFetch = 0;
-    this.retryCount = 0;
     return this.fetchLiveSportsData();
-  }
-
-  // Cache status
-  getCacheStatus() {
-    return {
-      newsCount: this.newsCache.length,
-      scoresCount: this.scoresCache.length,
-      lastFetch: this.lastFetch,
-      cacheAge: Date.now() - this.lastFetch,
-      isValid: (Date.now() - this.lastFetch) < this.cacheExpiry,
-      isOnline: this.isOnline,
-      retryCount: this.retryCount
-    };
   }
 }
 
@@ -1237,33 +695,27 @@ export default function AdValvas() {
   const generateContentItems = async () => {
     const items = [];
     
-    // Voeg highscores toe met hogere prioriteit
+    // Voeg highscores toe met veel hogere prioriteit (50% van content)
     testHighscores.forEach(testData => {
       items.push({
         type: CONTENT_TYPES.HIGHSCORES,
         data: testData,
-        priority: 5,
+        priority: 10,
         id: `highscore-${testData.test.id}`,
+        lastShown: 0
+      });
+      
+      // Voeg elke highscore test meerdere keren toe voor meer kans
+      items.push({
+        type: CONTENT_TYPES.HIGHSCORES,
+        data: testData,
+        priority: 10,
+        id: `highscore-dup-${testData.test.id}`,
         lastShown: 0
       });
     });
 
-    // Live sport nieuws toevoegen
-    if (liveNewsData.length > 0) {
-      // Selecteer 3-5 random nieuwsberichten
-      const shuffledNews = shuffleArray([...liveNewsData]);
-      const selectedNews = shuffledNews.slice(0, 3 + Math.floor(Math.random() * 3));
-      
-      selectedNews.forEach((news, index) => {
-        items.push({
-          type: CONTENT_TYPES.LIVE_SPORTS_NEWS,
-          data: news,
-          priority: 4,
-          id: `live-news-${index}-${Date.now()}`,
-          lastShown: 0
-        });
-      });
-    }
+    // GEEN live sport nieuws in main content - enkel in feed
 
     // Dagelijkse activiteiten (meer variatie)
     const dailyActivities = [
@@ -1811,92 +1263,55 @@ export default function AdValvas() {
         <div className="max-w-7xl mx-auto px-4 pt-24 pb-8 lg:px-8 lg:pt-20 lg:pb-10">
           
           {/* MOBILE HEADER */}
-          <div className="lg:hidden mb-10">
-            <div className="flex flex-col items-center space-y-6">
-              <div className="flex items-center space-x-6">
-                <div className="relative">
-                  <img 
-                    src={school?.logo_url || "/logo.png"} 
-                    alt="School Logo" 
-                    className="h-16 w-auto object-contain rounded-xl shadow-md border border-white/50" 
-                    onError={(e) => { e.target.src = '/logo.png'; }} 
-                  />
-                  <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-                    isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-                  }`}></div>
-                </div>
-                <div className="text-center">
-                  <h1 className="text-2xl font-black text-gray-800 font-mono tracking-wider bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    Sport Dashboard
-                  </h1>
-                  <div className="text-xs text-gray-500 font-medium mt-1 flex items-center space-x-1">
-                    {feedLoading ? (
-                      <><RefreshCw className="h-3 w-3 animate-spin" /><span>Updating...</span></>
-                    ) : (
-                      <><Activity className="h-3 w-3" /><span>Live Updates</span></>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="text-center bg-white/60 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg">
-                <div className="text-3xl font-black text-gray-800 font-mono tracking-wider mb-1">
-                  {formatTime(currentTime)}
-                </div>
-                <div className="text-gray-600 text-base font-medium">
-                  {formatDate(currentTime)}
-                </div>
-              </div>
-            </div>
-          </div>
+          <div className="lg:hidden flex justify-between items-center mb-6 px-4">
+  <div className="flex items-center space-x-3">
+    <img 
+      src={school?.logo_url || "/logo.png"} 
+      alt="School Logo" 
+      className="h-10 w-auto object-contain rounded-md" 
+      onError={(e) => { e.target.src = '/logo.png'; }} 
+    />
+    <h1 className="text-lg font-black text-gray-800">
+      Sport Dashboard
+    </h1>
+  </div>
+  <div className="text-right">
+    <div className="text-xl font-bold text-gray-800 font-mono">
+      {formatTime(currentTime)}
+    </div>
+    <div className="text-xs text-gray-500">
+      {formatDate(currentTime)}
+    </div>
+  </div>
+</div>
 
           {/* DESKTOP HEADER */}
-          <div className="hidden lg:block mb-12">
-            <div className="flex justify-between items-center bg-white/40 backdrop-blur-sm rounded-3xl p-8 shadow-lg">
-              <div className="flex items-center space-x-8">
-                <div className="relative">
-                  <img 
-                    src={school?.logo_url || "/logo.png"} 
-                    alt="School Logo" 
-                    className="h-20 w-auto object-contain rounded-xl shadow-md border border-white/50" 
-                    onError={(e) => { e.target.src = '/logo.png'; }} 
-                  />
-                  <div className={`absolute -top-2 -right-2 w-5 h-5 rounded-full border-2 border-white ${
-                    isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-                  }`}></div>
-                </div>
-                <div>
-                  <h1 className="text-4xl font-black text-gray-800 font-mono tracking-wider bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    Sport Dashboard
-                  </h1>
-                  <div className="text-gray-500 font-medium mt-2 flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      feedStatus === 'online' ? 'bg-green-500 animate-pulse' :
-                      feedStatus === 'offline' ? 'bg-red-500' :
-                      feedStatus === 'connecting' || feedStatus === 'refreshing' ? 'bg-yellow-500 animate-spin' :
-                      'bg-gray-400'
-                    }`}></div>
-                    <span>
-                      {feedStatus === 'online' ? 'Live Sport Updates' :
-                       feedStatus === 'offline' ? 'Offline Mode' :
-                       feedStatus === 'connecting' ? 'Connecting...' :
-                       feedStatus === 'refreshing' ? 'Refreshing...' :
-                       'Status Unknown'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="text-right bg-white/50 rounded-2xl px-8 py-6 shadow-lg">
-                <div className="text-5xl font-black text-gray-800 font-mono tracking-wider mb-2">
-                  {formatTime(currentTime)}
-                </div>
-                <div className="text-gray-600 text-xl font-medium">
-                  {formatDate(currentTime)}
-                </div>
-              </div>
-            </div>
-          </div>
+          <div className="hidden lg:flex justify-between items-center mb-8">
+  <div className="flex items-center space-x-4">
+    <img 
+      src={school?.logo_url || "/logo.png"} 
+      alt="School Logo" 
+      className="h-12 w-auto object-contain rounded-lg" 
+      onError={(e) => { e.target.src = '/logo.png'; }} 
+    />
+    <div>
+      <h1 className="text-2xl font-black text-gray-800">
+        Sport Dashboard
+      </h1>
+      <div className="text-gray-500 text-sm font-medium">
+        Live resultaten en nieuws
+      </div>
+    </div>
+  </div>
+  <div className="text-right">
+    <div className="text-4xl font-bold text-gray-800 font-mono">
+      {formatTime(currentTime)}
+    </div>
+    <div className="text-gray-600">
+      {formatDate(currentTime)}
+    </div>
+  </div>
+</div>
 
           {/* Main Content */}
           {contentItems.length > 0 && currentItem ? (
