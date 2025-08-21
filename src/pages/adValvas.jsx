@@ -1437,7 +1437,7 @@ export default function AdValvas() {
           100% { transform: translateX(-100%); }
         }
         .animate-marquee {
-          animation: marquee 60s linear infinite;
+          animation: marquee 40s linear infinite;
         }
         .animate-marquee:hover {
           animation-play-state: paused;
