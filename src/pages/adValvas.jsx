@@ -1116,7 +1116,7 @@ export default function AdValvas() {
             <div className="relative z-10">
               <div className="text-center mb-12">
               
-                <h2 className="text-4xl lg:text-6xl font-black text-gray-800 mb-4 tracking-tight bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                <h2 className="text-2xl lg:text-6xl font-black text-gray-800 mb-4 tracking-tight bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
                   {item.data.test.naam}
                 </h2>
                 <p className="text-gray-600 text-lg">Huidige klassementsleiders</p>
