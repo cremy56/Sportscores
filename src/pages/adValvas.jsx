@@ -99,7 +99,7 @@ const SPORT_FACTS = [
 ];
 
 // --- Sport Nieuws API Functies (unchanged from original) ---
-class SportNewsAPI {
+class LiveSportsFeedAPI {
   constructor() {
     this.newsCache = [];
     this.lastFetch = 0;
