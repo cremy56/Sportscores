@@ -362,342 +362,282 @@ export default function AdValvas() {
   const [testHighscores, setTestHighscores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newsIndex, setNewsIndex] = useState(0);
-  const [sportNews, setSportNews] = useState([]);
-  const [newsAPI] = useState(() => new SportNewsAPI());
-  const [newsLoading, setNewsLoading] = useState(true);
-  const [lastNewsRefresh, setLastNewsRefresh] = useState(null);
+  const [liveNewsData, setLiveNewsData] = useState([]);
+  const [liveScoresData, setLiveScoresData] = useState([]);
+  const [liveFeedAPI] = useState(() => new LiveSportsFeedAPI());
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [lastFeedRefresh, setLastFeedRefresh] = useState(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Content genereren
+  // Seizoensgebonden content helper (uitgebreid)
+  const getSeasonalContent = (month) => {
+    const seasonalData = {
+      // Lente (maart, april, mei)
+      2: { text: "Lente is begonnen! Perfect weer om buiten te sporten 🌸", icon: Calendar, color: "from-green-400 to-blue-500" },
+      3: { text: "April: Ideale maand voor atletiek en buitenactiviteiten! 🏃‍♂️", icon: Activity, color: "from-blue-400 to-green-500" },
+      4: { text: "Mei: Sportdag voorbereidingen zijn in volle gang! 🏆", icon: Trophy, color: "from-yellow-400 to-green-500" },
+      
+      // Zomer (juni, juli, augustus)
+      5: { text: "Zomersport seizoen geopend! Zwemmen en watersport! 🏊‍♀️", icon: Activity, color: "from-blue-500 to-cyan-500" },
+      6: { text: "Juli: Zomerkampen en buitenactiviteiten! ☀️", icon: Calendar, color: "from-orange-400 to-red-500" },
+      7: { text: "Augustus: Tijd om de laatste zomerrecords te verbreken!", icon: Zap, color: "from-red-500 to-yellow-500" },
+
+      // Herfst (september, oktober, november)
+      8: { text: "September: Terug naar school, vol nieuwe sportieve doelen!", icon: BookOpen, color: "from-orange-500 to-yellow-600" },
+      9: { text: "Oktober: Het indoor sportseizoen start nu!", icon: BarChart3, color: "from-indigo-500 to-purple-600" },
+      10: { text: "November: Focus op kracht en uithouding voor de winter.", icon: TrendingUp, color: "from-gray-500 to-gray-700" },
+
+      // Winter (december, januari, februari)
+      11: { text: "December: Blijf warm en actief tijdens de koude dagen!", icon: Flame, color: "from-red-600 to-orange-500" },
+      0: { text: "Januari: Nieuw jaar, nieuwe records! Wat zijn jouw doelen?", icon: Star, color: "from-blue-600 to-cyan-400" },
+      1: { text: "Februari: De eindsprint van het winterseizoen!", icon: TrendingDown, color: "from-cyan-400 to-teal-500" }
+    };
+    return seasonalData[month];
+  };
+
+  // Enhanced content genereren met meer variatie
   const generateContentItems = async () => {
     const items = [];
     
-    // Voeg highscores toe
     testHighscores.forEach(testData => {
       items.push({
         type: CONTENT_TYPES.HIGHSCORES,
         data: testData,
-        priority: 1
+        priority: 5,
+        id: `highscore-${testData.test.id}`
       });
     });
 
-    // Breaking news records (simulatie - in productie uit database)
-    const mockBreakingNews = [
-      {
-        text: "🔥 NIEUW RECORD! Emma K. verbeterde het schoolrecord push-ups met 47x!",
-        date: new Date(),
-        test: "Push-up",
-        student: "Emma K.",
-        score: "47x"
-      }
-    ];
-
-    mockBreakingNews.forEach(news => {
-      const daysSince = Math.floor((new Date() - news.date) / (1000 * 60 * 60 * 24));
-      if (daysSince <= 3) {
+    if (liveNewsData.length > 0) {
+      const shuffledNews = shuffleArray([...liveNewsData]);
+      const selectedNews = shuffledNews.slice(0, 3 + Math.floor(Math.random() * 3));
+      selectedNews.forEach((news, index) => {
         items.push({
-          type: CONTENT_TYPES.BREAKING_NEWS,
+          type: CONTENT_TYPES.LIVE_SPORTS_NEWS,
           data: news,
-          priority: 5
+          priority: 4,
+          id: `live-news-${index}-${Date.now()}`
         });
-      }
-    });
+      });
+    }
 
-    // Dagelijkse activiteit (simulatie)
+    const dailyActivities = [
+      { text: "Vandaag legde klas 4B de coopertest af - super resultaten! 💪", icon: BookOpen, color: "from-green-500 to-emerald-600" },
+      { text: "Atletiekdag: Leerlingen braken persoonlijke records! 🏃‍♂️", icon: Target, color: "from-blue-500 to-cyan-600" },
+    ];
+    const randomDaily = dailyActivities[Math.floor(Math.random() * dailyActivities.length)];
     items.push({
       type: CONTENT_TYPES.DAILY_ACTIVITY,
-      data: {
-        text: "Vandaag legde klas 4B de coopertest af - super resultaten! 💪",
-        icon: BookOpen,
-        color: "from-green-500 to-emerald-600"
-      },
-      priority: 2
+      data: randomDaily,
+      priority: 3,
+      id: `daily-${Date.now()}`
     });
 
-    // Wekelijkse stats (simulatie)
-    items.push({
-      type: CONTENT_TYPES.WEEKLY_STATS,
-      data: {
-        text: "Deze week werden er 89 nieuwe scores geregistreerd! 📊",
-        icon: BarChart3,
-        color: "from-blue-500 to-cyan-600"
-      },
-      priority: 2
-    });
+    const numQuotes = 5 + Math.floor(Math.random() * 4);
+    const shuffledQuotes = shuffleArray([...SPORT_QUOTES]);
+    for (let i = 0; i < numQuotes && i < shuffledQuotes.length; i++) {
+      items.push({
+        type: CONTENT_TYPES.QUOTE,
+        data: shuffledQuotes[i],
+        priority: 2,
+        id: `quote-${i}-${Date.now()}`
+      });
+    }
 
-    // Sport quotes
-    const randomQuote = SPORT_QUOTES[Math.floor(Math.random() * SPORT_QUOTES.length)];
-    items.push({
-      type: CONTENT_TYPES.QUOTE,
-      data: randomQuote,
-      priority: 1
-    });
+    const numFacts = 8 + Math.floor(Math.random() * 5);
+    const shuffledFacts = shuffleArray([...SPORT_FACTS]);
+    for (let i = 0; i < numFacts && i < shuffledFacts.length; i++) {
+      items.push({
+        type: CONTENT_TYPES.SPORT_FACT,
+        data: { text: shuffledFacts[i], icon: Target, color: "from-purple-500 to-indigo-600" },
+        priority: 2,
+        id: `fact-${i}-${Date.now()}`
+      });
+    }
 
-    // Sport feiten
-    const randomFact = SPORT_FACTS[Math.floor(Math.random() * SPORT_FACTS.length)];
-    items.push({
-      type: CONTENT_TYPES.SPORT_FACT,
-      data: {
-        text: randomFact,
-        icon: Target,
-        color: "from-purple-500 to-indigo-600"
-      },
-      priority: 1
-    });
+    const currentMonth = new Date().getMonth();
+    const seasonalContent = getSeasonalContent(currentMonth);
+    if (seasonalContent) {
+      items.push({
+        type: CONTENT_TYPES.SEASON_STATS,
+        data: seasonalContent,
+        priority: 3,
+        id: `seasonal-${currentMonth}`
+      });
+    }
 
-    // Sorteer op prioriteit
-    items.sort((a, b) => b.priority - a.priority);
-    
-    return items;
+    const shuffledItems = shuffleArray(items);
+    return shuffledItems.sort((a, b) => b.priority - a.priority);
   };
-
-  // Sport nieuws ophalen
+  
+  // Intelligente content selectie
+  const getNextContentIndex = (currentItems) => {
+      if (currentItems.length <= 1) return 0;
+      let nextIndex = (currentContentIndex + 1) % currentItems.length;
+      return nextIndex;
+  };
+  
+  // Live sport feed ophalen
   useEffect(() => {
-    const loadSportsNews = async () => {
-      setNewsLoading(true);
+    const loadLiveSportsFeed = async () => {
+      setFeedLoading(true);
       try {
-        const news = await newsAPI.fetchSportsNews();
-        setSportNews(news.map(article => article.title));
-        setLastNewsRefresh(new Date());
+        const feedData = await liveFeedAPI.fetchLiveSportsData();
+        setLiveNewsData(feedData.news || []);
+        setLiveScoresData(feedData.scores || []);
+        setLastFeedRefresh(new Date());
       } catch (error) {
-        console.error('Fout bij laden sport nieuws:', error);
-        setSportNews([
-          "🏃‍♂️ Sport nieuws wordt geladen...",
-          "⚽ Belgische sport updates komen eraan...",
-          "🏆 Live sportuitslagen onderweg..."
-        ]);
+        console.error('❌ Fout bij laden live feed:', error);
       } finally {
-        setNewsLoading(false);
+        setFeedLoading(false);
       }
     };
+    loadLiveSportsFeed();
+    const feedRefreshInterval = setInterval(loadLiveSportsFeed, 5 * 60 * 1000);
+    return () => clearInterval(feedRefreshInterval);
+  }, [liveFeedAPI]);
 
-    loadSportsNews();
-    const newsRefreshInterval = setInterval(loadSportsNews, 10 * 60 * 1000);
-    return () => clearInterval(newsRefreshInterval);
-  }, [newsAPI]);
+  // Online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
-  // Test scores ophalen
+  // Test highscores ophalen
   useEffect(() => {
     const fetchTestHighscores = async () => {
-      if (!profile?.school_id) {
-        setLoading(false);
-        return;
-      }
+      if (!profile?.school_id) { setLoading(false); return; }
       setLoading(true);
-
       try {
-        const testenQuery = query(
-          collection(db, 'testen'),
-          where('school_id', '==', profile.school_id),
-          where('is_actief', '==', true)
-        );
+        const testenQuery = query(collection(db, 'testen'), where('school_id', '==', profile.school_id), where('is_actief', '==', true));
         const testenSnap = await getDocs(testenQuery);
         const allTests = testenSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
         const testHighscorePromises = allTests.map(async (test) => {
           const direction = test.score_richting === 'laag' ? 'asc' : 'desc';
-          const scoreQuery = query(
-            collection(db, 'scores'),
-            where('test_id', '==', test.id),
-            orderBy('score', direction),
-            limit(3)
-          );
+          const scoreQuery = query(collection(db, 'scores'), where('test_id', '==', test.id), orderBy('score', direction), limit(3));
           const scoreSnap = await getDocs(scoreQuery);
-          
-          const scores = scoreSnap.docs.map(doc => ({
-            ...doc.data(),
-            id: doc.id,
-            datum: doc.data().datum?.toDate ? doc.data().datum.toDate() : new Date(doc.data().datum)
-          }));
-
+          const scores = scoreSnap.docs.map(doc => ({ ...doc.data(), id: doc.id, datum: doc.data().datum?.toDate ? doc.data().datum.toDate() : new Date(doc.data().datum) }));
           return scores.length > 0 ? { test, scores } : null;
         });
-
         const results = await Promise.all(testHighscorePromises);
-        const validResults = results.filter(Boolean);
-        setTestHighscores(validResults);
-
-        // Genereer content items na het laden van highscores
-        const items = await generateContentItems();
-        setContentItems(items);
-
+        setTestHighscores(results.filter(Boolean));
       } catch (error) {
         console.error('Error fetching test highscores:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchTestHighscores();
   }, [profile?.school_id]);
 
-  // Update content items wanneer testHighscores veranderen
+  // Update content items
   useEffect(() => {
     const updateContent = async () => {
-      if (testHighscores.length > 0) {
-        const items = await generateContentItems();
-        setContentItems(items);
-      }
+      if (loading) return;
+      const items = await generateContentItems();
+      setContentItems(items);
     };
     updateContent();
-  }, [testHighscores]);
+  }, [testHighscores, liveNewsData, liveScoresData, loading]);
 
-  // Tijd updaten
+  // Tijd & slide timers
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Content wisselen elke 8 seconden
-  useEffect(() => {
-    if (contentItems.length === 0) return;
-    
     const slideTimer = setInterval(() => {
-      setAnimationClass('animate-pulse');
-      setTimeout(() => {
-        setCurrentContentIndex((prev) => (prev + 1) % contentItems.length);
-        setAnimationClass('');
-      }, 300);
+      if (contentItems.length > 0) {
+        setAnimationClass('animate-pulse');
+        setTimeout(() => {
+          setCurrentContentIndex(getNextContentIndex(contentItems));
+          setAnimationClass('');
+        }, 300);
+      }
     }, 8000);
-    return () => clearInterval(slideTimer);
-  }, [contentItems.length]);
+    return () => { clearInterval(timer); clearInterval(slideTimer); };
+  }, [contentItems, currentContentIndex]);
 
-  // Nieuws wisselen elke 15 seconden
+  // Nieuws ticker timer
   useEffect(() => {
-    if (sportNews.length === 0) return;
-    
-    const newsTimer = setInterval(() => {
-      setNewsIndex((prev) => (prev + 1) % sportNews.length);
-    }, 15000);
+    if (liveNewsData.length === 0) return;
+    const newsTimer = setInterval(() => setNewsIndex((prev) => (prev + 1) % liveNewsData.length), 15000);
     return () => clearInterval(newsTimer);
-  }, [sportNews.length]);
+  }, [liveNewsData.length]);
   
+  // Andere helpers
   const formatTime = (date) => date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
   const formatDate = (date) => date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
-  
   const getRelativeTime = (date) => {
     const days = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
     if (days === 0) return 'Vandaag';
     if (days === 1) return 'Gisteren';
-    return `${days} dagen geleden`;
+    if (days < 7) return `${days} dagen geleden`;
+    const weeks = Math.floor(days / 7);
+    return `${weeks} ${weeks === 1 ? 'week' : 'weken'} geleden`;
   };
-
-  // Manual news refresh functie
-  const handleNewsRefresh = async () => {
-    setNewsLoading(true);
-    try {
-      const news = await newsAPI.refreshNews();
-      setSportNews(news.map(article => article.title));
-      setLastNewsRefresh(new Date());
-    } catch (error) {
-      console.error('Fout bij handmatig vernieuwen nieuws:', error);
-    } finally {
-      setNewsLoading(false);
-    }
-  };
-
+  
+  // Render sub-componenten
   const PodiumCard = ({ score, position }) => {
     const podiumColors = {
       1: { bg: 'bg-gradient-to-br from-yellow-400 to-yellow-600', text: 'text-yellow-900', icon: '🥇' },
       2: { bg: 'bg-gradient-to-br from-gray-300 to-gray-500', text: 'text-gray-900', icon: '🥈' },
       3: { bg: 'bg-gradient-to-br from-orange-400 to-orange-600', text: 'text-orange-900', icon: '🥉' }
     };
-    
     const style = podiumColors[position];
-    
     return (
       <div className={`${style.bg} rounded-2xl p-6 text-center shadow-lg transform hover:scale-105 transition-all duration-300 ${position === 1 ? 'scale-105' : ''}`}>
         <div className="text-5xl mb-4">{style.icon}</div>
-        <div className={`${style.text} font-bold text-lg mb-2`}>
-          {formatNameForDisplay(score.leerling_naam)}
-        </div>
-        <div className={`${style.text} text-2xl font-black mb-2`}>
-          {formatScoreWithUnit(score.score, score.eenheid || '')}
-        </div>
-        <div className={`${style.text} opacity-80 text-sm`}>
-          {getRelativeTime(score.datum)}
-        </div>
+        <div className={`${style.text} font-bold text-lg mb-2`}>{formatNameForDisplay(score.leerling_naam)}</div>
+        <div className={`${style.text} text-2xl font-black mb-2`}>{formatScoreWithUnit(score.score, score.eenheid || '')}</div>
+        <div className={`${style.text} opacity-80 text-sm`}>{getRelativeTime(score.datum)}</div>
       </div>
     );
   };
-
+  
   const renderContentItem = (item) => {
+    if (!item) return null; // Veiligheidscontrole
     switch (item.type) {
       case CONTENT_TYPES.HIGHSCORES:
         return (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-6xl mx-auto">
-            <div className="text-center mb-10">
-              <h2 className="text-3xl lg:text-5xl font-bold text-gray-800 mb-6 tracking-tight">
-                {item.data.test.naam}
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-              {item.data.scores.map((score, index) => (
-                <PodiumCard key={score.id} score={score} position={index + 1} />
-              ))}
-            </div>
+            <div className="text-center mb-10"><h2 className="text-3xl lg:text-5xl font-bold text-gray-800 tracking-tight">{item.data.test.naam}</h2></div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">{item.data.scores.map((score, index) => <PodiumCard key={score.id} score={score} position={index + 1} />)}</div>
           </div>
         );
-
       case CONTENT_TYPES.QUOTE:
         return (
           <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-lg p-10 max-w-6xl mx-auto text-white">
-            <div className="text-center">
-              <Quote className="h-12 w-12 mx-auto mb-6 opacity-80" />
-              <blockquote className="text-2xl lg:text-3xl font-medium leading-relaxed mb-6 italic">
-                "{item.data.text}"
-              </blockquote>
-              <cite className="text-lg opacity-90 font-semibold">
-                — {item.data.author}
-              </cite>
-            </div>
+            <div className="text-center"><Quote className="h-12 w-12 mx-auto mb-6 opacity-80" /><blockquote className="text-2xl lg:text-3xl font-medium leading-relaxed mb-6 italic">"{item.data.text}"</blockquote><cite className="text-lg opacity-90 font-semibold">— {item.data.author}</cite></div>
           </div>
         );
-
       case CONTENT_TYPES.BREAKING_NEWS:
         return (
           <div className="bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl shadow-lg p-10 max-w-6xl mx-auto text-white">
-            <div className="text-center">
-              <div className="inline-flex items-center space-x-3 bg-white/20 rounded-full px-6 py-3 mb-6">
-                <Flame className="h-6 w-6 animate-pulse" />
-                <span className="font-bold uppercase tracking-wider">Breaking News</span>
-              </div>
-              <h2 className="text-2xl lg:text-4xl font-bold leading-tight">
-                {item.data.text}
-              </h2>
-            </div>
+            <div className="text-center"><div className="inline-flex items-center space-x-3 bg-white/20 rounded-full px-6 py-3 mb-6"><Flame className="h-6 w-6 animate-pulse" /><span className="font-bold uppercase tracking-wider">Breaking News</span></div><h2 className="text-2xl lg:text-4xl font-bold leading-tight">{item.data.text}</h2></div>
           </div>
         );
-
       case CONTENT_TYPES.DAILY_ACTIVITY:
       case CONTENT_TYPES.WEEKLY_STATS:
       case CONTENT_TYPES.SPORT_FACT:
+      case CONTENT_TYPES.SEASON_STATS:
         const IconComponent = item.data.icon;
         return (
           <div className={`bg-gradient-to-br ${item.data.color} rounded-2xl shadow-lg p-10 max-w-6xl mx-auto text-white`}>
-            <div className="text-center">
-              <IconComponent className="h-16 w-16 mx-auto mb-6 opacity-90" />
-              <h2 className="text-2xl lg:text-4xl font-bold leading-tight">
-                {item.data.text}
-              </h2>
-            </div>
+            <div className="text-center"><IconComponent className="h-16 w-16 mx-auto mb-6 opacity-90" /><h2 className="text-2xl lg:text-4xl font-bold leading-tight">{item.data.text}</h2></div>
           </div>
         );
-
-      default:
-        return null;
+      default: return null;
     }
   };
 
   if (loading) {
     return (
       <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-2xl shadow-sm">
-          <div className="flex items-center space-x-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            <span className="text-gray-700 font-medium">Sport dashboard laden...</span>
-          </div>
-        </div>
+        <div className="bg-white p-8 rounded-2xl shadow-sm"><div className="flex items-center space-x-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div><span className="text-gray-700 font-medium">Sport dashboard laden...</span></div></div>
       </div>
     );
   }
@@ -706,154 +646,25 @@ export default function AdValvas() {
 
   return (
     <div className="fixed inset-0 bg-slate-50 flex flex-col">
-      {/* Main Content Area - scrollable with fixed footer */}
-      <div className="flex-1 overflow-y-auto pb-16 lg:pb-16">
-        <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-16 lg:pb-8">
-          
-          {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
-          <div className="lg:hidden mb-8">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="flex items-center space-x-4">
-                <img 
-                  src={school?.logo_url || "/logo.png"} 
-                  alt="School Logo" 
-                  className="h-12 w-auto object-contain rounded-lg shadow-sm" 
-                  onError={(e) => { e.target.src = '/logo.png'; }} 
-                />
-                <div className="text-center">
-                  <h1 className="text-xl font-black text-gray-800 font-mono tracking-wider">
-                    Sport Dashboard
-                  </h1>
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-black text-gray-800 font-mono tracking-wider">
-                  {formatTime(currentTime)}
-                </div>
-                <div className="text-gray-600 text-sm">
-                  {formatDate(currentTime)}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
+      <div className="flex-1 overflow-y-auto pb-24">
+        <div className="max-w-7xl mx-auto px-4 pt-8 pb-6 lg:px-8 lg:pt-8 lg:pb-8">
           <div className="hidden lg:block mb-8">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-6">
-                <img 
-                  src={school?.logo_url || "/logo.png"} 
-                  alt="School Logo" 
-                  className="h-16 w-auto object-contain rounded-lg shadow-sm" 
-                  onError={(e) => { e.target.src = '/logo.png'; }} 
-                />
-                <div>
-                  <h1 className="text-3xl font-black text-gray-800 font-mono tracking-wider">
-                    Sport Dashboard
-                  </h1>
-                </div>
-              </div>
-              
-              <div className="text-right">
-                <div className="text-4xl font-black text-gray-800 font-mono tracking-wider">
-                  {formatTime(currentTime)}
-                </div>
-                <div className="text-gray-600 text-lg">
-                  {formatDate(currentTime)}
-                </div>
-              </div>
-            </div>
+            <div className="flex justify-between items-center"><div className="flex items-center space-x-6"><img src={school?.logo_url || "/logo.png"} alt="School Logo" className="h-16 w-auto object-contain rounded-lg shadow-sm" onError={(e) => { e.target.src = '/logo.png'; }} /><div><h1 className="text-3xl font-black text-gray-800 font-mono tracking-wider">Sport Dashboard</h1></div></div><div className="text-right"><div className="text-4xl font-black text-gray-800 font-mono tracking-wider">{formatTime(currentTime)}</div><div className="text-gray-600 text-lg">{formatDate(currentTime)}</div></div></div>
           </div>
-
-          {/* Main Content */}
           {contentItems.length > 0 && currentItem ? (
             <div className={`transition-all duration-500 ${animationClass} mb-8`}>
               {renderContentItem(currentItem)}
-              
-              {/* Content Indicators */}
-              <div className="flex justify-center space-x-2 mt-8">
-                {contentItems.map((_, index) => (
-                  <div
-                    key={index}
-                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                      currentContentIndex === index 
-                        ? 'bg-purple-600 scale-110' 
-                        : 'bg-gray-300 hover:bg-gray-400'
-                    }`}
-                  />
-                ))}
-              </div>
+              <div className="flex justify-center space-x-2 mt-8">{contentItems.map((_, index) => (<button key={index} onClick={() => setCurrentContentIndex(index)} className={`w-3 h-3 rounded-full transition-all duration-300 ${currentContentIndex === index ? 'bg-purple-600 scale-110' : 'bg-gray-300 hover:bg-gray-400'}`} />))}</div>
             </div>
           ) : (
-            // Empty State
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto mb-8">
-              <div className="mb-6">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Trophy className="w-8 h-8 text-purple-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">Dashboard wordt voorbereid</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Zodra er sportscores worden ingevoerd, komt het dashboard tot leven!
-                </p>
-              </div>
-            </div>
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto mb-8"><div className="mb-6"><div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4"><Trophy className="w-8 h-8 text-purple-600" /></div><h3 className="text-2xl font-bold text-gray-800 mb-2">Dashboard wordt voorbereid</h3><p className="text-gray-600 leading-relaxed">Zodra er sportscores worden ingevoerd, komt het dashboard tot leven!</p></div></div>
           )}
         </div>
       </div>
-
-      {/* Live Sport News Ticker - Fixed bottom, alleen zichtbaar op desktop */}
-      <div className="hidden lg:block bg-slate-900 border-t border-slate-700 fixed bottom-0 left-0 right-0 z-50">
-        <div className="flex items-center h-16 overflow-hidden">
-          <div className="flex items-center bg-red-600 px-4 h-full">
-            <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${newsLoading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400 animate-pulse'}`}></div>
-              <span className="text-white font-bold text-sm uppercase tracking-wider">
-                {newsLoading ? 'Loading' : 'Live Sport'}
-              </span>
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-hidden">
-            <div className="animate-marquee whitespace-nowrap text-white text-lg font-medium py-5">
-              {sportNews.length > 0 ? (
-                <>
-                  {sportNews[newsIndex]} • {sportNews[(newsIndex + 1) % sportNews.length]} • {sportNews[(newsIndex + 2) % sportNews.length]} • 
-                </>
-              ) : (
-                "🏃‍♂️ Sport nieuws wordt geladen... • ⚽ Live updates komen eraan... • "
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-4 px-4 text-white/60">
-            {lastNewsRefresh && (
-              <div className="flex items-center space-x-1 text-xs">
-                <Clock className="h-3 w-3" />
-                <span>Laatste update: {formatTime(lastNewsRefresh)}</span>
-              </div>
-            )}
-            <button
-              onClick={handleNewsRefresh}
-              disabled={newsLoading}
-              className="flex items-center space-x-1 text-xs hover:text-white transition-colors disabled:opacity-50"
-              title="Vernieuw sport nieuws"
-            >
-              <Activity className={`h-4 w-4 ${newsLoading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
+      <div className="bg-slate-900 border-t border-slate-700 fixed bottom-0 left-0 right-0 z-50">
+        <div className="flex items-center h-16 overflow-hidden"><div className="flex items-center bg-red-600 px-4 h-full"><div className="flex items-center space-x-2"><div className={`w-2 h-2 rounded-full ${feedLoading ? 'bg-yellow-400 animate-ping' : isOnline ? 'bg-green-400' : 'bg-red-400'}`}></div><span className="text-white font-bold text-sm uppercase tracking-wider">{feedLoading ? 'Laden' : isOnline ? 'Live' : 'Offline'}</span></div></div><div className="flex-1 overflow-hidden"><div className="animate-marquee whitespace-nowrap text-white text-lg font-medium py-5">{(liveNewsData.length > 0 ? liveNewsData : [{title: liveFeedAPI.fallbackMessage}]).map(news => news.title).join(' • ')}</div></div><div className="flex items-center space-x-4 px-4 text-white/60"><div className="flex items-center space-x-1 text-xs"><Clock className="h-3 w-3" /><span>{lastFeedRefresh ? `Update: ${formatTime(lastFeedRefresh)}` : 'Wachten...'}</span></div><button onClick={() => liveFeedAPI.refreshData()} disabled={feedLoading} className="flex items-center space-x-1 text-xs hover:text-white transition-colors disabled:opacity-50" title="Vernieuw sport nieuws"><RefreshCw className={`h-4 w-4 ${feedLoading ? 'animate-spin' : ''}`} /><span>Refresh</span></button></div></div>
       </div>
-
-      <style jsx>{`
-        @keyframes marquee {
-          0% { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
-        }
-        .animate-marquee {
-          animation: marquee 30s linear infinite;
-        }
-      `}</style>
+      <style jsx>{`@keyframes marquee { 0% { transform: translateX(50%); } 100% { transform: translateX(-100%); } } .animate-marquee { display: inline-block; padding-left: 100%; animation: marquee 60s linear infinite; }`}</style>
     </div>
   );
 }
