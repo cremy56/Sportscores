@@ -643,8 +643,8 @@ const SPORT_FACTS = [
 class LiveSportsFeedAPI {
   async fetchLiveSportsData() {
     try {
-      // De URL van je gedeployde Cloud Function
-      const proxyUrl = 'https://europe-west1-jouw-project-id.cloudfunctions.net/getSportNews';
+      // DIT IS DE CORRECTE URL VAN JOUW FUNCTIE
+      const proxyUrl = 'https://europe-west1-sportscore-6774d.cloudfunctions.net/getSportNews';
       
       const response = await fetch(proxyUrl);
       
@@ -667,7 +667,6 @@ class LiveSportsFeedAPI {
     }
   }
 
-  // Je kan een refresh methode behouden als je Caching in de proxy complexer maakt
   async refreshData() {
     return this.fetchLiveSportsData();
   }
