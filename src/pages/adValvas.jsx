@@ -137,9 +137,8 @@ class LiveSportsFeedAPI {
     
     console.log('Live sportnieuws ophalen...');
     const rssFeeds = [
-      'https://www.hln.be/sport/rss.xml', // Vaak de meest betrouwbare
-      'https://www.sporza.be/nl/feeds/rss.xml',
-      'https://nos.nl/rss/sport.xml'
+     'https://www.hln.be/sport/rss.xml',
+  'https://www.nieuwsblad.be/sport/rss.xml' // Stabiel alternatief
     ];
 
     const promises = rssFeeds.map(url => this.fetchFromRSS(url));
