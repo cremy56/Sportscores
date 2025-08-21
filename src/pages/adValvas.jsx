@@ -352,7 +352,7 @@ class LiveSportsFeedAPI {
     return this.fetchSportsNews();
   }
 }
-const [liveFeedAPI] = new LiveSportsFeedAPI();
+const liveFeedAPI = new LiveSportsFeedAPI();
 
 export default function AdValvas() {
   const { profile, school } = useOutletContext();
