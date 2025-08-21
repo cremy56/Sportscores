@@ -137,8 +137,9 @@ class LiveSportsFeedAPI {
     
     console.log('Live sportnieuws ophalen...');
     const rssFeeds = [
-     'https://www.hln.be/sport/rss.xml',
-  'https://www.nieuwsblad.be/sport/rss.xml' // Stabiel alternatief
+    'https://www.vrt.be/vrtnws/nl.rss.sport.xml', // VRT NWS Sport
+  'https://www.hln.be/sport/rss.xml',           // HLN Sport
+  'https://www.ad.nl/sport/rss.xml'             // AD.nl Sport (Nederland)
     ];
 
     const promises = rssFeeds.map(url => this.fetchFromRSS(url));
