@@ -979,7 +979,7 @@ export default function AdValvas() {
     
     const newsTimer = setInterval(() => {
     setNewsIndex((prev) => (prev + 1) % liveNewsData.length);
-  }, 30 * 1000); // 30 seconden
+  }, 40 * 1000); // 30 seconden
     
     return () => clearInterval(newsTimer);
   }, [liveNewsData.length]);
@@ -1437,7 +1437,7 @@ export default function AdValvas() {
           100% { transform: translateX(-100%); }
         }
         .animate-marquee {
-          animation: marquee 15s linear infinite;
+          animation: marquee 25s linear infinite;
         }
         .animate-marquee:hover {
           animation-play-state: paused;
