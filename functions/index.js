@@ -5,7 +5,9 @@ const {initializeApp} = require('firebase-admin/app');
 const {getFirestore, FieldValue} = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
 
-initializeApp();
+if (admin.apps.length === 0) {
+  initializeApp();
+}
 // ==============================================
 // PRIVATE SPORT NEWS PROXY
 // ==============================================

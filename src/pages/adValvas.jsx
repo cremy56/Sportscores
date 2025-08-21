@@ -1115,10 +1115,7 @@ export default function AdValvas() {
             
             <div className="relative z-10">
               <div className="text-center mb-12">
-                <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full px-6 py-2 mb-6">
-                  <Trophy className="h-6 w-6 text-purple-600" />
-                  <span className="text-purple-800 font-semibold uppercase tracking-wider text-sm">Top Prestaties</span>
-                </div>
+              
                 <h2 className="text-4xl lg:text-6xl font-black text-gray-800 mb-4 tracking-tight bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
                   {item.data.test.naam}
                 </h2>
