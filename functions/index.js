@@ -14,22 +14,23 @@ if (admin.apps.length === 0) {
 
 // Private proxy voor sport nieuws - vermijdt CORS issues
 exports.getSportNews = onRequest({
-  cors: true,
-  region: 'europe-west1'
-}, async (req, res) => {
-  // Verify request is from our domain/app
-  const allowedOrigins = [
+  // Geef de lijst direct aan de ingebouwde CORS-handler van Firebase
+  cors: [
     'https://sportscores-app.firebaseapp.com',
     'https://sportscores-app.web.app',
     'http://localhost:3000',
     'http://localhost:5173',
-    'https://www.sportscores.be' // <-- VOEG DEZE REGEL TOE
-  ];
-  
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.set('Access-Control-Allow-Origin', origin);
-  }
+    'https://www.sportscores.be'
+  ],
+  region: 'europe-west1'
+}, async (req, res) => {
+  // De handmatige check is nu niet meer nodig, Firebase regelt alles.
+  // VERWIJDER de regels hieronder:
+  // const allowedOrigins = [ ... ];
+  // const origin = req.headers.origin;
+  // if (allowedOrigins.includes(origin)) {
+  //   res.set('Access-Control-Allow-Origin', origin);
+  // }
   
   res.set('Access-Control-Allow-Methods', 'GET, POST');
   res.set('Access-Control-Allow-Headers', 'Content-Type');
