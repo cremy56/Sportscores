@@ -115,18 +115,36 @@ class LiveSportsFeedAPI {
     this.fallbackMessage = "Geen recent sportnieuws beschikbaar";
   }
 
+  // De nieuwe, robuustere fetch-methode
   async fetchFromRSS(feedUrl) {
     try {
-      const response = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`);
-      if (!response.ok) throw new Error(`Feed error: ${response.status}`);
+      // Gebruik de AllOrigins proxy om CORS-problemen te omzeilen
+      const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`);
+      if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
+      
       const data = await response.json();
-      if (data.status === 'ok') {
-        return data.items.map(item => ({ title: item.title })) || [];
+      if (!data.contents) throw new Error('Geen content gevonden in proxy-response.');
+
+      // Parse de XML-string die we terugkrijgen
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(data.contents, "application/xml");
+      
+      const errorNode = xmlDoc.querySelector("parsererror");
+      if (errorNode) {
+          throw new Error("Fout bij het parsen van de RSS feed.");
       }
-      return [];
+
+      const items = Array.from(xmlDoc.querySelectorAll("item"));
+      
+      return items.map(item => {
+        const title = item.querySelector("title")?.textContent || '';
+        const pubDate = item.querySelector("pubDate")?.textContent || new Date().toISOString();
+        return { title: this.formatNewsTitle(title), publishedAt: new Date(pubDate) };
+      }).filter(item => item.title);
+
     } catch (error) {
       console.warn(`Kon RSS feed niet laden: ${feedUrl}`, error.message);
-      return [];
+      return []; // Geef een lege array terug bij een fout
     }
   }
 
@@ -135,19 +153,22 @@ class LiveSportsFeedAPI {
       return this.newsCache;
     }
     
-    console.log('Live sportnieuws ophalen...');
+    console.log('Live sportnieuws ophalen via CORS proxy...');
     const rssFeeds = [
-    'https://www.vrt.be/vrtnws/nl.rss.sport.xml', // VRT NWS Sport
-  'https://www.hln.be/sport/rss.xml',           // HLN Sport
-  'https://www.ad.nl/sport/rss.xml'             // AD.nl Sport (Nederland)
+      'https://www.hln.be/sport/rss.xml',
+      'https://www.vrt.be/vrtnws/nl.rss.sport.xml',
+      'https://www.ad.nl/sport/rss.xml'
     ];
 
     const promises = rssFeeds.map(url => this.fetchFromRSS(url));
     const results = await Promise.all(promises);
-    const allNews = results.flat();
+    const allNews = results.flat(); // Voeg alle resultaten samen
 
     if (allNews.length > 0) {
-      this.newsCache = [...new Set(allNews.map(item => item.title))].map(title => ({ title }));
+      // Verwijder duplicaten en sorteer op datum
+      this.newsCache = [...new Set(allNews.map(item => item.title))]
+        .map(title => allNews.find(item => item.title === title))
+        .sort((a, b) => b.publishedAt - a.publishedAt);
     } else {
       this.newsCache = [{ title: this.fallbackMessage }];
     }
@@ -155,8 +176,37 @@ class LiveSportsFeedAPI {
     this.lastFetch = Date.now();
     return this.newsCache;
   }
-}
 
+  formatNewsTitle(title) {
+    if (!title) return '';
+    let formatted = title.replace(/\s*-\s*(Sporza|HLN|NOS|VRT NWS|AD).*$/i, '').trim();
+    const emojiMap = {
+      'voetbal|football|soccer|jupiler|rode duivels': '⚽',
+      'tennis|atp|wta': '🎾',
+      'basketbal|basket': '🏀',  
+      'wielrennen|cycling|tour': '🚴‍♂️',
+      'atletiek|athletics': '🏃‍♂️',
+      'formule|f1': '🏎️',
+      'olympisch': '🏅'
+    };
+    for (const [keywords, emoji] of Object.entries(emojiMap)) {
+      if (new RegExp(keywords, 'i').test(formatted)) {
+        formatted = `${emoji} ${formatted}`;
+        break;
+      }
+    }
+    if (!/^[\u{1F300}-\u{1F9FF}]/u.test(formatted)) {
+      formatted = `🏆 ${formatted}`;
+    }
+    return formatted;
+  }
+
+  async refreshData() {
+    this.newsCache = [];
+    this.lastFetch = 0;
+    return this.fetchLiveSportsData();
+  }
+}
 const liveFeedAPI = new LiveSportsFeedAPI();
 
 export default function AdValvas() {
