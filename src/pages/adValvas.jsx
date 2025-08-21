@@ -112,254 +112,51 @@ class LiveSportsFeedAPI {
     this.newsCache = [];
     this.lastFetch = 0;
     this.cacheExpiry = 10 * 60 * 1000; // 10 minuten cache
-    
-    // API configuratie - voeg hier je eigen API keys toe
-    this.apis = {
-      newsapi: {
-        key: process.env.REACT_APP_NEWSAPI_KEY || 'YOUR_NEWSAPI_KEY_HERE',
-        baseUrl: 'https://newsapi.org/v2/everything'
-      },
-      mediastack: {
-        key: process.env.REACT_APP_MEDIASTACK_KEY || 'YOUR_MEDIASTACK_KEY_HERE',
-        baseUrl: 'https://api.mediastack.com/v1/news'
-      },
-      thenewsapi: {
-        key: process.env.REACT_APP_THENEWSAPI_KEY || 'YOUR_THENEWSAPI_KEY_HERE',
-        baseUrl: 'https://api.thenewsapi.com/v1/news/top'
+    this.fallbackMessage = "Geen recent sportnieuws beschikbaar";
+  }
+
+  async fetchFromRSS(feedUrl) {
+    try {
+      const response = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`);
+      if (!response.ok) throw new Error(`Feed error: ${response.status}`);
+      const data = await response.json();
+      if (data.status === 'ok') {
+        return data.items.map(item => ({ title: item.title })) || [];
       }
-    };
+      return [];
+    } catch (error) {
+      console.warn(`Kon RSS feed niet laden: ${feedUrl}`, error.message);
+      return [];
+    }
+  }
+
+  async fetchLiveSportsData() {
+    if (this.newsCache.length > 0 && (Date.now() - this.lastFetch) < this.cacheExpiry) {
+      return this.newsCache;
+    }
     
-    // Fallback nieuws voor als APIs niet beschikbaar zijn
-    this.fallbackNews = [
-      "🏃‍♂️ Laatste sportuitslagen worden geladen...",
-      "⚽ Belgische sport nieuws wordt opgehaald...",
-      "🏆 Live sport updates komen eraan...",
-      "🥇 Actueel sport nieuws wordt verzameld...",
-      "🚴‍♂️ Sport headlines worden geüpdatet...",
-      "🏊‍♀️ Verse sportuitslagen onderweg...",
-      "🎾 Sport nieuws feed wordt gesynchroniseerd...",
-      "🏀 Belgische sport updates in voorbereiding..."
+    console.log('Live sportnieuws ophalen...');
+    const rssFeeds = [
+      'https://www.hln.be/sport/rss.xml', // Vaak de meest betrouwbare
+      'https://www.sporza.be/nl/feeds/rss.xml',
+      'https://nos.nl/rss/sport.xml'
     ];
-  }
 
-  // Nieuws ophalen van NewsAPI (gratis tier: 1000 requests/maand)
-  async fetchFromNewsAPI() {
-    try {
-      const url = new URL(this.apis.newsapi.baseUrl);
-      url.searchParams.append('q', 'sport OR voetbal OR atletiek OR tennis OR basketbal OR wielrennen');
-      url.searchParams.append('language', 'nl');
-      url.searchParams.append('sortBy', 'publishedAt');
-      url.searchParams.append('pageSize', '20');
-      url.searchParams.append('apiKey', this.apis.newsapi.key);
+    const promises = rssFeeds.map(url => this.fetchFromRSS(url));
+    const results = await Promise.all(promises);
+    const allNews = results.flat();
 
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`NewsAPI error: ${response.status}`);
-      
-      const data = await response.json();
-      
-      return data.articles?.map(article => ({
-        title: this.formatNewsTitle(article.title),
-        source: article.source.name,
-        publishedAt: new Date(article.publishedAt),
-        url: article.url
-      })) || [];
-    } catch (error) {
-      console.log('NewsAPI niet beschikbaar:', error.message);
-      return [];
+    if (allNews.length > 0) {
+      this.newsCache = [...new Set(allNews.map(item => item.title))].map(title => ({ title }));
+    } else {
+      this.newsCache = [{ title: this.fallbackMessage }];
     }
-  }
-
-  // Nieuws ophalen van MediaStack (gratis tier: 1000 requests/maand)
-  async fetchFromMediaStack() {
-    try {
-      const url = new URL(this.apis.mediastack.baseUrl);
-      url.searchParams.append('access_key', this.apis.mediastack.key);
-      url.searchParams.append('categories', 'sports');
-      url.searchParams.append('countries', 'be,nl');
-      url.searchParams.append('languages', 'nl,en');
-      url.searchParams.append('limit', '20');
-
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`MediaStack error: ${response.status}`);
-      
-      const data = await response.json();
-      
-      return data.data?.map(article => ({
-        title: this.formatNewsTitle(article.title),
-        source: article.source,
-        publishedAt: new Date(article.published_at),
-        url: article.url
-      })) || [];
-    } catch (error) {
-      console.log('MediaStack niet beschikbaar:', error.message);
-      return [];
-    }
-  }
-
-  // Nieuws ophalen van TheNewsAPI (gratis tier: 1000 requests/maand)
-  async fetchFromTheNewsAPI() {
-    try {
-      const url = new URL(this.apis.thenewsapi.baseUrl);
-      url.searchParams.append('api_token', this.apis.thenewsapi.key);
-      url.searchParams.append('categories', 'sports');
-      url.searchParams.append('locale', 'be,nl');
-      url.searchParams.append('limit', '20');
-
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`TheNewsAPI error: ${response.status}`);
-      
-      const data = await response.json();
-      
-      return data.data?.map(article => ({
-        title: this.formatNewsTitle(article.title),
-        source: article.source,
-        publishedAt: new Date(article.published_at),
-        url: article.url
-      })) || [];
-    } catch (error) {
-      console.log('TheNewsAPI niet beschikbaar:', error.message);
-      return [];
-    }
-  }
-
-  // Open source sport nieuws via RSS feeds
-  async fetchFromRSSFeeds() {
-    try {
-      // Gebruik RSS2JSON service voor gratis RSS parsing
-      const rssFeeds = [
-        'https://www.sporza.be/nl/feeds/rss.xml',
-        'https://www.hln.be/sport/rss.xml',
-        'https://nos.nl/rss/sport.xml'
-      ];
-
-      const feedPromises = rssFeeds.map(async (feedUrl) => {
-        try {
-          const rssToJsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}&count=10`;
-          const response = await fetch(rssToJsonUrl);
-          if (!response.ok) throw new Error(`RSS feed error: ${response.status}`);
-          
-          const data = await response.json();
-          
-          return data.items?.map(item => ({
-            title: this.formatNewsTitle(item.title),
-            source: data.feed?.title || 'Sport Nieuws',
-            publishedAt: new Date(item.pubDate),
-            url: item.link
-          })) || [];
-        } catch (error) {
-          console.log(`RSS feed ${feedUrl} niet beschikbaar:`, error.message);
-          return [];
-        }
-      });
-
-      const results = await Promise.all(feedPromises);
-      return results.flat();
-    } catch (error) {
-      console.log('RSS feeds niet beschikbaar:', error.message);
-      return [];
-    }
-  }
-
-  // Nieuws titel formatteren voor ticker
-  formatNewsTitle(title) {
-    if (!title) return '';
     
-    // Verwijder site namen en overbodige info
-    let formatted = title.replace(/\s*-\s*(Sporza|HLN|NOS|RTL|VTM).*$/, '');
-    
-    // Voeg sport emoji toe op basis van inhoud
-    const sportEmojis = {
-      'voetbal|football|soccer': '⚽',
-      'tennis': '🎾',
-      'basketbal|basket': '🏀',
-      'wielrennen|cycling': '🚴‍♂️',
-      'atletiek|athletics': '🏃‍♂️',
-      'zwemmen|swimming': '🏊‍♀️',
-      'hockey': '🏑',
-      'volleyball|volley': '🏐',
-      'formule|f1': '🏎️',
-      'olympisch|olympic': '🏅',
-      'goud|gold': '🥇',
-      'zilver|silver': '🥈',
-      'brons|bronze': '🥉'
-    };
-
-    for (const [keywords, emoji] of Object.entries(sportEmojis)) {
-      if (new RegExp(keywords, 'i').test(formatted)) {
-        formatted = `${emoji} ${formatted}`;
-        break;
-      }
-    }
-
-    return formatted.trim();
-  }
-
-  // Hoofd functie om nieuws op te halen
-  async fetchSportsNews() {
-    const now = Date.now();
-    
-    // Gebruik cache als nog geldig
-    if (this.newsCache.length > 0 && (now - this.lastFetch) < this.cacheExpiry) {
-      return this.newsCache;
-    }
-
-    console.log('Sport nieuws ophalen van APIs...');
-    
-    try {
-      // Probeer alle APIs parallel
-      const [newsApiResults, mediaStackResults, theNewsApiResults, rssResults] = await Promise.allSettled([
-        this.fetchFromNewsAPI(),
-        this.fetchFromMediaStack(),
-        this.fetchFromTheNewsAPI(),
-        this.fetchFromRSSFeeds()
-      ]);
-
-      // Verzamel alle succesvolle resultaten
-      let allNews = [];
-      
-      [newsApiResults, mediaStackResults, theNewsApiResults, rssResults].forEach(result => {
-        if (result.status === 'fulfilled' && Array.isArray(result.value)) {
-          allNews = [...allNews, ...result.value];
-        }
-      });
-
-      // Sorteer op publicatiedatum (nieuwste eerst)
-      allNews.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-      
-      // Verwijder duplicaten op basis van titel
-      const uniqueNews = allNews.filter((article, index, self) => 
-        index === self.findIndex(t => t.title.toLowerCase() === article.title.toLowerCase())
-      );
-
-      // Gebruik de eerste 15 nieuwsberichten
-      this.newsCache = uniqueNews.slice(0, 15);
-      this.lastFetch = now;
-      
-      console.log(`${this.newsCache.length} sport nieuwsberichten geladen`);
-      
-      // Als er geen nieuws is, gebruik fallback
-      if (this.newsCache.length === 0) {
-        this.newsCache = this.fallbackNews.map(title => ({ title }));
-      }
-      
-      return this.newsCache;
-      
-    } catch (error) {
-      console.error('Fout bij ophalen sport nieuws:', error);
-      
-      // Gebruik fallback nieuws bij fout
-      this.newsCache = this.fallbackNews.map(title => ({ title }));
-      return this.newsCache;
-    }
-  }
-
-  // Force refresh van nieuws
-  async refreshNews() {
-    this.newsCache = [];
-    this.lastFetch = 0;
-    return this.fetchSportsNews();
+    this.lastFetch = Date.now();
+    return this.newsCache;
   }
 }
+
 const liveFeedAPI = new LiveSportsFeedAPI();
 
 export default function AdValvas() {
