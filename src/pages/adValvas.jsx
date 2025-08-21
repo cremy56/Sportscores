@@ -865,7 +865,7 @@ export default function AdValvas() {
     loadLiveSportsFeed();
     
     // Auto refresh elke 5 minuten
-    const feedRefreshInterval = setInterval(loadLiveSportsFeed, 5 * 60 * 1000);
+    const feedRefreshInterval = setInterval(loadLiveSportsFeed, 60 * 60 * 1000);
     
     return () => clearInterval(feedRefreshInterval);
   }, [liveFeedAPI]);
@@ -978,8 +978,8 @@ export default function AdValvas() {
     if (liveNewsData.length === 0) return;
     
     const newsTimer = setInterval(() => {
-      setNewsIndex((prev) => (prev + 1) % liveNewsData.length);
-    }, 15000);
+    setNewsIndex((prev) => (prev + 1) % liveNewsData.length);
+  }, 30 * 1000); // 30 seconden
     
     return () => clearInterval(newsTimer);
   }, [liveNewsData.length]);
