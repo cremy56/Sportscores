@@ -979,7 +979,7 @@ export default function AdValvas() {
     
     const newsTimer = setInterval(() => {
     setNewsIndex((prev) => (prev + 1) % liveNewsData.length);
-  }, 50 * 1000); // 30 seconden
+  }, 30 * 1000); // 30 seconden
     
     return () => clearInterval(newsTimer);
   }, [liveNewsData.length]);
