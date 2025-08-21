@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity, Quote, Flame, BookOpen, BarChart3, TrendingDown } from 'lucide-react';
+import { Trophy, Star, TrendingUp, Calendar, RefreshCw, Award, Zap, Target, Users, Clock, Medal, Activity, Quote, Flame, BookOpen, BarChart3, TrendingDown } from 'lucide-react';
 
 // --- Helper functies ---
 const formatNameForDisplay = (fullName) => {
@@ -352,6 +352,7 @@ class LiveSportsFeedAPI {
     return this.fetchSportsNews();
   }
 }
+const [liveFeedAPI] = new LiveSportsFeedAPI();
 
 export default function AdValvas() {
   const { profile, school } = useOutletContext();
@@ -364,7 +365,7 @@ export default function AdValvas() {
   const [newsIndex, setNewsIndex] = useState(0);
   const [liveNewsData, setLiveNewsData] = useState([]);
   const [liveScoresData, setLiveScoresData] = useState([]);
-  const [liveFeedAPI] = useState(() => new LiveSportsFeedAPI());
+  
   const [feedLoading, setFeedLoading] = useState(true);
   const [lastFeedRefresh, setLastFeedRefresh] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -495,7 +496,7 @@ export default function AdValvas() {
     loadLiveSportsFeed();
     const feedRefreshInterval = setInterval(loadLiveSportsFeed, 5 * 60 * 1000);
     return () => clearInterval(feedRefreshInterval);
-  }, [liveFeedAPI]);
+  }, []); // Lege array, want liveFeedAPI is nu een constante.
 
   // Online/offline status
   useEffect(() => {
