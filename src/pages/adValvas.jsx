@@ -118,35 +118,37 @@ class LiveSportsFeedAPI {
   // De nieuwe, robuustere fetch-methode
   async fetchFromRSS(feedUrl) {
     try {
-      // Gebruik de AllOrigins proxy om CORS-problemen te omzeilen
-      const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`);
-      if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
-      
-      const data = await response.json();
-      if (!data.contents) throw new Error('Geen content gevonden in proxy-response.');
+        // Gebruik een alternatieve, betrouwbaardere CORS-proxy
+        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        const response = await fetch(proxyUrl + feedUrl);
 
-      // Parse de XML-string die we terugkrijgen
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(data.contents, "application/xml");
-      
-      const errorNode = xmlDoc.querySelector("parsererror");
-      if (errorNode) {
-          throw new Error("Fout bij het parsen van de RSS feed.");
-      }
+        if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
+        
+        // De 'contents' heet nu 'text()' omdat we de ruwe tekst direct krijgen
+        const xmlString = await response.text();
+        if (!xmlString) throw new Error('Geen content gevonden in proxy-response.');
 
-      const items = Array.from(xmlDoc.querySelectorAll("item"));
-      
-      return items.map(item => {
-        const title = item.querySelector("title")?.textContent || '';
-        const pubDate = item.querySelector("pubDate")?.textContent || new Date().toISOString();
-        return { title: this.formatNewsTitle(title), publishedAt: new Date(pubDate) };
-      }).filter(item => item.title);
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlString, "application/xml");
+        
+        const errorNode = xmlDoc.querySelector("parsererror");
+        if (errorNode) {
+            throw new Error("Fout bij het parsen van de RSS feed.");
+        }
+
+        const items = Array.from(xmlDoc.querySelectorAll("item"));
+        
+        return items.map(item => {
+            const title = item.querySelector("title")?.textContent || '';
+            const pubDate = item.querySelector("pubDate")?.textContent || new Date().toISOString();
+            return { title: this.formatNewsTitle(title), publishedAt: new Date(pubDate) };
+        }).filter(item => item.title);
 
     } catch (error) {
-      console.warn(`Kon RSS feed niet laden: ${feedUrl}`, error.message);
-      return []; // Geef een lege array terug bij een fout
+        console.warn(`Kon RSS feed niet laden: ${feedUrl}`, error.message);
+        return []; // Geef een lege array terug bij een fout
     }
-  }
+}
 
   async fetchLiveSportsData() {
     if (this.newsCache.length > 0 && (Date.now() - this.lastFetch) < this.cacheExpiry) {
