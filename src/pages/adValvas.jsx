@@ -157,10 +157,10 @@ class LiveSportsFeedAPI {
     
     console.log('Live sportnieuws ophalen via CORS proxy...');
     const rssFeeds = [
-      'https://www.hln.be/sport/rss.xml',
-      'https://www.vrt.be/vrtnws/nl.rss.sport.xml',
-      'https://www.ad.nl/sport/rss.xml'
-    ];
+  'https://www.hln.be/sport/rss.xml',
+  'https://www.nieuwsblad.be/rss/sport', // Stabiel Belgisch alternatief
+  'https://www.ad.nl/sport/rss.xml'
+];
 
     const promises = rssFeeds.map(url => this.fetchFromRSS(url));
     const results = await Promise.all(promises);
