@@ -51,28 +51,39 @@ export default function TestDetailBeheer() {
     }, [testId]);
 
     useEffect(() => {
-        fetchData();
-        const normDocRef = doc(db, 'normen', testId);
-        const unsubscribe = onSnapshot(normDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                const sortedPuntenSchaal = (data.punten_schaal || []).sort((a, b) => {
-                    if (a.leeftijd !== b.leeftijd) return a.leeftijd - b.leeftijd;
-                    if (a.geslacht !== b.geslacht) return a.geslacht.localeCompare(b.geslacht);
-                    return a.punt - b.punt;
-                });
-                setNormDocument({ id: docSnap.id, ...data, punten_schaal: sortedPuntenSchaal });
-            } else {
-                setNormDocument({ id: testId, punten_schaal: [], score_richting: 'hoog', school_id: profile.school_id });
-            }
-            setLoading(false);
-        }, (error) => {
-            console.error("Fout bij ophalen normen:", error);
-            toast.error("Kon normen niet laden.");
-            setLoading(false);
-        });
-        return () => unsubscribe();
-    }, [testId, fetchData, profile.school_id]);
+    fetchData();
+
+    // Maak een query die zoekt naar het document waar het VELD 'test_id' correct is.
+    const normenQuery = query(
+        collection(db, 'normen'),
+        where('test_id', '==', testId)
+    );
+
+    const unsubscribe = onSnapshot(normenQuery, (querySnapshot) => {
+        // We kijken nu of de *resultaten* van de query leeg zijn
+        if (!querySnapshot.empty) {
+            // Pak het eerste (en enige) document uit de resultaten
+            const docSnap = querySnapshot.docs[0];
+            const data = docSnap.data();
+            const sortedPuntenSchaal = (data.punten_schaal || []).sort((a, b) => {
+                if (a.leeftijd !== b.leeftijd) return a.leeftijd - b.leeftijd;
+                if (a.geslacht !== b.geslacht) return a.geslacht.localeCompare(b.geslacht);
+                return a.punt - b.punt;
+            });
+            setNormDocument({ id: docSnap.id, ...data, punten_schaal: sortedPuntenSchaal });
+        } else {
+            // Geen document gevonden, stel een leeg document in
+            setNormDocument({ id: testId, punten_schaal: [], score_richting: 'hoog', school_id: profile.school_id });
+        }
+        setLoading(false);
+    }, (error) => {
+        console.error("Fout bij ophalen normen:", error);
+        toast.error("Kon normen niet laden.");
+        setLoading(false);
+    });
+    
+    return () => unsubscribe();
+}, [testId, fetchData, profile.school_id]);
     
     const puntenSchaal = useMemo(() => normDocument?.punten_schaal || [], [normDocument]);
     const uniekeLeeftijden = useMemo(() => [...new Set(puntenSchaal.map(n => n.leeftijd))].sort((a, b) => a - b), [puntenSchaal]);
