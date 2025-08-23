@@ -15,7 +15,12 @@ export default function SchemaDetail() {
     const [loading, setLoading] = useState(true);
 
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
-
+// --- DE NIEUWE DEBUG-LOG ---
+    console.log('SchemaDetail rendert met:', { 
+        profile: profile ? `Profiel geladen voor ${profile.naam}` : 'Profiel nog niet geladen',
+        schemaId: schemaId ? `SchemaId aanwezig: ${schemaId}` : 'SchemaId nog niet aanwezig'
+    });
+    // --- EINDE DEBUG-LOG ---
     useEffect(() => {
     // Deze functie wordt nu BINNEN de useEffect gedefinieerd
     const fetchData = async () => {
