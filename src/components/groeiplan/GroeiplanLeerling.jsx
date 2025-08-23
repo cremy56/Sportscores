@@ -4,7 +4,7 @@ import { useOutletContext } from 'react-router-dom';
 import { db } from '../../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { getStudentEvolutionData } from '../../utils/firebaseUtils';
-import { analyseerEvolutieData } from '../../utils/analyseUtils';
+import { analyseerEvolutieData } from '../utils/analyseUtils';
 import FocusPuntKaart from './FocusPuntKaart';
 
 export default function GroeiplanLeerling() {
