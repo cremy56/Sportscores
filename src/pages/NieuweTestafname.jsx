@@ -23,36 +23,53 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
     try {
         const { geboortedatum, geslacht } = leerling;
         if (!geboortedatum || !geslacht) return null;
+
+        // Gebruik de bestaande calculateAge functie
         const leeftijd = calculateAge(geboortedatum.toDate(), testDatum);
-        const normAge = Math.min(leeftijd, 17);
-        const normRef = doc(db, 'normen', test.id);
-        const normSnap = await getDoc(normRef);
-        if (!normSnap.exists()) return null;
+        if (leeftijd === null) return null;
+
+        const normAge = Math.min(leeftijd, 17); // Max leeftijd voor normen is 17
+
+        // --- START VAN DE WIJZIGING ---
+        // We gebruiken nu een QUERY om het juiste normendocument te vinden
+        const normenQuery = query(
+            collection(db, 'normen'),
+            where('test_id', '==', test.id)
+        );
+        const normenSnapshot = await getDocs(normenQuery);
+        
+        if (normenSnapshot.empty) {
+            console.warn(`Geen normendocument gevonden voor test ID: ${test.id}`);
+            return null;
+        }
+        const normSnap = normenSnapshot.docs[0];
+        // --- EINDE VAN DE WIJZIGING ---
+
         const { punten_schaal, score_richting } = normSnap.data();
         if (!punten_schaal || punten_schaal.length === 0) return null;
+
         const genderMapping = { 'man': 'M', 'vrouw': 'V', 'jongen': 'M', 'meisje': 'V' };
         const mappedGender = genderMapping[geslacht.toLowerCase()] || geslacht.toUpperCase();
-        const relevantNorms = punten_schaal.filter(n => n.leeftijd === normAge && n.geslacht === mappedGender).sort((a, b) => a.punt - b.punt);
+
+        const relevantNorms = punten_schaal.filter(n => n.leeftijd === normAge && n.geslacht === mappedGender);
         if (relevantNorms.length === 0) return null;
-        let lowerBoundNorm = null;
+
+        let behaaldPunt = 0;
         for (const norm of relevantNorms) {
-            const meetsRequirement = score_richting === 'laag' ? score <= norm.score_min : score >= norm.score_min;
-            if (meetsRequirement) {
-                lowerBoundNorm = norm;
-            } else {
-                if (score_richting === 'hoog') break;
+            if (score_richting === 'hoog') {
+                if (score >= norm.score_min && norm.punt > behaaldPunt) {
+                    behaaldPunt = norm.punt;
+                }
+            } else { // 'laag'
+                if (score <= norm.score_min && norm.punt > behaaldPunt) {
+                    behaaldPunt = norm.punt;
+                }
             }
         }
-        if (!lowerBoundNorm) return 0;
-        let finalPunt = lowerBoundNorm.punt;
-        const upperBoundNorm = relevantNorms.find(n => n.punt === lowerBoundNorm.punt + 1);
-        if (upperBoundNorm) {
-            const isBetweenNorms = score_richting === 'laag' ? score < lowerBoundNorm.score_min : score > lowerBoundNorm.score_min;
-            if (isBetweenNorms) finalPunt += 0.5;
-        }
-        return finalPunt;
+        return behaaldPunt;
+
     } catch (error) {
-        console.error("Error during point calculation:", error);
+        console.error("Fout tijdens puntberekening:", error);
         toast.error("Kon punt niet berekenen.");
         return null;
     }
