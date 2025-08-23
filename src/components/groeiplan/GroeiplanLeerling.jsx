@@ -32,39 +32,41 @@ export default function GroeiplanLeerling({ studentProfile }) {
             const allScores = scoresSnapshot.docs.map(doc => doc.data());
 
             if (allScores.length > 0) {
-                // 2. Zoek de score met het laagste rapportpunt
-                // We sorteren de scores van laag naar hoog op basis van rapportpunt
-                const sortedByPunt = [...allScores].sort((a, b) => a.rapportpunt - b.rapportpunt);
-                const zwaksteScore = sortedByPunt[0];
+        // --- START WIJZIGING ---
 
-                if (zwaksteScore && zwaksteScore.rapportpunt < 10) { // We tonen alleen een plan als het punt onder de 10 is
-                    // 3. Haal de details van de bijbehorende test op
-                    const testRef = doc(db, 'testen', zwaksteScore.test_id);
-                    const testSnap = await getDoc(testRef);
+        // 2. Filter eerst op scores die een geldig rapportpunt hebben
+        const scoresMetPunt = allScores.filter(score => 
+            score.rapportpunt !== null && score.rapportpunt !== undefined
+        );
 
-                    if (testSnap.exists()) {
-                        setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
+        if (scoresMetPunt.length > 0) {
+            // 3. Sorteer de gefilterde scores van laag naar hoog
+            const sortedByPunt = scoresMetPunt.sort((a, b) => a.rapportpunt - b.rapportpunt);
+            const zwaksteScore = sortedByPunt[0];
 
-                        // 4. Zoek een trainingsschema dat gekoppeld is aan deze test
-                        const schemasQuery = query(
-                            collection(db, 'trainingsschemas'),
-                            where('gekoppelde_test_id', '==', zwaksteScore.test_id)
-                        );
-                        const schemaSnapshot = await getDocs(schemasQuery);
+            // 4. Pas de drempel aan naar <= 10 (een 10/20 is ook een focuspunt)
+            if (zwaksteScore && zwaksteScore.rapportpunt <= 10) {
+                const testRef = doc(db, 'testen', zwaksteScore.test_id);
+                const testSnap = await getDoc(testRef);
 
-                        if (!schemaSnapshot.empty) {
-                            const schemaDoc = schemaSnapshot.docs[0];
-                            setGekoppeldSchema({ id: schemaDoc.id, ...schemaDoc.data() });
-                        } else {
-                            setGekoppeldSchema(null);
-                        }
+                if (testSnap.exists()) {
+                    setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
+
+                    const schemasQuery = query(
+                        collection(db, 'trainingsschemas'),
+                        where('gekoppelde_test_id', '==', zwaksteScore.test_id)
+                    );
+                    const schemaSnapshot = await getDocs(schemasQuery);
+
+                    if (!schemaSnapshot.empty) {
+                        const schemaDoc = schemaSnapshot.docs[0];
+                        setGekoppeldSchema({ id: schemaDoc.id, ...schemaDoc.data() });
                     }
-                } else {
-                    // Reset als de laagste score niet onder de drempel is
-                    setFocusPunt(null);
-                    setGekoppeldSchema(null);
                 }
             }
+        }
+        // --- EINDE WIJZIGING ---
+    }
             
             setLoading(false);
         };
