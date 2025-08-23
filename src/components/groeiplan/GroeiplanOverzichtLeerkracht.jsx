@@ -1,16 +1,12 @@
 // src/components/groeiplan/GroeiplanOverzichtLeerkracht.jsx
 import { useState } from 'react';
-import StudentSearch from '../StudentSearch'; // De zoekbalk die je al hebt
-import GroeiplanLeerling from './GroeiplanLeerling'; // We hergebruiken de leerling-component!
+import { useOutletContext } from 'react-router-dom'; // <-- 1. Importeren
+import StudentSearch from '../StudentSearch';
+import GroeiplanLeerling from './GroeiplanLeerling';
 
 export default function GroeiplanOverzichtLeerkracht() {
+    const { profile } = useOutletContext(); // <-- 2. Profiel van leerkracht ophalen
     const [selectedStudent, setSelectedStudent] = useState(null);
-
-    // Een 'mock' context object om door te geven aan de leerling-component.
-    // Dit zorgt ervoor dat de component denkt dat de geselecteerde leerling is ingelogd.
-    const studentContext = {
-        profile: selectedStudent
-    };
 
     return (
         <div className="space-y-8">
@@ -18,13 +14,15 @@ export default function GroeiplanOverzichtLeerkracht() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                     Zoek een leerling om het groeiplan te bekijken
                 </label>
-                <StudentSearch onStudentSelect={setSelectedStudent} />
+                <StudentSearch 
+                    onStudentSelect={setSelectedStudent} 
+                    schoolId={profile?.school_id} // <-- 3. School ID doorgeven
+                />
             </div>
 
             {selectedStudent ? (
-                // Zodra een leerling is gekozen, tonen we de leerling-component met de data van die leerling.
-                // De 'key' zorgt ervoor dat de component volledig herlaadt als je een andere leerling kiest.
                 <div key={selectedStudent.id}>
+                    {/* 4. We geven het geselecteerde profiel door via een prop */}
                     <GroeiplanLeerling studentProfile={selectedStudent} />
                 </div>
             ) : (

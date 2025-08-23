@@ -3,17 +3,26 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { getStudentEvolutionData } from '../../utils/firebaseUtils';
-import { analyseerEvolutieData } from '../utils/analyseUtils';
+import { getStudentEvolutionData } from '../../utils/firebaseUtils.js';
+import { analyseerEvolutieData } from '../../utils/analyseUtils.js';
 import FocusPuntKaart from './FocusPuntKaart';
 
-export default function GroeiplanLeerling() {
-    const { profile } = useOutletContext();
+// De component accepteert nu een 'studentProfile' prop
+export default function GroeiplanLeerling({ studentProfile }) {
+    const context = useOutletContext(); // We halen nog steeds de context op
+
+    // Bepaal welk profiel we moeten gebruiken:
+    // 1. Het doorgegeven profiel (als een leerkracht zoekt)
+    // 2. Anders, het profiel van de ingelogde gebruiker (als een leerling zelf kijkt)
+    const profile = studentProfile || context.profile;
+
     const [focusPunt, setFocusPunt] = useState(null);
     const [gekoppeldSchema, setGekoppeldSchema] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // De rest van de code blijft exact hetzelfde, 
+        // het gebruikt nu automatisch de juiste 'profile' variabele.
         if (!profile?.id) {
             setLoading(false);
             return;
@@ -34,27 +43,28 @@ export default function GroeiplanLeerling() {
                 if (!querySnapshot.empty) {
                     const schemaDoc = querySnapshot.docs[0];
                     setGekoppeldSchema({ id: schemaDoc.id, ...schemaDoc.data() });
+                } else {
+                    setGekoppeldSchema(null); // Zorg ervoor dat schema gereset wordt
                 }
             }
             setLoading(false);
         };
 
         fetchData();
-    }, [profile]);
+    }, [profile]); // De hook reageert nu op wijzigingen in het profiel
 
     if (loading) {
-        return <div className="text-center p-12">Je persoonlijke groeiplan wordt berekend...</div>;
+        return <div className="text-center p-12">Persoonlijk groeiplan wordt berekend...</div>;
     }
 
     if (!focusPunt || !gekoppeldSchema) {
         return (
             <div className="bg-white rounded-2xl p-8 text-center max-w-2xl mx-auto">
                 <h3 className="text-xl font-bold text-slate-800 mb-2">Alles Ziet Er Goed Uit!</h3>
-                <p className="text-slate-600">We hebben geen specifiek focuspunt voor je gevonden. Blijf zo doorgaan!</p>
+                <p className="text-slate-600">Geen specifiek focuspunt gevonden voor {profile?.naam}.</p>
             </div>
         );
     }
     
-    // We geven hier ook de 'profile' mee, zodat de kaart weet voor welke leerling het is.
     return <FocusPuntKaart test={focusPunt} schema={gekoppeldSchema} student={profile} />;
 }

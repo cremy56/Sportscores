@@ -1431,7 +1431,7 @@ export default function AdValvas() {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes marquee {
           0% { transform: translateX(100%); }
           100% { transform: translateX(-100%); }
