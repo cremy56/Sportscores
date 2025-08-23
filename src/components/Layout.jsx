@@ -77,13 +77,19 @@ export default function Layout() {
               <Bars3Icon className="w-6 h-6 text-black" />
             </button>
 
-            <NavLink to="/" className="block h-8">
-              <img
-                src={logoSrc} 
-                alt="Sportscores Logo"
-                className="h-full w-auto object-contain"
-              />
-            </NavLink>
+            <NavLink 
+  to="/" 
+  aria-label="Sportscores Logo"
+  className="block h-8 w-32" // Geef de link een vaste breedte
+  style={{
+    backgroundImage: `url(${logoSrc})`,
+    backgroundSize: 'contain',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'center',
+  }}
+>
+  {/* De img-tag is nu weg, de NavLink ZELF is nu de afbeelding */}
+</NavLink>
           </div>
           <div className="flex-grow text-center md:hidden">
             <h1 className="text-lg font-semibold text-gray-800">{currentTitle}</h1>
