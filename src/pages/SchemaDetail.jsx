@@ -3,54 +3,72 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { ArrowLeftIcon } from '@heroicons/react/24/solid';
 
-// Dit wordt de detailpagina voor zowel de leerling als de leerkracht
 export default function SchemaDetail() {
-    const { schemaId } = useParams(); // Haalt de ID uit de URL
+    const { schemaId } = useParams();
     const { profile } = useOutletContext();
     const [actiefSchema, setActiefSchema] = useState(null);
     const [schemaDetails, setSchemaDetails] = useState(null);
     const [loading, setLoading] = useState(true);
     
-    const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
-
     useEffect(() => {
         const fetchData = async () => {
-            if (!profile?.id || !schemaId) return;
+            if (!profile?.id || !schemaId) {
+                console.log("Fetch afgebroken: geen profiel of schemaId.");
+                setLoading(false);
+                return;
+            }
             setLoading(true);
+            
+            console.log(`--- START SCHEMA DETAIL FETCH ---`);
+            console.log(`Stap 1: Zoeken naar actief schema met Document ID: ${schemaId}`);
 
-            // 1. Haal het actieve schema van de leerling op (de 'plaknotitie')
-            // Belangrijk: De document ID is een combinatie, dus die moeten we opbouwen.
-            // Dit moet later slimmer, maar voor nu zoeken we op de schemaId.
-            // TODO: Beter ophalen op basis van leerling_id en schema_id
             const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
             const actiefSchemaSnap = await getDoc(actiefSchemaRef);
 
             if (actiefSchemaSnap.exists()) {
                 const data = actiefSchemaSnap.data();
                 setActiefSchema({ id: actiefSchemaSnap.id, ...data });
+                console.log('Stap 2: SUCCES - Actief schema gevonden:', data);
 
-                // 2. Haal de details van het trainingsschema zelf op (het 'kookboek')
-                const schemaDetailsRef = doc(db, 'trainingsschemas', data.schema_id);
+                const schemaTemplateId = data.schema_id;
+                console.log(`Stap 3: Zoeken naar schema-template met ID: ${schemaTemplateId}`);
+
+                const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
                 const schemaDetailsSnap = await getDoc(schemaDetailsRef);
 
                 if (schemaDetailsSnap.exists()) {
                     setSchemaDetails({ id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() });
+                    console.log('Stap 4: SUCCES - Schema-template gevonden:', schemaDetailsSnap.data());
+                } else {
+                    console.log(`Stap 4: FOUT - Schema-template met ID '${schemaTemplateId}' NIET GEVONDEN.`);
                 }
+            } else {
+                console.log(`Stap 2: FOUT - Actief schema met ID '${schemaId}' NIET GEVONDEN in 'leerling_schemas' collectie.`);
             }
             setLoading(false);
         };
         fetchData();
     }, [profile, schemaId]);
     
+    // --- DE REST VAN DE CODE BLIJFT HETZELFDE ---
+
     if (loading) {
         return <div className="text-center p-12">Schema wordt geladen...</div>;
     }
     
     if (!actiefSchema || !schemaDetails) {
-        return <div className="text-center p-12">Kon het actieve schema niet vinden.</div>;
+        return (
+            <div className="text-center p-12 max-w-lg mx-auto bg-white rounded-xl shadow-sm">
+                <h2 className="font-bold text-red-600">Fout bij laden</h2>
+                <p className="text-slate-600 mt-2">Kon het actieve schema niet vinden. Controleer de console voor details.</p>
+                 <Link to="/groeiplan" className="mt-4 inline-block text-purple-600 hover:underline">
+                    Terug naar overzicht
+                </Link>
+            </div>
+        );
     }
 
     const huidigeWeekData = schemaDetails.weken.find(
@@ -79,7 +97,6 @@ export default function SchemaDetail() {
                                 <p className="font-bold text-slate-800">{taak.dag}: {taak.omschrijving}</p>
                                 <p className="text-sm text-slate-500">Status: NOG TE IMPLEMENTEREN</p>
                             </div>
-                            {/* Hier komen later de knoppen voor leerling/leerkracht */}
                         </div>
                     ))}
                 </div>
