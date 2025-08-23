@@ -30,7 +30,7 @@ export default function GroeiplanLeerling({ studentProfile }) {
 
         const fetchData = async () => {
             setLoading(true);
-            const evolutionData = await getStudentEvolutionData(profile.id);
+            const evolutionData = await getStudentEvolutionData(profile.id, profile);
             const zwaksteTest = analyseerEvolutieData(evolutionData);
             setFocusPunt(zwaksteTest);
 

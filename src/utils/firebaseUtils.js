@@ -142,8 +142,14 @@ export function getNetworkStatus() {
 /**
  * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
  */
-export const getStudentEvolutionData = async (studentId) => {
+export const getStudentEvolutionData = async (studentId, studentProfile) => {
   const operation = async () => {
+    // We hebben nu het profiel nodig voor leeftijd en geslacht
+    if (!studentId || !studentProfile) {
+      console.warn("Student ID en profiel zijn nodig voor evolutiedata.");
+      return [];
+    }
+
     const testsQuery = query(
       collection(db, 'testen'),
       where('is_actief', '==', true),
@@ -153,78 +159,67 @@ export const getStudentEvolutionData = async (studentId) => {
     
     const testsSnapshot = await getDocs(testsQuery);
     const tests = testsSnapshot.docs.map(doc => ({
-      id: doc.id,
+      test_id: doc.id, // <-- Belangrijk: we gebruiken de document ID
       ...doc.data()
     }));
-
-    let leerlingId = studentId;
-    
-    if (studentId && !studentId.includes('@')) {
-      try {
-        const userDoc = await getDoc(doc(db, 'users', studentId));
-        if (userDoc.exists() && userDoc.data().email) {
-          leerlingId = userDoc.data().email;
-        }
-      } catch (error) {
-        console.warn('Could not fetch user document, using original studentId:', error);
-      }
-    }
 
     const testDataPromises = tests.map(async (test) => {
       const scoresQuery = query(
         collection(db, 'scores'),
-        where('test_id', '==', test.id),
-        where('leerling_id', '==', leerlingId),
+        where('test_id', '==', test.test_id),
+        where('leerling_id', '==', studentId),
         orderBy('datum', 'desc')
       );
 
       const scoresSnapshot = await getDocs(scoresQuery);
       const scores = scoresSnapshot.docs.map(doc => {
         const data = doc.data();
-        let parsedDatum = null;
-        
-        if (data.datum) {
-          if (typeof data.datum === 'string') {
-            parsedDatum = new Date(data.datum);
-          } else if (data.datum.toDate && typeof data.datum.toDate === 'function') {
-            parsedDatum = data.datum.toDate();
-          } else if (data.datum instanceof Date) {
-            parsedDatum = data.datum;
-          }
-        }
-        
-        if (!parsedDatum || isNaN(parsedDatum.getTime())) {
-          console.warn(`Could not parse datum for score ${doc.id}:`, data.datum);
-          parsedDatum = new Date();
-        }
-
-        return {
-          id: doc.id,
-          ...data,
-          datum: parsedDatum
-        };
+        const datum = data.datum?.toDate ? data.datum.toDate() : new Date(data.datum);
+        return { id: doc.id, ...data, datum };
       });
 
-      if (scores.length === 0) {
-        return null;
-      }
+      if (scores.length === 0) return null;
 
       const sortedScores = scores.sort((a, b) => new Date(b.datum) - new Date(a.datum));
       const personalBest = calculatePersonalBest(sortedScores, test.score_richting);
 
+      // --- START NIEUWE LOGICA ---
+      // Voor de beste score, bereken nu ook het punt op 20
+      let personal_best_points = null;
+      if (personalBest.score !== null) {
+          const normen = await getScoreNorms(test.test_id, studentProfile.geboortedatum, studentProfile.geslacht, personalBest.datum);
+          if (normen) {
+              // Zoek het hoogste punt dat de leerling heeft behaald
+              let behaaldPunt = 0;
+              for (const norm of normen.punten_schaal) {
+                  if (test.score_richting === 'hoog') {
+                      if (personalBest.score >= norm.score_min && norm.punt > behaaldPunt) {
+                          behaaldPunt = norm.punt;
+                      }
+                  } else { // 'laag'
+                      if (personalBest.score <= norm.score_min && norm.punt > behaaldPunt) {
+                          behaaldPunt = norm.punt;
+                      }
+                  }
+              }
+              personal_best_points = behaaldPunt;
+          }
+      }
+      // --- EINDE NIEUWE LOGICA ---
+
       return {
-        test_id: test.id,
+        test_id: test.test_id,
         test_naam: test.naam,
         categorie: test.categorie,
         eenheid: test.eenheid,
         score_richting: test.score_richting,
         personal_best_score: personalBest.score,
         personal_best_datum: personalBest.datum,
+        personal_best_points: personal_best_points, // <-- Nieuw veld!
         all_scores: sortedScores.map(score => ({
           score: score.score,
           datum: score.datum,
-          id: score.id,
-          rapportpunt: score.rapportpunt || null
+          id: score.id
         }))
       };
     });
@@ -381,28 +376,26 @@ const calculateP65Threshold = (normenData) => {
  */
 export const getScoreNorms = async (testId, leeftijd, geslacht) => {
   const operation = async () => {
+    // 1. Valideer de input
     if (!testId || leeftijd === null || leeftijd === undefined || isNaN(leeftijd) || !geslacht) {
       console.warn('getScoreNorms: Ongeldige input', { testId, leeftijd, geslacht });
       return null;
     }
 
-    // --- START VAN DE WIJZIGING ---
-    // We gebruiken nu een query om te zoeken naar het document waar het *veld* 'test_id' correct is.
+    // 2. Voer een query uit om het juiste normendocument te vinden
     const normenQuery = query(
       collection(db, 'normen'),
       where('test_id', '==', testId)
     );
     const normenSnapshot = await getDocs(normenQuery);
 
+    // 3. Controleer of er een document is gevonden
     if (normenSnapshot.empty || !normenSnapshot.docs[0].data().punten_schaal) {
       console.log(`❌ Geen norm-document of 'punten_schaal' gevonden voor test ${testId}.`);
       return null;
     }
     
-    // We pakken het eerste resultaat van de query
     const normDocument = normenSnapshot.docs[0].data();
-    // --- EINDE VAN DE WIJZIGING ---
-
     const puntenSchaal = normDocument.punten_schaal;
     const scoreRichting = normDocument.score_richting || 'hoog';
     const numericAge = Number(leeftijd);
@@ -413,13 +406,16 @@ export const getScoreNorms = async (testId, leeftijd, geslacht) => {
       return null;
     }
 
+    // 4. Helper-functie om de normen voor een specifieke leeftijd te extraheren
     const extractNormsForAge = (age) => {
+      // Filter de volledige schaal op de juiste leeftijd en geslacht
       const relevantNorms = puntenSchaal.filter(
         norm => norm.leeftijd === age && norm.geslacht === mappedGender
       );
 
       if (relevantNorms.length === 0) return null;
 
+      // Zoek de specifieke scores voor de benodigde punten (1, 10, 14, 20)
       const findScore = (punt) => relevantNorms.find(n => n.punt === punt)?.score_min;
       
       const norm_1 = findScore(1);
@@ -427,6 +423,7 @@ export const getScoreNorms = async (testId, leeftijd, geslacht) => {
       const norm_14 = findScore(14);
       const norm_20 = findScore(20);
 
+      // Valideer of alle benodigde punten gevonden zijn
       if ([norm_1, norm_10, norm_14, norm_20].every(n => n !== undefined)) {
         console.log(`✅ Normen gevonden voor test ${testId} op leeftijd ${age}.`);
         return {
@@ -441,12 +438,14 @@ export const getScoreNorms = async (testId, leeftijd, geslacht) => {
       return null;
     };
     
-    const normAge = Math.min(numericAge, 17);
+    // 5. Probeer eerst met de exacte (afgekapte) leeftijd
+    const normAge = Math.min(numericAge, 17); // Zorgt ervoor dat we niet boven de 17 zoeken
     let result = extractNormsForAge(normAge);
     if (result) return { ...result, original_leeftijd: numericAge };
 
+    // 6. Fallback: als er geen normen zijn voor de exacte leeftijd, probeer dan jongere leeftijden
     console.log(`Geen complete normen gevonden voor leeftijd ${normAge}. Proberen van fallback leeftijden...`);
-    const fallbackAges = [17, 16, 15, 14, 13].filter(age => age !== normAge);
+    const fallbackAges = [17, 16, 15, 14, 13].filter(age => age < normAge);
 
     for (const fallbackAge of fallbackAges) {
       result = extractNormsForAge(fallbackAge);
@@ -466,6 +465,7 @@ export const getScoreNorms = async (testId, leeftijd, geslacht) => {
   };
 
   try {
+    // Gebruik de retryOperation wrapper die al in je bestand aanwezig is
     return await retryOperation(operation);
   } catch (error) {
     handleFirestoreError(error, 'Laden van 20-punts normen');

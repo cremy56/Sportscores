@@ -10,18 +10,17 @@ export function analyseerEvolutieData(evolutionData) {
     return null;
   }
 
-  // Simpele logica voor nu: zoek de test met de laagste 'personal_best_score'.
-  // Dit kan later veel complexer gemaakt worden (bv. met percentielen, trends, etc.).
   let zwaksteTest = null;
-  let laagsteScore = Infinity;
+  // We starten met 21, zodat elke score van 1-20 lager is.
+  let laagstePunt = 21; 
 
   evolutionData.forEach(test => {
-    // We kijken alleen naar testen waar een score voor is.
-    if (test.personal_best_score !== null && test.personal_best_score < laagsteScore) {
-      laagsteScore = test.personal_best_score;
+    // We kijken nu naar 'personal_best_points' in plaats van 'score'
+    if (test.personal_best_points !== null && test.personal_best_points < laagstePunt) {
+      laagstePunt = test.personal_best_points;
       zwaksteTest = test;
     }
   });
 
-  return zwaksteTest; // We geven het volledige test-object terug
+  return zwaksteTest;
 }
