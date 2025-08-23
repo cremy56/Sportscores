@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast';
 import { useState, useRef, useEffect, useMemo } from 'react'; // useMemo toegevoegd
 import { UserCircleIcon } from '@heroicons/react/24/outline';
 import { Bars3Icon } from '@heroicons/react/24/solid';
+import logoSrc from '../assets/logo.png'; // Importeer het logo
 
 export default function Layout() {
   const { profile, school } = useOutletContext();
@@ -78,7 +79,7 @@ export default function Layout() {
 
             <NavLink to="/" className="block h-8">
               <img
-                src="/logo.png"
+                src={logoSrc} 
                 alt="Sportscores Logo"
                 className="h-full w-auto object-contain"
               />
