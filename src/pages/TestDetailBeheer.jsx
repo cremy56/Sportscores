@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc, onSnapshot, updateDoc, setDoc, arrayUnion, arrayRemove, query, where } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, updateDoc, setDoc, arrayUnion, arrayRemove, query, where, collection } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useOutletContext } from 'react-router-dom';
 import { ArrowLeftIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowUpTrayIcon, ChevronDownIcon, EllipsisVerticalIcon } from '@heroicons/react/24/solid';
