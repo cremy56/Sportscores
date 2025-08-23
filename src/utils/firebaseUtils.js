@@ -142,14 +142,8 @@ export function getNetworkStatus() {
 /**
  * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
  */
-export const getStudentEvolutionData = async (studentId, studentProfile) => {
+export const getStudentEvolutionData = async (studentId) => {
   const operation = async () => {
-    // We hebben nu het profiel nodig voor leeftijd en geslacht
-    if (!studentId || !studentProfile) {
-      console.warn("Student ID en profiel zijn nodig voor evolutiedata.");
-      return [];
-    }
-
     const testsQuery = query(
       collection(db, 'testen'),
       where('is_actief', '==', true),
@@ -159,67 +153,78 @@ export const getStudentEvolutionData = async (studentId, studentProfile) => {
     
     const testsSnapshot = await getDocs(testsQuery);
     const tests = testsSnapshot.docs.map(doc => ({
-      test_id: doc.id, // <-- Belangrijk: we gebruiken de document ID
+      id: doc.id,
       ...doc.data()
     }));
+
+    let leerlingId = studentId;
+    
+    if (studentId && !studentId.includes('@')) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', studentId));
+        if (userDoc.exists() && userDoc.data().email) {
+          leerlingId = userDoc.data().email;
+        }
+      } catch (error) {
+        console.warn('Could not fetch user document, using original studentId:', error);
+      }
+    }
 
     const testDataPromises = tests.map(async (test) => {
       const scoresQuery = query(
         collection(db, 'scores'),
-        where('test_id', '==', test.test_id),
-        where('leerling_id', '==', studentId),
+        where('test_id', '==', test.id),
+        where('leerling_id', '==', leerlingId),
         orderBy('datum', 'desc')
       );
 
       const scoresSnapshot = await getDocs(scoresQuery);
       const scores = scoresSnapshot.docs.map(doc => {
         const data = doc.data();
-        const datum = data.datum?.toDate ? data.datum.toDate() : new Date(data.datum);
-        return { id: doc.id, ...data, datum };
+        let parsedDatum = null;
+        
+        if (data.datum) {
+          if (typeof data.datum === 'string') {
+            parsedDatum = new Date(data.datum);
+          } else if (data.datum.toDate && typeof data.datum.toDate === 'function') {
+            parsedDatum = data.datum.toDate();
+          } else if (data.datum instanceof Date) {
+            parsedDatum = data.datum;
+          }
+        }
+        
+        if (!parsedDatum || isNaN(parsedDatum.getTime())) {
+          console.warn(`Could not parse datum for score ${doc.id}:`, data.datum);
+          parsedDatum = new Date();
+        }
+
+        return {
+          id: doc.id,
+          ...data,
+          datum: parsedDatum
+        };
       });
 
-      if (scores.length === 0) return null;
+      if (scores.length === 0) {
+        return null;
+      }
 
       const sortedScores = scores.sort((a, b) => new Date(b.datum) - new Date(a.datum));
       const personalBest = calculatePersonalBest(sortedScores, test.score_richting);
 
-      // --- START NIEUWE LOGICA ---
-      // Voor de beste score, bereken nu ook het punt op 20
-      let personal_best_points = null;
-      if (personalBest.score !== null) {
-          const normen = await getScoreNorms(test.test_id, studentProfile.geboortedatum, studentProfile.geslacht, personalBest.datum);
-          if (normen) {
-              // Zoek het hoogste punt dat de leerling heeft behaald
-              let behaaldPunt = 0;
-              for (const norm of normen.punten_schaal) {
-                  if (test.score_richting === 'hoog') {
-                      if (personalBest.score >= norm.score_min && norm.punt > behaaldPunt) {
-                          behaaldPunt = norm.punt;
-                      }
-                  } else { // 'laag'
-                      if (personalBest.score <= norm.score_min && norm.punt > behaaldPunt) {
-                          behaaldPunt = norm.punt;
-                      }
-                  }
-              }
-              personal_best_points = behaaldPunt;
-          }
-      }
-      // --- EINDE NIEUWE LOGICA ---
-
       return {
-        test_id: test.test_id,
+        test_id: test.id,
         test_naam: test.naam,
         categorie: test.categorie,
         eenheid: test.eenheid,
         score_richting: test.score_richting,
         personal_best_score: personalBest.score,
         personal_best_datum: personalBest.datum,
-        personal_best_points: personal_best_points, // <-- Nieuw veld!
         all_scores: sortedScores.map(score => ({
           score: score.score,
           datum: score.datum,
-          id: score.id
+          id: score.id,
+          rapportpunt: score.rapportpunt || null
         }))
       };
     });
@@ -374,7 +379,7 @@ const calculateP65Threshold = (normenData) => {
  * HERSCHREVEN: Haalt normen op uit een 20-puntenschaal gebaseerd op de NIEUWE datastructuur.
  * Deze functie haalt één document per test_id op en filtert de 'punten_schaal' array client-side.
  */
-export const getScoreNorms = async (testId, geboortedatum, geslacht, testDatum = new Date()) => {
+export const getScoreNorms = async (testId, leeftijd, geslacht) => {
   const operation = async () => {
     if (!testId || leeftijd === null || leeftijd === undefined || isNaN(leeftijd) || !geslacht) {
       console.warn('getScoreNorms: Ongeldige input', { testId, leeftijd, geslacht });
