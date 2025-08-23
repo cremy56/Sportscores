@@ -2,18 +2,11 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { getStudentEvolutionData } from '../../utils/firebaseUtils.js';
-import { analyseerEvolutieData } from '../../utils/analyseUtils.js';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import FocusPuntKaart from './FocusPuntKaart';
 
-// De component accepteert nu een 'studentProfile' prop
 export default function GroeiplanLeerling({ studentProfile }) {
-    const context = useOutletContext(); // We halen nog steeds de context op
-
-    // Bepaal welk profiel we moeten gebruiken:
-    // 1. Het doorgegeven profiel (als een leerkracht zoekt)
-    // 2. Anders, het profiel van de ingelogde gebruiker (als een leerling zelf kijkt)
+    const context = useOutletContext();
     const profile = studentProfile || context.profile;
 
     const [focusPunt, setFocusPunt] = useState(null);
@@ -21,8 +14,6 @@ export default function GroeiplanLeerling({ studentProfile }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // De rest van de code blijft exact hetzelfde, 
-        // het gebruikt nu automatisch de juiste 'profile' variabele.
         if (!profile?.id) {
             setLoading(false);
             return;
@@ -30,41 +21,70 @@ export default function GroeiplanLeerling({ studentProfile }) {
 
         const fetchData = async () => {
             setLoading(true);
-            const evolutionData = await getStudentEvolutionData(profile.id, profile);
-            const zwaksteTest = analyseerEvolutieData(evolutionData);
-            setFocusPunt(zwaksteTest);
+            
+            // 1. Haal alle scores op voor deze leerling, gesorteerd op datum
+            const scoresQuery = query(
+                collection(db, 'scores'),
+                where('leerling_id', '==', profile.id),
+                orderBy('datum', 'desc')
+            );
+            const scoresSnapshot = await getDocs(scoresQuery);
+            const allScores = scoresSnapshot.docs.map(doc => doc.data());
 
-            if (zwaksteTest) {
-                const schemasQuery = query(
-                    collection(db, 'trainingsschemas'),
-                    where('gekoppelde_test_id', '==', zwaksteTest.test_id)
-                );
-                const querySnapshot = await getDocs(schemasQuery);
-                if (!querySnapshot.empty) {
-                    const schemaDoc = querySnapshot.docs[0];
-                    setGekoppeldSchema({ id: schemaDoc.id, ...schemaDoc.data() });
+            if (allScores.length > 0) {
+                // 2. Zoek de score met het laagste rapportpunt
+                // We sorteren de scores van laag naar hoog op basis van rapportpunt
+                const sortedByPunt = [...allScores].sort((a, b) => a.rapportpunt - b.rapportpunt);
+                const zwaksteScore = sortedByPunt[0];
+
+                if (zwaksteScore && zwaksteScore.rapportpunt < 10) { // We tonen alleen een plan als het punt onder de 10 is
+                    // 3. Haal de details van de bijbehorende test op
+                    const testRef = doc(db, 'testen', zwaksteScore.test_id);
+                    const testSnap = await getDoc(testRef);
+
+                    if (testSnap.exists()) {
+                        setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
+
+                        // 4. Zoek een trainingsschema dat gekoppeld is aan deze test
+                        const schemasQuery = query(
+                            collection(db, 'trainingsschemas'),
+                            where('gekoppelde_test_id', '==', zwaksteScore.test_id)
+                        );
+                        const schemaSnapshot = await getDocs(schemasQuery);
+
+                        if (!schemaSnapshot.empty) {
+                            const schemaDoc = schemaSnapshot.docs[0];
+                            setGekoppeldSchema({ id: schemaDoc.id, ...schemaDoc.data() });
+                        } else {
+                            setGekoppeldSchema(null);
+                        }
+                    }
                 } else {
-                    setGekoppeldSchema(null); // Zorg ervoor dat schema gereset wordt
+                    // Reset als de laagste score niet onder de drempel is
+                    setFocusPunt(null);
+                    setGekoppeldSchema(null);
                 }
             }
+            
             setLoading(false);
         };
 
         fetchData();
-    }, [profile]); // De hook reageert nu op wijzigingen in het profiel
+    }, [profile]);
 
     if (loading) {
-        return <div className="text-center p-12">Persoonlijk groeiplan wordt berekend...</div>;
+        return <div className="text-center p-12">Je persoonlijke groeiplan wordt berekend...</div>;
     }
 
     if (!focusPunt || !gekoppeldSchema) {
         return (
             <div className="bg-white rounded-2xl p-8 text-center max-w-2xl mx-auto">
                 <h3 className="text-xl font-bold text-slate-800 mb-2">Alles Ziet Er Goed Uit!</h3>
-                <p className="text-slate-600">Geen specifiek focuspunt gevonden voor {profile?.naam}.</p>
+                <p className="text-slate-600">Geen specifiek focuspunt gevonden voor {profile?.naam}. Alle scores zijn voldoende!</p>
             </div>
         );
     }
     
-    return <FocusPuntKaart test={focusPunt} schema={gekoppeldSchema} student={profile} />;
+    // We moeten 'test_naam' gebruiken omdat de 'naam' in het test-object zit
+    return <FocusPuntKaart test={{...focusPunt, test_naam: focusPunt.naam}} schema={gekoppeldSchema} student={profile} />;
 }
