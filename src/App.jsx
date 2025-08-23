@@ -19,6 +19,7 @@ import SchoolBeheer from './pages/SchoolBeheer';
 import AdValvas from './pages/adValvas'; // AANGEPAST: Correcte import
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
+import Groeiplan from './pages/Groeiplan';
 import Leerlingbeheer from './pages/Leerlingbeheer';
 import Groepsbeheer from './pages/Groepsbeheer';
 import GroupDetail from './pages/GroupDetail';
@@ -161,7 +162,7 @@ function App() {
                         <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
                         <Route path="/testbeheer" element={<Testbeheer />} />
                         <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
-                        
+                        <Route path="/groeiplan" element={<Groeiplan />} />
                         {profile?.rol === 'administrator' && (
                           <Route path="/schoolbeheer" element={<SchoolBeheer />} />
                         )}
