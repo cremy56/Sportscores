@@ -14,65 +14,74 @@ export default function GroeiplanLeerling({ studentProfile }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!profile?.id) {
-            setLoading(false);
-            return;
-        }
+    if (!profile?.id) {
+        setLoading(false);
+        return;
+    }
 
-        const fetchData = async () => {
-            setLoading(true);
-            
-            // 1. Haal alle scores op voor deze leerling, gesorteerd op datum
-            const scoresQuery = query(
-                collection(db, 'scores'),
-                where('leerling_id', '==', profile.id),
-                orderBy('datum', 'desc')
-            );
-            const scoresSnapshot = await getDocs(scoresQuery);
-            const allScores = scoresSnapshot.docs.map(doc => doc.data());
+    const fetchData = async () => {
+        setLoading(true);
+        setFocusPunt(null);
+        setGekoppeldSchema(null);
+        
+        console.log(`--- START GROEIPLAN BEREKENING VOOR: ${profile.naam} (${profile.id}) ---`);
 
-            if (allScores.length > 0) {
-        // --- START WIJZIGING ---
-
-        // 2. Filter eerst op scores die een geldig rapportpunt hebben
-        const scoresMetPunt = allScores.filter(score => 
-            score.rapportpunt !== null && score.rapportpunt !== undefined
+        const scoresQuery = query(
+            collection(db, 'scores'),
+            where('leerling_id', '==', profile.id)
         );
+        const scoresSnapshot = await getDocs(scoresQuery);
+        const allScores = scoresSnapshot.docs.map(doc => doc.data());
 
-        if (scoresMetPunt.length > 0) {
-            // 3. Sorteer de gefilterde scores van laag naar hoog
-            const sortedByPunt = scoresMetPunt.sort((a, b) => a.rapportpunt - b.rapportpunt);
-            const zwaksteScore = sortedByPunt[0];
+        console.log('Stap 1: Alle scores gevonden:', allScores);
 
-            // 4. Pas de drempel aan naar <= 10 (een 10/20 is ook een focuspunt)
-            if (zwaksteScore && zwaksteScore.rapportpunt <= 10) {
-                const testRef = doc(db, 'testen', zwaksteScore.test_id);
-                const testSnap = await getDoc(testRef);
+        if (allScores.length > 0) {
+            const scoresMetPunt = allScores.filter(score => 
+                score.rapportpunt !== null && score.rapportpunt !== undefined
+            );
 
-                if (testSnap.exists()) {
-                    setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
+            console.log('Stap 2: Scores met een geldig rapportpunt:', scoresMetPunt);
 
-                    const schemasQuery = query(
-                        collection(db, 'trainingsschemas'),
-                        where('gekoppelde_test_id', '==', zwaksteScore.test_id)
-                    );
-                    const schemaSnapshot = await getDocs(schemasQuery);
+            if (scoresMetPunt.length > 0) {
+                const sortedByPunt = scoresMetPunt.sort((a, b) => a.rapportpunt - b.rapportpunt);
+                const zwaksteScore = sortedByPunt[0];
 
-                    if (!schemaSnapshot.empty) {
-                        const schemaDoc = schemaSnapshot.docs[0];
-                        setGekoppeldSchema({ id: schemaDoc.id, ...schemaDoc.data() });
+                console.log('Stap 3: Zwakste score gevonden:', zwaksteScore);
+                
+                if (zwaksteScore && zwaksteScore.rapportpunt <= 10) {
+                    console.log(`Stap 4: SUCCES - Zwakste score (${zwaksteScore.rapportpunt}) is <= 10. Zoeken naar schema voor test ID: ${zwaksteScore.test_id}`);
+                    
+                    const testRef = doc(db, 'testen', zwaksteScore.test_id);
+                    const testSnap = await getDoc(testRef);
+
+                    if (testSnap.exists()) {
+                        setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
+
+                        const schemasQuery = query(
+                            collection(db, 'trainingsschemas'),
+                            where('gekoppelde_test_id', '==', zwaksteScore.test_id)
+                        );
+                        const schemaSnapshot = await getDocs(schemasQuery);
+
+                        if (!schemaSnapshot.empty) {
+                            const schemaDoc = schemaSnapshot.docs[0];
+                            setGekoppeldSchema({ id: schemaDoc.id, ...schemaDoc.data() });
+                            console.log('Stap 5: SUCCES - Gekoppeld schema gevonden:', schemaDoc.data().naam);
+                        } else {
+                            console.log(`Stap 5: FOUT - Geen schema gevonden met gekoppelde_test_id: ${zwaksteScore.test_id}`);
+                        }
                     }
+                } else {
+                    console.log(`Stap 4: FOUT - Zwakste score (${zwaksteScore?.rapportpunt}) is NIET <= 10.`);
                 }
             }
         }
-        // --- EINDE WIJZIGING ---
-    }
-            
-            setLoading(false);
-        };
+        
+        setLoading(false);
+    };
 
-        fetchData();
-    }, [profile]);
+    fetchData();
+}, [profile]);
 
     if (loading) {
         return <div className="text-center p-12">Je persoonlijke groeiplan wordt berekend...</div>;
