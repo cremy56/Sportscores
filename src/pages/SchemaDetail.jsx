@@ -17,43 +17,59 @@ export default function SchemaDetail() {
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
 
     useEffect(() => {
-        // Wacht tot we ZEKER alle benodigde IDs hebben
+    // Deze functie wordt nu BINNEN de useEffect gedefinieerd
+    const fetchData = async () => {
+        // We verplaatsen de check naar binnen en maken hem specifieker
         if (!profile?.id || !schemaId) {
-            return; // Doe nog niets als de data niet compleet is
+            console.log("Wachten op profiel en schemaId...");
+            return; // Wacht op de volgende render als de data nog niet compleet is
         }
 
-        const fetchData = async () => {
-            setLoading(true);
+        setLoading(true);
+        
+        console.log(`--- START FETCH met profiel: ${profile.id} en schemaId: ${schemaId} ---`);
 
-            // 1. Haal de ID's uit de URL
-            const [leerlingId, schemaTemplateId] = schemaId.split('_');
+        const [leerlingId, schemaTemplateId] = schemaId.split('_');
 
-            // 2. Haal het profiel op van de leerling die we bekijken
-            const leerlingRef = doc(db, 'users', leerlingId);
-            const leerlingSnap = await getDoc(leerlingRef);
+        const leerlingRef = doc(db, 'users', leerlingId);
+        const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
+        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
+
+        try {
+            // Haal alle data tegelijk op voor efficiëntie
+            const [
+                leerlingSnap, 
+                schemaDetailsSnap, 
+                actiefSchemaSnap
+            ] = await Promise.all([
+                getDoc(leerlingRef),
+                getDoc(schemaDetailsRef),
+                getDoc(actiefSchemaRef)
+            ]);
+
             if (leerlingSnap.exists()) {
                 setLeerlingProfiel(leerlingSnap.data());
             }
 
-            // 3. Haal de details van het trainingsschema (het 'kookboek') op
-            const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
-            const schemaDetailsSnap = await getDoc(schemaDetailsRef);
             if (schemaDetailsSnap.exists()) {
                 setSchemaDetails({ id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() });
             }
 
-            // 4. Probeer het actieve schema van de leerling te vinden (de 'plaknotitie')
-            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-            const actiefSchemaSnap = await getDoc(actiefSchemaRef);
             if (actiefSchemaSnap.exists()) {
                 setActiefSchema({ id: actiefSchemaSnap.id, ...actiefSchemaSnap.data() });
             }
 
+        } catch (error) {
+            console.error("Fout bij ophalen schema data:", error);
+            toast.error("Kon de schema gegevens niet laden.");
+        } finally {
             setLoading(false);
-        };
+        }
+    };
 
-        fetchData();
-    }, [profile, schemaId]); // Deze hook draait opnieuw als de data binnenkomt
+    fetchData(); // Voer de functie uit
+    
+}, [profile, schemaId]); // De hook blijft reageren op wijzigingen
 
     if (loading) {
         return <div className="text-center p-12">Schema wordt geladen...</div>;
