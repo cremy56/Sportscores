@@ -1,24 +1,31 @@
 // src/components/groeiplan/FocusPuntKaart.jsx
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../../firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
-// De component accepteert nu 'student' (het profiel van de leerling)
 export default function FocusPuntKaart({ test, schema, student }) {
     const navigate = useNavigate();
     const { profile } = useOutletContext(); // Dit is de ingelogde gebruiker
     
-    // De leerkracht ziet de kaart, maar niet de knop.
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
 
+    // We construeren de unieke ID voor het actieve schema
+    const schemaInstanceId = `${student.id}_${schema.id}`;
+
     const handleStartSchema = async () => {
-        // Genereer een unieke ID voor dit actieve schema
-        const newSchemaInstanceId = `${student.id}_${schema.id}`;
-        const actiefSchemaRef = doc(db, 'leerling_schemas', newSchemaInstanceId);
+        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
 
         try {
+            // Controleer eerst of het document niet al bestaat
+            const docSnap = await getDoc(actiefSchemaRef);
+            if (docSnap.exists()) {
+                toast('Je volgt dit schema al.', { icon: '💡' });
+                navigate(`/groeiplan/${schemaInstanceId}`);
+                return;
+            }
+
             await setDoc(actiefSchemaRef, {
                 leerling_id: student.id,
                 schema_id: schema.id,
@@ -27,9 +34,7 @@ export default function FocusPuntKaart({ test, schema, student }) {
                 voltooide_taken: {}
             });
             toast.success("Schema gestart! Veel succes!");
-            
-            // Navigeer naar de nieuwe detailpagina
-            navigate(`/groeiplan/${newSchemaInstanceId}`);
+            navigate(`/groeiplan/${schemaInstanceId}`);
 
         } catch (error) {
             console.error("Fout bij starten schema:", error);
@@ -40,7 +45,6 @@ export default function FocusPuntKaart({ test, schema, student }) {
     return (
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 max-w-2xl mx-auto">
             <div className="text-center">
-                {/* De titel verandert op basis van wie er kijkt */}
                 <p className="text-sm font-semibold text-purple-600 uppercase mb-2">
                     {isTeacherOrAdmin ? `Focuspunt voor ${student.naam}` : 'Jouw Focuspunt'}
                 </p>
@@ -51,20 +55,35 @@ export default function FocusPuntKaart({ test, schema, student }) {
             </div>
 
             <div className="bg-slate-50 rounded-xl border border-slate-200 p-6">
-                 {/* ... (deze inhoud blijft hetzelfde) ... */}
+                <h3 className="font-bold text-slate-700 mb-1">{schema.naam}</h3>
+                <p className="text-sm text-slate-500 mb-4">{schema.omschrijving}</p>
+                <div className="flex justify-between items-center text-sm font-medium text-slate-600">
+                    <span>Duur: {schema.duur_weken} weken</span>
+                    <span>Categorie: {schema.categorie}</span>
+                </div>
             </div>
 
-            {/* De knop wordt alleen getoond aan de leerling */}
-            {!isTeacherOrAdmin && (
-                <div className="text-center mt-8">
+            {/* --- START VAN DE WIJZIGING --- */}
+            <div className="text-center mt-8">
+                {isTeacherOrAdmin ? (
+                    // Knop voor de leerkracht
+                    <Link
+                        to={`/groeiplan/${schemaInstanceId}`}
+                        className="px-8 py-3 bg-slate-600 text-white rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 font-medium"
+                    >
+                        Bekijk Voortgang
+                    </Link>
+                ) : (
+                    // Knop voor de leerling
                     <button 
                         onClick={handleStartSchema}
                         className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 font-medium"
                     >
                         Start mijn {schema.duur_weken}-wekenplan
                     </button>
-                </div>
-            )}
+                )}
+            </div>
+            {/* --- EINDE VAN DE WIJZIGING --- */}
         </div>
     );
 }
