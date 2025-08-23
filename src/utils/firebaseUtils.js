@@ -374,28 +374,30 @@ const calculateP65Threshold = (normenData) => {
  * HERSCHREVEN: Haalt normen op uit een 20-puntenschaal gebaseerd op de NIEUWE datastructuur.
  * Deze functie haalt één document per test_id op en filtert de 'punten_schaal' array client-side.
  */
-export const getScoreNorms = async (testId, leeftijd, geslacht) => {
+export const getScoreNorms = async (testId, geboortedatum, geslacht, testDatum = new Date()) => {
   const operation = async () => {
-    // 1. Valideer de input
     if (!testId || leeftijd === null || leeftijd === undefined || isNaN(leeftijd) || !geslacht) {
       console.warn('getScoreNorms: Ongeldige input', { testId, leeftijd, geslacht });
       return null;
     }
 
-    // 2. Voer een query uit om het juiste normendocument te vinden
+    // --- START VAN DE WIJZIGING ---
+    // We gebruiken nu een query om te zoeken naar het document waar het *veld* 'test_id' correct is.
     const normenQuery = query(
       collection(db, 'normen'),
       where('test_id', '==', testId)
     );
     const normenSnapshot = await getDocs(normenQuery);
 
-    // 3. Controleer of er een document is gevonden
     if (normenSnapshot.empty || !normenSnapshot.docs[0].data().punten_schaal) {
       console.log(`❌ Geen norm-document of 'punten_schaal' gevonden voor test ${testId}.`);
       return null;
     }
     
+    // We pakken het eerste resultaat van de query
     const normDocument = normenSnapshot.docs[0].data();
+    // --- EINDE VAN DE WIJZIGING ---
+
     const puntenSchaal = normDocument.punten_schaal;
     const scoreRichting = normDocument.score_richting || 'hoog';
     const numericAge = Number(leeftijd);
@@ -406,16 +408,13 @@ export const getScoreNorms = async (testId, leeftijd, geslacht) => {
       return null;
     }
 
-    // 4. Helper-functie om de normen voor een specifieke leeftijd te extraheren
     const extractNormsForAge = (age) => {
-      // Filter de volledige schaal op de juiste leeftijd en geslacht
       const relevantNorms = puntenSchaal.filter(
         norm => norm.leeftijd === age && norm.geslacht === mappedGender
       );
 
       if (relevantNorms.length === 0) return null;
 
-      // Zoek de specifieke scores voor de benodigde punten (1, 10, 14, 20)
       const findScore = (punt) => relevantNorms.find(n => n.punt === punt)?.score_min;
       
       const norm_1 = findScore(1);
@@ -423,7 +422,6 @@ export const getScoreNorms = async (testId, leeftijd, geslacht) => {
       const norm_14 = findScore(14);
       const norm_20 = findScore(20);
 
-      // Valideer of alle benodigde punten gevonden zijn
       if ([norm_1, norm_10, norm_14, norm_20].every(n => n !== undefined)) {
         console.log(`✅ Normen gevonden voor test ${testId} op leeftijd ${age}.`);
         return {
@@ -438,14 +436,12 @@ export const getScoreNorms = async (testId, leeftijd, geslacht) => {
       return null;
     };
     
-    // 5. Probeer eerst met de exacte (afgekapte) leeftijd
-    const normAge = Math.min(numericAge, 17); // Zorgt ervoor dat we niet boven de 17 zoeken
+    const normAge = Math.min(numericAge, 17);
     let result = extractNormsForAge(normAge);
     if (result) return { ...result, original_leeftijd: numericAge };
 
-    // 6. Fallback: als er geen normen zijn voor de exacte leeftijd, probeer dan jongere leeftijden
     console.log(`Geen complete normen gevonden voor leeftijd ${normAge}. Proberen van fallback leeftijden...`);
-    const fallbackAges = [17, 16, 15, 14, 13].filter(age => age < normAge);
+    const fallbackAges = [17, 16, 15, 14, 13].filter(age => age !== normAge);
 
     for (const fallbackAge of fallbackAges) {
       result = extractNormsForAge(fallbackAge);
@@ -465,7 +461,6 @@ export const getScoreNorms = async (testId, leeftijd, geslacht) => {
   };
 
   try {
-    // Gebruik de retryOperation wrapper die al in je bestand aanwezig is
     return await retryOperation(operation);
   } catch (error) {
     handleFirestoreError(error, 'Laden van 20-punts normen');
