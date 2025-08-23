@@ -28,6 +28,7 @@ import TestDetailBeheer from './pages/TestDetailBeheer';
 import ScoresOverzicht from './pages/ScoresOverzicht';
 import TestafnameDetail from './pages/TestafnameDetail';
 import NieuweTestafname from './pages/NieuweTestafname';
+import SchemaDetail from './pages/SchemaDetail'; 
 
 
 function HandleAuthRedirect() {
@@ -163,6 +164,7 @@ function App() {
                         <Route path="/testbeheer" element={<Testbeheer />} />
                         <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
                         <Route path="/groeiplan" element={<Groeiplan />} />
+                        <Route path="/groeiplan/:schemaId" element={<SchemaDetail />} />
                         {profile?.rol === 'administrator' && (
                           <Route path="/schoolbeheer" element={<SchoolBeheer />} />
                         )}
