@@ -5,70 +5,76 @@ import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { ArrowLeftIcon, PlayIcon } from '@heroicons/react/24/solid';
-import toast from 'react-hot-toast'; // Importeer toast
 
 export default function SchemaDetail() {
-    const { schemaId } = useParams();
-    const { profile } = useOutletContext(); // Profiel van de ingelogde gebruiker (leerkracht of leerling)
-    
+    const { schemaId } = useParams(); // Dit is de 'leerlingID_schemaTemplateID'
+    const { profile } = useOutletContext(); // Profiel van de ingelogde gebruiker
     const [actiefSchema, setActiefSchema] = useState(null);
     const [schemaDetails, setSchemaDetails] = useState(null);
     const [leerlingProfiel, setLeerlingProfiel] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
-
+// --- DE NIEUWE DEBUG-LOG ---
+    console.log('SchemaDetail rendert met:', { 
+        profile: profile ? `Profiel geladen voor ${profile.naam}` : 'Profiel nog niet geladen',
+        schemaId: schemaId ? `SchemaId aanwezig: ${schemaId}` : 'SchemaId nog niet aanwezig'
+    });
+    // --- EINDE DEBUG-LOG ---
     useEffect(() => {
-        // De 'guard clause' die we eerder hadden, maar nu robuuster
+    // Deze functie wordt nu BINNEN de useEffect gedefinieerd
+    const fetchData = async () => {
+        // We verplaatsen de check naar binnen en maken hem specifieker
         if (!profile?.id || !schemaId) {
-            // Wacht op de volgende render als de data nog niet compleet is
-            return;
+            console.log("Wachten op profiel en schemaId...");
+            return; // Wacht op de volgende render als de data nog niet compleet is
         }
 
-        const fetchData = async () => {
-            setLoading(true);
-            
-            try {
-                const [leerlingId, schemaTemplateId] = schemaId.split('_');
-                
-                // Bepaal welk profiel we moeten ophalen
-                const finalLeerlingId = isTeacherOrAdmin ? leerlingId : profile.id;
+        setLoading(true);
+        
+        console.log(`--- START FETCH met profiel: ${profile.id} en schemaId: ${schemaId} ---`);
 
-                const leerlingRef = doc(db, 'users', finalLeerlingId);
-                const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
-                const actiefSchemaRef = doc(db, 'leerling_schemas', `${finalLeerlingId}_${schemaTemplateId}`);
+        const [leerlingId, schemaTemplateId] = schemaId.split('_');
 
-                const [
-                    leerlingSnap, 
-                    schemaDetailsSnap, 
-                    actiefSchemaSnap
-                ] = await Promise.all([
-                    getDoc(leerlingRef),
-                    getDoc(schemaDetailsRef),
-                    getDoc(actiefSchemaRef)
-                ]);
+        const leerlingRef = doc(db, 'users', leerlingId);
+        const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
+        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
 
-                if (leerlingSnap.exists()) setLeerlingProfiel(leerlingSnap.data());
-                if (schemaDetailsSnap.exists()) setSchemaDetails({ id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() });
-                if (actiefSchemaSnap.exists()) setActiefSchema({ id: actiefSchemaSnap.id, ...actiefSchemaSnap.data() });
+        try {
+            // Haal alle data tegelijk op voor efficiëntie
+            const [
+                leerlingSnap, 
+                schemaDetailsSnap, 
+                actiefSchemaSnap
+            ] = await Promise.all([
+                getDoc(leerlingRef),
+                getDoc(schemaDetailsRef),
+                getDoc(actiefSchemaRef)
+            ]);
 
-            } catch (error) {
-                console.error("Fout bij ophalen schema data:", error);
-                toast.error("Kon de schema gegevens niet laden.");
-            } finally {
-                setLoading(false);
+            if (leerlingSnap.exists()) {
+                setLeerlingProfiel(leerlingSnap.data());
             }
-        };
 
-        fetchData();
-    }, [profile, schemaId, isTeacherOrAdmin]);
+            if (schemaDetailsSnap.exists()) {
+                setSchemaDetails({ id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() });
+            }
 
-    // --- DE BELANGRIJKSTE WIJZIGING ---
-    // Voeg een "poortwachter" toe: toon een algemene laadstatus als het profiel nog niet binnen is.
-    if (!profile) {
-        return <div className="text-center p-12">Authenticatie controleren...</div>;
-    }
-    // ------------------------------------
+            if (actiefSchemaSnap.exists()) {
+                setActiefSchema({ id: actiefSchemaSnap.id, ...actiefSchemaSnap.data() });
+            }
+
+        } catch (error) {
+            console.error("Fout bij ophalen schema data:", error);
+            toast.error("Kon de schema gegevens niet laden.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchData(); // Voer de functie uit
+    
+}, [profile, schemaId]); // De hook blijft reageren op wijzigingen
 
     if (loading) {
         return <div className="text-center p-12">Schema wordt geladen...</div>;
@@ -78,12 +84,11 @@ export default function SchemaDetail() {
         return <div className="text-center p-12">Kon de details van het trainingsschema niet vinden.</div>;
     }
 
-    // Weergave als het schema NOG NIET GESTART is
+    // --- Weergave als het schema NOG NIET GESTART is ---
     if (!actiefSchema) {
-        const studentName = isTeacherOrAdmin ? (leerlingProfiel?.naam || 'De leerling') : 'Je';
         return (
             <div className="max-w-2xl mx-auto px-4 py-8 text-center bg-white rounded-2xl shadow-sm">
-                <Link to="/groeiplan" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
+                 <Link to="/groeiplan" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
                     <ArrowLeftIcon className="h-5 w-5 mr-2" />
                     Terug naar overzicht
                 </Link>
@@ -92,15 +97,8 @@ export default function SchemaDetail() {
                 </div>
                 <h2 className="text-xl font-bold text-slate-800">Schema nog niet gestart</h2>
                 <p className="text-slate-600 mt-2">
-                    {studentName} is nog niet begonnen aan het <span className="font-semibold">"{schemaDetails.naam}"</span>.
+                    {isTeacherOrAdmin ? `${leerlingProfiel?.naam || 'De leerling'}` : 'Je'} is nog niet begonnen aan het <span className="font-semibold">"{schemaDetails.naam}"</span>.
                 </p>
-                {/* Een leerling ziet hier zijn eigen startknop weer */}
-                 {!isTeacherOrAdmin && (
-                    <div className="mt-6">
-                        {/* Hier kun je de 'handleStartSchema' logica van de FocusPuntKaart hergebruiken */}
-                        <button className="px-6 py-3 bg-purple-600 text-white rounded-xl">Start dit plan</button>
-                    </div>
-                 )}
             </div>
         );
     }
