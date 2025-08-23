@@ -35,7 +35,7 @@ export default function Layout() {
     '/': 'Home',
     '/highscores': 'Highscores',
     '/evolutie': evolutieLinkText,
-    '/groeiplan': 'Mijn groeiplan',
+    '/groeiplan': 'Groeiplan',
     '/groepsbeheer': 'Groepsbeheer',
     '/scores': 'Scores',
     '/leerlingbeheer': 'Leerlingbeheer',
@@ -113,7 +113,7 @@ export default function Layout() {
             </li>
             <li>
               <NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
-                Mijn Groeiplan
+                Groeiplan
               </NavLink>
             </li>
             {isTeacherOrAdmin && (
