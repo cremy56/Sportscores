@@ -120,7 +120,7 @@ export default function Evolutie() {
                 
                 {/* Header met horizontale layout (titel naast controls) */}
                 {isTeacherOrAdmin ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-12">
                         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                             {/* Titel sectie */}
                             <div className="text-center lg:text-left lg:flex-1">
@@ -141,7 +141,7 @@ export default function Evolutie() {
                             </div>
                             
                             {/* Controls sectie */}
-                            <div className="lg:flex-shrink-0 lg:w-96">
+                            <div className="lg:flex-shrink-0 lg:w-[500px]">
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 items-end">
                                     <div>
                                         <label className="block text-xs font-medium text-slate-700 mb-1">
@@ -179,7 +179,7 @@ export default function Evolutie() {
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-12">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             {/* Titel sectie voor leerling */}
                             <div className="text-center sm:text-left sm:flex-1">
