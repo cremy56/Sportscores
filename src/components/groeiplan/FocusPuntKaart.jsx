@@ -1,6 +1,7 @@
 // src/components/groeiplan/FocusPuntKaart.jsx
 import { Link, useNavigate } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { db } from '../../firebase';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
@@ -8,6 +9,8 @@ import toast from 'react-hot-toast';
 export default function FocusPuntKaart({ test, schema, student }) {
     const navigate = useNavigate();
     const { profile } = useOutletContext(); // Dit is de ingelogde gebruiker
+    const [schemaExists, setSchemaExists] = useState(false);
+    const [loading, setLoading] = useState(true);
     
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
 
@@ -21,6 +24,24 @@ export default function FocusPuntKaart({ test, schema, student }) {
 
     // We construeren de unieke ID voor het actieve schema
     const schemaInstanceId = `${studentIdentifier}_${schema.id}`;
+
+    // Controleer bij het laden van de component of het schema al bestaat
+    useEffect(() => {
+        const checkSchemaExists = async () => {
+            if (!isTeacherOrAdmin) { // Alleen controleren voor leerlingen
+                try {
+                    const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
+                    const docSnap = await getDoc(actiefSchemaRef);
+                    setSchemaExists(docSnap.exists());
+                } catch (error) {
+                    console.error("Fout bij controleren schema:", error);
+                }
+            }
+            setLoading(false);
+        };
+
+        checkSchemaExists();
+    }, [schemaInstanceId, isTeacherOrAdmin]);
 
     const handleStartSchema = async () => {
         const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
@@ -50,6 +71,10 @@ export default function FocusPuntKaart({ test, schema, student }) {
         }
     };
 
+    const handleContinueSchema = () => {
+        navigate(`/groeiplan/${schemaInstanceId}`);
+    };
+
     return (
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 max-w-2xl mx-auto">
             <div className="text-center">
@@ -71,7 +96,6 @@ export default function FocusPuntKaart({ test, schema, student }) {
                 </div>
             </div>
 
-            {/* --- START VAN DE WIJZIGING --- */}
             <div className="text-center mt-8">
                 {isTeacherOrAdmin ? (
                     // Knop voor de leerkracht
@@ -81,8 +105,21 @@ export default function FocusPuntKaart({ test, schema, student }) {
                     >
                         Bekijk Voortgang
                     </Link>
+                ) : loading ? (
+                    // Loading state voor leerlingen
+                    <div className="px-8 py-3 bg-gray-300 text-gray-500 rounded-xl font-medium cursor-not-allowed">
+                        Laden...
+                    </div>
+                ) : schemaExists ? (
+                    // Knop voor leerling die al begonnen is
+                    <button 
+                        onClick={handleContinueSchema}
+                        className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 font-medium"
+                    >
+                        Ga verder met je {schema.duur_weken}-wekenplan
+                    </button>
                 ) : (
-                    // Knop voor de leerling
+                    // Knop voor leerling die nog niet begonnen is
                     <button 
                         onClick={handleStartSchema}
                         className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 font-medium"
@@ -91,7 +128,6 @@ export default function FocusPuntKaart({ test, schema, student }) {
                     </button>
                 )}
             </div>
-            {/* --- EINDE VAN DE WIJZIGING --- */}
         </div>
     );
 }
