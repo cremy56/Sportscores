@@ -1,4 +1,4 @@
-// src/pages/Evolutie.jsx - Optimized Layout with 2-column grid
+// src/pages/Evolutie.jsx - Optimized Layout with compact header
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import StudentSearch from '../components/StudentSearch';
@@ -116,14 +116,14 @@ export default function Evolutie() {
 
     return (
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-            <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8 space-y-6">
+            <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-4">
                 
-                {/* Header */}
-                <div className="text-center">
-                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2 pt-8">
+                {/* Compacte Header */}
+                <div className="text-center pt-4 pb-2">
+                    <h1 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">
                         {selectedStudent ? selectedStudent.naam : pageTitle}
                     </h1>
-                    <p className="text-slate-600 mb-4">
+                    <p className="text-sm text-slate-600 mb-3">
                         {selectedStudent 
                             ? selectedYear === 'all'
                                 ? 'Evolutie overzicht over alle schooljaren'
@@ -131,17 +131,17 @@ export default function Evolutie() {
                             : ''
                         }
                     </p>
-                    <div className="flex justify-center mb-6">
-                        <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                    <div className="flex justify-center">
+                        <div className="w-16 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
                     </div>
                 </div>
 
-                {/* Controls Card */}
+                {/* Compactere Controls Card */}
                 {isTeacherOrAdmin ? (
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6 items-end">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 items-end">
                             <div className="sm:col-span-2">
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-xs font-medium text-slate-700 mb-1">
                                     Zoek Leerling
                                 </label>
                                 <StudentSearch 
@@ -150,10 +150,10 @@ export default function Evolutie() {
                                 />
                             </div>
                             <div>
-                                <label htmlFor="school-year-select" className="block text-sm font-medium text-slate-700 mb-2">
+                                <label htmlFor="school-year-select" className="block text-xs font-medium text-slate-700 mb-1 flex items-center">
                                     Schooljaar
                                     {isCurrentYear && (
-                                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                                             Huidig
                                         </span>
                                     )}
@@ -162,7 +162,7 @@ export default function Evolutie() {
                                     id="school-year-select"
                                     value={selectedYear}
                                     onChange={(e) => handleYearChange(e.target.value)}
-                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-purple-500 focus:ring-purple-500 text-sm"
+                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
                                 >
                                     {availableYears.map(year => (
                                         <option key={year.value} value={year.value}>
@@ -174,12 +174,12 @@ export default function Evolutie() {
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                         <div className="max-w-sm mx-auto">
-                            <label htmlFor="student-year-select" className="block text-sm font-medium text-slate-700 mb-2">
+                            <label htmlFor="student-year-select" className="block text-xs font-medium text-slate-700 mb-1 flex items-center justify-center">
                                 Bekijk schooljaar
                                 {isCurrentYear && (
-                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                                         Huidig
                                     </span>
                                 )}
@@ -188,7 +188,7 @@ export default function Evolutie() {
                                 id="student-year-select"
                                 value={selectedYear}
                                 onChange={(e) => handleYearChange(e.target.value)}
-                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:border-purple-500 focus:ring-purple-500 text-sm"
+                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
                             >
                                 {availableYears.map(year => (
                                     <option key={year.value} value={year.value}>
@@ -200,17 +200,17 @@ export default function Evolutie() {
                     </div>
                 )}
 
-                {/* Error State */}
+                {/* Error State - Compacter */}
                 {error && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-8 max-w-2xl mx-auto">
+                    <div className="bg-white rounded-xl shadow-sm border border-red-200 p-6 max-w-2xl mx-auto">
                         <div className="text-center">
-                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-red-800 mb-2">Fout bij laden</h3>
-                            <p className="text-red-600 leading-relaxed mb-4">{error}</p>
+                            <h3 className="text-lg font-bold text-red-800 mb-1">Fout bij laden</h3>
+                            <p className="text-sm text-red-600 leading-relaxed mb-3">{error}</p>
                             <button 
                                 onClick={() => {
                                     setError(null);
@@ -231,7 +231,7 @@ export default function Evolutie() {
                                         fetchData();
                                     }
                                 }}
-                                className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium"
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
                             >
                                 Probeer opnieuw
                             </button>
@@ -239,45 +239,45 @@ export default function Evolutie() {
                     </div>
                 )}
 
-                {/* No Student Selected (Teacher/Admin view) */}
+                {/* No Student Selected - Compacter */}
                 {!error && !selectedStudent && isTeacherOrAdmin && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-2xl mx-auto">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 max-w-2xl mx-auto">
                         <div className="text-center">
-                            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-slate-800 mb-2">Selecteer een leerling</h3>
-                            <p className="text-slate-600 mb-2">
+                            <h3 className="text-lg font-bold text-slate-800 mb-1">Selecteer een leerling</h3>
+                            <p className="text-sm text-slate-600 mb-1">
                                 Gebruik de zoekbalk hierboven om de evolutie van een leerling te bekijken.
                             </p>
-                            <p className="text-sm text-slate-500">
+                            <p className="text-xs text-slate-500">
                                 Typ minimaal 2 karakters om te zoeken
                             </p>
                         </div>
                     </div>
                 )}
 
-                {/* Student Selected but No Data */}
+                {/* No Data - Compacter */}
                 {!error && selectedStudent && Object.keys(grouped_data).length === 0 && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-2xl mx-auto">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 max-w-2xl mx-auto">
                         <div className="text-center">
-                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-slate-800 mb-2">Geen gegevens gevonden</h3>
-                            <p className="text-slate-600 mb-2">
+                            <h3 className="text-lg font-bold text-slate-800 mb-1">Geen gegevens gevonden</h3>
+                            <p className="text-sm text-slate-600 mb-1">
                                 Geen scoregeschiedenis gevonden voor <strong>{selectedStudent.naam}</strong>
                             </p>
-                            <p className="text-sm text-slate-500 mb-4">
+                            <p className="text-xs text-slate-500 mb-3">
                                 in het schooljaar {formatSchoolYear(selectedYear)}
                                 {isCurrentYear && ' (huidig schooljaar)'}
                             </p>
-                            <div className="p-4 bg-blue-50 rounded-xl">
-                                <p className="text-sm text-blue-700">
+                            <div className="p-3 bg-blue-50 rounded-lg">
+                                <p className="text-xs text-blue-700">
                                     💡 Tip: Probeer een ander schooljaar of controleer of er scores zijn ingevoerd voor deze leerling in dit periode.
                                 </p>
                             </div>
@@ -285,10 +285,10 @@ export default function Evolutie() {
                     </div>
                 )}
                 
-                {/* Evolution Cards Grid - Optimized 2-column layout */}
+                {/* Evolution Cards Grid - Meer ruimte voor de grafieken */}
                 {!error && selectedStudent && Object.keys(grouped_data).length > 0 && (
-                    <div className="space-y-8">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                             {Object.entries(grouped_data).map(([categoryName, testsInCategory]) => (
                                 <EvolutionCard
                                     key={`${categoryName}-${selectedYear}`}
@@ -298,8 +298,6 @@ export default function Evolutie() {
                                 />
                             ))}
                         </div>
-                        
-                        
                     </div>
                 )}
             </div>
