@@ -141,32 +141,37 @@ export default function SchemaDetail() {
             };
 
             const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-            // 1. Controleer of de week nu voltooid is
-        const huidigeWeekData = schemaDetails.weken.find(w => w.week_nummer === weekNummer);
-        const totaleTakenInWeek = huidigeWeekData.taken.length;
-        
-        // Tel alle gevalideerde taken in deze week (inclusief de taak die we net valideren)
-        let gevalideerdeTakenInWeek = 1; // Start met 1 voor de huidige validatie
-        for (const [key, value] of Object.entries(updatedVoltooide)) {
-            if (key.startsWith(`week${weekNummer}_`) && key !== taakId && value.status === 'gevalideerd') {
-                gevalideerdeTakenInWeek++;
+           // --- START NIEUWE, CORRECTE LOGICA ---
+
+        let nieuweHuidigeWeek = actiefSchema.huidige_week;
+
+        // 1. Controleer of de ECHTE HUIDIGE week nu voltooid is
+        const weekDataToCheck = schemaDetails.weken.find(w => w.week_nummer === actiefSchema.huidige_week);
+
+        if (weekDataToCheck) {
+            const totaleTakenInHuidigeWeek = weekDataToCheck.taken.length;
+            
+            // 2. Tel alle gevalideerde taken in de huidige week (met de zojuist bijgewerkte data)
+            const gevalideerdeTakenInHuidigeWeek = weekDataToCheck.taken.filter((_, index) => {
+                const idToCheck = `week${actiefSchema.huidige_week}_taak${index}`;
+                // Controleer in de 'updatedVoltooide' map, niet de oude state!
+                return updatedVoltooide[idToCheck]?.status === 'gevalideerd';
+            }).length;
+
+            // 3. Als de week vol is, ga dan pas door naar de volgende
+            if (gevalideerdeTakenInHuidigeWeek === totaleTakenInHuidigeWeek) {
+                nieuweHuidigeWeek = actiefSchema.huidige_week + 1;
+                toast.success(`Week ${actiefSchema.huidige_week} voltooid! Door naar week ${nieuweHuidigeWeek}.`, { icon: '🎉' });
             }
         }
         
-        let nieuweHuidigeWeek = actiefSchema.huidige_week;
-        if (gevalideerd && gevalideerdeTakenInWeek === totaleTakenInWeek) {
-            // Week is vol! Ga naar de volgende week.
-            nieuweHuidigeWeek = weekNummer + 1;
-            toast.success(`Week ${weekNummer} voltooid! Door naar week ${nieuweHuidigeWeek}.`, { icon: '🎉' });
-        }
-
-        // 2. Update zowel de taken als de mogelijke nieuwe week in één keer
+        // 4. Update zowel de taken als de (mogelijk nieuwe) huidige week in één keer
         await updateDoc(actiefSchemaRef, {
             voltooide_taken: updatedVoltooide,
             huidige_week: nieuweHuidigeWeek
         });
 
-        // 3. Update de lokale state om de UI direct te verversen
+        // 5. Update de lokale state om de UI direct te verversen
         setActiefSchema(prev => ({
             ...prev,
             voltooide_taken: updatedVoltooide,
