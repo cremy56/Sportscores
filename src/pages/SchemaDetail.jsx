@@ -127,55 +127,57 @@ export default function SchemaDetail() {
 
     // src/pages/SchemaDetail.jsx
 
+// src/pages/SchemaDetail.jsx
+
 const handleValidatieTaak = async (weekNummer, taakIndex, isGevalideerd) => {
     if (!actiefSchema || !isTeacherOrAdmin) return;
 
     try {
         const taakId = `week${weekNummer}_taak${taakIndex}`;
         
-        // Maak een kopie van de huidige voltooide taken om bij te werken
+        // 1. Maak een bijgewerkte kopie van alle voltooide taken
         const updatedVoltooide = { ...actiefSchema.voltooide_taken };
-        
-        // Update of maak de specifieke taak aan in de kopie
         updatedVoltooide[taakId] = {
-            ...updatedVoltooide[taakId], // Behoud bestaande data zoals 'voltooid_op'
+            ...updatedVoltooide[taakId],
             status: isGevalideerd ? 'gevalideerd' : 'afgewezen',
             gevalideerd_door: profile.naam || profile.email,
             gevalideerd_op: serverTimestamp()
         };
 
-        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
+        // --- START VAN DE CORRECTE LOGICA ---
+
         let nieuweHuidigeWeek = actiefSchema.huidige_week;
 
-        // --- START CORRECTIE ---
-        
-        // 1. Controleer de week van de taak die net gevalideerd is
-        const weekDataToCheck = schemaDetails.weken.find(w => w.week_nummer === weekNummer);
+        // 2. Controleer of de HUIDIGE actieve week nu voltooid is
+        const huidigeWeekData = schemaDetails.weken.find(w => w.week_nummer === actiefSchema.huidige_week);
 
-        if (isGevalideerd && weekDataToCheck) {
-            const totaleTakenInWeek = weekDataToCheck.taken.length;
+        if (huidigeWeekData) {
+            const totaleTakenInHuidigeWeek = huidigeWeekData.taken.length;
             
-            // 2. Tel alle gevalideerde taken in die week, INCLUSIEF de zojuist gewijzigde
-            const gevalideerdeTakenInWeek = weekDataToCheck.taken.filter((_, index) => {
-                const idToCheck = `week${weekNummer}_taak${index}`;
-                // Gebruik de 'updatedVoltooide' kopie voor de meest actuele data
+            // 3. Tel alle gevalideerde taken in de huidige week, gebruikmakend van de NIEUWE data
+            const gevalideerdeTakenInHuidigeWeek = huidigeWeekData.taken.filter((_, index) => {
+                const idToCheck = `week${actiefSchema.huidige_week}_taak${index}`;
+                // Controleer in de 'updatedVoltooide' map voor de meest actuele status
                 return updatedVoltooide[idToCheck]?.status === 'gevalideerd';
             }).length;
 
-            // 3. Als de week vol is én het is de huidige actieve week, ga dan door
-            if (gevalideerdeTakenInWeek === totaleTakenInWeek && weekNummer === actiefSchema.huidige_week) {
+            // 4. Als de huidige week vol is, verhoog de 'huidige_week'
+            if (gevalideerdeTakenInHuidigeWeek === totaleTakenInHuidigeWeek) {
                 nieuweHuidigeWeek = actiefSchema.huidige_week + 1;
                 toast.success(`Week ${actiefSchema.huidige_week} voltooid! Door naar week ${nieuweHuidigeWeek}.`, { icon: '🎉' });
             }
         }
         
-        // --- EINDE CORRECTIE ---
+        // --- EINDE VAN DE CORRECTE LOGICA ---
 
+        // 5. Schrijf alle wijzigingen (zowel taken als de week) in één keer naar de database
+        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
         await updateDoc(actiefSchemaRef, {
             voltooide_taken: updatedVoltooide,
             huidige_week: nieuweHuidigeWeek
         });
 
+        // 6. Update de lokale state om de UI direct te verversen
         setActiefSchema(prev => ({
             ...prev,
             voltooide_taken: updatedVoltooide,
