@@ -34,6 +34,8 @@ const getPointColorClass = (point, maxPoints = 20) => {
   }
   return 'text-green-600 font-bold'; // Boven 65%
 };
+// src/utils/formatters.js
+
 export const formatScoreWithUnit = (score, eenheid) => {
   if (score === null || score === undefined) return '-';
   const eenheidLower = eenheid?.toLowerCase();
@@ -41,6 +43,12 @@ export const formatScoreWithUnit = (score, eenheid) => {
   if (eenheidLower === 'aantal') {
     return `${score}x`;
   }
+
+  // --- START NIEUWE CODE ---
+  if (eenheidLower === 'meter') {
+    return `${score} m`;
+  }
+  // --- EINDE NIEUWE CODE ---
 
   if (['min', 'sec', 'seconden'].includes(eenheidLower)) {
     const mins = Math.floor(score / 60);
