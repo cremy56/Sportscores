@@ -24,10 +24,7 @@ export default function GroeiplanLeerling({ studentProfile }) {
             setFocusPunt(null);
             setGekoppeldSchema(null);
             
-            // Debug logging
             console.log(`--- START GROEIPLAN BEREKENING VOOR: ${profile.naam} ---`);
-            console.log('Profile object:', profile);
-            console.log('Profile keys:', Object.keys(profile));
             
             // Gebruik het juiste ID veld - waarschijnlijk email
             const profileIdentifier = profile.id || profile.email;
@@ -37,8 +34,6 @@ export default function GroeiplanLeerling({ studentProfile }) {
                 setLoading(false);
                 return;
             }
-            
-            console.log('Gebruikt profile identifier:', profileIdentifier);
 
             const scoresQuery = query(
                 collection(db, 'scores'),
@@ -106,11 +101,6 @@ export default function GroeiplanLeerling({ studentProfile }) {
             <div className="bg-white rounded-2xl p-8 text-center max-w-2xl mx-auto">
                 <h3 className="text-xl font-bold text-slate-800 mb-2">Alles Ziet Er Goed Uit!</h3>
                 <p className="text-slate-600">Geen specifiek focuspunt gevonden voor {profile?.naam}. Alle scores zijn voldoende!</p>
-                
-                {/* Debug info (verwijder dit later) */}
-                <div className="mt-4 p-2 bg-gray-100 text-xs text-gray-600 rounded">
-                    Debug: Profile identifier = {profile?.id || profile?.email}
-                </div>
             </div>
         );
     }

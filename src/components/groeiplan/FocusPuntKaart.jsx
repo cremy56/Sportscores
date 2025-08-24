@@ -11,16 +11,6 @@ export default function FocusPuntKaart({ test, schema, student }) {
     
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
 
-    // Debug logging om te zien wat we binnenkrijgen
-    console.log('FocusPuntKaart props:', {
-        student: student,
-        studentId: student?.id,
-        studentEmail: student?.email,
-        studentKeys: student ? Object.keys(student) : 'geen student',
-        schema: schema,
-        schemaId: schema?.id
-    });
-
     // We gebruiken het juiste ID veld - waarschijnlijk email in plaats van id
     const studentIdentifier = student?.id || student?.email;
     
@@ -31,8 +21,6 @@ export default function FocusPuntKaart({ test, schema, student }) {
 
     // We construeren de unieke ID voor het actieve schema
     const schemaInstanceId = `${studentIdentifier}_${schema.id}`;
-    
-    console.log('Gegenereerde schemaInstanceId:', schemaInstanceId);
 
     const handleStartSchema = async () => {
         const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
@@ -104,11 +92,6 @@ export default function FocusPuntKaart({ test, schema, student }) {
                 )}
             </div>
             {/* --- EINDE VAN DE WIJZIGING --- */}
-            
-            {/* Debug info (verwijder dit later) */}
-            <div className="mt-4 p-2 bg-gray-100 text-xs text-gray-600 rounded">
-                Debug: SchemaInstanceId = {schemaInstanceId}
-            </div>
         </div>
     );
 }
