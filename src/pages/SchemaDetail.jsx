@@ -154,7 +154,7 @@ export default function SchemaDetail() {
         }
         
         let nieuweHuidigeWeek = actiefSchema.huidige_week;
-        if (Gevalideerd && gevalideerdeTakenInWeek === totaleTakenInWeek) {
+        if (gevalideerd && gevalideerdeTakenInWeek === totaleTakenInWeek) {
             // Week is vol! Ga naar de volgende week.
             nieuweHuidigeWeek = weekNummer + 1;
             toast.success(`Week ${weekNummer} voltooid! Door naar week ${nieuweHuidigeWeek}.`, { icon: '🎉' });
