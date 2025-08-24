@@ -34,3 +34,19 @@ const getPointColorClass = (point, maxPoints = 20) => {
   }
   return 'text-green-600 font-bold'; // Boven 65%
 };
+export const formatScoreWithUnit = (score, eenheid) => {
+  if (score === null || score === undefined) return '-';
+  const eenheidLower = eenheid?.toLowerCase();
+
+  if (eenheidLower === 'aantal') {
+    return `${score}x`;
+  }
+
+  if (['min', 'sec', 'seconden'].includes(eenheidLower)) {
+    const mins = Math.floor(score / 60);
+    const secs = Math.floor(score % 60);
+    return `${mins}'${secs.toString().padStart(2, '0')}"`;
+  }
+  
+  return `${score} ${eenheid}`;
+};

@@ -4,6 +4,7 @@ import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity, Quote, Flame, BookOpen, BarChart3, TrendingDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { formatScoreWithUnit } from '../utils/formatters.js';
 
 // --- Helper functies ---
 const formatNameForDisplay = (fullName) => {
@@ -15,17 +16,6 @@ const formatNameForDisplay = (fullName) => {
   return `${firstName} ${lastName.charAt(0)}.`;
 };
 
-function formatScoreWithUnit(score, eenheid) {
-  if (score === null || score === undefined) return '-';
-  const eenheidLower = eenheid?.toLowerCase();
-  if (eenheidLower === 'aantal') return `${score}x`;
-  if (['min', 'sec', 'seconden'].includes(eenheidLower)) {
-    const mins = Math.floor(score / 60);
-    const secs = Math.floor(score % 60);
-    return `${mins}'${secs.toString().padStart(2, '0')}"`;
-  }
-  return `${score} ${eenheid}`;
-}
 
 // Utility function voor shuffling arrays
 const shuffleArray = (array) => {

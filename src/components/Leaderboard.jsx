@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
+import { formatScoreWithUnit } from '../utils/formatters.js';
 
 // --- HELPER FUNCTIE 1: Schooljaar veilig berekenen ---
 function getSchoolYear(date) {
@@ -17,23 +18,6 @@ function getSchoolYear(date) {
     } else {
         return `${year - 1}-${year}`;
     }
-}
-
-// --- HELPER FUNCTIE 2: Score met eenheid correct formatteren ---
-function formatScoreWithUnit(score, eenheid) {
-    if (score === null || score === undefined) return '-';
-    
-    const eenheidLower = eenheid?.toLowerCase();
-
-    if (eenheidLower === 'aantal') {
-        return `${score}x`;
-    }
-    if (eenheidLower === 'min' || eenheidLower === 'sec' || eenheidLower === 'seconden') {
-        const mins = Math.floor(score / 60);
-        const secs = Math.floor(score % 60);
-        return `${mins}'${secs.toString().padStart(2, '0')}"`;
-    }
-    return `${score} ${eenheid}`;
 }
 
 export default function Leaderboard({ testId }) { 
