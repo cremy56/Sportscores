@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ArrowLeftIcon, PlayIcon } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
 
@@ -88,6 +88,63 @@ export default function SchemaDetail() {
                     setLeerlingProfiel(leerlingData);
                 } else {
                     console.error('Leerling niet gevonden met ID:', leerlingId);
+                    
+                    // Fallback 1: probeer te zoeken in de users collectie met een query
+                    console.log('Proberen alternatieve zoekstrategie in users...');
+                    try {
+                        const usersQuery = query(
+                            collection(db, 'users'),
+                            where('email', '==', leerlingId)
+                        );
+                        const usersSnapshot = await getDocs(usersQuery);
+                        
+                        if (!usersSnapshot.empty) {
+                            const userDoc = usersSnapshot.docs[0];
+                            const userData = userDoc.data();
+                            console.log('Leerling gevonden via email query in users:', userData);
+                            setLeerlingProfiel(userData);
+                        } else {
+                            console.log('Leerling niet gevonden in users, proberen toegestane_gebruikers...');
+                            
+                            // Fallback 2: zoek in toegestane_gebruikers collectie
+                            const toegestaneQuery = query(
+                                collection(db, 'toegestane_gebruikers'),
+                                where('email', '==', leerlingId)
+                            );
+                            const toegestaneSnapshot = await getDocs(toegestaneQuery);
+                            
+                            if (!toegestaneSnapshot.empty) {
+                                const toegestaneDoc = toegestaneSnapshot.docs[0];
+                                const toegestaneData = toegestaneDoc.data();
+                                console.log('Leerling gevonden in toegestane_gebruikers:', toegestaneData);
+                                setLeerlingProfiel(toegestaneData);
+                            } else {
+                                console.log('Proberen direct doc lookup in toegestane_gebruikers...');
+                                
+                                // Fallback 3: probeer direct doc lookup in toegestane_gebruikers
+                                const toegestaneRef = doc(db, 'toegestane_gebruikers', leerlingId);
+                                const toegestaneSnap = await getDoc(toegestaneRef);
+                                
+                                if (toegestaneSnap.exists()) {
+                                    const toegestaneDirectData = toegestaneSnap.data();
+                                    console.log('Leerling gevonden via directe lookup in toegestane_gebruikers:', toegestaneDirectData);
+                                    setLeerlingProfiel(toegestaneDirectData);
+                                } else {
+                                    console.error('Leerling nergens gevonden');
+                                    // Als laatste fallback: creëer een basis profiel object
+                                    const fallbackProfile = {
+                                        id: leerlingId,
+                                        naam: `Gebruiker ${leerlingId}`,
+                                        email: leerlingId
+                                    };
+                                    console.log('Gebruik fallback profiel:', fallbackProfile);
+                                    setLeerlingProfiel(fallbackProfile);
+                                }
+                            }
+                        }
+                    } catch (queryError) {
+                        console.error('Fout bij alternatieve zoekstrategie:', queryError);
+                    }
                 }
 
                 if (schemaDetailsSnap.exists()) {
