@@ -12,7 +12,7 @@ export default function GroeiplanOverzichtLeerkracht() {
         <div className="space-y-8">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 max-w-2xl mx-auto">
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Zoek een leerling om het groeiplan te bekijken
+                    Zoek een leerling om de remediëring te bekijken
                 </label>
                 <StudentSearch 
                     onStudentSelect={setSelectedStudent} 
@@ -27,7 +27,7 @@ export default function GroeiplanOverzichtLeerkracht() {
                 </div>
             ) : (
                 <div className="text-center text-slate-500 pt-8">
-                    <p>Selecteer een leerling om de voortgang te zien.</p>
+                    
                 </div>
             )}
         </div>
