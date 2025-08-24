@@ -125,80 +125,75 @@ export default function SchemaDetail() {
         }
     };
 
-    const handleValidatieTaak = async (weekNummer, taakIndex, gevalideerd) => {
-        if (!actiefSchema || !isTeacherOrAdmin) return;
+    // src/pages/SchemaDetail.jsx
 
-        try {
-            const taakId = `week${weekNummer}_taak${taakIndex}`;
-            const updatedVoltooide = {
-                ...actiefSchema.voltooide_taken,
-                [taakId]: {
-                    ...actiefSchema.voltooide_taken[taakId],
-                    gevalideerd: gevalideerd,
-                    gevalideerd_door: profile.naam || profile.email,
-                    gevalideerd_op: new Date().toISOString()
-                }
-            };
+const handleValidatieTaak = async (weekNummer, taakIndex, isGevalideerd) => {
+    if (!actiefSchema || !isTeacherOrAdmin) return;
 
-            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-           // --- START NIEUWE, CORRECTE LOGICA ---
+    try {
+        const taakId = `week${weekNummer}_taak${taakIndex}`;
+        
+        // Maak een kopie van de huidige voltooide taken om bij te werken
+        const updatedVoltooide = { ...actiefSchema.voltooide_taken };
+        
+        // Update of maak de specifieke taak aan in de kopie
+        updatedVoltooide[taakId] = {
+            ...updatedVoltooide[taakId], // Behoud bestaande data zoals 'voltooid_op'
+            status: isGevalideerd ? 'gevalideerd' : 'afgewezen',
+            gevalideerd_door: profile.naam || profile.email,
+            gevalideerd_op: serverTimestamp()
+        };
 
+        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
         let nieuweHuidigeWeek = actiefSchema.huidige_week;
 
-        // 1. Controleer of de ECHTE HUIDIGE week nu voltooid is
-        const weekDataToCheck = schemaDetails.weken.find(w => w.week_nummer === actiefSchema.huidige_week);
+        // --- START CORRECTIE ---
+        
+        // 1. Controleer de week van de taak die net gevalideerd is
+        const weekDataToCheck = schemaDetails.weken.find(w => w.week_nummer === weekNummer);
 
-        if (weekDataToCheck) {
-            const totaleTakenInHuidigeWeek = weekDataToCheck.taken.length;
+        if (isGevalideerd && weekDataToCheck) {
+            const totaleTakenInWeek = weekDataToCheck.taken.length;
             
-            // 2. Tel alle gevalideerde taken in de huidige week (met de zojuist bijgewerkte data)
-            const gevalideerdeTakenInHuidigeWeek = weekDataToCheck.taken.filter((_, index) => {
-                const idToCheck = `week${actiefSchema.huidige_week}_taak${index}`;
-                // Controleer in de 'updatedVoltooide' map, niet de oude state!
+            // 2. Tel alle gevalideerde taken in die week, INCLUSIEF de zojuist gewijzigde
+            const gevalideerdeTakenInWeek = weekDataToCheck.taken.filter((_, index) => {
+                const idToCheck = `week${weekNummer}_taak${index}`;
+                // Gebruik de 'updatedVoltooide' kopie voor de meest actuele data
                 return updatedVoltooide[idToCheck]?.status === 'gevalideerd';
             }).length;
 
-            // 3. Als de week vol is, ga dan pas door naar de volgende
-            if (gevalideerdeTakenInHuidigeWeek === totaleTakenInHuidigeWeek) {
+            // 3. Als de week vol is én het is de huidige actieve week, ga dan door
+            if (gevalideerdeTakenInWeek === totaleTakenInWeek && weekNummer === actiefSchema.huidige_week) {
                 nieuweHuidigeWeek = actiefSchema.huidige_week + 1;
                 toast.success(`Week ${actiefSchema.huidige_week} voltooid! Door naar week ${nieuweHuidigeWeek}.`, { icon: '🎉' });
             }
         }
         
-        // 4. Update zowel de taken als de (mogelijk nieuwe) huidige week in één keer
+        // --- EINDE CORRECTIE ---
+
         await updateDoc(actiefSchemaRef, {
             voltooide_taken: updatedVoltooide,
             huidige_week: nieuweHuidigeWeek
         });
 
-        // 5. Update de lokale state om de UI direct te verversen
         setActiefSchema(prev => ({
             ...prev,
             voltooide_taken: updatedVoltooide,
             huidige_week: nieuweHuidigeWeek
         }));
-        
-        // --- EINDE NIEUWE LOGICA ---
 
-            // Als de taak gevalideerd is, geef badge met visuele feedback
-            if (gevalideerd) {
-                await geefTrainingsbadge(taakId);
-                toast.success("🏆 Taak gevalideerd! Leerling ontvangt een trainingsbadge!", {
-                    duration: 5000,
-                    style: {
-                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                        color: 'white',
-                        fontWeight: 'bold'
-                    }
-                });
-            } else {
-                toast.success("Validatie bijgewerkt.");
-            }
-        } catch (error) {
-            console.error("Fout bij valideren taak:", error);
-            toast.error("Kon de taak niet valideren.");
+        if (isGevalideerd) {
+            await geefTrainingsbadge(taakId);
+            toast.success("🏆 Taak gevalideerd! Badge toegekend!");
+        } else {
+            toast.success("Validatie bijgewerkt.");
         }
-    };
+
+    } catch (error) {
+        console.error("Fout bij valideren taak:", error);
+        toast.error("Kon de taak niet valideren.");
+    }
+};
 
     const geefTrainingsbadge = async (taakId) => {
         try {
