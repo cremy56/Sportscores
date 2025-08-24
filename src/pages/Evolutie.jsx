@@ -118,41 +118,91 @@ export default function Evolutie() {
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
             <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-4">
                 
-                {/* Header met geïntegreerde controls */}
+                {/* Header met horizontale layout (titel naast controls) */}
                 {isTeacherOrAdmin ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mt-4">
-                        {/* Titel sectie */}
-                        <div className="text-center mb-4">
-                            <h1 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">
-                                {selectedStudent ? selectedStudent.naam : pageTitle}
-                            </h1>
-                            <p className="text-sm text-slate-600 mb-2">
-                                {selectedStudent 
-                                    ? selectedYear === 'all'
-                                        ? 'Evolutie overzicht over alle schooljaren'
-                                        : `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
-                                    : 'Selecteer een leerling om de evolutie te bekijken'
-                                }
-                            </p>
-                            <div className="flex justify-center">
-                                <div className="w-16 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                            {/* Titel sectie */}
+                            <div className="text-center lg:text-left lg:flex-1">
+                                <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
+                                    {selectedStudent ? selectedStudent.naam : pageTitle}
+                                </h1>
+                                <p className="text-sm text-slate-600 mb-3">
+                                    {selectedStudent 
+                                        ? selectedYear === 'all'
+                                            ? 'Evolutie overzicht over alle schooljaren'
+                                            : `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
+                                        : 'Selecteer een leerling om de evolutie te bekijken'
+                                    }
+                                </p>
+                                <div className="flex justify-center lg:justify-start">
+                                    <div className="w-20 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                                </div>
+                            </div>
+                            
+                            {/* Controls sectie */}
+                            <div className="lg:flex-shrink-0 lg:w-96">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 items-end">
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                                            Zoek Leerling
+                                        </label>
+                                        <StudentSearch 
+                                            onStudentSelect={handleStudentSelect}
+                                            schoolId={profile?.school_id}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="school-year-select" className="block text-xs font-medium text-slate-700 mb-1 flex items-center">
+                                            Schooljaar
+                                            {isCurrentYear && (
+                                                <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                    Huidig
+                                                </span>
+                                            )}
+                                        </label>
+                                        <select
+                                            id="school-year-select"
+                                            value={selectedYear}
+                                            onChange={(e) => handleYearChange(e.target.value)}
+                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
+                                        >
+                                            {availableYears.map(year => (
+                                                <option key={year.value} value={year.value}>
+                                                    {year.label}{year.isCurrent ? ' (Huidig)' : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        
-                        {/* Controls sectie */}
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 items-end">
-                            <div className="sm:col-span-2">
-                                <label className="block text-xs font-medium text-slate-700 mb-1">
-                                    Zoek Leerling
-                                </label>
-                                <StudentSearch 
-                                    onStudentSelect={handleStudentSelect}
-                                    schoolId={profile?.school_id}
-                                />
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            {/* Titel sectie voor leerling */}
+                            <div className="text-center sm:text-left sm:flex-1">
+                                <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
+                                    {selectedStudent ? selectedStudent.naam : pageTitle}
+                                </h1>
+                                <p className="text-sm text-slate-600 mb-3">
+                                    {selectedStudent 
+                                        ? selectedYear === 'all'
+                                            ? 'Evolutie overzicht over alle schooljaren'
+                                            : `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
+                                        : ''
+                                    }
+                                </p>
+                                <div className="flex justify-center sm:justify-start">
+                                    <div className="w-20 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                                </div>
                             </div>
-                            <div>
-                                <label htmlFor="school-year-select" className="block text-xs font-medium text-slate-700 mb-1 flex items-center">
-                                    Schooljaar
+                            
+                            {/* Controls sectie voor leerling */}
+                            <div className="sm:flex-shrink-0 sm:w-64">
+                                <label htmlFor="student-year-select" className="block text-xs font-medium text-slate-700 mb-1 flex items-center justify-center sm:justify-start">
+                                    Bekijk schooljaar
                                     {isCurrentYear && (
                                         <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                                             Huidig
@@ -160,7 +210,7 @@ export default function Evolutie() {
                                     )}
                                 </label>
                                 <select
-                                    id="school-year-select"
+                                    id="student-year-select"
                                     value={selectedYear}
                                     onChange={(e) => handleYearChange(e.target.value)}
                                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
@@ -172,50 +222,6 @@ export default function Evolutie() {
                                     ))}
                                 </select>
                             </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mt-4">
-                        {/* Titel sectie voor leerling */}
-                        <div className="text-center mb-4">
-                            <h1 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">
-                                {selectedStudent ? selectedStudent.naam : pageTitle}
-                            </h1>
-                            <p className="text-sm text-slate-600 mb-2">
-                                {selectedStudent 
-                                    ? selectedYear === 'all'
-                                        ? 'Evolutie overzicht over alle schooljaren'
-                                        : `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
-                                    : ''
-                                }
-                            </p>
-                            <div className="flex justify-center">
-                                <div className="w-16 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                            </div>
-                        </div>
-                        
-                        {/* Controls sectie voor leerling */}
-                        <div className="max-w-sm mx-auto">
-                            <label htmlFor="student-year-select" className="block text-xs font-medium text-slate-700 mb-1 flex items-center justify-center">
-                                Bekijk schooljaar
-                                {isCurrentYear && (
-                                    <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                        Huidig
-                                    </span>
-                                )}
-                            </label>
-                            <select
-                                id="student-year-select"
-                                value={selectedYear}
-                                onChange={(e) => handleYearChange(e.target.value)}
-                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
-                            >
-                                {availableYears.map(year => (
-                                    <option key={year.value} value={year.value}>
-                                        {year.label}{year.isCurrent ? ' (Huidig)' : ''}
-                                    </option>
-                                ))}
-                            </select>
                         </div>
                     </div>
                 )}
