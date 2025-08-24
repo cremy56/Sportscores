@@ -135,14 +135,13 @@ export default function Evolutie() {
                                         : 'Selecteer een leerling om de evolutie te bekijken'
                                     }
                                 </p>
-                               
                             </div>
                             
                             {/* Controls sectie */}
                             <div className="lg:flex-shrink-0 lg:w-[500px]">
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 items-end">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                        <label className="inline-block text-sm font-medium text-slate-700 mb-2">
                                             Zoek Leerling
                                         </label>
                                         <StudentSearch 
@@ -151,13 +150,15 @@ export default function Evolutie() {
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="school-year-select" className="block text-sm font-medium text-slate-700 mb-2 flex items-center">
-                                            Schooljaar
-                                            {isCurrentYear && (
-                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                    Huidig
-                                                </span>
-                                            )}
+                                        <label htmlFor="school-year-select" className="inline-block text-sm font-medium text-slate-700 mb-2">
+                                            <span className="flex items-center">
+                                                Schooljaar
+                                                {isCurrentYear && (
+                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                        Huidig
+                                                    </span>
+                                                )}
+                                            </span>
                                         </label>
                                         <select
                                             id="school-year-select"
@@ -199,13 +200,15 @@ export default function Evolutie() {
                             
                             {/* Controls sectie voor leerling */}
                             <div className="sm:flex-shrink-0 sm:w-64">
-                                <label htmlFor="student-year-select" className="block text-sm font-medium text-slate-700 mb-2 flex items-center justify-center sm:justify-start">
-                                    Bekijk schooljaar
-                                    {isCurrentYear && (
-                                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            Huidig
-                                        </span>
-                                    )}
+                                <label htmlFor="student-year-select" className="inline-block text-sm font-medium text-slate-700 mb-2">
+                                    <span className="flex items-center justify-center sm:justify-start">
+                                        Bekijk schooljaar
+                                        {isCurrentYear && (
+                                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                Huidig
+                                            </span>
+                                        )}
+                                    </span>
                                 </label>
                                 <select
                                     id="student-year-select"
