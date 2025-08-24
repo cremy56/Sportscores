@@ -1,6 +1,7 @@
 // src/components/EvolutionChart.jsx - Optimized and Consistent Layout
 import { Line } from 'react-chartjs-2';
 import { Chart, registerables } from 'chart.js';
+import { formatDate, formatScoreWithUnit } from '../utils/formatters.js';
 Chart.register(...registerables);
 
 // Custom plugin voor gekleurde zones (geen wijzigingen)

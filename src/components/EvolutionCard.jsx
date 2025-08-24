@@ -357,8 +357,8 @@ useEffect(() => {
         <div className="text-center">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Eerste</p>
           <p className="font-bold text-gray-800 text-xs sm:text-sm">
-            {firstScore ? `${firstScore.score} ${currentTest.eenheid}` : '-'}
-          </p>
+    {formatScoreWithUnit(firstScore?.score, currentTest.eenheid)}
+</p>
           {firstScore && (
             <p className="text-xs text-gray-500 mt-1 hidden sm:block">
               {formatDate(firstScore.datum)}
@@ -369,8 +369,8 @@ useEffect(() => {
         <div className="text-center">
           <p className="text-xs text-gray-500 uppercase font-bold mb-1">Record</p>
           <p className="text-lg sm:text-xl font-bold text-purple-700 mb-1">
-            {currentTest.personal_best_score} {currentTest.eenheid}
-          </p>
+    {formatScoreWithUnit(currentTest.personal_best_score, currentTest.eenheid)}
+</p>
           {currentTest.personal_best_datum && (
             <p className="text-xs text-gray-500 hidden sm:block">
               {formatDate(currentTest.personal_best_datum)}
@@ -381,8 +381,8 @@ useEffect(() => {
         <div className="text-center">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Laatste</p>
           <p className="font-bold text-gray-800 text-xs sm:text-sm">
-            {lastScore ? `${lastScore.score} ${currentTest.eenheid}` : '-'}
-          </p>
+    {formatScoreWithUnit(lastScore?.score, currentTest.eenheid)}
+</p>
           {lastScore && (
             <p className="text-xs text-gray-500 mt-1 hidden sm:block">
               {formatDate(lastScore.datum)}
@@ -445,7 +445,7 @@ useEffect(() => {
       {selectedDataPoint && (
         <div className="mx-3 sm:mx-6 mb-3 sm:mb-6 p-2 sm:p-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-xl border border-purple-200">
           <p className="text-xs sm:text-sm text-purple-800 text-center">
-            <span className="font-bold">{selectedDataPoint.score} {currentTest.eenheid}</span>
+           <span className="font-bold">{formatScoreWithUnit(selectedDataPoint.score, currentTest.eenheid)}</span>
             <span className="mx-2">•</span>
             <span className="text-xs">{formatDate(selectedDataPoint.datum)}</span>
             {scoreNorms && (
