@@ -141,14 +141,39 @@ export default function SchemaDetail() {
             };
 
             const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-            await updateDoc(actiefSchemaRef, {
-                voltooide_taken: updatedVoltooide
-            });
+            // 1. Controleer of de week nu voltooid is
+        const huidigeWeekData = schemaDetails.weken.find(w => w.week_nummer === weekNummer);
+        const totaleTakenInWeek = huidigeWeekData.taken.length;
+        
+        // Tel alle gevalideerde taken in deze week (inclusief de taak die we net valideren)
+        let gevalideerdeTakenInWeek = 1; // Start met 1 voor de huidige validatie
+        for (const [key, value] of Object.entries(updatedVoltooide)) {
+            if (key.startsWith(`week${weekNummer}_`) && key !== taakId && value.status === 'gevalideerd') {
+                gevalideerdeTakenInWeek++;
+            }
+        }
+        
+        let nieuweHuidigeWeek = actiefSchema.huidige_week;
+        if (Gevalideerd && gevalideerdeTakenInWeek === totaleTakenInWeek) {
+            // Week is vol! Ga naar de volgende week.
+            nieuweHuidigeWeek = weekNummer + 1;
+            toast.success(`Week ${weekNummer} voltooid! Door naar week ${nieuweHuidigeWeek}.`, { icon: '🎉' });
+        }
 
-            setActiefSchema(prev => ({
-                ...prev,
-                voltooide_taken: updatedVoltooide
-            }));
+        // 2. Update zowel de taken als de mogelijke nieuwe week in één keer
+        await updateDoc(actiefSchemaRef, {
+            voltooide_taken: updatedVoltooide,
+            huidige_week: nieuweHuidigeWeek
+        });
+
+        // 3. Update de lokale state om de UI direct te verversen
+        setActiefSchema(prev => ({
+            ...prev,
+            voltooide_taken: updatedVoltooide,
+            huidige_week: nieuweHuidigeWeek
+        }));
+        
+        // --- EINDE NIEUWE LOGICA ---
 
             // Als de taak gevalideerd is, geef badge met visuele feedback
             if (gevalideerd) {
