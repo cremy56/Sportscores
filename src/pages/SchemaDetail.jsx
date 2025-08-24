@@ -527,6 +527,14 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                 {/* Instructions panel */}
                 {showInstructions && (
                     <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+                        {/* Debug info - tijdelijk om te zien wat er in taak zit */}
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3 text-xs">
+                            <p className="font-medium text-gray-700 mb-2">🔧 Debug - Taak data:</p>
+                            <pre className="text-gray-600 whitespace-pre-wrap overflow-auto max-h-32">
+                                {JSON.stringify(taak, null, 2)}
+                            </pre>
+                        </div>
+
                         {/* GIF from database */}
                         <div className="bg-slate-200 rounded-lg mb-3 h-40 flex items-center justify-center overflow-hidden">
                             {taak.visuele_media_url ? (
@@ -543,7 +551,7 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                             <div 
                                 className={`text-slate-500 text-sm text-center px-4 ${taak.visuele_media_url ? 'hidden' : 'block'}`}
                             >
-                                🎬 {taak.naam || 'Oefening'} - Geen demonstratie beschikbaar
+                                🎬 {taak.naam || taak.omschrijving || 'Oefening'} - Geen demonstratie beschikbaar
                             </div>
                         </div>
                         
