@@ -23,6 +23,7 @@ export default function Layout() {
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator';
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
   const testbeheerLinkText = activeRole === 'administrator' ? 'Testbeheer' : 'Sporttesten';
+  const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan'; // NIEUW TOEGEVOEGD
 
   const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
   const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
@@ -35,7 +36,7 @@ export default function Layout() {
     '/': 'Home',
     '/highscores': 'Highscores',
     '/evolutie': evolutieLinkText,
-    '/groeiplan': 'Groeiplan',
+    '/groeiplan': groeiplanLinkText, // AANGEPAST
     '/groepsbeheer': 'Groepsbeheer',
     '/scores': 'Scores',
     '/leerlingbeheer': 'Leerlingbeheer',
@@ -113,7 +114,7 @@ export default function Layout() {
             </li>
             <li>
               <NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
-                Groeiplan
+                {groeiplanLinkText}
               </NavLink>
             </li>
             {isTeacherOrAdmin && (
@@ -161,7 +162,7 @@ export default function Layout() {
             <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
             <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
-            <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Groeiplan</NavLink></li>
+            <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
 
             {isTeacherOrAdmin && (
               <>
