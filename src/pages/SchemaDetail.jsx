@@ -5,83 +5,123 @@ import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { ArrowLeftIcon, PlayIcon } from '@heroicons/react/24/solid';
+import toast from 'react-hot-toast';
 
 export default function SchemaDetail() {
-    const { schemaId } = useParams(); // Dit is de 'leerlingID_schemaTemplateID'
-    const { profile } = useOutletContext(); // Profiel van de ingelogde gebruiker
+    const { schemaId } = useParams();
+    const { profile } = useOutletContext();
     const [actiefSchema, setActiefSchema] = useState(null);
     const [schemaDetails, setSchemaDetails] = useState(null);
     const [leerlingProfiel, setLeerlingProfiel] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
-// --- DE NIEUWE DEBUG-LOG ---
+
+    // Uitgebreide debug logging
     console.log('SchemaDetail rendert met:', { 
         profile: profile ? `Profiel geladen voor ${profile.naam}` : 'Profiel nog niet geladen',
+        profileId: profile?.id,
+        profileEmail: profile?.email,
+        profileKeys: profile ? Object.keys(profile) : 'Geen profiel',
         schemaId: schemaId ? `SchemaId aanwezig: ${schemaId}` : 'SchemaId nog niet aanwezig'
     });
-    // --- EINDE DEBUG-LOG ---
+
     useEffect(() => {
-    // Deze functie wordt nu BINNEN de useEffect gedefinieerd
-    const fetchData = async () => {
-        // We verplaatsen de check naar binnen en maken hem specifieker
-        if (!profile?.id || !schemaId) {
-            console.log("Wachten op profiel en schemaId...");
-            return; // Wacht op de volgende render als de data nog niet compleet is
-        }
+        const fetchData = async () => {
+            // Verbeterde check - controleer op het bestaan van profile en schemaId
+            console.log('fetchData aangeroepen met:', {
+                hasProfile: !!profile,
+                hasSchemaId: !!schemaId,
+                profileId: profile?.id,
+                profileEmail: profile?.email
+            });
 
-        setLoading(true);
+            if (!profile || !schemaId) {
+                console.log("Wachten op profiel en schemaId...");
+                return;
+            }
+
+            setLoading(true);
+            
+            console.log(`--- START FETCH met profiel: ${profile.naam} (${profile.id || profile.email}) en schemaId: ${schemaId} ---`);
+
+            const [leerlingId, schemaTemplateId] = schemaId.split('_');
+            console.log('Gesplitste IDs:', { leerlingId, schemaTemplateId });
+
+            const leerlingRef = doc(db, 'users', leerlingId);
+            const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
+            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
+
+            try {
+                console.log('Starten van Promise.all voor data ophalen...');
+                
+                const [
+                    leerlingSnap, 
+                    schemaDetailsSnap, 
+                    actiefSchemaSnap
+                ] = await Promise.all([
+                    getDoc(leerlingRef),
+                    getDoc(schemaDetailsRef),
+                    getDoc(actiefSchemaRef)
+                ]);
+
+                console.log('Firebase responses:', {
+                    leerlingExists: leerlingSnap.exists(),
+                    schemaDetailsExists: schemaDetailsSnap.exists(),
+                    actiefSchemaExists: actiefSchemaSnap.exists()
+                });
+
+                if (leerlingSnap.exists()) {
+                    const leerlingData = leerlingSnap.data();
+                    console.log('Leerling data gevonden:', leerlingData);
+                    setLeerlingProfiel(leerlingData);
+                } else {
+                    console.error('Leerling niet gevonden met ID:', leerlingId);
+                }
+
+                if (schemaDetailsSnap.exists()) {
+                    const schemaData = { id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() };
+                    console.log('Schema details gevonden:', schemaData);
+                    setSchemaDetails(schemaData);
+                } else {
+                    console.error('Schema details niet gevonden met ID:', schemaTemplateId);
+                }
+
+                if (actiefSchemaSnap.exists()) {
+                    const actiefSchemaData = { id: actiefSchemaSnap.id, ...actiefSchemaSnap.data() };
+                    console.log('Actief schema gevonden:', actiefSchemaData);
+                    setActiefSchema(actiefSchemaData);
+                } else {
+                    console.log('Actief schema niet gevonden - schema nog niet gestart');
+                }
+
+            } catch (error) {
+                console.error("Fout bij ophalen schema data:", error);
+                toast.error("Kon de schema gegevens niet laden.");
+            } finally {
+                console.log('fetchData voltooid, setting loading to false');
+                setLoading(false);
+            }
+        };
+
+        fetchData();
         
-        console.log(`--- START FETCH met profiel: ${profile.id} en schemaId: ${schemaId} ---`);
-
-        const [leerlingId, schemaTemplateId] = schemaId.split('_');
-
-        const leerlingRef = doc(db, 'users', leerlingId);
-        const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
-        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-
-        try {
-            // Haal alle data tegelijk op voor efficiëntie
-            const [
-                leerlingSnap, 
-                schemaDetailsSnap, 
-                actiefSchemaSnap
-            ] = await Promise.all([
-                getDoc(leerlingRef),
-                getDoc(schemaDetailsRef),
-                getDoc(actiefSchemaRef)
-            ]);
-
-            if (leerlingSnap.exists()) {
-                setLeerlingProfiel(leerlingSnap.data());
-            }
-
-            if (schemaDetailsSnap.exists()) {
-                setSchemaDetails({ id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() });
-            }
-
-            if (actiefSchemaSnap.exists()) {
-                setActiefSchema({ id: actiefSchemaSnap.id, ...actiefSchemaSnap.data() });
-            }
-
-        } catch (error) {
-            console.error("Fout bij ophalen schema data:", error);
-            toast.error("Kon de schema gegevens niet laden.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    fetchData(); // Voer de functie uit
-    
-}, [profile, schemaId]); // De hook blijft reageren op wijzigingen
+    }, [profile, schemaId]);
 
     if (loading) {
         return <div className="text-center p-12">Schema wordt geladen...</div>;
     }
 
     if (!schemaDetails) {
-        return <div className="text-center p-12">Kon de details van het trainingsschema niet vinden.</div>;
+        return (
+            <div className="text-center p-12">
+                <p>Kon de details van het trainingsschema niet vinden.</p>
+                <p className="text-sm text-gray-500 mt-2">Schema ID: {schemaId}</p>
+                <Link to="/groeiplan" className="text-purple-600 hover:text-purple-700 mt-4 inline-block">
+                    Terug naar overzicht
+                </Link>
+            </div>
+        );
     }
 
     // --- Weergave als het schema NOG NIET GESTART is ---
@@ -103,7 +143,7 @@ export default function SchemaDetail() {
         );
     }
 
-    const huidigeWeekData = schemaDetails.weken.find(
+    const huidigeWeekData = schemaDetails.weken?.find(
         week => week.week_nummer === actiefSchema.huidige_week
     );
 
@@ -125,14 +165,14 @@ export default function SchemaDetail() {
                 
                 <h3 className="font-semibold text-lg mb-4">Taken</h3>
                 <div className="space-y-4">
-                    {huidigeWeekData?.taken.map((taak, index) => (
+                    {huidigeWeekData?.taken?.map((taak, index) => (
                         <div key={index} className="bg-slate-50 rounded-xl p-4 flex justify-between items-center">
                             <div>
                                 <p className="font-bold text-slate-800">{taak.dag}: {taak.omschrijving}</p>
                                 <p className="text-sm text-slate-500">Status: NOG TE IMPLEMENTEREN</p>
                             </div>
                         </div>
-                    ))}
+                    )) || <p className="text-slate-500">Geen taken gevonden voor deze week</p>}
                 </div>
             </div>
         </div>
