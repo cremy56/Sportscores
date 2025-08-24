@@ -299,34 +299,7 @@ export default function Evolutie() {
                             ))}
                         </div>
                         
-                        {/* Stats Footer */}
-                        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4">
-                            <div className="flex items-center justify-center space-x-8 text-sm text-slate-600 flex-wrap gap-4">
-                                <div className="flex items-center space-x-2">
-                                    <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                                    <span>{Object.keys(grouped_data).length} Categorieën</span>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full"></div>
-                                    <span>{evolutionData.length} Testen</span>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <div className="w-3 h-3 bg-gradient-to-r from-teal-500 to-green-500 rounded-full"></div>
-                                    <span>{totalScores} Scores</span>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <div className="w-3 h-3 bg-gradient-to-r from-green-500 to-purple-500 rounded-full"></div>
-                                    <span>
-                                        {formatSchoolYear(selectedYear)}
-                                        {isCurrentYear && (
-                                            <span className="ml-1 text-xs bg-green-100 text-green-700 px-1 rounded">
-                                                huidig
-                                            </span>
-                                        )}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                        
                     </div>
                 )}
             </div>

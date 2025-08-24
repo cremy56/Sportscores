@@ -239,11 +239,13 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
             <div className="flex items-center gap-x-4 sm:gap-x-6 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center gap-1 sm:gap-2">
                     <div className="w-4 sm:w-5 h-0.5" style={{borderTop: '2px dashed rgba(34, 197, 94, 0.8)'}}></div>
-                    <span className="whitespace-nowrap">14/20 (Goed)</span>
+                    {/* Toon de score voor 14/20 met de juiste eenheid */}
+                    <span className="whitespace-nowrap font-medium">{scoreNorms['14']} {eenheid} (Goed)</span>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2">
                     <div className="w-4 sm:w-5 h-0.5" style={{borderTop: '2px dashed rgba(249, 115, 22, 0.8)'}}></div>
-                    <span className="whitespace-nowrap">10/20 (Voldoende)</span>
+                    {/* Toon de score voor 10/20 met de juiste eenheid */}
+                    <span className="whitespace-nowrap font-medium">{scoreNorms['10']} {eenheid} (Voldoende)</span>
                 </div>
             </div>
         </div>
