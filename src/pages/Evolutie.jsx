@@ -118,9 +118,9 @@ export default function Evolutie() {
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
             <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-4">
                 
-                {/* Header met horizontale layout (titel naast controls) */}
+                {/* Header zoals Groepsbeheer - zonder card */}
                 {isTeacherOrAdmin ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-12">
+                    <div className="mb-8 mt-12">
                         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                             {/* Titel sectie */}
                             <div className="text-center lg:text-left lg:flex-1">
@@ -144,7 +144,7 @@ export default function Evolutie() {
                             <div className="lg:flex-shrink-0 lg:w-[500px]">
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 items-end">
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
                                             Zoek Leerling
                                         </label>
                                         <StudentSearch 
@@ -153,10 +153,10 @@ export default function Evolutie() {
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="school-year-select" className="block text-xs font-medium text-slate-700 mb-1 flex items-center">
+                                        <label htmlFor="school-year-select" className="block text-sm font-medium text-slate-700 mb-2 flex items-center">
                                             Schooljaar
                                             {isCurrentYear && (
-                                                <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                                     Huidig
                                                 </span>
                                             )}
@@ -165,7 +165,7 @@ export default function Evolutie() {
                                             id="school-year-select"
                                             value={selectedYear}
                                             onChange={(e) => handleYearChange(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
+                                            className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
                                         >
                                             {availableYears.map(year => (
                                                 <option key={year.value} value={year.value}>
@@ -179,7 +179,7 @@ export default function Evolutie() {
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-12">
+                    <div className="mb-8 mt-12">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             {/* Titel sectie voor leerling */}
                             <div className="text-center sm:text-left sm:flex-1">
@@ -201,10 +201,10 @@ export default function Evolutie() {
                             
                             {/* Controls sectie voor leerling */}
                             <div className="sm:flex-shrink-0 sm:w-64">
-                                <label htmlFor="student-year-select" className="block text-xs font-medium text-slate-700 mb-1 flex items-center justify-center sm:justify-start">
+                                <label htmlFor="student-year-select" className="block text-sm font-medium text-slate-700 mb-2 flex items-center justify-center sm:justify-start">
                                     Bekijk schooljaar
                                     {isCurrentYear && (
-                                        <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                             Huidig
                                         </span>
                                     )}
@@ -213,7 +213,7 @@ export default function Evolutie() {
                                     id="student-year-select"
                                     value={selectedYear}
                                     onChange={(e) => handleYearChange(e.target.value)}
-                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
+                                    className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
                                 >
                                     {availableYears.map(year => (
                                         <option key={year.value} value={year.value}>
