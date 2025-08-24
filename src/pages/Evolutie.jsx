@@ -118,27 +118,28 @@ export default function Evolutie() {
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
             <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-4">
                 
-                {/* Compacte Header */}
-                <div className="text-center pt-4 pb-2">
-                    <h1 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">
-                        {selectedStudent ? selectedStudent.naam : pageTitle}
-                    </h1>
-                    <p className="text-sm text-slate-600 mb-3">
-                        {selectedStudent 
-                            ? selectedYear === 'all'
-                                ? 'Evolutie overzicht over alle schooljaren'
-                                : `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
-                            : ''
-                        }
-                    </p>
-                    <div className="flex justify-center">
-                        <div className="w-16 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                    </div>
-                </div>
-
-                {/* Compactere Controls Card */}
+                {/* Header met geïntegreerde controls */}
                 {isTeacherOrAdmin ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mt-4">
+                        {/* Titel sectie */}
+                        <div className="text-center mb-4">
+                            <h1 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">
+                                {selectedStudent ? selectedStudent.naam : pageTitle}
+                            </h1>
+                            <p className="text-sm text-slate-600 mb-2">
+                                {selectedStudent 
+                                    ? selectedYear === 'all'
+                                        ? 'Evolutie overzicht over alle schooljaren'
+                                        : `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
+                                    : 'Selecteer een leerling om de evolutie te bekijken'
+                                }
+                            </p>
+                            <div className="flex justify-center">
+                                <div className="w-16 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                            </div>
+                        </div>
+                        
+                        {/* Controls sectie */}
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 items-end">
                             <div className="sm:col-span-2">
                                 <label className="block text-xs font-medium text-slate-700 mb-1">
@@ -174,7 +175,26 @@ export default function Evolutie() {
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mt-4">
+                        {/* Titel sectie voor leerling */}
+                        <div className="text-center mb-4">
+                            <h1 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1">
+                                {selectedStudent ? selectedStudent.naam : pageTitle}
+                            </h1>
+                            <p className="text-sm text-slate-600 mb-2">
+                                {selectedStudent 
+                                    ? selectedYear === 'all'
+                                        ? 'Evolutie overzicht over alle schooljaren'
+                                        : `Evolutie overzicht voor schooljaar ${formatSchoolYear(selectedYear)}${isCurrentYear ? ' (huidig)' : ''}`
+                                    : ''
+                                }
+                            </p>
+                            <div className="flex justify-center">
+                                <div className="w-16 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                            </div>
+                        </div>
+                        
+                        {/* Controls sectie voor leerling */}
                         <div className="max-w-sm mx-auto">
                             <label htmlFor="student-year-select" className="block text-xs font-medium text-slate-700 mb-1 flex items-center justify-center">
                                 Bekijk schooljaar
