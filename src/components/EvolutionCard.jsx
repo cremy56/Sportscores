@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import EvolutionChart from './EvolutionChart';
-import { formatDate } from '../utils/formatters';
+import { formatDate, formatScoreWithUnit } from '../utils/formatters.js';
 import { getScoreNorms } from '../utils/firebaseUtils'; // <-- AAN TE PASSEN NAAM INDIEN NODIG
 
 
