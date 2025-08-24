@@ -527,32 +527,75 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                 {/* Instructions panel */}
                 {showInstructions && (
                     <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
-                        {/* GIF placeholder - in de echte implementatie zou hier de gif uit de database komen */}
-                        <div className="bg-slate-200 rounded-lg mb-3 h-32 flex items-center justify-center">
-                            <span className="text-slate-500 text-sm">
-                                {taak.gif_url ? (
-                                    <img src={taak.gif_url} alt="Oefening demonstratie" className="rounded-lg max-h-full" />
-                                ) : (
-                                    'Demonstratie GIF wordt hier getoond'
-                                )}
-                            </span>
+                        {/* GIF from database */}
+                        <div className="bg-slate-200 rounded-lg mb-3 h-40 flex items-center justify-center overflow-hidden">
+                            {taak.visuele_media_url ? (
+                                <img 
+                                    src={taak.visuele_media_url} 
+                                    alt={`Demonstratie van ${taak.naam || 'oefening'}`}
+                                    className="rounded-lg max-h-full max-w-full object-contain" 
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'block';
+                                    }}
+                                />
+                            ) : null}
+                            <div 
+                                className={`text-slate-500 text-sm text-center px-4 ${taak.visuele_media_url ? 'hidden' : 'block'}`}
+                            >
+                                🎬 {taak.naam || 'Oefening'} - Geen demonstratie beschikbaar
+                            </div>
                         </div>
                         
-                        {/* Detailed description from database */}
-                        <div className="text-sm text-slate-700">
-                            <h5 className="font-semibold mb-2">Uitvoering:</h5>
-                            <div className="space-y-2">
-                                {taak.instructies?.map((instructie, idx) => (
-                                    <div key={idx} className="flex items-start">
-                                        <span className="inline-flex items-center justify-center w-6 h-6 bg-purple-100 text-purple-700 rounded-full text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
-                                            {idx + 1}
-                                        </span>
-                                        <p>{instructie}</p>
-                                    </div>
-                                )) || (
-                                    <p>{taak.beschrijving || 'Gedetailleerde instructies worden hier getoond vanuit de database.'}</p>
+                        {/* Oefening naam en categorie */}
+                        {taak.naam && (
+                            <div className="mb-3">
+                                <h5 className="font-bold text-slate-800 text-base">{taak.naam}</h5>
+                                {taak.categorie && (
+                                    <span className="inline-block bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-medium mt-1">
+                                        {taak.categorie}
+                                    </span>
                                 )}
                             </div>
+                        )}
+                        
+                        {/* Beschrijving */}
+                        {taak.beschrijving && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                                <p className="text-blue-800 text-sm">{taak.beschrijving}</p>
+                            </div>
+                        )}
+                        
+                        {/* Stap-voor-stap instructies */}
+                        <div className="text-sm text-slate-700">
+                            <h5 className="font-semibold mb-3 flex items-center">
+                                <span className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-2 py-1 rounded-md text-xs mr-2">
+                                    INSTRUCTIES
+                                </span>
+                                Uitvoering:
+                            </h5>
+                            
+                            {taak.instructies && Object.keys(taak.instructies).length > 0 ? (
+                                <div className="space-y-3">
+                                    {Object.entries(taak.instructies)
+                                        .sort(([a], [b]) => parseInt(a) - parseInt(b)) // Sorteer op nummer
+                                        .map(([step, instructie], idx) => (
+                                        <div key={step} className="flex items-start bg-white rounded-lg p-3 border border-slate-200">
+                                            <span className="inline-flex items-center justify-center w-7 h-7 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full text-xs font-bold mr-3 flex-shrink-0 mt-0.5">
+                                                {parseInt(step) + 1}
+                                            </span>
+                                            <p className="text-slate-700 leading-relaxed">{instructie}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                                    <p className="text-yellow-800 text-sm">
+                                        ⚠️ Geen instructies beschikbaar voor deze oefening. 
+                                        Vraag je leerkracht om meer informatie.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
