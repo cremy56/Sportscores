@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc } from 'firebase/firestore';
 import { ArrowLeftIcon, PlayIcon, CheckCircleIcon, ClockIcon, CameraIcon, StarIcon, TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid';
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -127,57 +127,55 @@ export default function SchemaDetail() {
 
     // src/pages/SchemaDetail.jsx
 
-// src/pages/SchemaDetail.jsx
-
 const handleValidatieTaak = async (weekNummer, taakIndex, isGevalideerd) => {
     if (!actiefSchema || !isTeacherOrAdmin) return;
 
     try {
         const taakId = `week${weekNummer}_taak${taakIndex}`;
         
-        // 1. Maak een bijgewerkte kopie van alle voltooide taken
+        // Maak een kopie van de huidige voltooide taken om bij te werken
         const updatedVoltooide = { ...actiefSchema.voltooide_taken };
+        
+        // Update of maak de specifieke taak aan in de kopie
         updatedVoltooide[taakId] = {
-            ...updatedVoltooide[taakId],
+            ...updatedVoltooide[taakId], // Behoud bestaande data zoals 'voltooid_op'
             status: isGevalideerd ? 'gevalideerd' : 'afgewezen',
             gevalideerd_door: profile.naam || profile.email,
             gevalideerd_op: serverTimestamp()
         };
 
-        // --- START VAN DE CORRECTE LOGICA ---
-
+        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
         let nieuweHuidigeWeek = actiefSchema.huidige_week;
 
-        // 2. Controleer of de HUIDIGE actieve week nu voltooid is
-        const huidigeWeekData = schemaDetails.weken.find(w => w.week_nummer === actiefSchema.huidige_week);
+        // --- START CORRECTIE ---
+        
+        // 1. Controleer de week van de taak die net gevalideerd is
+        const weekDataToCheck = schemaDetails.weken.find(w => w.week_nummer === weekNummer);
 
-        if (huidigeWeekData) {
-            const totaleTakenInHuidigeWeek = huidigeWeekData.taken.length;
+        if (isGevalideerd && weekDataToCheck) {
+            const totaleTakenInWeek = weekDataToCheck.taken.length;
             
-            // 3. Tel alle gevalideerde taken in de huidige week, gebruikmakend van de NIEUWE data
-            const gevalideerdeTakenInHuidigeWeek = huidigeWeekData.taken.filter((_, index) => {
-                const idToCheck = `week${actiefSchema.huidige_week}_taak${index}`;
-                // Controleer in de 'updatedVoltooide' map voor de meest actuele status
+            // 2. Tel alle gevalideerde taken in die week, INCLUSIEF de zojuist gewijzigde
+            const gevalideerdeTakenInWeek = weekDataToCheck.taken.filter((_, index) => {
+                const idToCheck = `week${weekNummer}_taak${index}`;
+                // Gebruik de 'updatedVoltooide' kopie voor de meest actuele data
                 return updatedVoltooide[idToCheck]?.status === 'gevalideerd';
             }).length;
 
-            // 4. Als de huidige week vol is, verhoog de 'huidige_week'
-            if (gevalideerdeTakenInHuidigeWeek === totaleTakenInHuidigeWeek) {
+            // 3. Als de week vol is én het is de huidige actieve week, ga dan door
+            if (gevalideerdeTakenInWeek === totaleTakenInWeek && weekNummer === actiefSchema.huidige_week) {
                 nieuweHuidigeWeek = actiefSchema.huidige_week + 1;
                 toast.success(`Week ${actiefSchema.huidige_week} voltooid! Door naar week ${nieuweHuidigeWeek}.`, { icon: '🎉' });
             }
         }
         
-        // --- EINDE VAN DE CORRECTE LOGICA ---
+        // --- EINDE CORRECTIE ---
 
-        // 5. Schrijf alle wijzigingen (zowel taken als de week) in één keer naar de database
-        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
         await updateDoc(actiefSchemaRef, {
             voltooide_taken: updatedVoltooide,
             huidige_week: nieuweHuidigeWeek
         });
 
-        // 6. Update de lokale state om de UI direct te verversen
         setActiefSchema(prev => ({
             ...prev,
             voltooide_taken: updatedVoltooide,
