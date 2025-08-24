@@ -125,153 +125,156 @@ export default function SchemaDetail() {
         }
     };
 
-    const handleValidatieTaak = async (weekNummer, taakIndex, gevalideerd) => {
+    let validatieQueue = Promise.resolve();
+let isProcessingValidation = false;
+
+const handleValidatieTaak = async (weekNummer, taakIndex, gevalideerd) => {
     if (!actiefSchema || !isTeacherOrAdmin) return;
 
-    console.log("=== DEBUG START handleValidatieTaak ===");
-    console.log("Week nummer:", weekNummer);
-    console.log("Taak index:", taakIndex);
-    console.log("Gevalideerd:", gevalideerd);
-    console.log("Huidige week voor update:", actiefSchema.huidige_week);
-    console.log("Alle weken in schema:", schemaDetails?.weken?.map(w => w.week_nummer));
+    // Voorkom dubbele clicks/validaties
+    if (isProcessingValidation) {
+        console.log("⏳ Validatie al bezig, wachten...");
+        return;
+    }
 
-    try {
-        const taakId = `week${weekNummer}_taak${taakIndex}`;
-        console.log("Taak ID:", taakId);
+    // Voeg validatie toe aan queue om race conditions te voorkomen
+    validatieQueue = validatieQueue.then(async () => {
+        isProcessingValidation = true;
         
-        // Update de taak data
-        const updatedVoltooide = {
-            ...actiefSchema.voltooide_taken,
-            [taakId]: {
-                ...actiefSchema.voltooide_taken[taakId],
-                gevalideerd: gevalideerd,
-                gevalideerd_door: profile.naam || profile.email,
-                gevalideerd_op: new Date().toISOString()
-            }
-        };
+        console.log("=== QUEUED VALIDATION START ===");
+        console.log("Week nummer:", weekNummer);
+        console.log("Taak index:", taakIndex);
+        console.log("Gevalideerd:", gevalideerd);
 
-        console.log("Updated voltooide taken:", updatedVoltooide);
-
-        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-        
-        let nieuweHuidigeWeek = actiefSchema.huidige_week;
-
-        // Alleen doorgaan naar volgende week als we valideren EN het de huidige week is
-        if (gevalideerd && weekNummer === actiefSchema.huidige_week) {
-            console.log("Checking if current week is completed...");
+        try {
+            const taakId = `week${weekNummer}_taak${taakIndex}`;
+            console.log("Processing taak ID:", taakId);
             
-            // Vind de huidige week data
-            const weekDataToCheck = schemaDetails.weken.find(w => w.week_nummer === actiefSchema.huidige_week);
-            console.log("Week data to check:", weekDataToCheck);
+            // Haal ALTIJD de meest recente data op uit de database
+            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
+            const currentSchemaSnap = await getDoc(actiefSchemaRef);
+            
+            if (!currentSchemaSnap.exists()) {
+                throw new Error("Schema niet gevonden in database");
+            }
+            
+            const freshSchemaData = currentSchemaSnap.data();
+            console.log("Fresh data opgehaald - huidige week:", freshSchemaData.huidige_week);
+            
+            // Update de specifieke taak
+            const updatedVoltooide = {
+                ...freshSchemaData.voltooide_taken,
+                [taakId]: {
+                    ...freshSchemaData.voltooide_taken?.[taakId],
+                    gevalideerd: gevalideerd,
+                    gevalideerd_door: profile.naam || profile.email,
+                    gevalideerd_op: new Date().toISOString()
+                }
+            };
 
-            if (weekDataToCheck) {
-                const totaleTakenInHuidigeWeek = weekDataToCheck.taken.length;
-                console.log("Totale taken in huidige week:", totaleTakenInHuidigeWeek);
+            console.log(`Taak ${taakId} bijgewerkt naar gevalideerd: ${gevalideerd}`);
+
+            // Bereken de correcte nieuwe huidige week
+            let nieuweHuidigeWeek = freshSchemaData.huidige_week;
+
+            if (gevalideerd) {
+                console.log("✓ Validatie = true, herberekenen week progressie...");
                 
-                // Tel alle gevalideerde taken in de huidige week
-                let gevalideerdeTakenCount = 0;
-                weekDataToCheck.taken.forEach((_, index) => {
-                    const idToCheck = `week${actiefSchema.huidige_week}_taak${index}`;
-                    const isValidated = updatedVoltooide[idToCheck]?.gevalideerd === true;
-                    console.log(`Taak ${idToCheck}: gevalideerd = ${isValidated}`);
-                    if (isValidated) {
-                        gevalideerdeTakenCount++;
-                    }
-                });
-
-                console.log(`Gevalideerde taken in week ${actiefSchema.huidige_week}: ${gevalideerdeTakenCount}/${totaleTakenInHuidigeWeek}`);
-
-                // Als alle taken in de huidige week gevalideerd zijn
-                if (gevalideerdeTakenCount === totaleTakenInHuidigeWeek) {
-                    console.log("Week is volledig! Checking for next week...");
+                // Loop door alle weken in volgorde
+                const gesorteerdeWeken = schemaDetails.weken.sort((a, b) => a.week_nummer - b.week_nummer);
+                
+                for (let i = 0; i < gesorteerdeWeken.length; i++) {
+                    const week = gesorteerdeWeken[i];
+                    const totaleTaken = week.taken.length;
                     
-                    // Check of er een volgende week bestaat
-                    const volgendeWeekNummer = actiefSchema.huidige_week + 1;
-                    const nextWeekExists = schemaDetails.weken.some(w => w.week_nummer === volgendeWeekNummer);
+                    // Tel gevalideerde taken in deze week
+                    const gevalideerdeTaken = week.taken.filter((_, index) => {
+                        const idToCheck = `week${week.week_nummer}_taak${index}`;
+                        return updatedVoltooide[idToCheck]?.gevalideerd === true;
+                    }).length;
                     
-                    console.log("Volgende week nummer:", volgendeWeekNummer);
-                    console.log("Next week exists:", nextWeekExists);
+                    console.log(`Week ${week.week_nummer}: ${gevalideerdeTaken}/${totaleTaken} taken gevalideerd`);
                     
-                    if (nextWeekExists) {
-                        nieuweHuidigeWeek = volgendeWeekNummer;
-                        console.log("Moving to next week:", nieuweHuidigeWeek);
-                        
-                        toast.success(`🎉 Week ${actiefSchema.huidige_week} voltooid! Door naar week ${nieuweHuidigeWeek}.`, { 
-                            duration: 5000,
-                            style: {
-                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                color: 'white',
-                                fontWeight: 'bold'
-                            }
-                        });
+                    // Als deze week niet volledig is, dan is dit de huidige week
+                    if (gevalideerdeTaken < totaleTaken) {
+                        nieuweHuidigeWeek = week.week_nummer;
+                        console.log(`✓ Week ${week.week_nummer} niet volledig → huidige week = ${nieuweHuidigeWeek}`);
+                        break;
                     } else {
-                        console.log("Alle weken voltooid!");
-                        toast.success(`🏆 Alle weken voltooid! Training afgerond!`, { 
-                            duration: 6000,
-                            style: {
-                                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                                color: 'white',
-                                fontWeight: 'bold'
-                            }
-                        });
+                        // Week is volledig, ga naar volgende week (als die bestaat)
+                        if (i + 1 < gesorteerdeWeken.length) {
+                            nieuweHuidigeWeek = gesorteerdeWeken[i + 1].week_nummer;
+                            console.log(`✓ Week ${week.week_nummer} volledig → next week = ${nieuweHuidigeWeek}`);
+                        } else {
+                            // Dit was de laatste week - training is klaar
+                            nieuweHuidigeWeek = week.week_nummer;
+                            console.log(`✅ Training volledig voltooid! Laatste week: ${nieuweHuidigeWeek}`);
+                        }
                     }
+                }
+            }
+            
+            const weekIsVeranderd = nieuweHuidigeWeek !== freshSchemaData.huidige_week;
+            console.log(`Week verandering: ${freshSchemaData.huidige_week} → ${nieuweHuidigeWeek} (${weekIsVeranderd ? 'JA' : 'NEE'})`);
+            
+            // Update database in één atomic operation
+            await updateDoc(actiefSchemaRef, {
+                voltooide_taken: updatedVoltooide,
+                huidige_week: nieuweHuidigeWeek
+            });
+
+            console.log("✅ Database atomic update voltooid");
+
+            // Update lokale state
+            setActiefSchema(prev => ({
+                ...prev,
+                voltooide_taken: updatedVoltooide,
+                huidige_week: nieuweHuidigeWeek
+            }));
+
+            console.log("✅ Lokale state bijgewerkt");
+
+            // Feedback aan gebruiker
+            if (gevalideerd) {
+                await geefTrainingsbadge(taakId);
+                
+                if (weekIsVeranderd) {
+                    toast.success(`🎉 Week ${freshSchemaData.huidige_week} voltooid! Door naar week ${nieuweHuidigeWeek}!`, {
+                        duration: 6000,
+                        style: {
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            color: 'white',
+                            fontWeight: 'bold'
+                        }
+                    });
                 } else {
-                    console.log("Week nog niet volledig, blijven op huidige week");
+                    toast.success("🏆 Taak gevalideerd! Badge toegekend!", {
+                        duration: 3000,
+                        style: {
+                            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                            color: 'white',
+                            fontWeight: 'bold'
+                        }
+                    });
                 }
             } else {
-                console.error("Kon week data niet vinden voor week:", actiefSchema.huidige_week);
+                toast.success("Validatie ingetrokken.");
             }
-        } else {
-            console.log("Niet doorgan naar volgende week omdat:", {
-                gevalideerd,
-                weekNummer,
-                huidigeWeek: actiefSchema.huidige_week,
-                isCurrentWeek: weekNummer === actiefSchema.huidige_week
-            });
+
+            console.log("=== QUEUED VALIDATION END ===");
+            
+        } catch (error) {
+            console.error("✗ Fout bij valideren taak:", error);
+            toast.error("Kon de taak niet valideren: " + error.message);
+        } finally {
+            isProcessingValidation = false;
         }
-        
-        console.log("Nieuwe huidige week wordt:", nieuweHuidigeWeek);
-        
-        // Update database
-        await updateDoc(actiefSchemaRef, {
-            voltooide_taken: updatedVoltooide,
-            huidige_week: nieuweHuidigeWeek
-        });
+    });
 
-        console.log("Database updated successfully");
-
-        // Update lokale state
-        setActiefSchema(prev => ({
-            ...prev,
-            voltooide_taken: updatedVoltooide,
-            huidige_week: nieuweHuidigeWeek
-        }));
-
-        console.log("Local state updated");
-
-        // Badge toekennen als gevalideerd
-        if (gevalideerd) {
-            await geefTrainingsbadge(taakId);
-            toast.success("🏆 Taak gevalideerd! Leerling ontvangt een trainingsbadge!", {
-                duration: 5000,
-                style: {
-                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                    color: 'white',
-                    fontWeight: 'bold'
-                }
-            });
-        } else {
-            toast.success("Validatie bijgewerkt.");
-        }
-
-        console.log("=== DEBUG END handleValidatieTaak ===");
-        
-    } catch (error) {
-        console.error("Fout bij valideren taak:", error);
-        toast.error("Kon de taak niet valideren.");
-    }
+    return validatieQueue;
 };
 
+// Debug functie om de huidige state te controleren
 const debugCurrentState = () => {
     console.log("=== CURRENT STATE DEBUG ===");
     console.log("Actief schema:", actiefSchema);
@@ -280,20 +283,106 @@ const debugCurrentState = () => {
     console.log("Voltooide taken:", actiefSchema?.voltooide_taken);
     
     if (actiefSchema && schemaDetails) {
-        schemaDetails.weken.forEach(week => {
-            const completedInWeek = week.taken.filter((_, index) => {
+        console.log("Schema weken:", schemaDetails.weken?.map(w => ({ 
+            week_nummer: w.week_nummer, 
+            aantal_taken: w.taken?.length || 0 
+        })));
+        
+        schemaDetails.weken?.forEach(week => {
+            const completedInWeek = week.taken?.filter((_, index) => {
                 const taakId = `week${week.week_nummer}_taak${index}`;
                 const taakData = actiefSchema.voltooide_taken?.[taakId];
                 return taakData?.gevalideerd === true;
-            }).length;
-            console.log(`Week ${week.week_nummer}: ${completedInWeek}/${week.taken.length} taken gevalideerd`);
+            }).length || 0;
+            console.log(`Week ${week.week_nummer}: ${completedInWeek}/${week.taken?.length || 0} taken gevalideerd`);
         });
     }
     console.log("============================");
 };
+
+// Functie om inconsistenties op te lossen
+const fixWeekInconsistency = async () => {
+    if (!actiefSchema || !schemaDetails) {
+        console.log("Geen data beschikbaar voor consistency check");
+        return;
+    }
+    
+    console.log("=== FIXING WEEK INCONSISTENCY ===");
+    
+    try {
+        // Bereken de correcte huidige week
+        const gesorteerdeWeken = schemaDetails.weken.sort((a, b) => a.week_nummer - b.week_nummer);
+        let correcteHuidigeWeek = 1;
+        
+        for (let i = 0; i < gesorteerdeWeken.length; i++) {
+            const week = gesorteerdeWeken[i];
+            const totaleTaken = week.taken.length;
+            
+            const gevalideerdeTaken = week.taken.filter((_, index) => {
+                const taakId = `week${week.week_nummer}_taak${index}`;
+                return actiefSchema.voltooide_taken?.[taakId]?.gevalideerd === true;
+            }).length;
+            
+            console.log(`Week ${week.week_nummer}: ${gevalideerdeTaken}/${totaleTaken} gevalideerd`);
+            
+            if (gevalideerdeTaken < totaleTaken) {
+                correcteHuidigeWeek = week.week_nummer;
+                console.log(`Eerste onvolledige week gevonden: ${correcteHuidigeWeek}`);
+                break;
+            } else if (i + 1 < gesorteerdeWeken.length) {
+                correcteHuidigeWeek = gesorteerdeWeken[i + 1].week_nummer;
+            } else {
+                correcteHuidigeWeek = week.week_nummer;
+            }
+        }
+        
+        console.log("Huidige week in data:", actiefSchema.huidige_week);
+        console.log("Correcte huidige week:", correcteHuidigeWeek);
+        
+        if (correcteHuidigeWeek !== actiefSchema.huidige_week) {
+            console.log("🔧 REPARATIE NODIG - updating database...");
+            
+            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
+            await updateDoc(actiefSchemaRef, {
+                huidige_week: correcteHuidigeWeek
+            });
+            
+            setActiefSchema(prev => ({
+                ...prev,
+                huidige_week: correcteHuidigeWeek
+            }));
+            
+            toast.success(`✅ Week bijgewerkt van ${actiefSchema.huidige_week} naar ${correcteHuidigeWeek}!`, {
+                duration: 5000,
+                style: {
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    color: 'white',
+                    fontWeight: 'bold'
+                }
+            });
+            
+            console.log("✅ Week inconsistentie opgelost!");
+        } else {
+            console.log("✅ Week consistentie is correct");
+        }
+        
+    } catch (error) {
+        console.error("Fout bij repareren inconsistentie:", error);
+        toast.error("Kon week niet bijwerken");
+    }
+    
+    console.log("=== INCONSISTENCY FIX COMPLETE ===");
+};
+
+// Update je useEffect om automatisch te repareren bij het laden
 useEffect(() => {
     if (actiefSchema && schemaDetails) {
         debugCurrentState();
+        
+        // Automatische consistency check na 1 seconde
+        setTimeout(() => {
+            fixWeekInconsistency();
+        }, 1000);
     }
 }, [actiefSchema, schemaDetails]);
 
