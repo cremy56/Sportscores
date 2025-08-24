@@ -45,8 +45,19 @@ export default function SchemaDetail() {
             
             console.log(`--- START FETCH met profiel: ${profile.naam} (${profile.id || profile.email}) en schemaId: ${schemaId} ---`);
 
-            const [leerlingId, schemaTemplateId] = schemaId.split('_');
-            console.log('Gesplitste IDs:', { leerlingId, schemaTemplateId });
+            // Verbeterde parsing van schemaId - split op de eerste underscore na het email adres
+            const firstUnderscoreIndex = schemaId.indexOf('_');
+            if (firstUnderscoreIndex === -1) {
+                console.error('Ongeldige schemaId format:', schemaId);
+                toast.error('Ongeldige schema identificatie');
+                setLoading(false);
+                return;
+            }
+
+            const leerlingId = schemaId.substring(0, firstUnderscoreIndex);
+            const schemaTemplateId = schemaId.substring(firstUnderscoreIndex + 1);
+            
+            console.log('Gesplitste IDs:', { leerlingId, schemaTemplateId, originalSchemaId: schemaId });
 
             const leerlingRef = doc(db, 'users', leerlingId);
             const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);

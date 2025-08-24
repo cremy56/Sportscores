@@ -11,8 +11,28 @@ export default function FocusPuntKaart({ test, schema, student }) {
     
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
 
+    // Debug logging om te zien wat we binnenkrijgen
+    console.log('FocusPuntKaart props:', {
+        student: student,
+        studentId: student?.id,
+        studentEmail: student?.email,
+        studentKeys: student ? Object.keys(student) : 'geen student',
+        schema: schema,
+        schemaId: schema?.id
+    });
+
+    // We gebruiken het juiste ID veld - waarschijnlijk email in plaats van id
+    const studentIdentifier = student?.id || student?.email;
+    
+    if (!studentIdentifier) {
+        console.error('Geen geldige student identifier gevonden:', student);
+        return <div className="text-red-500">Error: Geen geldige student informatie</div>;
+    }
+
     // We construeren de unieke ID voor het actieve schema
-    const schemaInstanceId = `${student.id}_${schema.id}`;
+    const schemaInstanceId = `${studentIdentifier}_${schema.id}`;
+    
+    console.log('Gegenereerde schemaInstanceId:', schemaInstanceId);
 
     const handleStartSchema = async () => {
         const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
@@ -27,7 +47,7 @@ export default function FocusPuntKaart({ test, schema, student }) {
             }
 
             await setDoc(actiefSchemaRef, {
-                leerling_id: student.id,
+                leerling_id: studentIdentifier,
                 schema_id: schema.id,
                 start_datum: serverTimestamp(),
                 huidige_week: 1,
@@ -84,6 +104,11 @@ export default function FocusPuntKaart({ test, schema, student }) {
                 )}
             </div>
             {/* --- EINDE VAN DE WIJZIGING --- */}
+            
+            {/* Debug info (verwijder dit later) */}
+            <div className="mt-4 p-2 bg-gray-100 text-xs text-gray-600 rounded">
+                Debug: SchemaInstanceId = {schemaInstanceId}
+            </div>
         </div>
     );
 }
