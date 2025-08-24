@@ -135,9 +135,7 @@ export default function Evolutie() {
                                         : 'Selecteer een leerling om de evolutie te bekijken'
                                     }
                                 </p>
-                                <div className="flex justify-center lg:justify-start">
-                                    <div className="w-20 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                                </div>
+                               
                             </div>
                             
                             {/* Controls sectie */}
