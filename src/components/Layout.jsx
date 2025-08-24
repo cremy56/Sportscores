@@ -7,18 +7,30 @@ import { useState, useRef, useEffect, useMemo } from 'react'; // useMemo toegevo
 import { UserCircleIcon } from '@heroicons/react/24/outline';
 import { Bars3Icon } from '@heroicons/react/24/solid';
 import logoSrc from '../assets/logo.png'; // Importeer het logo
+import StudentSearch from './StudentSearch'; // NIEUW
 
 export default function Layout() {
   const { profile, school } = useOutletContext();
   const location = useLocation();
   const [activeRole, setActiveRole] = useState(profile?.rol || 'leerling');
+  const [selectedStudent, setSelectedStudent] = useState(null); // NIEUW
 
   // AANGEPAST: Maak een "gesimuleerd" profiel aan op basis van de geselecteerde rol.
   // Dit object wordt doorgegeven aan alle onderliggende pagina's.
-  const simulatedProfile = useMemo(() => ({
-    ...profile,
-    rol: activeRole,
-  }), [profile, activeRole]);
+  const simulatedProfile = useMemo(() => {
+    if (activeRole === 'leerling' && selectedStudent && profile?.rol === 'administrator') {
+      // Als administrator een leerling heeft geselecteerd, gebruik die leerling data
+      return {
+        ...selectedStudent,
+        rol: 'leerling',
+        originalProfile: profile // Behoud originele admin profiel voor referentie
+      };
+    }
+    return {
+      ...profile,
+      rol: activeRole,
+    };
+  }, [profile, activeRole, selectedStudent]);
 
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator';
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
@@ -206,11 +218,38 @@ export default function Layout() {
                 {profile?.rol === 'administrator' && (
                   <div className="mb-4">
                     <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">Wissel rol</label>
-                    <select id="role-switcher" className="w-full border border-gray-300 rounded px-2 py-1 text-sm" value={activeRole} onChange={(e) => setActiveRole(e.target.value)} title="Switch rol">
+                    <select 
+                      id="role-switcher" 
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm" 
+                      value={activeRole} 
+                      onChange={(e) => {
+                        setActiveRole(e.target.value);
+                        if (e.target.value !== 'leerling') {
+                          setSelectedStudent(null); // Reset student selection wanneer niet meer in leerling modus
+                        }
+                      }} 
+                      title="Switch rol"
+                    >
                       <option value="administrator">Administrator</option>
                       <option value="leerkracht">Leerkracht</option>
                       <option value="leerling">Leerling</option>
                     </select>
+                    
+                    {/* NIEUW: Student selector voor wanneer rol = leerling */}
+                    {activeRole === 'leerling' && (
+                      <div className="mt-3">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Test als leerling</label>
+                        <StudentSearch 
+                          onStudentSelect={setSelectedStudent} 
+                          schoolId={profile?.school_id}
+                          placeholder="Selecteer leerling..."
+                          compact={true}
+                        />
+                        {selectedStudent && (
+                          <p className="text-xs text-green-600 mt-1">Actief als: {selectedStudent.naam}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
