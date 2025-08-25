@@ -271,35 +271,57 @@ export default function Groeiplan() {
     const alGekozenIds = [verplichtSchema?.id, ...optioneleSchemas.map(s => s.id)].filter(Boolean);
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
-            <div className="text-center"><h1 className="text-3xl font-bold">Mijn Groeiplan</h1></div>
-            {isTeacherOrAdmin && <div className="bg-white p-6 rounded-2xl max-w-2xl mx-auto"><StudentSearch onStudentSelect={setSelectedStudent} schoolId={profile?.school_id} /></div>}
+        <div className="max-w-7xl mx-auto px-4 pt-8 pb-6 lg:px-8 lg:pt-12 lg:pb-8">
+            {/* --- START LAYOUT AANPASSING --- */}
+            <div className="flex justify-between items-center mb-12">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
+                    {isTeacherOrAdmin && selectedStudent ? `Groeiplan van ${selectedStudent.naam}` : 'Mijn Groeiplan'}
+                </h1>
+                {!isTeacherOrAdmin && (
+                    <button
+                        onClick={() => setShowModal(true)}
+                        className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                    >
+                        <Plus size={20} />
+                        <span className="ml-2 hidden sm:block">Voeg Trainingsplan Toe</span>
+                    </button>
+                )}
+            </div>
+            {/* --- EINDE LAYOUT AANPASSING --- */}
 
-            {(currentProfile || !isTeacherOrAdmin) && (
-                <>
-                    {loading ? <div className="text-center p-8">Laden...</div> : (
-                        <>
-                            {verplichtSchema && focusPunt ? (
-                                <FocusPuntKaart 
-                                    test={{...focusPunt, test_naam: focusPunt.naam}} 
-                                    schema={verplichtSchema} 
-                                    student={currentProfile} 
-                                />
-                            ) : (
-                                <div className="bg-white p-8 text-center rounded-2xl max-w-2xl mx-auto"><h3 className="font-bold">Alles Ziet Er Goed Uit!</h3><p>Geen verplicht focuspunt gevonden.</p></div>
-                            )}
+            {/* Inhoud wordt nu in een aparte div gecentreerd */}
+            <div className="max-w-2xl mx-auto space-y-8">
+                {isTeacherOrAdmin && (
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border">
+                        <StudentSearch onStudentSelect={setSelectedStudent} schoolId={profile?.school_id} />
+                    </div>
+                )}
 
-                            {optioneleSchemas.map(schema => (
-                                <OptionalFocusPuntKaart key={schema.id} schema={schema} student={currentProfile} onRemove={handleRemoveOptionalPlan} isTeacherOrAdmin={isTeacherOrAdmin} />
-                            ))}
+                {(currentProfile || !isTeacherOrAdmin) && (
+                    <>
+                        {loading ? <div className="text-center p-8">Groeiplan laden...</div> : (
+                            <>
+                                {verplichtSchema && focusPunt ? (
+                                    <FocusPuntKaart 
+                                        isVerplicht={true} // Deze prop activeert de nieuwe stijl
+                                        test={{...focusPunt, test_naam: focusPunt.naam}} 
+                                        schema={verplichtSchema} 
+                                        student={currentProfile} 
+                                    />
+                                ) : (
+                                    <div className="bg-white p-8 text-center rounded-2xl shadow-sm border"><h3 className="font-bold">Alles Ziet Er Goed Uit!</h3><p>Geen verplicht focuspunt gevonden.</p></div>
+                                )}
 
-                            {!isTeacherOrAdmin && (
-                                <div className="text-center"><button onClick={() => setShowModal(true)} className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-xl"><Plus size={20} className="mr-2" />Voeg Trainingsplan Toe</button></div>
-                            )}
-                        </>
-                    )}
-                </>
-            )}
+                                {optioneleSchemas.map(schema => (
+                                    <OptionalFocusPuntKaart key={schema.id} schema={schema} student={currentProfile} onRemove={handleRemoveOptionalPlan} isTeacherOrAdmin={isTeacherOrAdmin} />
+                                ))}
+                                
+                                {/* Oude knop is hier verwijderd */}
+                            </>
+                        )}
+                    </>
+                )}
+            </div>
 
             <TrainingsplanModal isOpen={showModal} onClose={() => setShowModal(false)} onSelect={handleSelectTrainingPlan} alGekozenIds={alGekozenIds} />
         </div>
