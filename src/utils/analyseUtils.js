@@ -1,26 +1,20 @@
 // src/utils/analyseUtils.js
 
 /**
- * Analyseert de evolutiedata van een leerling om het belangrijkste focuspunt te vinden.
- * @param {Array} evolutionData - De data van de leerling, opgehaald via getStudentEvolutionData.
- * @returns {Object|null} Het testobject van het belangrijkste focuspunt, of null als er geen is.
+ * Analyseert de evolutiedata van een leerling om ALLE focuspunten (testen met tekort) te vinden.
+ * @param {Array} evolutionData - De data van de leerling.
+ * @returns {Array} Een array van testobjecten die als focuspunt worden beschouwd.
  */
 export function analyseerEvolutieData(evolutionData) {
   if (!evolutionData || evolutionData.length === 0) {
-    return null;
+    return []; // Geef een lege array terug
   }
 
-  let zwaksteTest = null;
-  // We starten met 21, zodat elke score van 1-20 lager is.
-  let laagstePunt = 21; 
+  // Filter alle testen waar de leerling een 'personal_best_points' heeft van 10 of minder.
+  const zwakkeTesten = evolutionData.filter(test => 
+    test.personal_best_points !== null && test.personal_best_points <= 10
+  );
 
-  evolutionData.forEach(test => {
-    // We kijken nu naar 'personal_best_points' in plaats van 'score'
-    if (test.personal_best_points !== null && test.personal_best_points < laagstePunt) {
-      laagstePunt = test.personal_best_points;
-      zwaksteTest = test;
-    }
-  });
-
-  return zwaksteTest;
+  // Sorteer de zwakke testen van laagste naar hoogste punt
+  return zwakkeTesten.sort((a, b) => a.personal_best_points - b.personal_best_points);
 }

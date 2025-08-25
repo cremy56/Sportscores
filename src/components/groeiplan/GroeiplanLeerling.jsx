@@ -9,83 +9,50 @@ export default function GroeiplanLeerling({ studentProfile }) {
     const context = useOutletContext();
     const profile = studentProfile || context.profile;
 
-    const [focusPunt, setFocusPunt] = useState(null);
-    const [gekoppeldSchema, setGekoppeldSchema] = useState(null);
+    const [focusPunten, setFocusPunten] = useState([]);
+    const [gekoppeldeSchemas, setGekoppeldeSchemas] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!profile) {
+        if (!profile?.id) {
             setLoading(false);
             return;
         }
 
         const fetchData = async () => {
             setLoading(true);
-            setFocusPunt(null);
-            setGekoppeldSchema(null);
+            const evolutionData = await getStudentEvolutionData(profile.id, profile);
             
-            console.log(`--- START GROEIPLAN BEREKENING VOOR: ${profile.naam} ---`);
-            
-            // Gebruik het juiste ID veld - waarschijnlijk email
-            const profileIdentifier = profile.id || profile.email;
-            
-            if (!profileIdentifier) {
-                console.error('Geen geldige profile identifier gevonden:', profile);
-                setLoading(false);
-                return;
-            }
+            // 1. Haalt nu een LIJST van zwakke testen op
+            const zwakkeTesten = analyseerEvolutieData(evolutionData);
+            setFocusPunten(zwakkeTesten);
 
-            const scoresQuery = query(
-                collection(db, 'scores'),
-                where('leerling_id', '==', profileIdentifier)
-            );
-            const scoresSnapshot = await getDocs(scoresQuery);
-            const allScores = scoresSnapshot.docs.map(doc => doc.data());
+            if (zwakkeTesten.length > 0) {
+                // 2. Zoek voor ELKE zwakke test een bijbehorend schema
+                const schemaPromises = zwakkeTesten.map(test => {
+                    const schemasQuery = query(
+                        collection(db, 'trainingsschemas'),
+                        where('gekoppelde_test_id', '==', test.test_id)
+                    );
+                    return getDocs(schemasQuery);
+                });
 
-            console.log('Stap 1: Alle scores gevonden:', allScores);
+                const schemaSnapshots = await Promise.all(schemaPromises);
 
-            if (allScores.length > 0) {
-                const scoresMetPunt = allScores.filter(score => 
-                    score.rapportpunt !== null && score.rapportpunt !== undefined
-                );
-
-                console.log('Stap 2: Scores met een geldig rapportpunt:', scoresMetPunt);
-
-                if (scoresMetPunt.length > 0) {
-                    const sortedByPunt = scoresMetPunt.sort((a, b) => a.rapportpunt - b.rapportpunt);
-                    const zwaksteScore = sortedByPunt[0];
-
-                    console.log('Stap 3: Zwakste score gevonden:', zwaksteScore);
-                    
-                    if (zwaksteScore && zwaksteScore.rapportpunt <= 10) {
-                        console.log(`Stap 4: SUCCES - Zwakste score (${zwaksteScore.rapportpunt}) is <= 10. Zoeken naar schema voor test ID: ${zwaksteScore.test_id}`);
-                        
-                        const testRef = doc(db, 'testen', zwaksteScore.test_id);
-                        const testSnap = await getDoc(testRef);
-
-                        if (testSnap.exists()) {
-                            setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
-
-                            const schemasQuery = query(
-                                collection(db, 'trainingsschemas'),
-                                where('gekoppelde_test_id', '==', zwaksteScore.test_id)
-                            );
-                            const schemaSnapshot = await getDocs(schemasQuery);
-
-                            if (!schemaSnapshot.empty) {
-                                const schemaDoc = schemaSnapshot.docs[0];
-                                setGekoppeldSchema({ id: schemaDoc.id, ...schemaDoc.data() });
-                                console.log('Stap 5: SUCCES - Gekoppeld schema gevonden:', schemaDoc.data().naam);
-                            } else {
-                                console.log(`Stap 5: FOUT - Geen schema gevonden met gekoppelde_test_id: ${zwaksteScore.test_id}`);
-                            }
-                        }
-                    } else {
-                        console.log(`Stap 4: FOUT - Zwakste score (${zwaksteScore?.rapportpunt}) is NIET <= 10.`);
+                const schemas = schemaSnapshots.map((snapshot, index) => {
+                    if (!snapshot.empty) {
+                        const schemaDoc = snapshot.docs[0];
+                        return { 
+                            gekoppeldAanTestId: zwakkeTesten[index].test_id,
+                            ...schemaDoc.data(),
+                            id: schemaDoc.id
+                        };
                     }
-                }
+                    return null;
+                }).filter(Boolean); // Verwijder null-waarden
+
+                setGekoppeldeSchemas(schemas);
             }
-            
             setLoading(false);
         };
 
@@ -96,15 +63,33 @@ export default function GroeiplanLeerling({ studentProfile }) {
         return <div className="text-center p-12">Je persoonlijke groeiplan wordt berekend...</div>;
     }
 
-    if (!focusPunt || !gekoppeldSchema) {
+    // Aangepast: toon de "Alles goed" boodschap als de LIJST leeg is
+    if (focusPunten.length === 0 || gekoppeldeSchemas.length === 0) {
         return (
             <div className="bg-white rounded-2xl p-8 text-center max-w-2xl mx-auto">
                 <h3 className="text-xl font-bold text-slate-800 mb-2">Alles Ziet Er Goed Uit!</h3>
-                <p className="text-slate-600">Geen specifiek focuspunt gevonden voor {profile?.naam}. Alle scores zijn voldoende!</p>
+                <p className="text-slate-600">Geen specifiek focuspunt gevonden voor {profile?.naam}.</p>
             </div>
         );
     }
     
     // We moeten 'test_naam' gebruiken omdat de 'naam' in het test-object zit
-    return <FocusPuntKaart test={{...focusPunt, test_naam: focusPunt.naam}} schema={gekoppeldSchema} student={profile} />;
+   return (
+        <div className="space-y-8">
+            {focusPunten.map(punt => {
+                const bijbehorendSchema = gekoppeldeSchemas.find(s => s.gekoppeldAanTestId === punt.test_id);
+                if (!bijbehorendSchema) return null;
+
+                return (
+                    <FocusPuntKaart 
+                        key={punt.test_id}
+                        test={{...punt, test_naam: punt.naam}}
+                        schema={bijbehorendSchema}
+                        student={profile}
+                        isVerplicht={true} // Markeer deze als verplicht
+                    />
+                );
+            })}
+        </div>
+    );
 }
