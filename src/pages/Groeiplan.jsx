@@ -144,6 +144,7 @@ export default function Groeiplan() {
     
     // State voor de verschillende soorten plannen
     const [verplichtSchema, setVerplichtSchema] = useState(null);
+    const [focusPunt, setFocusPunt] = useState(null);
     const [optioneleSchemas, setOptioneleSchemas] = useState([]);
     
     const [loading, setLoading] = useState(true);
@@ -155,44 +156,64 @@ export default function Groeiplan() {
     useEffect(() => {
         if (!currentProfile) { setLoading(false); return; }
 
-        const fetchData = async () => {
-            setLoading(true);
-            const profileIdentifier = currentProfile.id;
+    const fetchData = async () => {
+        setLoading(true);
+        const profileIdentifier = currentProfile.id;
 
-            // 1. Haal ALLE actieve schema's voor deze leerling op
-            const actieveSchemasQuery = query(
-                collection(db, 'leerling_schemas'), 
-                where('leerling_id', '==', profileIdentifier)
-            );
-            const actieveSchemasSnapshot = await getDocs(actieveSchemasQuery);
-            const actieveSchemas = actieveSchemasSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Reset states
+        setVerplichtSchema(null);
+        setFocusPunt(null);
+        setOptioneleSchemas([]);
 
-            // 2. Haal de details van de schema-sjablonen op
-            const schemaIds = actieveSchemas.map(s => s.schema_id);
-            if (schemaIds.length > 0) {
-                const schemasQuery = query(collection(db, 'trainingsschemas'), where('__name__', 'in', schemaIds));
-                const schemasSnapshot = await getDocs(schemasQuery);
-                const schemaDetailsMap = new Map(schemasSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() }]));
+        // 1. Haal ALLE actieve schema's (zowel verplicht als optioneel) op voor de leerling
+        const actieveSchemasQuery = query(collection(db, 'leerling_schemas'), where('leerling_id', '==', profileIdentifier));
+        const actieveSchemasSnapshot = await getDocs(actieveSchemasQuery);
+        const actieveSchemasData = actieveSchemasSnapshot.docs.map(doc => doc.data());
+        
+        const verplichtActief = actieveSchemasData.find(s => s.type === 'verplicht');
+        const optioneelActief = actieveSchemasData.filter(s => s.type === 'optioneel');
 
-                // 3. Verdeel de schema's in 'verplicht' en 'optioneel'
-                const verplicht = actieveSchemas.find(s => s.type === 'verplicht');
-                const optioneel = actieveSchemas.filter(s => s.type === 'optioneel');
-
-                if (verplicht) {
-                    setVerplichtSchema(schemaDetailsMap.get(verplicht.schema_id));
+        // 2. Als er al een verplicht schema actief is, haal de details op
+        if (verplichtActief) {
+            const schemaSnap = await getDoc(doc(db, 'trainingsschemas', verplichtActief.schema_id));
+            if (schemaSnap.exists()) setVerplichtSchema({ id: schemaSnap.id, ...schemaSnap.data() });
+            
+            const testSnap = await getDoc(doc(db, 'testen', schemaSnap.data().gekoppelde_test_id));
+            if (testSnap.exists()) setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
+        } else {
+            // 3. ALS er GEEN verplicht schema is, doe dan de analyse om er een voor te stellen
+            const scoresQuery = query(collection(db, 'scores'), where('leerling_id', '==', profileIdentifier));
+            const scoresSnapshot = await getDocs(scoresQuery);
+            const scoresMetPunt = scoresSnapshot.docs.map(d => d.data()).filter(s => s.rapportpunt != null);
+            
+            if (scoresMetPunt.length > 0) {
+                const zwaksteScore = scoresMetPunt.sort((a,b) => a.rapportpunt - b.rapportpunt)[0];
+                if (zwaksteScore.rapportpunt <= 10) {
+                    const testSnap = await getDoc(doc(db, 'testen', zwaksteScore.test_id));
+                    if(testSnap.exists()) {
+                        setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
+                        const schemaQuery = query(collection(db, 'trainingsschemas'), where('gekoppelde_test_id', '==', zwaksteScore.test_id));
+                        const schemaSnapshot = await getDocs(schemaQuery);
+                        if (!schemaSnapshot.empty) {
+                            setVerplichtSchema({ id: schemaSnapshot.docs[0].id, ...schemaSnapshot.docs[0].data() });
+                        }
+                    }
                 }
-                setOptioneleSchemas(optioneel.map(s => schemaDetailsMap.get(s.schema_id)));
-            } else {
-                 setVerplichtSchema(null);
-                 setOptioneleSchemas([]);
             }
+        }
 
-            // ... (Hier kan eventueel nog de logica komen om een nieuw verplicht schema voor te stellen)
+        // 4. Haal de details van de optionele schema's op
+        if (optioneelActief.length > 0) {
+            const schemaIds = optioneelActief.map(s => s.schema_id);
+            const schemasQuery = query(collection(db, 'trainingsschemas'), where('__name__', 'in', schemaIds));
+            const schemasSnapshot = await getDocs(schemasQuery);
+            setOptioneleSchemas(schemasSnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        }
 
-            setLoading(false);
-        };
-        fetchData();
-    }, [currentProfile]);
+        setLoading(false);
+    };
+    fetchData();
+}, [currentProfile]);
     
     const handleSelectTrainingPlan = async (plan) => {
         const profileIdentifier = currentProfile.id;
@@ -213,7 +234,7 @@ export default function Groeiplan() {
         setOptionalSchemas(prev => prev.filter(plan => plan.id !== planId));
     };
     
-    const alGekozenIds = [verplichtSchema?.id, ...optionalSchemas.map(s => s.id)].filter(Boolean);
+    const alGekozenIds = [verplichtSchema?.id, ...optioneleSchemas.map(s => s.id)].filter(Boolean);
 
     return (
         <div className="max-w-6xl mx-auto space-y-8">
@@ -222,15 +243,22 @@ export default function Groeiplan() {
 
             {(currentProfile || !isTeacherOrAdmin) && (
                 <>
-                    {loading ? <p>Laden...</p> : (
+                    {loading ? <div className="text-center p-8">Laden...</div> : (
                         <>
-                            {gekoppeldSchema ? (
-                                <FocusPuntKaart isVerplicht={true} test={focusPunt} schema={gekoppeldSchema} student={currentProfile} />
+                            {/* --- START CORRECTIE --- */}
+                            {verplichtSchema && focusPunt ? (
+                                <FocusPuntKaart 
+                                    isVerplicht={true} 
+                                    test={{...focusPunt, test_naam: focusPunt.naam}} 
+                                    schema={verplichtSchema} 
+                                    student={currentProfile} 
+                                />
                             ) : (
                                 <div className="bg-white p-8 text-center rounded-2xl max-w-2xl mx-auto"><h3 className="font-bold">Alles Ziet Er Goed Uit!</h3><p>Geen verplicht focuspunt gevonden.</p></div>
                             )}
+                            {/* --- EINDE CORRECTIE --- */}
 
-                            {optionalSchemas.map(schema => (
+                            {optioneleSchemas.map(schema => (
                                 <OptionalFocusPuntKaart key={schema.id} schema={schema} student={currentProfile} onRemove={handleRemoveOptionalPlan} isTeacherOrAdmin={isTeacherOrAdmin} />
                             ))}
 
