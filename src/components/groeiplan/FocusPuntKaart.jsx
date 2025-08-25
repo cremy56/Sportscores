@@ -7,7 +7,7 @@ import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { Target } from 'lucide-react';
 
-export default function FocusPuntKaart({ test, schema, student }) {
+export default function FocusPuntKaart({ test, schema, student, isVerplicht = false }) {
     const navigate = useNavigate();
     const { profile } = useOutletContext(); // Dit is de ingelogde gebruiker
     const [schemaExists, setSchemaExists] = useState(false);

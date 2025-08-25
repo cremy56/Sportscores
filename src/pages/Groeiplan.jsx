@@ -178,7 +178,10 @@ export default function Groeiplan() {
     const currentProfile = selectedStudent || profile;
 
     useEffect(() => {
-        if (!currentProfile) { setLoading(false); return; }
+        if (!currentProfile?.id) {
+            setLoading(false);
+            return;
+        }
 
     const fetchData = async () => {
         setLoading(true);
@@ -233,9 +236,11 @@ export default function Groeiplan() {
         // 4. Haal de details van de optionele schema's op
         if (optioneleSchemaInstanties.length > 0) {
             const schemaIds = optioneleSchemaInstanties.map(s => s.schema_id);
+            if (schemaIds.length > 0) {
             const schemasQuery = query(collection(db, 'trainingsschemas'), where('__name__', 'in', schemaIds));
             const schemasSnapshot = await getDocs(schemasQuery);
             setOptioneleSchemas(schemasSnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+            }
         }
 
         setLoading(false);
