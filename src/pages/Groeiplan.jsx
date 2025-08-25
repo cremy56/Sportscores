@@ -3,17 +3,18 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { Plus, X, Target, Star, Clock, Search } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import FocusPuntKaart from '../components/groeiplan/FocusPuntKaart';
 import StudentSearch from '../components/StudentSearch';
+import ConfirmModal from '../components/ConfirmModal';
 
 // --- SUB-COMPONENT: Kaart voor optionele, zelfgekozen schema's ---
 const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin }) => {
     const navigate = useNavigate();
     const [schemaExists, setSchemaExists] = useState(false);
     const [loading, setLoading] = useState(true);
-
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const studentIdentifier = student?.id;
     const schemaInstanceId = `${studentIdentifier}_${schema.id}`;
 
@@ -47,37 +48,60 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin })
         navigate(`/groeiplan/${schemaInstanceId}`);
     };
     
-    const handleRemove = async () => {
-        if (!window.confirm(`Weet je zeker dat je het plan "${schema.naam}" wilt verwijderen?`)) return;
+    // Deze functie wordt aangeroepen als de gebruiker op "Bevestigen" klikt in de modal
+    const handleConfirmRemove = async () => {
         try {
-            await deleteDoc(doc(db, 'leerling_optionele_schemas', `${studentIdentifier}_${schema.id}`));
+            // Verwijder de referentie (indien aanwezig)
+            const optioneelSchemaRef = doc(db, 'leerling_optionele_schemas', `${studentIdentifier}_${schema.id}`);
+            await deleteDoc(optioneelSchemaRef).catch(() => {}); // Vang de fout op als het niet bestaat
+
+            // Verwijder het actieve schema
             if (schemaExists) {
                 await deleteDoc(doc(db, 'leerling_schemas', schemaInstanceId));
             }
-            onRemove(schema.id);
+            onRemove(schema.id); // Update de state in de parent component
             toast.success("Trainingsplan verwijderd.");
-        } catch (error) { toast.error("Kon plan niet verwijderen."); }
+        } catch (error) { 
+            toast.error("Kon plan niet verwijderen."); 
+            console.error("Fout bij verwijderen:", error);
+        }
+        setIsConfirmOpen(false); // Sluit de modal na de actie
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-md border-2 border-blue-200 p-8 max-w-2xl mx-auto relative">
-            <div className="absolute -top-3 left-6"><span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-semibold shadow-lg">💪 Zelfgekozen</span></div>
-            {!isTeacherOrAdmin && <button onClick={handleRemove} className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg flex items-center justify-center"><X size={16} /></button>}
-            <div className="text-center pt-4">
-                <h2 className="text-3xl font-bold text-slate-800 mb-2">{schema.naam}</h2>
-                <div className="bg-blue-50 rounded-xl border border-blue-200 p-6 mt-6">
-                    <p className="text-sm text-blue-600 mb-4">{schema.omschrijving}</p>
-                    <div className="flex justify-between items-center text-sm font-medium text-blue-700">
-                        <span>Duur: {schema.duur_weken} weken</span><span>Categorie: {schema.categorie}</span>
+        // --- FIX: Gebruik een React Fragment (<>) om de elementen te omhullen ---
+        <>
+            <div className="bg-white rounded-2xl shadow-md border-2 border-blue-200 p-8 max-w-2xl mx-auto relative">
+                <div className="absolute -top-3 left-6"><span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-semibold shadow-lg">💪 Zelfgekozen</span></div>
+                {/* De knop opent nu de modal */}
+                {!isTeacherOrAdmin && <button onClick={() => setIsConfirmOpen(true)} className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg flex items-center justify-center"><X size={16} /></button>}
+                <div className="text-center pt-4">
+                    <h2 className="text-3xl font-bold text-slate-800 mb-2">{schema.naam}</h2>
+                    <div className="bg-blue-50 rounded-xl border border-blue-200 p-6 mt-6">
+                        <p className="text-sm text-blue-600 mb-4">{schema.omschrijving}</p>
+                        <div className="flex justify-between items-center text-sm font-medium text-blue-700">
+                            <span>Duur: {schema.duur_weken} weken</span><span>Categorie: {schema.categorie}</span>
+                        </div>
+                    </div>
+                    <div className="text-center mt-8">
+                        <button onClick={handleStartOrContinue} className="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 font-medium">
+                            {schemaExists ? `Ga verder met plan` : `Start dit plan`}
+                        </button>
                     </div>
                 </div>
-                <div className="text-center mt-8">
-                    <button onClick={handleStartOrContinue} className="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 font-medium">
-                        {schemaExists ? `Ga verder met plan` : `Start dit plan`}
-                    </button>
-                </div>
             </div>
-        </div>
+            
+            {/* De ConfirmModal wordt hier correct gerenderd */}
+            <ConfirmModal
+                isOpen={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={handleConfirmRemove}
+                title="Plan Verwijderen"
+            >
+                Weet je zeker dat je het plan "<strong>{schema.naam}</strong>" wilt verwijderen? 
+                Deze actie kan niet ongedaan worden gemaakt.
+            </ConfirmModal>
+        </>
     );
 };
 
@@ -168,18 +192,22 @@ export default function Groeiplan() {
         // 1. Haal ALLE actieve schema's (zowel verplicht als optioneel) op voor de leerling
         const actieveSchemasQuery = query(collection(db, 'leerling_schemas'), where('leerling_id', '==', profileIdentifier));
         const actieveSchemasSnapshot = await getDocs(actieveSchemasQuery);
-        const actieveSchemasData = actieveSchemasSnapshot.docs.map(doc => doc.data());
+        const actieveSchemasData = actieveSchemasSnapshot.docs.map(doc => ({...doc.data(), instanceId: doc.id }));
         
-        const verplichtActief = actieveSchemasData.find(s => s.type === 'verplicht');
-        const optioneelActief = actieveSchemasData.filter(s => s.type === 'optioneel');
-
+        const verplichtActief = actieveSchemasData.find(s => s.type !== 'optioneel'); // Alles wat niet expliciet optioneel is
+        
+        // --- CORRECTIE: Haal de IDs op van de *instanties* van de optionele schemas ---
+        const optioneleSchemaInstanties = actieveSchemasData.filter(s => s.type === 'optioneel');
+        
         // 2. Als er al een verplicht schema actief is, haal de details op
         if (verplichtActief) {
             const schemaSnap = await getDoc(doc(db, 'trainingsschemas', verplichtActief.schema_id));
             if (schemaSnap.exists()) setVerplichtSchema({ id: schemaSnap.id, ...schemaSnap.data() });
             
-            const testSnap = await getDoc(doc(db, 'testen', schemaSnap.data().gekoppelde_test_id));
-            if (testSnap.exists()) setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
+            if (schemaSnap.data().gekoppelde_test_id) {
+                const testSnap = await getDoc(doc(db, 'testen', schemaSnap.data().gekoppelde_test_id));
+                if (testSnap.exists()) setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
+            }
         } else {
             // 3. ALS er GEEN verplicht schema is, doe dan de analyse om er een voor te stellen
             const scoresQuery = query(collection(db, 'scores'), where('leerling_id', '==', profileIdentifier));
@@ -203,8 +231,8 @@ export default function Groeiplan() {
         }
 
         // 4. Haal de details van de optionele schema's op
-        if (optioneelActief.length > 0) {
-            const schemaIds = optioneelActief.map(s => s.schema_id);
+        if (optioneleSchemaInstanties.length > 0) {
+            const schemaIds = optioneleSchemaInstanties.map(s => s.schema_id);
             const schemasQuery = query(collection(db, 'trainingsschemas'), where('__name__', 'in', schemaIds));
             const schemasSnapshot = await getDocs(schemasQuery);
             setOptioneleSchemas(schemasSnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -218,20 +246,26 @@ export default function Groeiplan() {
     const handleSelectTrainingPlan = async (plan) => {
         const profileIdentifier = currentProfile.id;
         try {
-            await setDoc(doc(db, 'leerling_schemas', `${currentProfile.id}_${plan.id}`), {
+            // We voegen het toe aan de 'leerling_schemas' collectie
+            await setDoc(doc(db, 'leerling_schemas', `${profileIdentifier}_${plan.id}`), {
                 leerling_id: profileIdentifier,
                 schema_id: plan.id,
-                toegevoegd_op: serverTimestamp(),
+                start_datum: serverTimestamp(),
+                huidige_week: 1,
+                voltooide_taken: {},
                 type: 'optioneel'
             });
-            setOptionalSchemas(prev => [...prev, plan]);
+            setOptioneleSchemas(prev => [...prev, plan]);
             setShowModal(false);
             toast.success("Trainingsplan toegevoegd!");
-        } catch (error) { toast.error("Kon plan niet toevoegen"); }
+        } catch (error) { 
+            toast.error("Kon plan niet toevoegen"); 
+            console.error(error);
+        }
     };
     
     const handleRemoveOptionalPlan = (planId) => {
-        setOptionalSchemas(prev => prev.filter(plan => plan.id !== planId));
+        setOptioneleSchemas(prev => prev.filter(plan => plan.id !== planId));
     };
     
     const alGekozenIds = [verplichtSchema?.id, ...optioneleSchemas.map(s => s.id)].filter(Boolean);
@@ -245,10 +279,8 @@ export default function Groeiplan() {
                 <>
                     {loading ? <div className="text-center p-8">Laden...</div> : (
                         <>
-                            {/* --- START CORRECTIE --- */}
                             {verplichtSchema && focusPunt ? (
                                 <FocusPuntKaart 
-                                    isVerplicht={true} 
                                     test={{...focusPunt, test_naam: focusPunt.naam}} 
                                     schema={verplichtSchema} 
                                     student={currentProfile} 
@@ -256,7 +288,6 @@ export default function Groeiplan() {
                             ) : (
                                 <div className="bg-white p-8 text-center rounded-2xl max-w-2xl mx-auto"><h3 className="font-bold">Alles Ziet Er Goed Uit!</h3><p>Geen verplicht focuspunt gevonden.</p></div>
                             )}
-                            {/* --- EINDE CORRECTIE --- */}
 
                             {optioneleSchemas.map(schema => (
                                 <OptionalFocusPuntKaart key={schema.id} schema={schema} student={currentProfile} onRemove={handleRemoveOptionalPlan} isTeacherOrAdmin={isTeacherOrAdmin} />
