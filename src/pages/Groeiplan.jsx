@@ -213,7 +213,7 @@ export default function Groeiplan() {
         setOptionalSchemas(prev => prev.filter(plan => plan.id !== planId));
     };
     
-    const alGekozenIds = [gekoppeldSchema?.id, ...optionalSchemas.map(s => s.id)].filter(Boolean);
+    const alGekozenIds = [verplichtSchema?.id, ...optionalSchemas.map(s => s.id)].filter(Boolean);
 
     return (
         <div className="max-w-6xl mx-auto space-y-8">
