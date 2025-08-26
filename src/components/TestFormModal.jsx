@@ -2,7 +2,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { db } from '../firebase';
-import { doc, addDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, schoolId }) {
@@ -18,6 +18,15 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
     const [maxPunten, setMaxPunten] = useState(20);
 
     const isEditing = !!testData;
+
+    // Functie om een test ID te genereren op basis van de testnaam
+    const generateTestId = (testNaam) => {
+        return testNaam
+            .toLowerCase()
+            .replace(/[^a-z0-9\s]/g, '') // Verwijder speciale karakters
+            .replace(/\s+/g, '_') // Vervang spaties door underscores
+            .substring(0, 30); // Beperk tot 30 karakters
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -68,15 +77,36 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
                 const testRef = doc(db, 'testen', testData.id);
                 await updateDoc(testRef, testObject);
             } else {
+                // AANGEPASTE LOGICA: Gebruik custom ID voor nieuwe testen
                 testObject.school_id = schoolId;
-                testObject.created_at = serverTimestamp(); // Wordt correct toegevoegd
-                await addDoc(collection(db, 'testen'), testObject);
+                testObject.created_at = serverTimestamp();
+                
+                // Genereer een custom ID op basis van de testnaam
+                const customId = generateTestId(naam);
+                const testRef = doc(db, 'testen', customId);
+                
+                // Gebruik setDoc in plaats van addDoc om een specifieke ID te gebruiken
+                await setDoc(testRef, testObject);
             }
             toast.success(`Test succesvol ${isEditing ? 'bijgewerkt' : 'aangemaakt'}!`);
             onTestSaved();
         } catch (error) {
             console.error("Fout bij opslaan test:", error);
-            toast.error(`Fout: ${error.message}`);
+            // Als de ID al bestaat, probeer met een suffix
+            if (error.code === 'permission-denied' || error.message.includes('already exists')) {
+                try {
+                    const timestamp = Date.now();
+                    const fallbackId = `${generateTestId(naam)}_${timestamp}`;
+                    const testRef = doc(db, 'testen', fallbackId);
+                    await setDoc(testRef, testObject);
+                    toast.success(`Test succesvol aangemaakt met ID: ${fallbackId}!`);
+                    onTestSaved();
+                } catch (fallbackError) {
+                    toast.error(`Fout: ${fallbackError.message}`);
+                }
+            } else {
+                toast.error(`Fout: ${error.message}`);
+            }
         } finally {
             toast.dismiss(loadingToast);
             setLoading(false);
@@ -101,7 +131,19 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
                                         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-6">
                                             <div className="sm:col-span-2">
                                                 <label className="block text-sm font-medium">Naam</label>
-                                                <input type="text" value={naam} onChange={(e) => setNaam(e.target.value)} required className="w-full mt-1 p-2 border rounded-md" />
+                                                <input 
+                                                    type="text" 
+                                                    value={naam} 
+                                                    onChange={(e) => setNaam(e.target.value)} 
+                                                    required 
+                                                    className="w-full mt-1 p-2 border rounded-md" 
+                                                />
+                                                {/* Preview van de gegenereerde ID */}
+                                                {!isEditing && naam && (
+                                                    <div className="mt-1 text-xs text-gray-500">
+                                                        Test ID: {generateTestId(naam)}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium">Categorie</label>
