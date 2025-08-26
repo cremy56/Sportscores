@@ -47,19 +47,8 @@ export const formatScoreWithUnit = (score, eenheid) => {
   if (score === null || score === undefined || isNaN(score)) return '-';
   
   const eenheidLower = eenheid?.toLowerCase();
-// Controleer op eenheden die tijd in seconden representeren
-  if (['sec', 'seconden', 'seconds', 's'].includes(eenheidLower) || eenheidLower?.includes('m')) {
-    // Voor sprints (bv. 100m) tonen we decimalen
-    if (score < 60) {
-      return `${score.toFixed(2).replace('.', '"')}s`; // bv. 12"80s
-    }
-    
-    // Voor langere afstanden, converteer naar M'SS"
-    const minutes = Math.floor(score / 60);
-    const seconds = Math.round(score % 60);
-    return `${minutes}'${seconds.toString().padStart(2, '0')}"`;
-  }
-  // --- EINDE WIJZIGING ---
+
+  // Prioriteer eenheden die niet als tijd moeten worden geïnterpreteerd
   if (eenheidLower === 'aantal') {
     return `${score}x`;
   }
@@ -68,10 +57,17 @@ export const formatScoreWithUnit = (score, eenheid) => {
     return `${score} m`;
   }
 
-  // Behandelt eenheden voor tijd (opgeslagen in seconden)
-  if (['min', 'sec', 'seconden', 'seconds', 's'].includes(eenheidLower)) {
+  // Behandel eenheden die tijd in seconden representeren (bv. s, sec, km, 100m)
+  const timeUnits = ['min', 'sec', 'seconden', 'seconds', 's'];
+  if (timeUnits.includes(eenheidLower) || eenheidLower?.includes('m')) {
+    // Voor sprints (< 60s), toon decimalen
+    if (score < 60) {
+      return `${score.toFixed(2).replace('.', '"')}s`; // bv. 12"80s
+    }
+    
+    // Voor langere afstanden, converteer naar M'SS"
     const minutes = Math.floor(score / 60);
-    const seconds = Math.round(score % 60); // Rond seconden af voor netheid
+    const seconds = Math.round(score % 60);
     return `${minutes}'${seconds.toString().padStart(2, '0')}"`;
   }
   

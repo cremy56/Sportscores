@@ -9,6 +9,7 @@ import { ArrowLeftIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowUpTray
 import Papa from 'papaparse';
 import TestFormModal from '../components/TestFormModal';
 import ConfirmModal from '../components/ConfirmModal'; 
+import { formatScoreWithUnit } from '../utils/formatters'; // <-- IMPORT THE FORMATTER
 
 export default function TestDetailBeheer() {
     const { testId } = useParams();
@@ -316,7 +317,7 @@ export default function TestDetailBeheer() {
             <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
                 <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
                     
-                    {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
+                    {/* --- MOBILE HEADER: Zichtbaar op kleine scharmen, verborgen op lg en groter --- */}
                     <div className="lg:hidden mb-8">
                         <div className="flex justify-between items-center">
                             <div className="flex-1 min-w-0">
@@ -575,7 +576,8 @@ export default function TestDetailBeheer() {
                                                                 <>
                                                                     <td className="py-4 px-6 font-medium text-slate-900">{norm.leeftijd} jaar</td>
                                                                     <td className="py-4 px-6 text-slate-700">{norm.geslacht}</td>
-                                                                    <td className="py-4 px-6 font-semibold text-slate-900">{norm.score_min}</td>
+                                                                    {/* USE FORMATTER HERE */}
+                                                                    <td className="py-4 px-6 font-semibold text-slate-900">{formatScoreWithUnit(norm.score_min, test?.eenheid)}</td>
                                                                     <td className="py-4 px-6 font-semibold text-purple-700">{norm.punt}</td>
                                                                 </>
                                                             )}
@@ -621,7 +623,8 @@ export default function TestDetailBeheer() {
                                                             {isAdmin && <input type="checkbox" checked={selectedNorms.includes(normId)} onChange={() => handleSelectNorm(normId)} className="rounded" />}
                                                             <div>
                                                                 <div className="font-semibold text-slate-900">{norm.leeftijd} jaar • {norm.geslacht}</div>
-                                                                <div className="text-sm text-slate-500">Score: {norm.score_min} → Punt: {norm.punt}</div>
+                                                                {/* USE FORMATTER HERE */}
+                                                                <div className="text-sm text-slate-500">Score: {formatScoreWithUnit(norm.score_min, test?.eenheid)} → Punt: {norm.punt}</div>
                                                             </div>
                                                         </div>
                                                         {isAdmin && (
