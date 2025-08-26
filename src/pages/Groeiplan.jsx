@@ -337,9 +337,13 @@ export default function Groeiplan() {
     const alGekozenIds = [verplichtSchema?.id, ...optioneleSchemas.map(s => s.id)].filter(Boolean);
 
     return (
-        <div className="max-w-7xl mx-auto px-4 pt-8 pb-6 lg:px-8 lg:pt-12 lg:pb-8">
+        <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+            <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-4">
+                
+                {/* Header met extra top-margin voor de juiste hoogte */}
+                <div className="mb-8 mt-20">
             <div className="flex justify-between items-center mb-12">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
                     {isTeacherOrAdmin ? 
                         (selectedStudent ? `Trainingsschema's: ${selectedStudent.naam}` : 'Trainingsschema\'s') 
                         : 'Mijn Groeiplan'}
@@ -354,7 +358,7 @@ export default function Groeiplan() {
                     </button>
                 )}
             </div>
-
+        </div>
             <div className="max-w-2xl mx-auto space-y-8">
                 {isTeacherOrAdmin && (
                     <div className="bg-white p-6 rounded-2xl shadow-sm border">
@@ -422,5 +426,7 @@ export default function Groeiplan() {
                 alGekozenIds={alGekozenIds} 
             />
         </div>
+       </div> 
+
     );
 }
