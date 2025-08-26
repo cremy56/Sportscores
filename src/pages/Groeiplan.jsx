@@ -9,18 +9,57 @@ import FocusPuntKaart from '../components/groeiplan/FocusPuntKaart';
 import StudentSearch from '../components/StudentSearch';
 import ConfirmModal from '../components/ConfirmModal';
 
+// Import de analyse functie
+import { analyseerEvolutieData } from '../utils/analyseUtils';
+
+// Helper functie om evolutiedata op te halen (gekopieerd uit GroeiplanLeerling)
+const getStudentEvolutionData = async (studentId, profile) => {
+    try {
+        const scoresQuery = query(collection(db, 'scores'), where('leerling_id', '==', studentId));
+        const scoresSnapshot = await getDocs(scoresQuery);
+        const scores = scoresSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        const testIds = [...new Set(scores.map(s => s.test_id))];
+        if (testIds.length === 0) return [];
+
+        const testenQuery = query(collection(db, 'testen'), where('__name__', 'in', testIds));
+        const testenSnapshot = await getDocs(testenQuery);
+        const testen = new Map();
+        testenSnapshot.docs.forEach(d => testen.set(d.id, d.data()));
+
+        const evolutionData = testIds.map(testId => {
+            const testScores = scores.filter(s => s.test_id === testId);
+            const testData = testen.get(testId);
+            
+            if (!testData || testScores.length === 0) return null;
+            
+            const personal_best_points = Math.max(...testScores.map(s => s.rapportpunt || 0));
+            
+            return {
+                test_id: testId,
+                naam: testData.naam,
+                personal_best_points,
+                test_data: testData
+            };
+        }).filter(Boolean);
+
+        return evolutionData;
+    } catch (error) {
+        console.error("Fout bij ophalen evolutiedata:", error);
+        return [];
+    }
+};
+
 // --- SUB-COMPONENT: Kaart voor optionele, zelfgekozen schema's ---
 const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin }) => {
     const navigate = useNavigate();
-    // Voor nieuwe schema's starten we met false, voor bestaande checken we
     const [schemaExists, setSchemaExists] = useState(!schema.isNew);
-    const [loading, setLoading] = useState(!schema.isNew); // Geen loading voor nieuwe schemas
+    const [loading, setLoading] = useState(!schema.isNew);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const studentIdentifier = student?.id;
     const schemaInstanceId = `${studentIdentifier}_${schema.id}`;
 
     useEffect(() => {
-        // Skip de check als dit een nieuw schema is
         if (schema.isNew) {
             setLoading(false);
             return;
@@ -41,7 +80,6 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin })
         if (!schemaExists) {
             const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
             try {
-                // Controleer eerst of het document al bestaat (kan zijn dat het net aangemaakt is)
                 const existingDoc = await getDoc(actiefSchemaRef);
                 
                 if (!existingDoc.exists()) {
@@ -56,10 +94,10 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin })
                     toast.success("Optioneel schema gestart!");
                 }
                 
-                setSchemaExists(true); // Update state zodat knoptekst verandert
+                setSchemaExists(true);
             } catch (error) { 
                 toast.error("Kon schema niet starten."); 
-                return; // Stop hier als er een error is
+                return;
             }
         }
         navigate(`/groeiplan/${schemaInstanceId}`);
@@ -87,7 +125,7 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin })
             <div className="bg-white rounded-2xl shadow-md border-2 border-blue-200 p-8 max-w-2xl mx-auto relative">
                 <div className="absolute -top-3 left-6">
                     <span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-semibold shadow-lg">
-                        💪 Zelfgekozen
+                        Zelfgekozen
                     </span>
                 </div>
                 {!isTeacherOrAdmin && (
@@ -230,8 +268,8 @@ export default function Groeiplan() {
     const { profile } = useOutletContext();
     const [selectedStudent, setSelectedStudent] = useState(null);
     
-    const [verplichtSchema, setVerplichtSchema] = useState(null);
-    const [focusPunt, setFocusPunt] = useState(null);
+    // AANGEPAST: Nu een array van verplichte schema's i.p.v. één schema
+    const [verplichteFocusPunten, setVerplichteFocusPunten] = useState([]);
     const [optioneleSchemas, setOptioneleSchemas] = useState([]);
     
     const [loading, setLoading] = useState(true);
@@ -251,8 +289,7 @@ export default function Groeiplan() {
             const profileIdentifier = currentProfile.id;
 
             // Reset states
-            setVerplichtSchema(null);
-            setFocusPunt(null);
+            setVerplichteFocusPunten([]);
             setOptioneleSchemas([]);
 
             // 1. Haal ALLE actieve schema's op
@@ -260,39 +297,40 @@ export default function Groeiplan() {
             const actieveSchemasSnapshot = await getDocs(actieveSchemasQuery);
             const actieveSchemasData = actieveSchemasSnapshot.docs.map(doc => ({...doc.data(), instanceId: doc.id }));
             
-            const verplichtActief = actieveSchemasData.find(s => s.type !== 'optioneel');
+            const verplichtActiefIds = actieveSchemasData.filter(s => s.type !== 'optioneel').map(s => s.schema_id);
             const optioneleSchemaInstanties = actieveSchemasData.filter(s => s.type === 'optioneel');
             
-            // 2. Als er al een verplicht schema actief is, haal de details op
-            if (verplichtActief) {
-                const schemaSnap = await getDoc(doc(db, 'trainingsschemas', verplichtActief.schema_id));
-                if (schemaSnap.exists()) setVerplichtSchema({ id: schemaSnap.id, ...schemaSnap.data() });
+            // 2. Haal evolutiedata op en analyseer voor alle zwakke punten
+            const evolutionData = await getStudentEvolutionData(profileIdentifier, currentProfile);
+            const zwakkeTesten = analyseerEvolutieData(evolutionData);
+            
+            const verplichteFocusPuntenData = [];
+            
+            // 3. Voor elke zwakke test, zoek bijbehorend schema
+            for (const zwakkeTest of zwakkeTesten) {
+                // Zoek schema dat gekoppeld is aan deze test
+                const schemaQuery = query(
+                    collection(db, 'trainingsschemas'), 
+                    where('gekoppelde_test_id', '==', zwakkeTest.test_id)
+                );
+                const schemaSnapshot = await getDocs(schemaQuery);
                 
-                if (schemaSnap.data().gekoppelde_test_id) {
-                    const testSnap = await getDoc(doc(db, 'testen', schemaSnap.data().gekoppelde_test_id));
-                    if (testSnap.exists()) setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
-                }
-            } else {
-                // 3. Analyse om een verplicht schema voor te stellen
-                const scoresQuery = query(collection(db, 'scores'), where('leerling_id', '==', profileIdentifier));
-                const scoresSnapshot = await getDocs(scoresQuery);
-                const scoresMetPunt = scoresSnapshot.docs.map(d => d.data()).filter(s => s.rapportpunt != null);
-                
-                if (scoresMetPunt.length > 0) {
-                    const zwaksteScore = scoresMetPunt.sort((a,b) => a.rapportpunt - b.rapportpunt)[0];
-                    if (zwaksteScore.rapportpunt <= 10) {
-                        const testSnap = await getDoc(doc(db, 'testen', zwaksteScore.test_id));
-                        if(testSnap.exists()) {
-                            setFocusPunt({ test_id: testSnap.id, ...testSnap.data() });
-                            const schemaQuery = query(collection(db, 'trainingsschemas'), where('gekoppelde_test_id', '==', zwaksteScore.test_id));
-                            const schemaSnapshot = await getDocs(schemaQuery);
-                            if (!schemaSnapshot.empty) {
-                                setVerplichtSchema({ id: schemaSnapshot.docs[0].id, ...schemaSnapshot.docs[0].data() });
-                            }
-                        }
-                    }
+                if (!schemaSnapshot.empty) {
+                    const schemaDoc = schemaSnapshot.docs[0];
+                    const schemaData = { id: schemaDoc.id, ...schemaDoc.data() };
+                    
+                    // Controleer of dit schema al actief is
+                    const isAlActief = verplichtActiefIds.includes(schemaDoc.id);
+                    
+                    verplichteFocusPuntenData.push({
+                        test: { ...zwakkeTest, test_naam: zwakkeTest.naam },
+                        schema: schemaData,
+                        isActief: isAlActief
+                    });
                 }
             }
+            
+            setVerplichteFocusPunten(verplichteFocusPuntenData);
 
             // 4. Haal de details van de optionele schema's op
             if (optioneleSchemaInstanties.length > 0) {
@@ -320,7 +358,6 @@ export default function Groeiplan() {
                 voltooide_taken: {},
                 type: 'optioneel'
             });
-            // Voeg een "isNew" flag toe zodat de component weet dat dit net toegevoegd is
             setOptioneleSchemas(prev => [...prev, { ...plan, isNew: true }]);
             setShowModal(false);
             toast.success("Trainingsplan toegevoegd!");
@@ -334,7 +371,7 @@ export default function Groeiplan() {
         setOptioneleSchemas(prev => prev.filter(plan => plan.id !== planId));
     };
     
-    const alGekozenIds = [verplichtSchema?.id, ...optioneleSchemas.map(s => s.id)].filter(Boolean);
+    const alGekozenIds = [...verplichteFocusPunten.map(vfp => vfp.schema.id), ...optioneleSchemas.map(s => s.id)].filter(Boolean);
 
     return (
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
@@ -393,13 +430,17 @@ export default function Groeiplan() {
                                 <div className="text-center p-8">Groeiplan laden...</div>
                             ) : (
                                 <>
-                                    {verplichtSchema && focusPunt ? (
-                                        <FocusPuntKaart 
-                                            isVerplicht={true}
-                                            test={{...focusPunt, test_naam: focusPunt.naam}} 
-                                            schema={verplichtSchema} 
-                                            student={currentProfile} 
-                                        />
+                                    {/* AANGEPAST: Toon alle verplichte focuspunten */}
+                                    {verplichteFocusPunten.length > 0 ? (
+                                        verplichteFocusPunten.map((focusPunt, index) => (
+                                            <FocusPuntKaart 
+                                                key={focusPunt.test.test_id}
+                                                isVerplicht={true}
+                                                test={focusPunt.test} 
+                                                schema={focusPunt.schema} 
+                                                student={currentProfile} 
+                                            />
+                                        ))
                                     ) : (
                                         <div className="bg-white p-8 text-center rounded-2xl shadow-sm border">
                                             <h3 className="font-bold">Alles Ziet Er Goed Uit!</h3>
@@ -407,6 +448,7 @@ export default function Groeiplan() {
                                         </div>
                                     )}
 
+                                    {/* Optionele schema's */}
                                     {optioneleSchemas.map(schema => (
                                         <OptionalFocusPuntKaart 
                                             key={schema.id} 
