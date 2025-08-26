@@ -13,8 +13,7 @@ import {
 } from '../utils/schoolyearUtils';
 
 export default function Evolutie() {
-    const { profile } = useOutletContext();
-    const [selectedStudent, setSelectedStudent] = useState(null);
+    const { profile, selectedStudent, setSelectedStudent } = useOutletContext();
     const [evolutionData, setEvolutionData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -31,10 +30,11 @@ export default function Evolutie() {
     }, []);
 
     useEffect(() => {
-        if (profile?.rol === 'leerling') {
+        // Als de ingelogde gebruiker een leerling is, stel deze in
+        if (profile?.rol === 'leerling' && !selectedStudent) {
             setSelectedStudent(profile);
         }
-    }, [profile]);
+    }, [profile, selectedStudent, setSelectedStudent]);
 
     useEffect(() => {
         if (!selectedStudent?.id) {
@@ -42,23 +42,15 @@ export default function Evolutie() {
             return;
         }
 
-        const fetchEvolutionData = async () => {
+       const fetchEvolutionData = async () => {
             setLoading(true);
             setError(null);
-            
             try {
                 const allData = await getStudentEvolutionData(selectedStudent.id);
-                
-                // --- AANPASSING 3: Filter alleen als een specifiek jaar is gekozen ---
-                let dataToShow = [];
-                if (selectedYear === 'all') {
-                    dataToShow = allData; // Toon alles
-                } else {
-                    dataToShow = filterTestDataBySchoolYear(allData, selectedYear);
-                }
-                
+                const dataToShow = (selectedYear === 'all')
+                    ? allData
+                    : filterTestDataBySchoolYear(allData, selectedYear);
                 setEvolutionData(dataToShow);
-                
             } catch (err) {
                 console.error('Error fetching evolution data:', err);
                 setError('Kon de evolutiegegevens niet laden.');
@@ -101,7 +93,7 @@ export default function Evolutie() {
     const currentYearInfo = availableYears.find(year => year.value === selectedYear);
     const isCurrentYear = currentYearInfo?.isCurrent || false;
 
-    if (loading) {
+    if (loading && !evolutionData.length) {
         return (
             <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
                 <div className="bg-white p-8 rounded-2xl shadow-sm">
@@ -145,30 +137,24 @@ export default function Evolutie() {
                                             Zoek Leerling
                                         </label>
                                         <StudentSearch 
-                                            onStudentSelect={handleStudentSelect}
+                                             onStudentSelect={setSelectedStudent}
                                             schoolId={profile?.school_id}
+                                            initialStudent={selectedStudent}
                                         />
                                     </div>
                                     <div>
                                         <label htmlFor="school-year-select" className="inline-block text-sm font-medium text-slate-700 mb-2">
-                                            <span className="flex items-center">
-                                                Schooljaar
-                                                {isCurrentYear && (
-                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                        Huidig
-                                                    </span>
-                                                )}
-                                            </span>
+                                            Schooljaar
                                         </label>
                                         <select
                                             id="school-year-select"
                                             value={selectedYear}
-                                            onChange={(e) => handleYearChange(e.target.value)}
-                                            className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
+                                            onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                                            className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg"
                                         >
                                             {availableYears.map(year => (
                                                 <option key={year.value} value={year.value}>
-                                                    {year.label}{year.isCurrent ? ' (Huidig)' : ''}
+                                                    {year.label}
                                                 </option>
                                             ))}
                                         </select>

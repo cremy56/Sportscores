@@ -9,19 +9,19 @@ import { Bars3Icon } from '@heroicons/react/24/solid';
 import logoSrc from '../assets/logo.png'; // Importeer het logo
 import StudentSearch from './StudentSearch'; // NIEUW
 
-export default function Layout() {
-  const { profile, school } = useOutletContext();
+export default function Layout({ profile, school, selectedStudent, setSelectedStudent }) {
+
   const location = useLocation();
   const [activeRole, setActiveRole] = useState(profile?.rol || 'leerling');
-  const [selectedStudent, setSelectedStudent] = useState(null); // NIEUW
+  const [impersonatedStudent, setImpersonatedStudent] = useState(null);
 
   // AANGEPAST: Maak een "gesimuleerd" profiel aan op basis van de geselecteerde rol.
   // Dit object wordt doorgegeven aan alle onderliggende pagina's.
   const simulatedProfile = useMemo(() => {
-    if (activeRole === 'leerling' && selectedStudent && profile?.rol === 'administrator') {
+    if (activeRole === 'leerling' && impersonatedStudent && profile?.rol === 'administrator') {
       // Als administrator een leerling heeft geselecteerd, gebruik die leerling data
       return {
-        ...selectedStudent,
+        ...impersonatedStudent,
         rol: 'leerling',
         originalProfile: profile // Behoud originele admin profiel voor referentie
       };
@@ -30,7 +30,7 @@ export default function Layout() {
       ...profile,
       rol: activeRole,
     };
-  }, [profile, activeRole, selectedStudent]);
+  }, [profile, activeRole, impersonatedStudent]);
 
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator';
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
@@ -225,7 +225,7 @@ export default function Layout() {
                       onChange={(e) => {
                         setActiveRole(e.target.value);
                         if (e.target.value !== 'leerling') {
-                          setSelectedStudent(null); // Reset student selection wanneer niet meer in leerling modus
+                          setImpersonatedStudent(null); // Reset student selection wanneer niet meer in leerling modus
                         }
                       }} 
                       title="Switch rol"
@@ -240,13 +240,13 @@ export default function Layout() {
                       <div className="mt-3">
                         <label className="block text-xs font-semibold text-gray-500 mb-1">Test als leerling</label>
                         <StudentSearch 
-                          onStudentSelect={setSelectedStudent} 
+                          onStudentSelect={setImpersonatedStudent} 
                           schoolId={profile?.school_id}
                           placeholder="Selecteer leerling..."
                           compact={true}
                         />
-                        {selectedStudent && (
-                          <p className="text-xs text-green-600 mt-1">Actief als: {selectedStudent.naam}</p>
+                        {impersonatedStudent && (
+                          <p className="text-xs text-green-600 mt-1">Actief als: {impersonatedStudent.naam}</p>
                         )}
                       </div>
                     )}
@@ -271,7 +271,12 @@ export default function Layout() {
 
       <main className="container mx-auto px-4 py-8">
         {/* AANGEPAST: Geef het gemodificeerde 'simulatedProfile' door ipv het originele 'profile' */}
-        <Outlet context={{ profile: simulatedProfile, school }} />
+       <Outlet context={{ 
+          profile: simulatedProfile, 
+          school,
+          selectedStudent,      // De globale leerling die we willen onthouden
+          setSelectedStudent  // De globale functie om de leerling aan te passen
+        }} />
       </main>
     </div>
   );

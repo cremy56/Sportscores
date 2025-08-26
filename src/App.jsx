@@ -62,6 +62,7 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [school, setSchool] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
@@ -149,6 +150,7 @@ function App() {
                 <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
 
                 <Route element={<ProtectedRoute profile={profile} school={school} />}>
+                <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} />}></Route>
                     <Route element={<Layout />}>
                         {/* AANGEPAST: De route voor de homepagina gebruikt nu de correcte 'AdValvas' component */}
                         <Route path="/" element={<AdValvas />} />

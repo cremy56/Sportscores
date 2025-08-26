@@ -265,8 +265,8 @@ const TrainingsplanModal = ({ isOpen, onClose, onSelect, alGekozenIds }) => {
 
 // --- HOOFDCOMPONENT: Groeiplan ---
 export default function Groeiplan() {
-    const { profile } = useOutletContext();
-    const [selectedStudent, setSelectedStudent] = useState(null);
+    const { profile, selectedStudent, setSelectedStudent } = useOutletContext();
+    
     
     // AANGEPAST: Nu een array van verplichte schema's i.p.v. één schema
     const [verplichteFocusPunten, setVerplichteFocusPunten] = useState([]);
@@ -276,9 +276,17 @@ export default function Groeiplan() {
     const [showModal, setShowModal] = useState(false);
 
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
-    const currentProfile = selectedStudent || profile;
+    const currentProfile = isTeacherOrAdmin ? selectedStudent : profile;
 
     useEffect(() => {
+        
+        if (isTeacherOrAdmin && !selectedStudent) {
+            setLoading(false);
+            setVerplichteFocusPunten([]);
+            setOptioneleSchemas([]);
+            return;
+        }
+
         if (!currentProfile?.id) {
             setLoading(false);
             return;
@@ -390,7 +398,11 @@ export default function Groeiplan() {
                         <div className="flex-shrink-0">
                             {isTeacherOrAdmin ? (
                                 <div className="w-80">
-                                    <StudentSearch onStudentSelect={setSelectedStudent} schoolId={profile?.school_id} />
+                                    <StudentSearch
+                                        onStudentSelect={setSelectedStudent}
+                                        schoolId={profile?.school_id}
+                                        initialStudent={selectedStudent}
+                                    />
                                 </div>
                             ) : (
                                 <button
