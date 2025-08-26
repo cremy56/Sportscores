@@ -76,6 +76,8 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
             if (isEditing) {
                 const testRef = doc(db, 'testen', testData.id);
                 await updateDoc(testRef, testObject);
+                toast.success(`Test succesvol bijgewerkt!`);
+                onTestSaved(); // Modal sluiten na succesvol bewerken
             } else {
                 // AANGEPASTE LOGICA: Gebruik custom ID voor nieuwe testen
                 testObject.school_id = schoolId;
@@ -87,20 +89,20 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
                 
                 // Gebruik setDoc in plaats van addDoc om een specifieke ID te gebruiken
                 await setDoc(testRef, testObject);
+                toast.success(`Test succesvol aangemaakt!`);
+                onTestSaved(); // Modal sluiten na succesvol aanmaken
             }
-            toast.success(`Test succesvol ${isEditing ? 'bijgewerkt' : 'aangemaakt'}!`);
-            onTestSaved();
         } catch (error) {
             console.error("Fout bij opslaan test:", error);
-            // Als de ID al bestaat, probeer met een suffix
-            if (error.code === 'permission-denied' || error.message.includes('already exists')) {
+            // Als de ID al bestaat, probeer met een suffix (alleen voor nieuwe testen)
+            if (!isEditing && (error.code === 'permission-denied' || error.message.includes('already exists'))) {
                 try {
                     const timestamp = Date.now();
                     const fallbackId = `${generateTestId(naam)}_${timestamp}`;
                     const testRef = doc(db, 'testen', fallbackId);
                     await setDoc(testRef, testObject);
                     toast.success(`Test succesvol aangemaakt met ID: ${fallbackId}!`);
-                    onTestSaved();
+                    onTestSaved(); // Modal sluiten na succesvol aanmaken met fallback ID
                 } catch (fallbackError) {
                     toast.error(`Fout: ${fallbackError.message}`);
                 }
