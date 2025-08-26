@@ -5,6 +5,7 @@ import { db, auth } from '../firebase';
 import { collection, query, where, getDocs, writeBatch, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { parseTimeInputToSeconds } from '../utils/formatters.js';
 
 // --- HELPER FUNCTIES (bovenaan het bestand) ---
 
@@ -246,9 +247,20 @@ export default function NieuweTestafname() {
             debounceTimeoutRef.current = setTimeout(async () => {
                 const leerling = leerlingen.find(l => l.id === studentIdToCalculate);
                 const scoreToCalc = scores[studentIdToCalculate];
+
+                let scoreValueInSeconds = null;
+                const eenheidLower = selectedTest.eenheid?.toLowerCase();
+                
+                // Als het een tijdseenheid is, gebruik de 'vertaler'. Anders, parse als normaal getal.
+                if (['min', 'sec', 'seconden'].includes(eenheidLower)) {
+                    scoreValueInSeconds = parseTimeInputToSeconds(scoreToCalc.score);
+                } else {
+                    scoreValueInSeconds = parseFloat(String(scoreToCalc.score).replace(',', '.'));
+                }
+
                 const scoreValue = parseFloat(String(scoreToCalc.score).replace(',', '.'));
-                if (!isNaN(scoreValue) && leerling) {
-                    const newPunt = await calculatePuntFromScore(selectedTest, leerling.data, scoreValue, new Date(datum));
+                if (scoreValueInSeconds !== null && !isNaN(scoreValueInSeconds) && leerling) {
+                    const newPunt = await calculatePuntFromScore(selectedTest, leerling.data, scoreValueInSeconds, new Date(datum));
                     setScores(prev => ({ ...prev, [studentIdToCalculate]: { ...prev[studentIdToCalculate], rapportpunt: newPunt, isCalculating: false } }));
                 } else {
                     setScores(prev => ({ ...prev, [studentIdToCalculate]: { ...prev[studentIdToCalculate], rapportpunt: null, isCalculating: false } }));
@@ -272,12 +284,20 @@ export default function NieuweTestafname() {
         }
         setIsSaving(true);
         const batch = writeBatch(db);
+        const eenheidLower = selectedTest.eenheid?.toLowerCase();
+        
         try {
             for (const leerlingId in scores) {
                 const scoreData = scores[leerlingId];
                 if (scoreData.score && String(scoreData.score).trim() !== '') {
-                    const scoreValue = parseFloat(String(scoreData.score).replace(',', '.'));
-                    if (!isNaN(scoreValue)) {
+                    // --- START WIJZIGING ---
+                    let finalScoreValue = null;
+                    if (['min', 'sec', 'seconden'].includes(eenheidLower)) {
+                        finalScoreValue = parseTimeInputToSeconds(scoreData.score);
+                    } else {
+                        finalScoreValue = parseFloat(String(scoreData.score).replace(',', '.'));
+                    }
+                   if (finalScoreValue !== null && !isNaN(finalScoreValue)) {
                         const leerling = leerlingen.find(l => l.id === leerlingId);
                         const newScoreRef = doc(collection(db, 'scores'));
                         batch.set(newScoreRef, {
@@ -285,7 +305,7 @@ export default function NieuweTestafname() {
                             groep_id: selectedGroep.id,
                             leerling_id: leerlingId,
                             leerling_naam: leerling?.data?.naam || 'Onbekend',
-                            score: scoreValue,
+                            score: finalScoreValue, // Sla de omgerekende seconden op
                             rapportpunt: scoreData.rapportpunt ?? null,
                             school_id: profile.school_id,
                             test_id: selectedTest.id,
@@ -425,7 +445,11 @@ export default function NieuweTestafname() {
                                                         type="text"
                                                         inputMode="decimal"
                                                         className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-right transition-all"
-                                                        placeholder={`Score in ${selectedTest.eenheid}`}
+                                                        placeholder={
+                                                        selectedTest.eenheid?.toLowerCase().includes('sec') || selectedTest.eenheid?.toLowerCase().includes('min')
+                                                        ? "bv. 10'30"
+                                                        : `Score in ${selectedTest.eenheid}`
+                                                    }
                                                         value={scores[lid.id]?.score || ''}
                                                         onChange={(e) => handleScoreChange(lid.id, e.target.value)}
                                                     />
