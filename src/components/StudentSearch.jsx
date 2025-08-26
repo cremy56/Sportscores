@@ -9,34 +9,37 @@ function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-// De component accepteert nu 'initialStudent' en andere props
 export default function StudentSearch({ onStudentSelect, schoolId, initialStudent = null, placeholder = "Zoek op naam...", compact = false }) {
   const [queryText, setQueryText] = useState('');
   const [people, setPeople] = useState([]);
-  
-  // De interne 'selected' state wordt nu geïnitialiseerd met de prop
   const [selected, setSelected] = useState(initialStudent);
 
-  // Deze useEffect zorgt ervoor dat de component update als de selectie op een andere pagina verandert
   useEffect(() => {
     setSelected(initialStudent);
   }, [initialStudent]);
 
   useEffect(() => {
-    if (queryText.length < 2 || !schoolId) {
+    // We zoeken nu vanaf 1 teken in plaats van 2
+    if (queryText.length < 1 || !schoolId) {
       setPeople([]);
       return;
     }
 
     const fetchPeople = async () => {
+      const searchTerm = queryText.toLowerCase();
+      
+      // --- AANGEPASTE QUERY ---
+      // We gebruiken nu een 'array-contains' query op het nieuwe 'naam_keywords' veld.
+      // Dit vindt elke leerling waarbij de zoekterm voorkomt in de array van naam-onderdelen.
       const q = query(
         collection(db, 'toegestane_gebruikers'),
         where('school_id', '==', schoolId),
         where('rol', '==', 'leerling'),
-        where('naam_lowercase', '>=', queryText.toLowerCase()),
-        where('naam_lowercase', '<=', queryText.toLowerCase() + '\uf8ff'),
+        where('naam_keywords', 'array-contains', searchTerm),
         limit(10)
       );
+      // --- EINDE AANPASSING ---
+
       const querySnapshot = await getDocs(q);
       const results = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setPeople(results);
