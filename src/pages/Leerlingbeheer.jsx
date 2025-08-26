@@ -158,7 +158,7 @@ export default function Leerlingbeheer() {
                         batch.set(docRef, {
                             naam: row.naam.trim(),
                             email: row.email.trim().toLowerCase(),
-                            geboortedatum: row.geboortedatum,
+                             geboortedatum: row.geboortedatum ? new Date(row.geboortedatum) : null,
                             geslacht: finalGeslacht,
                             rol: 'leerling',
                             school_id: profile.school_id,

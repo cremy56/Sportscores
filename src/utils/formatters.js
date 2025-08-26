@@ -47,7 +47,19 @@ export const formatScoreWithUnit = (score, eenheid) => {
   if (score === null || score === undefined || isNaN(score)) return '-';
   
   const eenheidLower = eenheid?.toLowerCase();
-
+// Controleer op eenheden die tijd in seconden representeren
+  if (['sec', 'seconden', 'seconds', 's'].includes(eenheidLower) || eenheidLower?.includes('m')) {
+    // Voor sprints (bv. 100m) tonen we decimalen
+    if (score < 60) {
+      return `${score.toFixed(2).replace('.', '"')}s`; // bv. 12"80s
+    }
+    
+    // Voor langere afstanden, converteer naar M'SS"
+    const minutes = Math.floor(score / 60);
+    const seconds = Math.round(score % 60);
+    return `${minutes}'${seconds.toString().padStart(2, '0')}"`;
+  }
+  // --- EINDE WIJZIGING ---
   if (eenheidLower === 'aantal') {
     return `${score}x`;
   }

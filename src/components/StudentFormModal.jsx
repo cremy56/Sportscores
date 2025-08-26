@@ -171,9 +171,12 @@ export default function StudentFormModal({ isOpen, onClose, onStudentSaved, stud
         const loadingToast = toast.loading(isEditing ? 'Leerling bijwerken...' : 'Leerling toevoegen...');
 
         const studentObject = {
-            ...formData,
             naam: formData.naam.trim(),
             email: formData.email.trim().toLowerCase(),
+            geslacht: formData.geslacht,
+            // --- CORRECTIE HIER ---
+            // Zet de datum-string om naar een Date-object, of null als het veld leeg is.
+            geboortedatum: formData.geboortedatum ? new Date(formData.geboortedatum) : null,
             rol: 'leerling',
             school_id: schoolId,
             naam_keywords: formData.naam.toLowerCase().split(' '),
