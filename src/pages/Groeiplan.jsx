@@ -342,91 +342,93 @@ export default function Groeiplan() {
                 
                 {/* Header met extra top-margin voor de juiste hoogte */}
                 <div className="mb-8 mt-20">
-            <div className="flex justify-between items-center mb-12">
-                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-                    {isTeacherOrAdmin ? 
-                        (selectedStudent ? `Trainingsschema's: ${selectedStudent.naam}` : 'Trainingsschema\'s') 
-                        : 'Mijn Groeiplan'}
-                </h1>
-                {!isTeacherOrAdmin && (
-                    <button
-                        onClick={() => setShowModal(true)}
-                        className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
-                    >
-                        <Plus size={20} />
-                        <span className="ml-2 hidden sm:block">Voeg Trainingsplan Toe</span>
-                    </button>
-                )}
-            </div>
-        </div>
-            <div className="max-w-2xl mx-auto space-y-8">
-                {isTeacherOrAdmin && (
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border">
-                        <StudentSearch onStudentSelect={setSelectedStudent} schoolId={profile?.school_id} />
-                    </div>
-                )}
-
-                {/* Leerkracht/Admin zonder geselecteerde student */}
-                {isTeacherOrAdmin && !selectedStudent ? (
-                   <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 max-w-2xl mx-auto">
-                        <div className="text-center">
-                            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-1">Selecteer een leerling</h3>
-                            <p className="text-sm text-slate-600 mb-1">
-                                Gebruik de zoekbalk hierboven om de evolutie van een leerling te bekijken.
-                            </p>
-                            <p className="text-xs text-slate-500">
-                                Typ voor-of achternaam
-                            </p>
+                    <div className="flex justify-between items-center mb-12">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+                            {isTeacherOrAdmin ? 
+                                (selectedStudent ? `Trainingsschema's: ${selectedStudent.naam}` : 'Trainingsschema\'s') 
+                                : 'Mijn Groeiplan'}
+                        </h1>
+                        
+                        {/* Rechts van de titel: zoekbalk voor leerkracht/admin, knop voor leerlingen */}
+                        <div className="flex-shrink-0">
+                            {isTeacherOrAdmin ? (
+                                <div className="w-80">
+                                    <StudentSearch onStudentSelect={setSelectedStudent} schoolId={profile?.school_id} />
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setShowModal(true)}
+                                    className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                                >
+                                    <Plus size={20} />
+                                    <span className="ml-2 hidden sm:block">Voeg Trainingsplan Toe</span>
+                                </button>
+                            )}
                         </div>
                     </div>
-                ) : (currentProfile || !isTeacherOrAdmin) && (
-                    <>
-                        {loading ? (
-                            <div className="text-center p-8">Groeiplan laden...</div>
-                        ) : (
-                            <>
-                                {verplichtSchema && focusPunt ? (
-                                    <FocusPuntKaart 
-                                        isVerplicht={true}
-                                        test={{...focusPunt, test_naam: focusPunt.naam}} 
-                                        schema={verplichtSchema} 
-                                        student={currentProfile} 
-                                    />
-                                ) : (
-                                    <div className="bg-white p-8 text-center rounded-2xl shadow-sm border">
-                                        <h3 className="font-bold">Alles Ziet Er Goed Uit!</h3>
-                                        <p>Geen verplicht focuspunt gevonden voor {currentProfile?.naam}.</p>
-                                    </div>
-                                )}
+                </div>
+                
+                <div className="max-w-2xl mx-auto space-y-8">
+                    {/* Leerkracht/Admin zonder geselecteerde student */}
+                    {isTeacherOrAdmin && !selectedStudent ? (
+                       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 max-w-2xl mx-auto">
+                            <div className="text-center">
+                                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-1">Selecteer een leerling</h3>
+                                <p className="text-sm text-slate-600 mb-1">
+                                    Gebruik de zoekbalk hierboven om de evolutie van een leerling te bekijken.
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                    Typ voor-of achternaam
+                                </p>
+                            </div>
+                        </div>
+                    ) : (currentProfile || !isTeacherOrAdmin) && (
+                        <>
+                            {loading ? (
+                                <div className="text-center p-8">Groeiplan laden...</div>
+                            ) : (
+                                <>
+                                    {verplichtSchema && focusPunt ? (
+                                        <FocusPuntKaart 
+                                            isVerplicht={true}
+                                            test={{...focusPunt, test_naam: focusPunt.naam}} 
+                                            schema={verplichtSchema} 
+                                            student={currentProfile} 
+                                        />
+                                    ) : (
+                                        <div className="bg-white p-8 text-center rounded-2xl shadow-sm border">
+                                            <h3 className="font-bold">Alles Ziet Er Goed Uit!</h3>
+                                            <p>Geen verplicht focuspunt gevonden voor {currentProfile?.naam}.</p>
+                                        </div>
+                                    )}
 
-                                {optioneleSchemas.map(schema => (
-                                    <OptionalFocusPuntKaart 
-                                        key={schema.id} 
-                                        schema={schema} 
-                                        student={currentProfile} 
-                                        onRemove={handleRemoveOptionalPlan} 
-                                        isTeacherOrAdmin={isTeacherOrAdmin} 
-                                    />
-                                ))}
-                            </>
-                        )}
-                    </>
-                )}
+                                    {optioneleSchemas.map(schema => (
+                                        <OptionalFocusPuntKaart 
+                                            key={schema.id} 
+                                            schema={schema} 
+                                            student={currentProfile} 
+                                            onRemove={handleRemoveOptionalPlan} 
+                                            isTeacherOrAdmin={isTeacherOrAdmin} 
+                                        />
+                                    ))}
+                                </>
+                            )}
+                        </>
+                    )}
+                </div>
+
+                <TrainingsplanModal 
+                    isOpen={showModal} 
+                    onClose={() => setShowModal(false)} 
+                    onSelect={handleSelectTrainingPlan} 
+                    alGekozenIds={alGekozenIds} 
+                />
             </div>
-
-            <TrainingsplanModal 
-                isOpen={showModal} 
-                onClose={() => setShowModal(false)} 
-                onSelect={handleSelectTrainingPlan} 
-                alGekozenIds={alGekozenIds} 
-            />
-        </div>
-       </div> 
-
+        </div> 
     );
 }
