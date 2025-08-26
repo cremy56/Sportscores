@@ -362,15 +362,21 @@ export default function Groeiplan() {
 
                 {/* Leerkracht/Admin zonder geselecteerde student */}
                 {isTeacherOrAdmin && !selectedStudent ? (
-                    <div className="bg-white rounded-2xl p-8 text-center max-w-2xl mx-auto">
-                        <div className="mb-6">
-                            <svg className="mx-auto h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 max-w-2xl mx-auto">
+                        <div className="text-center">
+                            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800 mb-1">Selecteer een leerling</h3>
+                            <p className="text-sm text-slate-600 mb-1">
+                                Gebruik de zoekbalk hierboven om de evolutie van een leerling te bekijken.
+                            </p>
+                            <p className="text-xs text-slate-500">
+                                Typ voor-of achternaam
+                            </p>
                         </div>
-                        <h3 className="text-xl font-bold text-slate-800 mb-2">Selecteer een leerling</h3>
-                        <p className="text-slate-600">Gebruik de zoekbalk hierboven om de evolutie van een leerling te bekijken.</p>
-                        <p className="text-sm text-slate-500 mt-2">Typ minimaal 2 karakters om te zoeken</p>
                     </div>
                 ) : (currentProfile || !isTeacherOrAdmin) && (
                     <>

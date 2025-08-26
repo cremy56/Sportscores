@@ -280,7 +280,7 @@ export default function Evolutie() {
                                 Gebruik de zoekbalk hierboven om de evolutie van een leerling te bekijken.
                             </p>
                             <p className="text-xs text-slate-500">
-                                Typ minimaal 2 karakters om te zoeken
+                                Typ voor-of achternaam
                             </p>
                         </div>
                     </div>
