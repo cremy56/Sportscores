@@ -12,13 +12,20 @@ import ConfirmModal from '../components/ConfirmModal';
 // --- SUB-COMPONENT: Kaart voor optionele, zelfgekozen schema's ---
 const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin }) => {
     const navigate = useNavigate();
-    const [schemaExists, setSchemaExists] = useState(false);
-    const [loading, setLoading] = useState(true);
+    // Voor nieuwe schema's starten we met false, voor bestaande checken we
+    const [schemaExists, setSchemaExists] = useState(!schema.isNew);
+    const [loading, setLoading] = useState(!schema.isNew); // Geen loading voor nieuwe schemas
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const studentIdentifier = student?.id;
     const schemaInstanceId = `${studentIdentifier}_${schema.id}`;
 
     useEffect(() => {
+        // Skip de check als dit een nieuw schema is
+        if (schema.isNew) {
+            setLoading(false);
+            return;
+        }
+        
         const checkSchemaExists = async () => {
             if (!isTeacherOrAdmin && studentIdentifier) {
                 const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
@@ -28,7 +35,7 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin })
             setLoading(false);
         };
         checkSchemaExists();
-    }, [schemaInstanceId, isTeacherOrAdmin, studentIdentifier]);
+    }, [schemaInstanceId, isTeacherOrAdmin, studentIdentifier, schema.isNew]);
 
     const handleStartOrContinue = async () => {
         if (!schemaExists) {
@@ -307,7 +314,8 @@ export default function Groeiplan() {
                 voltooide_taken: {},
                 type: 'optioneel'
             });
-            setOptioneleSchemas(prev => [...prev, plan]);
+            // Voeg een "isNew" flag toe zodat de component weet dat dit net toegevoegd is
+            setOptioneleSchemas(prev => [...prev, { ...plan, isNew: true }]);
             setShowModal(false);
             toast.success("Trainingsplan toegevoegd!");
         } catch (error) { 
