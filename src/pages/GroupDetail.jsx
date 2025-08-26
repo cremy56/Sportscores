@@ -6,6 +6,7 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs, arrayUnion, 
 import toast, { Toaster } from 'react-hot-toast';
 import { TrashIcon, PlusIcon, ArrowLeftIcon, UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { ClipboardDocumentListIcon } from '@heroicons/react/24/solid';
+import ConfirmModal from '../components/ConfirmModal';
 
 // --- HELPER FUNCTIE: Bepaal start/eind van het schooljaar ---
 function getSchoolYear(date) {
@@ -127,6 +128,8 @@ export default function GroupDetail() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  const [showRemoveStudentModal, setShowRemoveStudentModal] = useState(false);
+  const [studentToRemove, setStudentToRemove] = useState(null);
   
   // AANGEPAST: State voor de scores en laadstatus
   const [scoresByLeerling, setScoresByLeerling] = useState(new Map());
@@ -224,14 +227,22 @@ export default function GroupDetail() {
     fetchScoresForGroup();
   }, [members]);
 
+  const handleRemoveStudentClick = (student) => {
+    setStudentToRemove(student);
+    setShowRemoveStudentModal(true);
+  };
 
-  const handleRemoveStudent = async (studentId) => {
+  const handleRemoveStudent = async () => {
+    if (!studentToRemove) return;
+    
     const groupRef = doc(db, 'groepen', groepId);
     try {
       await updateDoc(groupRef, {
-        leerling_ids: arrayRemove(studentId)
+        leerling_ids: arrayRemove(studentToRemove.id)
       });
-      toast.success('Leerling verwijderd!');
+      toast.success(`${studentToRemove.naam} is verwijderd uit de groep!`);
+      setShowRemoveStudentModal(false);
+      setStudentToRemove(null);
       fetchGroupData();
     } catch (error) {
       console.error("Fout bij verwijderen leerling:", error);
@@ -340,7 +351,7 @@ export default function GroupDetail() {
                                 )}
                             </div>
                             <button 
-                                onClick={() => handleRemoveStudent(lid.id)} 
+                                onClick={() => handleRemoveStudentClick(lid)} 
                                 className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
                             >
                                 <TrashIcon className="h-5 w-5" />
@@ -371,6 +382,17 @@ export default function GroupDetail() {
         onClose={() => setIsAddStudentModalOpen(false)}
         onStudentAdded={fetchGroupData}
       />
+
+      {/* Remove Student Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showRemoveStudentModal}
+        onClose={() => setShowRemoveStudentModal(false)}
+        onConfirm={handleRemoveStudent}
+        title="Leerling Verwijderen"
+      >
+        Weet u zeker dat u "{studentToRemove?.naam}" uit deze groep wilt verwijderen? 
+        Deze actie kan ongedaan gemaakt worden door de leerling opnieuw toe te voegen.
+      </ConfirmModal>
     </>
   );
 }
