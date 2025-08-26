@@ -252,7 +252,7 @@ export default function NieuweTestafname() {
                 const eenheidLower = selectedTest.eenheid?.toLowerCase();
                 
                 // Als het een tijdseenheid is, gebruik de 'vertaler'. Anders, parse als normaal getal.
-                if (['min', 'sec', 'seconden'].includes(eenheidLower)) {
+               if (eenheidLower.includes('min') || eenheidLower.includes('sec')) {
                     scoreValueInSeconds = parseTimeInputToSeconds(scoreToCalc.score);
                 } else {
                     scoreValueInSeconds = parseFloat(String(scoreToCalc.score).replace(',', '.'));
@@ -292,8 +292,8 @@ export default function NieuweTestafname() {
                 if (scoreData.score && String(scoreData.score).trim() !== '') {
                     // --- START WIJZIGING ---
                     let finalScoreValue = null;
-                    if (['min', 'sec', 'seconden'].includes(eenheidLower)) {
-                        finalScoreValue = parseTimeInputToSeconds(scoreData.score);
+                    if (eenheidLower.includes('min') || eenheidLower.includes('sec')) {
+                     finalScoreValue = parseTimeInputToSeconds(scoreData.score);
                     } else {
                         finalScoreValue = parseFloat(String(scoreData.score).replace(',', '.'));
                     }
