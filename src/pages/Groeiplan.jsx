@@ -41,15 +41,21 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin })
         if (!schemaExists) {
             const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
             try {
-                await setDoc(actiefSchemaRef, {
-                    leerling_id: studentIdentifier,
-                    schema_id: schema.id,
-                    start_datum: serverTimestamp(),
-                    huidige_week: 1,
-                    voltooide_taken: {},
-                    type: 'optioneel'
-                });
-                toast.success("Optioneel schema gestart!");
+                // Controleer eerst of het document al bestaat (kan zijn dat het net aangemaakt is)
+                const existingDoc = await getDoc(actiefSchemaRef);
+                
+                if (!existingDoc.exists()) {
+                    await setDoc(actiefSchemaRef, {
+                        leerling_id: studentIdentifier,
+                        schema_id: schema.id,
+                        start_datum: serverTimestamp(),
+                        huidige_week: 1,
+                        voltooide_taken: {},
+                        type: 'optioneel'
+                    });
+                    toast.success("Optioneel schema gestart!");
+                }
+                
                 setSchemaExists(true); // Update state zodat knoptekst verandert
             } catch (error) { 
                 toast.error("Kon schema niet starten."); 
