@@ -149,10 +149,11 @@ function App() {
                 <Route path="/setup-account" element={<SetupAccount />} />
                 <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
 
-                <Route element={<ProtectedRoute profile={profile} school={school} />}>
-                <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} />}></Route>
-                    <Route element={<Layout />}>
-                        {/* AANGEPAST: De route voor de homepagina gebruikt nu de correcte 'AdValvas' component */}
+               <Route element={<ProtectedRoute profile={profile} school={school} />}>
+                
+                    {/* --- CORRECTIE HIER --- */}
+                    {/* Combineer de twee Layout routes in één enkele route die de props én de onderliggende pagina's bevat. */}
+                    <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} />}>
                         <Route path="/" element={<AdValvas />} />
                         
                         <Route path="/highscores" element={<Highscores />} />
