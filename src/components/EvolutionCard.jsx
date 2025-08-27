@@ -521,12 +521,3 @@ useEffect(() => {
     </div>
   );
 }
-console.log('Debug ranking calculation:', {
-  testId,
-  studentScore: score,
-  scoreRichting,
-  allScores: sortedScores,
-  calculatedRank: overallRank,
-  ageGroupScores: sortedAgeScores,
-  ageRank
-});
