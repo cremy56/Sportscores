@@ -838,23 +838,16 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                 </div>
 
                 {/* XP/Points indicator - only show for validated weeks */}
-               <div className="flex items-center space-x-2">
-    {/* Toon 15 XP als taak is ingevuld */}
-                {isIngevuld && (
-                    <div className="flex items-center bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 px-3 py-1 rounded-full text-sm font-bold">
+               {isIngevuld && (
+                    <div className={`flex items-center px-3 py-1 rounded-full text-sm font-bold ${
+                        weekIsGevalideerd 
+                            ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700' 
+                            : 'bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700'
+                    }`}>
                         <StarIcon className="h-4 w-4 mr-1" />
                         +15 XP
                     </div>
                 )}
-                
-                {/* Toon trainingsXP als week gevalideerd */}
-                {weekIsGevalideerd && (
-                    <div className="flex items-center bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold">
-                        <FireIcon className="h-4 w-4 mr-1" />
-                        TrainingsXP
-                    </div>
-                )}
-            </div>
         </div>
 
             {/* Formulier voor taak voltooien */}
