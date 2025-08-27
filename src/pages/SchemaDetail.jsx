@@ -162,17 +162,17 @@ export default function SchemaDetail() {
                 // Update alle taken in deze week
                 const updatedVoltooide = { ...freshSchemaData.voltooide_taken };
                 
-                weekData.taken.forEach((taak, index) => {
-                    const taakId = `week${weekNummer}_taak${index}`;
-                    if (updatedVoltooide[taakId]) {
-                        updatedVoltooide[taakId] = {
-                            ...updatedVoltooide[taakId],
-                            gevalideerd: gevalideerd,
-                            gevalideerd_door: gevalideerd ? (profile.naam || profile.email) : null,
-                            gevalideerd_op: gevalideerd ? new Date().toISOString() : null
-                        };
-                    }
-                });
+                const updatedGevalideerdeWeken = { ...freshSchemaData.gevalideerde_weken || {} };
+    
+                if (gevalideerd) {
+                    updatedGevalideerdeWeken[`week${weekNummer}`] = {
+                        gevalideerd: true,
+                        gevalideerd_door: profile.naam || profile.email,
+                        gevalideerd_op: new Date().toISOString()
+                    };
+                } else {
+                    delete updatedGevalideerdeWeken[`week${weekNummer}`];
+                }
 
                 console.log(`Week ${weekNummer} taken bijgewerkt naar gevalideerd: ${gevalideerd}`);
 
@@ -224,17 +224,20 @@ export default function SchemaDetail() {
                 // Update database
                 await updateDoc(actiefSchemaRef, {
                     voltooide_taken: updatedVoltooide,
+                    gevalideerde_weken: updatedGevalideerdeWeken,
                     huidige_week: nieuweHuidigeWeek
                 });
 
                 console.log("Database atomic update voltooid");
 
                 // Update lokale state
-                setActiefSchema(prev => ({
+               setActiefSchema(prev => ({
                     ...prev,
                     voltooide_taken: updatedVoltooide,
+                    gevalideerde_weken: updatedGevalideerdeWeken,
                     huidige_week: nieuweHuidigeWeek
                 }));
+
 
                 console.log("Lokale state bijgewerkt");
 
@@ -310,10 +313,7 @@ export default function SchemaDetail() {
                 return actiefSchema.voltooide_taken?.[taakId]?.voltooid_op;
             });
             
-            const weekIsGevalideerd = week.taken.some((_, index) => {
-                const taakId = `week${week.week_nummer}_taak${index}`;
-                return actiefSchema.voltooide_taken?.[taakId]?.gevalideerd === true;
-            });
+            const weekIsGevalideerd = actiefSchema.gevalideerde_weken?.[`week${week.week_nummer}`]?.gevalideerd === true;
             
             return alleTakenIngevuld && weekIsGevalideerd;
         });
@@ -330,10 +330,7 @@ export default function SchemaDetail() {
                 return actiefSchema.voltooide_taken?.[taakId]?.voltooid_op;
             });
             
-            const weekIsGevalideerd = week.taken.some((_, index) => {
-                const taakId = `week${week.week_nummer}_taak${index}`;
-                return actiefSchema.voltooide_taken?.[taakId]?.gevalideerd === true;
-            });
+            const weekIsGevalideerd = actiefSchema.gevalideerde_weken?.[`week${week.week_nummer}`]?.gevalideerd === true;
             
             return alleTakenIngevuld && weekIsGevalideerd;
         }).length;
@@ -523,10 +520,7 @@ function WeekCard({ week, actiefSchema, onTaakVoltooien, onValidatieWeek, isCurr
     });
     
     // Check if week is validated
-    const weekIsGevalideerd = weekTaken.some((_, index) => {
-        const taakId = `week${week.week_nummer}_taak${index}`;
-        return actiefSchema.voltooide_taken?.[taakId]?.gevalideerd === true;
-    });
+    const weekIsGevalideerd = actiefSchema.gevalideerde_weken?.[`week${week.week_nummer}`]?.gevalideerd === true;
     
     const completedTasks = weekTaken.filter((_, index) => {
         const taakId = `week${week.week_nummer}_taak${index}`;
@@ -826,8 +820,8 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                         <div className="grid grid-cols-1 gap-2">
                             <div><span className="font-medium text-slate-700">Voltooid op:</span> {new Date(taakData.voltooid_op).toLocaleDateString('nl-NL')}</div>
                             <div><span className="font-medium text-slate-700">Door:</span> {taakData.ingevuld_door}</div>
-                            {taakData.gevalideerd_door && (
-                                <div><span className="font-medium text-slate-700">Week gevalideerd door:</span> {taakData.gevalideerd_door}</div>
+                            {weekIsGevalideerd && actiefSchema.gevalideerde_weken?.[`week${weekNummer}`] && (
+                                <div><span className="font-medium text-slate-700">Week gevalideerd door:</span> {actiefSchema.gevalideerde_weken[`week${weekNummer}`].gevalideerd_door}</div>
                             )}
                         </div>
                         <div className="pt-2 border-t border-slate-200">
