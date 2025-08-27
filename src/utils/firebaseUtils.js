@@ -646,6 +646,8 @@ export const saveWithRetry = async (batch) => {
     throw new Error(errorMessage);
   }
 };
+// src/utils/firebaseUtils.js
+
 /**
  * Berekent de ranking van een leerling voor een specifieke test
  * @param {string} testId - Het ID van de test
@@ -662,15 +664,12 @@ export async function calculateTestRanking(testId, score, leeftijd, geslacht) {
     const allScoresSnapshot = await getDocs(allScoresQuery);
     
     if (allScoresSnapshot.empty) {
-      return null;
+      return { overallRank: 1, totalStudents: 1, ageRank: 1, ageGroupTotal: 1, leeftijd };
     }
 
     // 2. Haal test info op om score_richting te bepalen
     const testDoc = await getDoc(doc(db, 'testen', testId));
-    let scoreRichting = 'hoog'; // default
-    if (testDoc.exists()) {
-      scoreRichting = testDoc.data().score_richting || 'hoog';
-    }
+    const scoreRichting = testDoc.exists() ? testDoc.data().score_richting || 'hoog' : 'hoog';
 
     // 3. Verwerk alle scores en groepeer per leerling (neem beste score)
     const studentBestScores = {};
@@ -678,94 +677,81 @@ export async function calculateTestRanking(testId, score, leeftijd, geslacht) {
     
     for (const scoreDoc of allScoresSnapshot.docs) {
       const scoreData = scoreDoc.data();
-      // GECORRIGEERD: gebruik leerling_id in plaats van student_id
       const studentId = scoreData.leerling_id;
       const studentScore = scoreData.score;
       
-      if (!studentId || !studentScore) continue;
+      if (!studentId || studentScore === null || studentScore === undefined) continue;
       
-      // Haal student info op voor leeftijd/geslacht
+      // Haal student info op voor leeftijd/geslacht indien nog niet gekend
       if (!studentAgeGender[studentId]) {
         try {
-          // GECORRIGEERD: gebruik users collectie en email als ID
-          let studentData = null;
-          
-          // Probeer eerst direct als document ID in users
-          if (studentId.includes('@')) {
-            const userDoc = await getDoc(doc(db, 'users', studentId));
-            if (userDoc.exists()) {
-              studentData = userDoc.data();
+          // Zoek in 'toegestane_gebruikers' op basis van email/ID
+          const userDoc = await getDoc(doc(db, 'toegestane_gebruikers', studentId));
+          if (userDoc.exists()) {
+            const studentData = userDoc.data();
+            if (studentData.geboortedatum) {
+              const studentAge = calculateStudentAge(studentData.geboortedatum, scoreData.datum);
+              studentAgeGender[studentId] = {
+                age: studentAge,
+                gender: studentData.geslacht
+              };
             }
-          } else {
-            // Anders zoek in leerlingen collectie
-            const leerlingDoc = await getDoc(doc(db, 'leerlingen', studentId));
-            if (leerlingDoc.exists()) {
-              studentData = leerlingDoc.data();
-            }
-          }
-          
-          if (studentData && studentData.geboortedatum) {
-            const studentAge = calculateStudentAge(studentData.geboortedatum, scoreData.datum);
-            studentAgeGender[studentId] = {
-              age: studentAge,
-              gender: studentData.geslacht
-            };
           }
         } catch (err) {
-          console.warn(`Kon student ${studentId} niet ophalen:`, err);
-          continue;
+          console.warn(`Kon student info voor ${studentId} niet ophalen:`, err);
         }
       }
       
       // Bewaar beste score per student
       if (!studentBestScores[studentId] || 
           (scoreRichting === 'hoog' && studentScore > studentBestScores[studentId]) ||
-          (scoreRichting === 'omlaag' && studentScore < studentBestScores[studentId])) {
+          (scoreRichting !== 'hoog' && studentScore < studentBestScores[studentId])) {
         studentBestScores[studentId] = studentScore;
       }
     }
 
+    // --- CORRECTIE 1: Maak een lijst van de beste scores en bepaal het totaal aantal leerlingen ---
+    const bestScoresArray = Object.values(studentBestScores);
+    const totalStudents = bestScoresArray.length;
+
+    if (totalStudents === 0) {
+        return { overallRank: 1, totalStudents: 1, ageRank: 1, ageGroupTotal: 1, leeftijd };
+    }
+
     // 4. Bereken overall ranking
-    const sortedScores = allScores.sort((a, b) => {
-      return scoreRichting === 'hoog' ? b - a : a - b; // Beste naar slechtste
+    // --- CORRECTIE 2: Gebruik de correcte 'bestScoresArray' variabele ---
+    const sortedScores = [...bestScoresArray].sort((a, b) => {
+      return scoreRichting === 'hoog' ? b - a : a - b;
     });
     
-    let betterScoresCount;
-    if (scoreRichting === 'hoog') {
-      betterScoresCount = allScores.filter(s => s > score).length;
-    } else {
-      betterScoresCount = allScores.filter(s => s < score).length;
-    }
-    // Vind de positie van deze score
     const overallRank = sortedScores.findIndex(s => {
       return scoreRichting === 'hoog' ? s <= score : s >= score;
-    }) + 1;
+    }) + 1 || 1; // Fallback naar 1
 
     // 5. Bereken leeftijdsgroep ranking (±1 jaar, zelfde geslacht)
-   const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
+    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
     const ageGroupScores = [];
     
     Object.entries(studentBestScores).forEach(([studentId, studentScore]) => {
       const studentInfo = studentAgeGender[studentId];
       if (studentInfo && 
           Math.abs(studentInfo.age - leeftijd) <= 1 && 
-          studentInfo.gender === mappedGender) {
+          GENDER_MAPPING[studentInfo.gender?.toLowerCase()] === mappedGender) {
         ageGroupScores.push(studentScore);
       }
     });
 
     let ageRank = 1;
-    const ageGroupTotal = ageGroupScores.length;
+    const ageGroupTotal = ageGroupScores.length > 0 ? ageGroupScores.length : 1;
     
-    if (ageGroupTotal > 0) {
-      // GECORRIGEERD: Zelfde logica voor leeftijdsgroep
+    if (ageGroupScores.length > 0) {
       const sortedAgeScores = ageGroupScores.sort((a, b) => {
         return scoreRichting === 'hoog' ? b - a : a - b;
       });
       
       ageRank = sortedAgeScores.findIndex(s => {
         return scoreRichting === 'hoog' ? s <= score : s >= score;
-      }) + 1;
+      }) + 1 || 1; // Fallback naar 1
     }
 
     return {
