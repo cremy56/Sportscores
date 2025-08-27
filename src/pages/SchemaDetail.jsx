@@ -518,7 +518,7 @@ function WeekCard({ week, actiefSchema, onTaakVoltooien, onValidatieWeek, isCurr
     }).length;
     
     // Calculate XP for this week
-    const weekXP = weekTaken.length * 20;
+    const weekXP = weekTaken.length * 15;
     
     return (
         <div className={`bg-white rounded-2xl shadow-sm border-2 p-6 ${
