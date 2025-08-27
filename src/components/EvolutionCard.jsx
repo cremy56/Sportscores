@@ -425,16 +425,23 @@ useEffect(() => {
         </div>
 
         {/* AANGEPAST: Trend vervangen door Status indicator */}
-       <div className="text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Ranking</p>
+      <div className="text-center">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Positie</p>
           {rankingData ? (
-            <div className="space-y-1">
-              <p className="font-bold text-purple-700 text-xs">#{rankingData.overallRank}</p>
-              <p className="text-xs text-gray-600">van {rankingData.totalStudents}</p>
-              <p className="text-xs text-orange-600">#{rankingData.ageRank} (leeftijd)</p>
+            <div className="space-y-0.5">
+              <div className="bg-purple-50 rounded px-2 py-1">
+                <span className="font-bold text-purple-700 text-sm">#{rankingData.overallRank}</span>
+                <span className="text-xs text-gray-500 ml-1">van {rankingData.totalStudents}</span>
+              </div>
+              <div className="bg-orange-50 rounded px-2 py-1">
+                <span className="font-bold text-orange-600 text-xs">#{rankingData.ageRank}</span>
+                <span className="text-xs text-gray-500 ml-1">({rankingData.leeftijd}j)</span>
+              </div>
             </div>
           ) : (
-            <p className="font-bold text-gray-800 text-sm">-</p>
+            <div className="text-center">
+              <p className="font-bold text-gray-400 text-sm">-</p>
+            </div>
           )}
         </div>
       </div>
@@ -514,3 +521,12 @@ useEffect(() => {
     </div>
   );
 }
+console.log('Debug ranking calculation:', {
+  testId,
+  studentScore: score,
+  scoreRichting,
+  allScores: sortedScores,
+  calculatedRank: overallRank,
+  ageGroupScores: sortedAgeScores,
+  ageRank
+});

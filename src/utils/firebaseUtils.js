@@ -726,8 +726,9 @@ export async function calculateTestRanking(testId, score, leeftijd, geslacht) {
     }
 
     // 4. Bereken overall ranking
-    const allScores = Object.values(studentBestScores);
-    const totalStudents = allScores.length;
+    const sortedScores = allScores.sort((a, b) => {
+      return scoreRichting === 'hoog' ? b - a : a - b; // Beste naar slechtste
+    });
     
     let betterScoresCount;
     if (scoreRichting === 'hoog') {
@@ -735,10 +736,13 @@ export async function calculateTestRanking(testId, score, leeftijd, geslacht) {
     } else {
       betterScoresCount = allScores.filter(s => s < score).length;
     }
-    const overallRank = betterScoresCount + 1;
+    // Vind de positie van deze score
+    const overallRank = sortedScores.findIndex(s => {
+      return scoreRichting === 'hoog' ? s <= score : s >= score;
+    }) + 1;
 
     // 5. Bereken leeftijdsgroep ranking (±1 jaar, zelfde geslacht)
-    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
+   const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
     const ageGroupScores = [];
     
     Object.entries(studentBestScores).forEach(([studentId, studentScore]) => {
@@ -754,13 +758,14 @@ export async function calculateTestRanking(testId, score, leeftijd, geslacht) {
     const ageGroupTotal = ageGroupScores.length;
     
     if (ageGroupTotal > 0) {
-      let betterAgeScoresCount;
-      if (scoreRichting === 'hoog') {
-        betterAgeScoresCount = ageGroupScores.filter(s => s > score).length;
-      } else {
-        betterAgeScoresCount = ageGroupScores.filter(s => s < score).length;
-      }
-      ageRank = betterAgeScoresCount + 1;
+      // GECORRIGEERD: Zelfde logica voor leeftijdsgroep
+      const sortedAgeScores = ageGroupScores.sort((a, b) => {
+        return scoreRichting === 'hoog' ? b - a : a - b;
+      });
+      
+      ageRank = sortedAgeScores.findIndex(s => {
+        return scoreRichting === 'hoog' ? s <= score : s >= score;
+      }) + 1;
     }
 
     return {
