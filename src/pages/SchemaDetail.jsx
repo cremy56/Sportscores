@@ -95,7 +95,6 @@ export default function SchemaDetail() {
                 [taakId]: {
                     voltooid_op: ervaringData.datum,
                     ervaring: ervaringData.ervaring,
-                    gevalideerd: false,
                     ingevuld_door: profile.naam || profile.email
                 }
             };
@@ -110,8 +109,7 @@ export default function SchemaDetail() {
                 voltooide_taken: updatedVoltooide
             }));
 
-            // Visuele feedback voor taak voltooiing
-            toast.success("🎯 Taak ingevuld! Wacht op validatie van je leerkracht.", {
+            toast.success("Taak ingevuld! Je leerkracht kan nu de hele week valideren.", {
                 duration: 4000,
                 style: {
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -126,314 +124,225 @@ export default function SchemaDetail() {
     };
 
     let validatieQueue = Promise.resolve();
-let isProcessingValidation = false;
+    let isProcessingValidation = false;
 
-const handleValidatieTaak = async (weekNummer, taakIndex, gevalideerd) => {
-    if (!actiefSchema || !isTeacherOrAdmin) return;
+    const handleValidatieWeek = async (weekNummer, gevalideerd) => {
+        if (!actiefSchema || !isTeacherOrAdmin) return;
 
-    // Voorkom dubbele clicks/validaties
-    if (isProcessingValidation) {
-        console.log("⏳ Validatie al bezig, wachten...");
-        return;
-    }
+        if (isProcessingValidation) {
+            console.log("Validatie al bezig, wachten...");
+            return;
+        }
 
-    // Voeg validatie toe aan queue om race conditions te voorkomen
-    validatieQueue = validatieQueue.then(async () => {
-        isProcessingValidation = true;
-        
-        console.log("=== QUEUED VALIDATION START ===");
-        console.log("Week nummer:", weekNummer);
-        console.log("Taak index:", taakIndex);
-        console.log("Gevalideerd:", gevalideerd);
+        validatieQueue = validatieQueue.then(async () => {
+            isProcessingValidation = true;
+            
+            console.log("=== WEEK VALIDATION START ===");
+            console.log("Week nummer:", weekNummer);
+            console.log("Gevalideerd:", gevalideerd);
 
-        try {
-            const taakId = `week${weekNummer}_taak${taakIndex}`;
-            console.log("Processing taak ID:", taakId);
-            
-            // Haal ALTIJD de meest recente data op uit de database
-            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-            const currentSchemaSnap = await getDoc(actiefSchemaRef);
-            
-            if (!currentSchemaSnap.exists()) {
-                throw new Error("Schema niet gevonden in database");
-            }
-            
-            const freshSchemaData = currentSchemaSnap.data();
-            console.log("Fresh data opgehaald - huidige week:", freshSchemaData.huidige_week);
-            
-            // Update de specifieke taak
-            const updatedVoltooide = {
-                ...freshSchemaData.voltooide_taken,
-                [taakId]: {
-                    ...freshSchemaData.voltooide_taken?.[taakId],
-                    gevalideerd: gevalideerd,
-                    gevalideerd_door: profile.naam || profile.email,
-                    gevalideerd_op: new Date().toISOString()
+            try {
+                // Haal fresh data op
+                const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
+                const currentSchemaSnap = await getDoc(actiefSchemaRef);
+                
+                if (!currentSchemaSnap.exists()) {
+                    throw new Error("Schema niet gevonden in database");
                 }
-            };
-
-            console.log(`Taak ${taakId} bijgewerkt naar gevalideerd: ${gevalideerd}`);
-
-            // Bereken de correcte nieuwe huidige week
-            let nieuweHuidigeWeek = freshSchemaData.huidige_week;
-
-            if (gevalideerd) {
-                console.log("✓ Validatie = true, herberekenen week progressie...");
                 
-                // Loop door alle weken in volgorde
-                const gesorteerdeWeken = schemaDetails.weken.sort((a, b) => a.week_nummer - b.week_nummer);
+                const freshSchemaData = currentSchemaSnap.data();
+                console.log("Fresh data opgehaald - huidige week:", freshSchemaData.huidige_week);
+
+                // Vind alle taken in deze week
+                const weekData = schemaDetails.weken.find(w => w.week_nummer === weekNummer);
+                if (!weekData) {
+                    throw new Error(`Week ${weekNummer} niet gevonden`);
+                }
+
+                // Update alle taken in deze week
+                const updatedVoltooide = { ...freshSchemaData.voltooide_taken };
                 
-                for (let i = 0; i < gesorteerdeWeken.length; i++) {
-                    const week = gesorteerdeWeken[i];
-                    const totaleTaken = week.taken.length;
+                weekData.taken.forEach((taak, index) => {
+                    const taakId = `week${weekNummer}_taak${index}`;
+                    if (updatedVoltooide[taakId]) {
+                        updatedVoltooide[taakId] = {
+                            ...updatedVoltooide[taakId],
+                            gevalideerd: gevalideerd,
+                            gevalideerd_door: gevalideerd ? (profile.naam || profile.email) : null,
+                            gevalideerd_op: gevalideerd ? new Date().toISOString() : null
+                        };
+                    }
+                });
+
+                console.log(`Week ${weekNummer} taken bijgewerkt naar gevalideerd: ${gevalideerd}`);
+
+                // Bereken nieuwe huidige week
+                let nieuweHuidigeWeek = freshSchemaData.huidige_week;
+
+                if (gevalideerd) {
+                    console.log("Validatie = true, herberekenen week progressie...");
                     
-                    // Tel gevalideerde taken in deze week
-                    const gevalideerdeTaken = week.taken.filter((_, index) => {
-                        const idToCheck = `week${week.week_nummer}_taak${index}`;
-                        return updatedVoltooide[idToCheck]?.gevalideerd === true;
-                    }).length;
+                    const gesorteerdeWeken = schemaDetails.weken.sort((a, b) => a.week_nummer - b.week_nummer);
                     
-                    console.log(`Week ${week.week_nummer}: ${gevalideerdeTaken}/${totaleTaken} taken gevalideerd`);
-                    
-                    // Als deze week niet volledig is, dan is dit de huidige week
-                    if (gevalideerdeTaken < totaleTaken) {
-                        nieuweHuidigeWeek = week.week_nummer;
-                        console.log(`✓ Week ${week.week_nummer} niet volledig → huidige week = ${nieuweHuidigeWeek}`);
-                        break;
-                    } else {
-                        // Week is volledig, ga naar volgende week (als die bestaat)
-                        if (i + 1 < gesorteerdeWeken.length) {
-                            nieuweHuidigeWeek = gesorteerdeWeken[i + 1].week_nummer;
-                            console.log(`✓ Week ${week.week_nummer} volledig → next week = ${nieuweHuidigeWeek}`);
-                        } else {
-                            // Dit was de laatste week - training is klaar
+                    for (let i = 0; i < gesorteerdeWeken.length; i++) {
+                        const week = gesorteerdeWeken[i];
+                        
+                        // Controleer of alle taken in deze week zijn ingevuld EN week is gevalideerd
+                        const alleTakenIngevuld = week.taken.every((_, index) => {
+                            const taakId = `week${week.week_nummer}_taak${index}`;
+                            return updatedVoltooide[taakId]?.voltooid_op;
+                        });
+                        
+                        const weekIsGevalideerd = week.taken.some((_, index) => {
+                            const taakId = `week${week.week_nummer}_taak${index}`;
+                            return updatedVoltooide[taakId]?.wgevalideerd === true;
+                        });
+                        
+                        console.log(`Week ${week.week_nummer}: taken ingevuld=${alleTakenIngevuld}, gevalideerd=${weekIsGevalideerd}`);
+                        
+                        if (!alleTakenIngevuld || !weekIsGevalideerd) {
                             nieuweHuidigeWeek = week.week_nummer;
-                            console.log(`✅ Training volledig voltooid! Laatste week: ${nieuweHuidigeWeek}`);
+                            console.log(`Week ${week.week_nummer} niet volledig -> huidige week = ${nieuweHuidigeWeek}`);
+                            break;
+                        } else {
+                            // Week is volledig, ga naar volgende week (als die bestaat)
+                            if (i + 1 < gesorteerdeWeken.length) {
+                                nieuweHuidigeWeek = gesorteerdeWeken[i + 1].week_nummer;
+                                console.log(`Week ${week.week_nummer} volledig -> next week = ${nieuweHuidigeWeek}`);
+                            } else {
+                                // Dit was de laatste week - training is klaar
+                                nieuweHuidigeWeek = week.week_nummer;
+                                console.log(`Training volledig voltooid! Laatste week: ${nieuweHuidigeWeek}`);
+                            }
                         }
                     }
                 }
-            }
-            
-            const weekIsVeranderd = nieuweHuidigeWeek !== freshSchemaData.huidige_week;
-            console.log(`Week verandering: ${freshSchemaData.huidige_week} → ${nieuweHuidigeWeek} (${weekIsVeranderd ? 'JA' : 'NEE'})`);
-            
-            // Update database in één atomic operation
-            await updateDoc(actiefSchemaRef, {
-                voltooide_taken: updatedVoltooide,
-                huidige_week: nieuweHuidigeWeek
-            });
-
-            console.log("✅ Database atomic update voltooid");
-
-            // Update lokale state
-            setActiefSchema(prev => ({
-                ...prev,
-                voltooide_taken: updatedVoltooide,
-                huidige_week: nieuweHuidigeWeek
-            }));
-
-            console.log("✅ Lokale state bijgewerkt");
-
-            // Feedback aan gebruiker
-            if (gevalideerd) {
-                await geefTrainingsbadge(taakId);
                 
-                if (weekIsVeranderd) {
-                    toast.success(`🎉 Week ${freshSchemaData.huidige_week} voltooid! Door naar week ${nieuweHuidigeWeek}!`, {
-                        duration: 6000,
-                        style: {
-                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                            color: 'white',
-                            fontWeight: 'bold'
-                        }
-                    });
+                const weekIsVeranderd = nieuweHuidigeWeek !== freshSchemaData.huidige_week;
+                console.log(`Week verandering: ${freshSchemaData.huidige_week} -> ${nieuweHuidigeWeek} (${weekIsVeranderd ? 'JA' : 'NEE'})`);
+                
+                // Update database
+                await updateDoc(actiefSchemaRef, {
+                    voltooide_taken: updatedVoltooide,
+                    huidige_week: nieuweHuidigeWeek
+                });
+
+                console.log("Database atomic update voltooid");
+
+                // Update lokale state
+                setActiefSchema(prev => ({
+                    ...prev,
+                    voltooide_taken: updatedVoltooide,
+                    huidige_week: nieuweHuidigeWeek
+                }));
+
+                console.log("Lokale state bijgewerkt");
+
+                // Feedback en badge toekenning
+                if (gevalideerd) {
+                    await geefWeekbadge(weekNummer);
+                    
+                    const aantalTaken = weekData.taken.length;
+                    const weekXP = aantalTaken * 20; // 20 XP per taak in week
+                    
+                    if (weekIsVeranderd) {
+                        toast.success(`Week ${weekNummer} voltooid! +${weekXP} XP. Door naar week ${nieuweHuidigeWeek}!`, {
+                            duration: 6000,
+                            style: {
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                color: 'white',
+                                fontWeight: 'bold'
+                            }
+                        });
+                    } else {
+                        toast.success(`Week ${weekNummer} gevalideerd! +${weekXP} XP en badge toegekend!`, {
+                            duration: 4000,
+                            style: {
+                                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                                color: 'white',
+                                fontWeight: 'bold'
+                            }
+                        });
+                    }
                 } else {
-                    toast.success("🏆 Taak gevalideerd! Badge toegekend!", {
-                        duration: 3000,
-                        style: {
-                            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                            color: 'white',
-                            fontWeight: 'bold'
-                        }
-                    });
+                    toast.success(`Week ${weekNummer} validatie ingetrokken.`);
                 }
-            } else {
-                toast.success("Validatie ingetrokken.");
+
+                console.log("=== WEEK VALIDATION END ===");
+                
+            } catch (error) {
+                console.error("Fout bij valideren week:", error);
+                toast.error("Kon de week niet valideren: " + error.message);
+            } finally {
+                isProcessingValidation = false;
             }
-
-            console.log("=== QUEUED VALIDATION END ===");
-            
-        } catch (error) {
-            console.error("✗ Fout bij valideren taak:", error);
-            toast.error("Kon de taak niet valideren: " + error.message);
-        } finally {
-            isProcessingValidation = false;
-        }
-    });
-
-    return validatieQueue;
-};
-
-// Debug functie om de huidige state te controleren
-const debugCurrentState = () => {
-    console.log("=== CURRENT STATE DEBUG ===");
-    console.log("Actief schema:", actiefSchema);
-    console.log("Schema details:", schemaDetails);
-    console.log("Huidige week:", actiefSchema?.huidige_week);
-    console.log("Voltooide taken:", actiefSchema?.voltooide_taken);
-    
-    if (actiefSchema && schemaDetails) {
-        console.log("Schema weken:", schemaDetails.weken?.map(w => ({ 
-            week_nummer: w.week_nummer, 
-            aantal_taken: w.taken?.length || 0 
-        })));
-        
-        schemaDetails.weken?.forEach(week => {
-            const completedInWeek = week.taken?.filter((_, index) => {
-                const taakId = `week${week.week_nummer}_taak${index}`;
-                const taakData = actiefSchema.voltooide_taken?.[taakId];
-                return taakData?.gevalideerd === true;
-            }).length || 0;
-            console.log(`Week ${week.week_nummer}: ${completedInWeek}/${week.taken?.length || 0} taken gevalideerd`);
         });
-    }
-    console.log("============================");
-};
 
-// Functie om inconsistenties op te lossen
-const fixWeekInconsistency = async () => {
-    if (!actiefSchema || !schemaDetails) {
-        console.log("Geen data beschikbaar voor consistency check");
-        return;
-    }
-    
-    console.log("=== FIXING WEEK INCONSISTENCY ===");
-    
-    try {
-        // Bereken de correcte huidige week
-        const gesorteerdeWeken = schemaDetails.weken.sort((a, b) => a.week_nummer - b.week_nummer);
-        let correcteHuidigeWeek = 1;
-        
-        for (let i = 0; i < gesorteerdeWeken.length; i++) {
-            const week = gesorteerdeWeken[i];
-            const totaleTaken = week.taken.length;
-            
-            const gevalideerdeTaken = week.taken.filter((_, index) => {
-                const taakId = `week${week.week_nummer}_taak${index}`;
-                return actiefSchema.voltooide_taken?.[taakId]?.gevalideerd === true;
-            }).length;
-            
-            console.log(`Week ${week.week_nummer}: ${gevalideerdeTaken}/${totaleTaken} gevalideerd`);
-            
-            if (gevalideerdeTaken < totaleTaken) {
-                correcteHuidigeWeek = week.week_nummer;
-                console.log(`Eerste onvolledige week gevonden: ${correcteHuidigeWeek}`);
-                break;
-            } else if (i + 1 < gesorteerdeWeken.length) {
-                correcteHuidigeWeek = gesorteerdeWeken[i + 1].week_nummer;
-            } else {
-                correcteHuidigeWeek = week.week_nummer;
-            }
-        }
-        
-        console.log("Huidige week in data:", actiefSchema.huidige_week);
-        console.log("Correcte huidige week:", correcteHuidigeWeek);
-        
-        if (correcteHuidigeWeek !== actiefSchema.huidige_week) {
-            console.log("🔧 REPARATIE NODIG - updating database...");
-            
-            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-            await updateDoc(actiefSchemaRef, {
-                huidige_week: correcteHuidigeWeek
-            });
-            
-            setActiefSchema(prev => ({
-                ...prev,
-                huidige_week: correcteHuidigeWeek
-            }));
-            
-            toast.success(`✅ Week bijgewerkt van ${actiefSchema.huidige_week} naar ${correcteHuidigeWeek}!`, {
-                duration: 5000,
-                style: {
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                    color: 'white',
-                    fontWeight: 'bold'
-                }
-            });
-            
-            console.log("✅ Week inconsistentie opgelost!");
-        } else {
-            console.log("✅ Week consistentie is correct");
-        }
-        
-    } catch (error) {
-        console.error("Fout bij repareren inconsistentie:", error);
-        toast.error("Kon week niet bijwerken");
-    }
-    
-    console.log("=== INCONSISTENCY FIX COMPLETE ===");
-};
+        return validatieQueue;
+    };
 
-// Update je useEffect om automatisch te repareren bij het laden
-useEffect(() => {
-    if (actiefSchema && schemaDetails) {
-        debugCurrentState();
-        
-        // Automatische consistency check na 1 seconde
-        setTimeout(() => {
-            fixWeekInconsistency();
-        }, 1000);
-    }
-}, [actiefSchema, schemaDetails]);
-
-    const geefTrainingsbadge = async (taakId) => {
+    const geefWeekbadge = async (weekNummer) => {
         try {
             const leerlingId = actiefSchema.leerling_id;
-            const badgeId = `${schemaId}_${taakId}`;
+            const badgeId = `${schemaId}_week${weekNummer}`;
             
             const badgeRef = doc(db, 'gebruiker_badges', badgeId);
             await setDoc(badgeRef, {
                 leerling_id: leerlingId,
-                badge_type: 'trainingsbadge',
+                badge_type: 'weekbadge',
                 schema_id: schemaDetails.id,
-                taak_id: taakId,
+                week_nummer: weekNummer,
                 behaald_op: new Date().toISOString(),
-                titel: `Training Voltooid: ${schemaDetails.naam}`,
-                beschrijving: `Taak succesvol voltooid in week ${taakId.split('_')[0].replace('week', '')}`
+                titel: `Week ${weekNummer} Voltooid: ${schemaDetails.naam}`,
+                beschrijving: `Alle taken van week ${weekNummer} succesvol voltooid`
             });
         } catch (error) {
-            console.error("Fout bij toekennen badge:", error);
+            console.error("Fout bij toekennen weekbadge:", error);
         }
     };
 
     const checkVolledigheid = () => {
         if (!actiefSchema || !schemaDetails) return false;
         
-        const totaleTaken = schemaDetails.weken.reduce((total, week) => 
-            total + week.taken.length, 0
-        );
-        
-        const gevalideerdeTaken = Object.values(actiefSchema.voltooide_taken || {})
-            .filter(taak => taak.gevalideerd).length;
+        return schemaDetails.weken.every(week => {
+            const alleTakenIngevuld = week.taken.every((_, index) => {
+                const taakId = `week${week.week_nummer}_taak${index}`;
+                return actiefSchema.voltooide_taken?.[taakId]?.voltooid_op;
+            });
             
-        return gevalideerdeTaken === totaleTaken;
+            const weekIsGevalideerd = week.taken.some((_, index) => {
+                const taakId = `week${week.week_nummer}_taak${index}`;
+                return actiefSchema.voltooide_taken?.[taakId]?.gevalideerd === true;
+            });
+            
+            return alleTakenIngevuld && weekIsGevalideerd;
+        });
     };
 
     const getProgressStats = () => {
         if (!actiefSchema || !schemaDetails) return { completed: 0, total: 0, percentage: 0, badges: 0 };
         
-        const totaleTaken = schemaDetails.weken.reduce((total, week) => 
-            total + week.taken.length, 0
-        );
+        const totalWeken = schemaDetails.weken.length;
         
-        const gevalideerdeTaken = Object.values(actiefSchema.voltooide_taken || {})
-            .filter(taak => taak.gevalideerd).length;
+        const gevalideerdeWeken = schemaDetails.weken.filter(week => {
+            const alleTakenIngevuld = week.taken.every((_, index) => {
+                const taakId = `week${week.week_nummer}_taak${index}`;
+                return actiefSchema.voltooide_taken?.[taakId]?.voltooid_op;
+            });
             
+            const weekIsGevalideerd = week.taken.some((_, index) => {
+                const taakId = `week${week.week_nummer}_taak${index}`;
+                return actiefSchema.voltooide_taken?.[taakId]?.gevalideerd === true;
+            });
+            
+            return alleTakenIngevuld && weekIsGevalideerd;
+        }).length;
+        
         return {
-            completed: gevalideerdeTaken,
-            total: totaleTaken,
-            percentage: totaleTaken > 0 ? Math.round((gevalideerdeTaken / totaleTaken) * 100) : 0,
-            badges: gevalideerdeTaken
+            completed: gevalideerdeWeken,
+            total: totalWeken,
+            percentage: totalWeken > 0 ? Math.round((gevalideerdeWeken / totalWeken) * 100) : 0,
+            badges: gevalideerdeWeken
         };
     };
 
@@ -515,7 +424,7 @@ useEffect(() => {
                             </p>
                         </div>
                         
-                        {/* Progress Stats */}
+                        {/* Progress Stats - Now based on weeks */}
                         <div className="flex items-center space-x-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4">
                             <div className="text-center">
                                 <div className="text-2xl font-bold text-purple-600">{progressStats.percentage}%</div>
@@ -526,11 +435,11 @@ useEffect(() => {
                                     <StarIcon className="h-6 w-6 mr-1" />
                                     {progressStats.badges}
                                 </div>
-                                <div className="text-sm text-slate-600">Badges</div>
+                                <div className="text-sm text-slate-600">Weekbadges</div>
                             </div>
                             <div className="text-center">
                                 <div className="text-2xl font-bold text-green-600">{progressStats.completed}/{progressStats.total}</div>
-                                <div className="text-sm text-slate-600">Taken</div>
+                                <div className="text-sm text-slate-600">Weken</div>
                             </div>
                         </div>
                     </div>
@@ -554,9 +463,9 @@ useEffect(() => {
                                 <TrophyIcon className="h-8 w-8 text-green-600" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold text-green-800 mb-1">Training Voltooid! 🎉</h3>
+                                <h3 className="text-xl font-bold text-green-800 mb-1">Training Voltooid!</h3>
                                 <p className="text-green-700">
-                                    Alle taken zijn succesvol afgerond. Je kunt nu een nieuwe evaluatie aanvragen bij je leerkracht.
+                                    Alle weken zijn succesvol afgerond. Je kunt nu een nieuwe evaluatie aanvragen bij je leerkracht.
                                 </p>
                             </div>
                         </div>
@@ -574,8 +483,8 @@ useEffect(() => {
                                 <h4 className="font-bold text-blue-800 mb-2 text-lg">Belangrijk voor jouw training:</h4>
                                 <p className="text-blue-700 leading-relaxed">
                                     Film jezelf tijdens het uitvoeren van de oefeningen en toon deze aan je leerkracht. 
-                                    Alleen dan kan je leerkracht je prestatie valideren en ontvang je een <span className="font-semibold">trainingsbadge</span>! 
-                                    Elke gevalideerde taak levert je punten op.
+                                    Je leerkracht valideert hele weken in één keer. Na weekvalidatie ontvang je 
+                                    <span className="font-semibold"> een weekbadge en XP punten</span>!
                                 </p>
                             </div>
                         </div>
@@ -590,7 +499,7 @@ useEffect(() => {
                             week={week}
                             actiefSchema={actiefSchema}
                             onTaakVoltooien={handleTaakVoltooien}
-                            onValidatieTaak={handleValidatieTaak}
+                            onValidatieWeek={handleValidatieWeek}
                             isCurrentUser={isCurrentUser}
                             isTeacherOrAdmin={isTeacherOrAdmin}
                             profile={profile}
@@ -602,30 +511,54 @@ useEffect(() => {
     );
 }
 
-// Enhanced WeekCard component
-function WeekCard({ week, actiefSchema, onTaakVoltooien, onValidatieTaak, isCurrentUser, isTeacherOrAdmin, profile }) {
+// Updated WeekCard component
+function WeekCard({ week, actiefSchema, onTaakVoltooien, onValidatieWeek, isCurrentUser, isTeacherOrAdmin, profile }) {
     const isCurrentWeek = week.week_nummer === actiefSchema.huidige_week;
     const weekTaken = week.taken || [];
+    
+    // Check if all tasks in this week are completed (have feedback)
+    const alleTakenIngevuld = weekTaken.every((_, index) => {
+        const taakId = `week${week.week_nummer}_taak${index}`;
+        return actiefSchema.voltooide_taken?.[taakId]?.voltooid_op;
+    });
+    
+    // Check if week is validated
+    const weekIsGevalideerd = weekTaken.some((_, index) => {
+        const taakId = `week${week.week_nummer}_taak${index}`;
+        return actiefSchema.voltooide_taken?.[taakId]?.gevalideerd === true;
+    });
+    
     const completedTasks = weekTaken.filter((_, index) => {
         const taakId = `week${week.week_nummer}_taak${index}`;
-        return actiefSchema.voltooide_taken?.[taakId]?.gevalideerd;
+        return actiefSchema.voltooide_taken?.[taakId]?.voltooid_op;
     }).length;
+    
+    // Calculate XP for this week
+    const weekXP = weekTaken.length * 20;
     
     return (
         <div className={`bg-white rounded-2xl shadow-sm border-2 p-6 ${
+            weekIsGevalideerd ? 'border-green-300 bg-gradient-to-br from-green-50 to-emerald-50' :
             isCurrentWeek ? 'border-purple-300 bg-gradient-to-br from-purple-50 to-blue-50' : 'border-slate-200'
         }`}>
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
+                        weekIsGevalideerd ? 'bg-green-600 text-white' :
                         isCurrentWeek ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600'
                     }`}>
-                        {week.week_nummer}
+                        {weekIsGevalideerd ? <CheckCircleIcon className="h-6 w-6" /> : week.week_nummer}
                     </div>
                     <div>
                         <h3 className="text-xl font-bold text-slate-800">
                             Week {week.week_nummer}
-                            {isCurrentWeek && (
+                            {weekIsGevalideerd && (
+                                <span className="ml-3 text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium">
+                                    <StarIcon className="inline h-4 w-4 mr-1" />
+                                    Gevalideerd +{weekXP}XP
+                                </span>
+                            )}
+                            {isCurrentWeek && !weekIsGevalideerd && (
                                 <span className="ml-3 text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">
                                     <FireIcon className="inline h-4 w-4 mr-1" />
                                     Huidige week
@@ -636,10 +569,40 @@ function WeekCard({ week, actiefSchema, onTaakVoltooien, onValidatieTaak, isCurr
                     </div>
                 </div>
                 
-                {/* Week Progress */}
+                {/* Week Progress and Validation */}
                 <div className="text-right">
-                    <div className="text-lg font-bold text-slate-800">{completedTasks}/{weekTaken.length}</div>
-                    <div className="text-sm text-slate-600">taken voltooid</div>
+                    <div className="text-lg font-bold text-slate-800 mb-1">{completedTasks}/{weekTaken.length}</div>
+                    <div className="text-sm text-slate-600 mb-3">taken ingevuld</div>
+                    
+                    {/* Teacher validation button */}
+                    {isTeacherOrAdmin && alleTakenIngevuld && (
+                        <div className="space-y-2">
+                            {!weekIsGevalideerd ? (
+                                <button 
+                                    onClick={() => onValidatieWeek(week.week_nummer, true)}
+                                    className="flex items-center px-4 py-2 bg-green-100 text-green-700 rounded-xl text-sm font-medium hover:bg-green-200 transition-all duration-200 hover:scale-105"
+                                >
+                                    <CheckCircleIcon className="h-4 w-4 mr-1" />
+                                    Valideer Week
+                                </button>
+                            ) : (
+                                <button 
+                                    onClick={() => onValidatieWeek(week.week_nummer, false)}
+                                    className="flex items-center px-4 py-2 bg-red-100 text-red-700 rounded-xl text-sm font-medium hover:bg-red-200 transition-all duration-200"
+                                >
+                                    Trek validatie in
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    
+                    {/* Status for students */}
+                    {!isTeacherOrAdmin && alleTakenIngevuld && !weekIsGevalideerd && (
+                        <div className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">
+                            <ClockIcon className="inline h-4 w-4 mr-1" />
+                            Wacht op validatie
+                        </div>
+                    )}
                 </div>
             </div>
             
@@ -652,10 +615,10 @@ function WeekCard({ week, actiefSchema, onTaakVoltooien, onValidatieTaak, isCurr
                         taakIndex={index}
                         actiefSchema={actiefSchema}
                         onTaakVoltooien={onTaakVoltooien}
-                        onValidatieTaak={onValidatieTaak}
                         isCurrentUser={isCurrentUser}
                         isTeacherOrAdmin={isTeacherOrAdmin}
                         profile={profile}
+                        weekIsGevalideerd={weekIsGevalideerd}
                     />
                 ))}
             </div>
@@ -663,8 +626,8 @@ function WeekCard({ week, actiefSchema, onTaakVoltooien, onValidatieTaak, isCurr
     );
 }
 
-// Enhanced TaakCard component
-function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, onValidatieTaak, isCurrentUser, isTeacherOrAdmin, profile }) {
+// Updated TaakCard component - simplified for weekly validation
+function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, isCurrentUser, isTeacherOrAdmin, profile, weekIsGevalideerd }) {
     const [showForm, setShowForm] = useState(false);
     const [showInstructions, setShowInstructions] = useState(false);
     const [oefeningDetails, setOefeningDetails] = useState(null);
@@ -701,8 +664,7 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
 
     const taakId = `week${weekNummer}_taak${taakIndex}`;
     const taakData = actiefSchema.voltooide_taken?.[taakId];
-    const isVoltooid = !!taakData;
-    const isGevalideerd = taakData?.gevalideerd || false;
+    const isIngevuld = !!taakData?.voltooid_op;
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -717,14 +679,14 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
 
     return (
         <div className={`relative rounded-2xl border-2 p-6 transition-all duration-300 ${
-            isGevalideerd ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 shadow-lg' : 
-            isVoltooid ? 'bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-200' : 
+            weekIsGevalideerd ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : 
+            isIngevuld ? 'bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200' : 
             'bg-white border-slate-200 hover:border-purple-200 hover:shadow-md'
         }`}>
             
-            {/* Badge indicator for completed tasks */}
-            {isGevalideerd && (
-                <div className="absolute -top-2 -right-2 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full p-2 shadow-lg">
+            {/* Badge indicator for validated week */}
+            {weekIsGevalideerd && (
+                <div className="absolute -top-2 -right-2 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full p-2 shadow-lg">
                     <StarIcon className="h-5 w-5 text-white" />
                 </div>
             )}
@@ -738,16 +700,16 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                         
                         {/* Status badge */}
                         <div className="flex items-center space-x-2 mb-3">
-                            {isGevalideerd ? (
+                            {weekIsGevalideerd ? (
                                 <div className="flex items-center bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
                                     <CheckCircleIcon className="h-4 w-4 mr-1" />
-                                    <span>Gevalideerd</span>
+                                    <span>Week gevalideerd</span>
                                     <SparklesIcon className="h-4 w-4 ml-2 text-yellow-500" />
                                 </div>
-                            ) : isVoltooid ? (
-                                <div className="flex items-center bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">
-                                    <ClockIcon className="h-4 w-4 mr-1" />
-                                    <span>Wacht op validatie</span>
+                            ) : isIngevuld ? (
+                                <div className="flex items-center bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                                    <CheckCircleIcon className="h-4 w-4 mr-1" />
+                                    <span>Ingevuld</span>
                                 </div>
                             ) : (
                                 <div className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm font-medium">
@@ -793,7 +755,7 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                                     <div 
                                         className={`text-slate-500 text-sm text-center px-4 ${oefeningDetails.visuele_media_url ? 'hidden' : 'block'}`}
                                     >
-                                        🎬 {oefeningDetails.naam || taak.omschrijving || 'Oefening'} - Geen demonstratie beschikbaar
+                                        {oefeningDetails.naam || taak.omschrijving || 'Oefening'} - Geen demonstratie beschikbaar
                                     </div>
                                 </div>
                                 
@@ -841,7 +803,7 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                                     ) : (
                                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                                             <p className="text-yellow-800 text-sm">
-                                                ⚠️ Geen instructies beschikbaar voor deze oefening. 
+                                                Geen instructies beschikbaar voor deze oefening. 
                                                 Vraag je leerkracht om meer informatie.
                                             </p>
                                         </div>
@@ -851,7 +813,7 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                         ) : (
                             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                                 <p className="text-red-800 text-sm">
-                                    ❌ Kon oefening details niet laden (ID: {taak.oefening_id})
+                                    Kon oefening details niet laden (ID: {taak.oefening_id})
                                 </p>
                             </div>
                         )}
@@ -865,7 +827,7 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                             <div><span className="font-medium text-slate-700">Voltooid op:</span> {new Date(taakData.voltooid_op).toLocaleDateString('nl-NL')}</div>
                             <div><span className="font-medium text-slate-700">Door:</span> {taakData.ingevuld_door}</div>
                             {taakData.gevalideerd_door && (
-                                <div><span className="font-medium text-slate-700">Gevalideerd door:</span> {taakData.gevalideerd_door}</div>
+                                <div><span className="font-medium text-slate-700">Week gevalideerd door:</span> {taakData.gevalideerd_door}</div>
                             )}
                         </div>
                         <div className="pt-2 border-t border-slate-200">
@@ -876,52 +838,26 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                 )}
             </div>
 
-            {/* Action buttons */}
+            {/* Action buttons - simplified for weekly validation */}
             <div className="flex items-center justify-between pt-4 border-t border-slate-200">
                 <div className="flex items-center space-x-3">
                     {/* Leerling acties */}
-                    {isCurrentUser && !isTeacherOrAdmin && !isVoltooid && (
+                    {isCurrentUser && !isTeacherOrAdmin && !isIngevuld && (
                         <button 
                             onClick={() => setShowForm(true)}
                             className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:from-purple-700 hover:to-blue-700 transform transition-all duration-200 hover:scale-105 shadow-md"
                         >
                             <CheckCircleIcon className="h-4 w-4 mr-2" />
-                            Markeer als voltooid
+                            Geef feedback
                         </button>
-                    )}
-
-                    {/* Leerkracht validatie */}
-                    {isTeacherOrAdmin && isVoltooid && (
-                        <div className="flex items-center space-x-2">
-                            <button 
-                                onClick={() => onValidatieTaak(weekNummer, taakIndex, true)}
-                                className={`flex items-center px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                                    isGevalideerd 
-                                        ? 'bg-green-600 text-white cursor-default' 
-                                        : 'bg-green-100 text-green-700 hover:bg-green-200 hover:scale-105'
-                                }`}
-                                disabled={isGevalideerd}
-                            >
-                                <CheckCircleIcon className="h-4 w-4 mr-1" />
-                                {isGevalideerd ? 'Gevalideerd' : 'Valideer'}
-                            </button>
-                            {isVoltooid && !isGevalideerd && (
-                                <button 
-                                    onClick={() => onValidatieTaak(weekNummer, taakIndex, false)}
-                                    className="flex items-center px-3 py-2 bg-red-100 text-red-700 rounded-xl text-sm font-medium hover:bg-red-200 transition-all duration-200 hover:scale-105"
-                                >
-                                    ✗ Afwijzen
-                                </button>
-                            )}
-                        </div>
                     )}
                 </div>
 
-                {/* XP/Points indicator */}
-                {isGevalideerd && (
-                    <div className="flex items-center bg-gradient-to-r from-yellow-100 to-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-bold">
+                {/* XP/Points indicator - only show for validated weeks */}
+                {weekIsGevalideerd && (
+                    <div className="flex items-center bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold">
                         <StarIcon className="h-4 w-4 mr-1" />
-                        +50 XP
+                        Week XP
                     </div>
                 )}
             </div>
@@ -934,8 +870,8 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                             <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <CheckCircleIcon className="w-8 h-8 text-purple-600" />
                             </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">Taak Voltooien</h3>
-                            <p className="text-gray-600 text-sm">Vertel ons hoe de oefening ging!</p>
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">Feedback Geven</h3>
+                            <p className="text-gray-600 text-sm">Vertel ons hoe deze oefening ging!</p>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
