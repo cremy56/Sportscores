@@ -646,3 +646,175 @@ export const saveWithRetry = async (batch) => {
     throw new Error(errorMessage);
   }
 };
+/**
+ * Berekent de ranking van een leerling voor een specifieke test
+ * @param {string} testId - Het ID van de test
+ * @param {number} score - De score van de leerling
+ * @param {number} leeftijd - De leeftijd van de leerling
+ * @param {string} geslacht - Het geslacht van de leerling ('M' of 'V')
+ * @returns {Promise<Object|null>} Ranking object of null bij fout
+ */
+export async function calculateTestRanking(testId, score, leeftijd, geslacht) {
+  try {
+    // 1. Haal alle scores op voor deze test
+    const scoresRef = collection(db, 'scores');
+    const allScoresQuery = query(scoresRef, where('test_id', '==', testId));
+    const allScoresSnapshot = await getDocs(allScoresQuery);
+    
+    if (allScoresSnapshot.empty) {
+      return null;
+    }
+
+    // 2. Haal test info op om score_richting te bepalen
+    const testDoc = await getDoc(doc(db, 'testen', testId));
+    let scoreRichting = 'hoog'; // default
+    if (testDoc.exists()) {
+      scoreRichting = testDoc.data().score_richting || 'hoog';
+    }
+
+    // 3. Verwerk alle scores en groepeer per leerling (neem beste score)
+    const studentBestScores = {};
+    const studentAgeGender = {};
+    
+    for (const scoreDoc of allScoresSnapshot.docs) {
+      const scoreData = scoreDoc.data();
+      // GECORRIGEERD: gebruik leerling_id in plaats van student_id
+      const studentId = scoreData.leerling_id;
+      const studentScore = scoreData.score;
+      
+      if (!studentId || !studentScore) continue;
+      
+      // Haal student info op voor leeftijd/geslacht
+      if (!studentAgeGender[studentId]) {
+        try {
+          // GECORRIGEERD: gebruik users collectie en email als ID
+          let studentData = null;
+          
+          // Probeer eerst direct als document ID in users
+          if (studentId.includes('@')) {
+            const userDoc = await getDoc(doc(db, 'users', studentId));
+            if (userDoc.exists()) {
+              studentData = userDoc.data();
+            }
+          } else {
+            // Anders zoek in leerlingen collectie
+            const leerlingDoc = await getDoc(doc(db, 'leerlingen', studentId));
+            if (leerlingDoc.exists()) {
+              studentData = leerlingDoc.data();
+            }
+          }
+          
+          if (studentData && studentData.geboortedatum) {
+            const studentAge = calculateStudentAge(studentData.geboortedatum, scoreData.datum);
+            studentAgeGender[studentId] = {
+              age: studentAge,
+              gender: studentData.geslacht
+            };
+          }
+        } catch (err) {
+          console.warn(`Kon student ${studentId} niet ophalen:`, err);
+          continue;
+        }
+      }
+      
+      // Bewaar beste score per student
+      if (!studentBestScores[studentId] || 
+          (scoreRichting === 'hoog' && studentScore > studentBestScores[studentId]) ||
+          (scoreRichting === 'omlaag' && studentScore < studentBestScores[studentId])) {
+        studentBestScores[studentId] = studentScore;
+      }
+    }
+
+    // 4. Bereken overall ranking
+    const allScores = Object.values(studentBestScores);
+    const totalStudents = allScores.length;
+    
+    let betterScoresCount;
+    if (scoreRichting === 'hoog') {
+      betterScoresCount = allScores.filter(s => s > score).length;
+    } else {
+      betterScoresCount = allScores.filter(s => s < score).length;
+    }
+    const overallRank = betterScoresCount + 1;
+
+    // 5. Bereken leeftijdsgroep ranking (±1 jaar, zelfde geslacht)
+    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
+    const ageGroupScores = [];
+    
+    Object.entries(studentBestScores).forEach(([studentId, studentScore]) => {
+      const studentInfo = studentAgeGender[studentId];
+      if (studentInfo && 
+          Math.abs(studentInfo.age - leeftijd) <= 1 && 
+          studentInfo.gender === mappedGender) {
+        ageGroupScores.push(studentScore);
+      }
+    });
+
+    let ageRank = 1;
+    const ageGroupTotal = ageGroupScores.length;
+    
+    if (ageGroupTotal > 0) {
+      let betterAgeScoresCount;
+      if (scoreRichting === 'hoog') {
+        betterAgeScoresCount = ageGroupScores.filter(s => s > score).length;
+      } else {
+        betterAgeScoresCount = ageGroupScores.filter(s => s < score).length;
+      }
+      ageRank = betterAgeScoresCount + 1;
+    }
+
+    return {
+      overallRank,
+      totalStudents,
+      ageRank,
+      ageGroupTotal,
+      leeftijd
+    };
+
+  } catch (error) {
+    console.error('Error calculating ranking:', error);
+    return null;
+  }
+}
+
+// Helper functie voor leeftijd berekening
+function calculateStudentAge(birthDate, testDate) {
+  // Zelfde logica als in EvolutionCard.jsx calculateAge functie
+  let birthDateObj, testDateObj;
+  
+  try {
+    if (typeof birthDate === 'string') {
+      birthDateObj = new Date(birthDate);
+    } else if (birthDate.toDate && typeof birthDate.toDate === 'function') {
+      birthDateObj = birthDate.toDate();
+    } else if (birthDate instanceof Date) {
+      birthDateObj = birthDate;
+    } else {
+      return null;
+    }
+
+    if (typeof testDate === 'string') {
+      testDateObj = new Date(testDate);
+    } else if (testDate.toDate && typeof testDate.toDate === 'function') {
+      testDateObj = testDate.toDate();
+    } else if (testDate instanceof Date) {
+      testDateObj = testDate;
+    } else {
+      return null;
+    }
+
+    if (isNaN(birthDateObj.getTime()) || isNaN(testDateObj.getTime())) {
+      return null;
+    }
+
+    let age = testDateObj.getFullYear() - birthDateObj.getFullYear();
+    if (testDateObj.getMonth() < birthDateObj.getMonth() || 
+        (testDateObj.getMonth() === birthDateObj.getMonth() && testDateObj.getDate() < birthDateObj.getDate())) {
+      age--;
+    }
+
+    return age >= 0 && age <= 100 ? age : null;
+  } catch (error) {
+    return null;
+  }
+}

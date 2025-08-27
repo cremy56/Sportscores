@@ -3,7 +3,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import EvolutionChart from './EvolutionChart';
 import { formatDate, formatScoreWithUnit } from '../utils/formatters.js';
-import { getScoreNorms } from '../utils/firebaseUtils'; // <-- AAN TE PASSEN NAAM INDIEN NODIG
+
+import { getScoreNorms, calculateTestRanking } from '../utils/firebaseUtils';
 
 
 export default function EvolutionCard({ categoryName, tests, student }) {
@@ -13,7 +14,7 @@ export default function EvolutionCard({ categoryName, tests, student }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const cardRef = useRef(null);
-
+const [rankingData, setRankingData] = useState(null);
   const currentTest = tests[currentIndex];
 
   // FIXED: Enhanced age calculation with proper validation
@@ -245,6 +246,39 @@ useEffect(() => {
     fetchNorms();
   }, [currentTest, student, calculateAge]);
 
+  useEffect(() => {
+  const fetchRanking = async () => {
+    if (!currentTest?.personal_best_score || !currentTest?.test_id || !student?.geboortedatum) {
+      setRankingData(null);
+      return;
+    }
+    
+    try {
+      const testDate = currentTest.personal_best_datum || new Date();
+      const leeftijd = calculateAge(student.geboortedatum, testDate);
+      
+      if (leeftijd === null) {
+        setRankingData(null);
+        return;
+      }
+
+      const ranking = await calculateTestRanking(
+        currentTest.test_id,
+        currentTest.personal_best_score,
+        leeftijd,
+        student.geslacht
+      );
+      
+      setRankingData(ranking);
+    } catch (error) {
+      console.error('Error fetching ranking:', error);
+      setRankingData(null);
+    }
+  };
+
+  fetchRanking();
+}, [currentTest, student, calculateAge]);
+
   // Keyboard navigatie
   useEffect(() => {
     const handleKeyPress = (event) => {
@@ -391,18 +425,17 @@ useEffect(() => {
         </div>
 
         {/* AANGEPAST: Trend vervangen door Status indicator */}
-        <div className="text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Status</p>
-            {performanceIndicator ? (
-              <div className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${performanceIndicator.color}`}>
-                {performanceIndicator.icon} {performanceIndicator.level}
-              </div>
-            ) : (
-              <p className="font-bold text-gray-800 text-sm mt-1">-</p>
-            )}
-          <p className="text-xs text-gray-500 mt-1.5">
-            {totalScores} scores
-          </p>
+       <div className="text-center">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Ranking</p>
+          {rankingData ? (
+            <div className="space-y-1">
+              <p className="font-bold text-purple-700 text-xs">#{rankingData.overallRank}</p>
+              <p className="text-xs text-gray-600">van {rankingData.totalStudents}</p>
+              <p className="text-xs text-orange-600">#{rankingData.ageRank} (leeftijd)</p>
+            </div>
+          ) : (
+            <p className="font-bold text-gray-800 text-sm">-</p>
+          )}
         </div>
       </div>
 
