@@ -426,12 +426,12 @@ useEffect(() => {
 
         {/* AANGEPAST: Trend vervangen door Status indicator */}
       <div className="text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Positie</p>
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Ranking</p>
           {rankingData ? (
             <div className="space-y-0.5">
               <div className="bg-purple-50 rounded px-2 py-1">
                 <span className="font-bold text-purple-700 text-sm">#{rankingData.overallRank}</span>
-                <span className="text-xs text-gray-500 ml-1">van {rankingData.totalStudents}</span>
+                <span className="text-xs text-gray-500 ml-1">/ {rankingData.totalStudents}</span>
               </div>
               <div className="bg-orange-50 rounded px-2 py-1">
                 <span className="font-bold text-orange-600 text-xs">#{rankingData.ageRank}</span>
