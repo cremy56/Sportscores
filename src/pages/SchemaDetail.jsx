@@ -243,10 +243,10 @@ export default function SchemaDetail() {
 
                 // Feedback en badge toekenning
                 if (gevalideerd) {
-                    await geefWeekbadge(weekNummer);
+                    await geefTrainingbadge(weekNummer);
                     
                     const aantalTaken = weekData.taken.length;
-                    const weekXP = aantalTaken * 20; // 20 XP per taak in week
+                    const weekXP = aantalTaken * 15; // 15 XP per taak in week
                     
                     if (weekIsVeranderd) {
                         toast.success(`Week ${weekNummer} voltooid! +${weekXP} XP. Door naar week ${nieuweHuidigeWeek}!`, {
@@ -284,25 +284,25 @@ export default function SchemaDetail() {
         return validatieQueue;
     };
 
-    const geefWeekbadge = async (weekNummer) => {
-        try {
-            const leerlingId = actiefSchema.leerling_id;
-            const badgeId = `${schemaId}_week${weekNummer}`;
-            
-            const badgeRef = doc(db, 'gebruiker_badges', badgeId);
-            await setDoc(badgeRef, {
-                leerling_id: leerlingId,
-                badge_type: 'weekbadge',
-                schema_id: schemaDetails.id,
-                week_nummer: weekNummer,
-                behaald_op: new Date().toISOString(),
-                titel: `Week ${weekNummer} Voltooid: ${schemaDetails.naam}`,
-                beschrijving: `Alle taken van week ${weekNummer} succesvol voltooid`
-            });
-        } catch (error) {
-            console.error("Fout bij toekennen weekbadge:", error);
-        }
-    };
+   const geefTrainingbadge = async (weekNummer) => {
+    try {
+        const leerlingId = actiefSchema.leerling_id;
+        const badgeId = `${schemaId}_week${weekNummer}`;
+        
+        const badgeRef = doc(db, 'gebruiker_badges', badgeId);
+        await setDoc(badgeRef, {
+            leerling_id: leerlingId,
+            badge_type: 'trainingsbadge',
+            schema_id: schemaDetails.id,
+            week_nummer: weekNummer,
+            behaald_op: new Date().toISOString(),
+            titel: `Week ${weekNummer} Training Voltooid: ${schemaDetails.naam}`,
+            beschrijving: `Alle opdrachten van week ${weekNummer} succesvol voltooid`
+        });
+    } catch (error) {
+        console.error("Fout bij toekennen trainingsbadge:", error);
+    }
+};
 
     const checkVolledigheid = () => {
         if (!actiefSchema || !schemaDetails) return false;
@@ -432,7 +432,7 @@ export default function SchemaDetail() {
                                     <StarIcon className="h-6 w-6 mr-1" />
                                     {progressStats.badges}
                                 </div>
-                                <div className="text-sm text-slate-600">Weekbadges</div>
+                                <div className="text-sm text-slate-600">Trainingsbadges</div>
                             </div>
                             <div className="text-center">
                                 <div className="text-2xl font-bold text-green-600">{progressStats.completed}/{progressStats.total}</div>
@@ -842,7 +842,7 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                             className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:from-purple-700 hover:to-blue-700 transform transition-all duration-200 hover:scale-105 shadow-md"
                         >
                             <CheckCircleIcon className="h-4 w-4 mr-2" />
-                            Geef feedback
+                            Opdracht voltooid
                         </button>
                     )}
                 </div>
