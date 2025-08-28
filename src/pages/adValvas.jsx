@@ -1194,80 +1194,81 @@ const generateUpcomingEvents = () => {
   };
 
   // Enhanced Podium Card met meer animaties
-  const PodiumCard = ({ score, position }) => {
-    const podiumColors = {
-      1: { 
-        bg: 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600', 
-        text: 'text-yellow-900', 
-        icon: '🥇',
-        shadow: 'shadow-yellow-500/30'
-      },
-      2: { 
-        bg: 'bg-gradient-to-br from-gray-300 via-gray-400 to-gray-500', 
-        text: 'text-gray-900', 
-        icon: '🥈',
-        shadow: 'shadow-gray-500/30'
-      },
-      3: { 
-        bg: 'bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600', 
-        text: 'text-orange-900', 
-        icon: '🥉',
-        shadow: 'shadow-orange-500/30'
-      }
-    };
-    
-    const style = podiumColors[position];
-    
-    return (
-      <div className={`${style.bg} ${style.shadow} rounded-2xl p-6 text-center shadow-xl transform hover:scale-105 hover:rotate-1 transition-all duration-500 ${position === 1 ? 'scale-105 animate-pulse' : ''}`}>
-        <div className="text-6xl mb-4 animate-bounce">{style.icon}</div>
-        <div className={`${style.text} font-bold text-xl mb-3 tracking-wide`}>
-          {formatNameForDisplay(score.leerling_naam)}
-        </div>
-        <div className={`${style.text} text-3xl font-black mb-3 drop-shadow-sm`}>
-          {formatScoreWithUnit(score.score, score.eenheid || '')}
-        </div>
-        <div className={`${style.text} opacity-80 text-sm font-medium`}>
-          {getRelativeTime(score.datum)}
-        </div>
-        {position === 1 && (
-          <div className="mt-3">
-            <div className="inline-flex items-center space-x-1 bg-white/20 rounded-full px-3 py-1">
-              <Star className="h-4 w-4" />
-              <span className="text-sm font-bold">RECORD</span>
-            </div>
-          </div>
-        )}
-      </div>
-    );
+  // src/pages/adValvas.jsx
+
+const PodiumCard = ({ score, position, eenheid }) => {
+  const podiumColors = {
+    1: { 
+      bg: 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600', 
+      text: 'text-yellow-900', 
+      icon: '🥇',
+      shadow: 'shadow-yellow-500/30'
+    },
+    2: { 
+      bg: 'bg-gradient-to-br from-gray-300 via-gray-400 to-gray-500', 
+      text: 'text-gray-900', 
+      icon: '🥈',
+      shadow: 'shadow-gray-500/30'
+    },
+    3: { 
+      bg: 'bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600', 
+      text: 'text-orange-900', 
+      icon: '🥉',
+      shadow: 'shadow-orange-500/30'
+    }
   };
+  
+  const style = podiumColors[position];
+  
+  return (
+    <div className={`${style.bg} ${style.shadow} rounded-2xl p-6 text-center shadow-xl transform hover:scale-105 hover:rotate-1 transition-all duration-500 ${position === 1 ? 'scale-105 animate-pulse' : ''}`}>
+      <div className="text-6xl mb-4 animate-bounce">{style.icon}</div>
+      <div className={`${style.text} font-bold text-xl mb-3 tracking-wide`}>
+        {formatNameForDisplay(score.leerling_naam)}
+      </div>
+      <div className={`${style.text} text-3xl font-black mb-3 drop-shadow-sm`}>
+        {formatScoreWithUnit(score.score, eenheid)}
+      </div>
+      <div className={`${style.text} opacity-80 text-sm font-medium`}>
+        {getRelativeTime(score.datum)}
+      </div>
+      {position === 1 && (
+        <div className="mt-3">
+          <div className="inline-flex items-center space-x-1 bg-white/20 rounded-full px-3 py-1">
+            <Star className="h-4 w-4" />
+            <span className="text-sm font-bold">RECORD</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
   const renderContentItem = (item) => {
     switch (item.type) {
-      case CONTENT_TYPES.HIGHSCORES:
-        return (
-          <div className="bg-white rounded-3xl shadow-lg border border-slate-200 p-10 max-w-7xl mx-auto overflow-hidden relative">
-            {/* Decorative background elements */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full -translate-y-16 translate-x-16 opacity-50"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-yellow-100 to-orange-100 rounded-full translate-y-12 -translate-x-12 opacity-50"></div>
-            
-            <div className="relative z-10">
-              <div className="text-center mb-12">
-              
-                <h2 className="text-2xl lg:text-3xl font-black text-gray-800 mb-4 tracking-tight bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                  {item.data.test.naam}
-                </h2>
-                
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
-                {item.data.scores.map((score, index) => (
-                  <PodiumCard key={score.id} score={score} position={index + 1} />
-                ))}
-              </div>
-            </div>
-          </div>
-        );
+     case CONTENT_TYPES.HIGHSCORES:
+  return (
+    <div className="bg-white rounded-3xl shadow-lg border border-slate-200 p-10 max-w-7xl mx-auto overflow-hidden relative">
+      {/* ... decoratieve elementen ... */}
+      <div className="relative z-10">
+        <div className="text-center mb-12">
+          <h2 className="text-2xl lg:text-3xl font-black text-gray-800 mb-4 tracking-tight bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+            {item.data.test.naam}
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
+          {item.data.scores.map((score, index) => (
+            <PodiumCard 
+              key={score.id} 
+              score={score} 
+              position={index + 1} 
+              eenheid={item.data.test.eenheid}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
     case 'placeholder':
         const PlaceholderIcon = item.data.icon;
         return (
