@@ -788,7 +788,19 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
   } catch (error) {
     console.error("Fout bij het aanmaken van statische content:", error);
   }
-
+// 1. Maak EERST de mededeling-items aan met de data die is opgehaald
+  const mededelingItems = mededelingenData.map(item => ({
+    type: 'mededeling',
+    priority: 20,
+    data: {
+      tekst: item.tekst,
+      type: item.type,
+      icoon: item.type === 'prestatie' ? Award : Megaphone,
+      kleur: item.type === 'prestatie' ? 'from-amber-400 to-yellow-500' : 'from-cyan-500 to-blue-500',
+      auteur: `Ingegeven door ${item.auteurNaam}`
+    },
+    id: `mededeling-${item.id}`
+  }));
   // BUILD ALTERNATING PATTERN
   let diverseContent = [];
   diverseContent.push(...mededelingItems);
