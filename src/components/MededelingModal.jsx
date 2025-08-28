@@ -47,6 +47,7 @@ export default function MededelingModal({ isOpen, onClose, onSuccess, profile })
             setLoading(false);
         }
     };
+console.log('MededelingModal rendert. Waarde van isOpen:', isOpen, 'Type:', typeof isOpen);
 
     return (
         <Transition.Root show={isOpen} as={Fragment}>

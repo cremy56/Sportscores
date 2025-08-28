@@ -1511,7 +1511,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto pb-20 lg:pb-20">
-        <div className="max-w-7xl mx-auto px-4 pt-8 pb-8 lg:px-8 lg:pt-10 lg:pb-10">
+        <div className="max-w-7xl mx-auto px-4 pt-16 pb-8 lg:px-8 lg:pt-20 lg:pb-10">
           
           {/* --- OUDE KNOP HIER VERWIJDERD --- */}
 
