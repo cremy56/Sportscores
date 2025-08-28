@@ -846,17 +846,47 @@ const [patternIndex, setPatternIndex] = useState(0);
   }
   
   // Shuffle het finale patroon licht (behoud structuur maar voeg variatie toe)
+  // BUILD ALTERNATING PATTERN
   const finalPattern = [];
-  const patternCopy = [...pattern];
   
-  while (patternCopy.length > 0) {
-    // Kies random uit eerste 3 items om enige variatie te behouden
-    const maxIndex = Math.min(3, patternCopy.length);
-    const randomIndex = Math.floor(Math.random() * maxIndex);
-    finalPattern.push(patternCopy.splice(randomIndex, 1)[0]);
+  // 1. Verzamel alle "andere" content
+  let diverseContent = [];
+  
+  // Voeg breaking news toe (met respect voor frequentie)
+  breakingItems.forEach(item => {
+    for (let i = 0; i < (item.showFrequency || 1); i++) {
+      diverseContent.push(item);
+    }
+  });
+  
+  // Voeg actieve testen toe
+  diverseContent.push(...activeTestItems);
+  
+  // Voeg overige content types toe
+  diverseContent.push(...otherContent);
+
+  // 2. Shuffle de "andere" content voor variatie onderling
+  const shuffledDiverseContent = shuffleArray(diverseContent);
+  
+  // 3. Creëer het strikt alternerende patroon
+  const highscoreCount = highscoreItems.length;
+  const diverseCount = shuffledDiverseContent.length;
+  // Variabele hernoemd om conflict te vermijden
+  const loopLength = Math.max(highscoreCount, diverseCount);
+
+  for (let i = 0; i < loopLength; i++) {
+    // Voeg een highscore toe als er nog een is
+    if (i < highscoreCount) {
+      finalPattern.push(highscoreItems[i]);
+    }
+    
+    // Voeg een "ander" item toe als er nog een is
+    if (i < diverseCount) {
+      finalPattern.push(shuffledDiverseContent[i]);
+    }
   }
-  
-  console.log(`📊 Pattern generated: ${finalPattern.length} items (${highscoreItems.length} highscores, ${breakingItems.length} breaking news, ${activeTestItems.length} active tests, ${otherContent.length} other)`);
+
+  console.log(`📊 Pattern generated: ${finalPattern.length} items (${highscoreItems.length} highscores, ${diverseContent.length} diverse items)`);
   
   return finalPattern;
 };
