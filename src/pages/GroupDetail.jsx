@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, arrayUnion, arrayRemove } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
-import { TrashIcon, PlusIcon, ArrowLeftIcon, UserPlusIcon, XMarkIcon, BarsArrowUpIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PlusIcon, ArrowLeftIcon, UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { ClipboardDocumentListIcon } from '@heroicons/react/24/solid';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -463,8 +463,8 @@ export default function GroupDetail() {
                   onClick={() => setIsSortModalOpen(true)}
                   className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-sm font-medium text-gray-700"
                 >
-                  <BarsArrowUpIcon className="h-5 w-5" />
-                  <span>Sorteer op: {getCurrentSortName()}</span>
+                  <ArrowLeftIcon className="h-5 w-5 rotate-90" />
+                  <span>Bekijk ranking: {getCurrentSortName()}</span>
                 </button>
               )}
             </div>
