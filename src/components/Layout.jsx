@@ -1,7 +1,8 @@
 // src/components/Layout.jsx
 import { Outlet, NavLink, useOutletContext, Link, useLocation } from 'react-router-dom';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { Toaster } from 'react-hot-toast';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { UserCircleIcon } from '@heroicons/react/24/outline';
@@ -55,36 +56,62 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const [loading, setLoading] = useState(false);
   const [selectedStudentForModal, setSelectedStudentForModal] = useState(null);
 
-  // Mock data - replace with actual API call
-  const mockStudents = [
-    { id: 1, naam: 'Jan Janssen', klas: '3A', email: 'jan.janssen@school.be' },
-    { id: 2, naam: 'Marie Peeters', klas: '3B', email: 'marie.peeters@school.be' },
-    { id: 3, naam: 'Tom Vermeulen', klas: '3A', email: 'tom.vermeulen@school.be' },
-    { id: 4, naam: 'Lisa De Vries', klas: '4A', email: 'lisa.devries@school.be' },
-    { id: 5, naam: 'Kevin Martens', klas: '3C', email: 'kevin.martens@school.be' },
-  ];
-
   // Filter students based on search term
   const filteredStudents = useMemo(() => {
-    if (!studentSearchTerm) return mockStudents;
-    return mockStudents.filter(student => 
+    if (!studentSearchTerm) return students;
+    return students.filter(student => 
       student.naam.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
-      student.klas.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+      (student.klas && student.klas.toLowerCase().includes(studentSearchTerm.toLowerCase())) ||
       student.email.toLowerCase().includes(studentSearchTerm.toLowerCase())
     );
-  }, [studentSearchTerm]);
+  }, [students, studentSearchTerm]);
 
-  // Load students when modal opens (replace with actual API call)
+  // Load students from Firestore when modal opens
   useEffect(() => {
-    if (studentSelectOpen) {
+    const fetchStudents = async () => {
+      if (!studentSelectOpen || !school?.id) return;
+      
       setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        setStudents(mockStudents);
+      try {
+        // Query students from the same school with rol 'leerling'
+        const studentsRef = collection(db, 'users');
+        const studentsQuery = query(
+          studentsRef,
+          where('school_id', '==', school.id),
+          where('rol', '==', 'leerling'),
+          orderBy('naam')
+        );
+        
+        const querySnapshot = await getDocs(studentsQuery);
+        const fetchedStudents = [];
+        
+        querySnapshot.forEach((doc) => {
+          const studentData = doc.data();
+          fetchedStudents.push({
+            id: doc.id,
+            naam: studentData.naam,
+            email: studentData.email,
+            klas: studentData.klas || 'Geen klas',
+            geboortedatum: studentData.geboortedatum,
+            geslacht: studentData.geslacht,
+            school_id: studentData.school_id,
+            rol: studentData.rol,
+            // Include any other fields you need
+            ...studentData
+          });
+        });
+        
+        setStudents(fetchedStudents);
+      } catch (error) {
+        console.error('Fout bij ophalen studenten:', error);
+        setStudents([]);
+      } finally {
         setLoading(false);
-      }, 500);
-    }
-  }, [studentSelectOpen]);
+      }
+    };
+
+    fetchStudents();
+  }, [studentSelectOpen, school?.id]);
 
   const routeTitles = {
     '/': 'Home',
@@ -190,7 +217,9 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                           }`}
                         >
                           <div className="font-medium text-gray-900">{student.naam}</div>
-                          <div className="text-sm text-gray-500">{student.klas} • {student.email}</div>
+                          <div className="text-sm text-gray-500">
+                            {student.klas || 'Geen klas'} • {student.email}
+                          </div>
                         </button>
                       ))}
                     </div>
