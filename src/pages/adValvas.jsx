@@ -784,48 +784,46 @@ const [patternIndex, setPatternIndex] = useState(0);
   });
   diverseContent.push(...activeTestItems);
   diverseContent.push(...otherContent);
-
-  // --- DIAGNOSTISCHE LOGS ---
-  console.log('--- DEBUGGING CONTENT ---');
-  console.log(`Gevonden highscores: ${highscoreItems.length}`);
-  console.log(`Totaal diverse items: ${diverseContent.length}`);
-  console.log(`  - Breaking News: ${breakingItems.length}`);
-  console.log(`  - Actieve Tests: ${activeTestItems.length}`);
-  console.log(`  - Overige (quotes, facts, etc.): ${otherContent.length}`);
-  // -------------------------
-
+  
   const shuffledDiverseContent = shuffleArray(diverseContent);
   const finalPattern = [];
+  
   const highscoreCount = highscoreItems.length;
   let diverseItemsForLoop = [...shuffledDiverseContent];
-
   if (highscoreCount > 0 && diverseItemsForLoop.length === 0) {
     console.warn('GEEN DIVERSE CONTENT GEVONDEN. Voeg een placeholder toe om de shuffle te testen.');
     diverseItemsForLoop.push({
-      type: 'placeholder', // Uniek type voor de placeholder
-      data: {
-        text: "Geen ander nieuws gevonden, resultaten worden wel getoond!",
-        icon: RefreshCw,
-        color: "from-gray-400 to-gray-500"
-      },
+      type: 'placeholder',
+      data: { text: "Geen ander nieuws gevonden, resultaten worden wel getoond!", icon: RefreshCw, color: "from-gray-400 to-gray-500" },
       id: 'placeholder-item'
     });
   }
-  
   const diverseCount = diverseItemsForLoop.length;
-  if (diverseCount > 0) {
-      for (let i = 0; i < highscoreCount; i++) {
-        finalPattern.push(highscoreItems[i]);
-        finalPattern.push(diverseItemsForLoop[i % diverseCount]);
-      }
-      if (diverseCount > highscoreCount) {
-        finalPattern.push(...diverseItemsForLoop.slice(highscoreCount));
-      }
-  } else {
-      finalPattern.push(...highscoreItems);
+
+  // Handel lege lijsten af
+  if (highscoreCount === 0 && diverseCount > 0) {
+    return diverseItemsForLoop;
+  }
+  if (diverseCount === 0 && highscoreCount > 0) {
+    return highscoreItems;
+  }
+  if (highscoreCount === 0 && diverseCount === 0) {
+    return [];
+  }
+
+  // Bepaal de lengte van de langste lijst
+  const loopLength = Math.max(highscoreCount, diverseCount);
+
+  // Creëer de eindeloze, afwisselende lus
+  for (let i = 0; i < loopLength; i++) {
+    // Voeg een highscore toe en herhaal de lijst indien nodig (met %)
+    finalPattern.push(highscoreItems[i % highscoreCount]);
+    
+    // Voeg een 'ander' item toe en herhaal de lijst indien nodig (met %)
+    finalPattern.push(diverseItemsForLoop[i % diverseCount]);
   }
   
-  console.log(`📊 Finaal patroon gegenereerd: ${finalPattern.length} items.`);
+  console.log(`📊 Finaal patroon gegenereerd: ${finalPattern.length} items. Beide lijsten worden nu herhaald.`);
   return finalPattern;
 };
 
