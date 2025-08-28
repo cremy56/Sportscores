@@ -763,14 +763,6 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
   const otherContent = [];
   
   try {
-    
-    const upcomingEvents = generateUpcomingEvents();
-    upcomingEvents.forEach((event, index) => otherContent.push({
-      type: CONTENT_TYPES.UPCOMING_EVENT,
-      data: { ...event, color: "from-purple-500 to-pink-600" },
-      priority: 6,
-      id: `event-${index}-${Date.now()}`
-    }));
 
     const shuffledQuotes = shuffleArray([...SPORT_QUOTES]);
     for (let i = 0; i < 2; i++) otherContent.push({
@@ -1160,21 +1152,6 @@ const detectBreakingNews = async () => {
     return [];
   }
 };
-// Functie om upcoming events te genereren
-const generateUpcomingEvents = () => {
-  const events = [
-    { text: "Volgende week: Atletiekdag voor alle klassen! 🏃‍♂️", date: "Volgende week", icon: Calendar },
-    { text: "Aankomende donderdag: Zwemcompetitie in het stedelijk zwembad 🏊‍♀️", date: "Donderdag", icon: Activity },
-    { text: "Over 2 weken: Schoolsportdag met verschillende disciplines 🏆", date: "Over 2 weken", icon: Trophy },
-    { text: "Eind van de maand: Cross-country loop in het stadspark 🌳", date: "Eind maand", icon: Users },
-    { text: "Volgende maand: Start badmintontoernooi 🏸", date: "Volgende maand", icon: Target }
-  ];
-  
-  // Kies willekeurig 1-2 events
-  const shuffled = shuffleArray([...events]);
-  return shuffled.slice(0, 1 + Math.floor(Math.random() * 2));
-};
-
   // Manual feed refresh functie
   const handleFeedRefresh = async () => {
     setFeedLoading(true);
