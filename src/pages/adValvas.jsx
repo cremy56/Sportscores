@@ -1310,6 +1310,20 @@ const generateUpcomingEvents = () => {
             </div>
           </div>
         );
+    case 'placeholder':
+        const PlaceholderIcon = item.data.icon;
+        return (
+          <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-lg p-12 max-w-6xl mx-auto text-white`}>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 rounded-full mb-8">
+                <PlaceholderIcon className="h-12 w-12 opacity-90 animate-spin" />
+              </div>
+              <h2 className="text-2xl lg:text-4xl font-bold">
+                {item.data.text}
+              </h2>
+            </div>
+          </div>
+        );
 
       case CONTENT_TYPES.LIVE_SPORTS_NEWS:
         return (
