@@ -48,8 +48,43 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const menuRef = useRef();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // NIEUW: Aparte state voor leerling selectie modal
+  // Student selectie modal states
   const [studentSelectOpen, setStudentSelectOpen] = useState(false);
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
+  const [students, setStudents] = useState([]); // This should come from your API/database
+  const [loading, setLoading] = useState(false);
+  const [selectedStudentForModal, setSelectedStudentForModal] = useState(null);
+
+  // Mock data - replace with actual API call
+  const mockStudents = [
+    { id: 1, naam: 'Jan Janssen', klas: '3A', email: 'jan.janssen@school.be' },
+    { id: 2, naam: 'Marie Peeters', klas: '3B', email: 'marie.peeters@school.be' },
+    { id: 3, naam: 'Tom Vermeulen', klas: '3A', email: 'tom.vermeulen@school.be' },
+    { id: 4, naam: 'Lisa De Vries', klas: '4A', email: 'lisa.devries@school.be' },
+    { id: 5, naam: 'Kevin Martens', klas: '3C', email: 'kevin.martens@school.be' },
+  ];
+
+  // Filter students based on search term
+  const filteredStudents = useMemo(() => {
+    if (!studentSearchTerm) return mockStudents;
+    return mockStudents.filter(student => 
+      student.naam.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+      student.klas.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+      student.email.toLowerCase().includes(studentSearchTerm.toLowerCase())
+    );
+  }, [studentSearchTerm]);
+
+  // Load students when modal opens (replace with actual API call)
+  useEffect(() => {
+    if (studentSelectOpen) {
+      setLoading(true);
+      // Simulate API call
+      setTimeout(() => {
+        setStudents(mockStudents);
+        setLoading(false);
+      }, 500);
+    }
+  }, [studentSelectOpen]);
 
   const routeTitles = {
     '/': 'Home',
@@ -84,18 +119,38 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     }
   };
 
+  const handleStudentSelect = (student) => {
+    setSelectedStudentForModal(student);
+  };
+
+  const confirmStudentSelection = () => {
+    if (selectedStudentForModal) {
+      setImpersonatedStudent(selectedStudentForModal);
+      setSelectedStudent(selectedStudentForModal);
+    }
+    setStudentSelectOpen(false);
+    setStudentSearchTerm('');
+    setSelectedStudentForModal(null);
+  };
+
+  const closeStudentModal = () => {
+    setStudentSelectOpen(false);
+    setStudentSearchTerm('');
+    setSelectedStudentForModal(null);
+  };
+
   return (
    <div>
       <Toaster position="top-center" />
       
-      {/* NIEUW: Student selectie modal - volledig gescheiden van user menu */}
+      {/* Student selectie modal - nu met werkende functionaliteit */}
       {studentSelectOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[10000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] p-6 flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Selecteer leerling</h3>
               <button
-                onClick={() => setStudentSelectOpen(false)}
+                onClick={closeStudentModal}
                 className="text-gray-400 hover:text-gray-600 p-1"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -104,31 +159,60 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="flex flex-col flex-1">
               <input
                 type="text"
-                placeholder="Zoek leerling op naam..."
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                placeholder="Zoek leerling op naam, klas of email..."
+                value={studentSearchTerm}
+                onChange={(e) => setStudentSearchTerm(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 mb-4"
                 autoFocus
               />
               
-              <div className="text-center text-sm text-gray-500">
-                Hier komt de echte StudentSearch functionaliteit
-              </div>
+              {loading ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-sm text-gray-500">Laden...</div>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg">
+                  {filteredStudents.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-gray-500">
+                      {studentSearchTerm ? 'Geen leerlingen gevonden' : 'Geen leerlingen beschikbaar'}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-200">
+                      {filteredStudents.map((student) => (
+                        <button
+                          key={student.id}
+                          onClick={() => handleStudentSelect(student)}
+                          className={`w-full p-3 text-left hover:bg-gray-50 transition-colors ${
+                            selectedStudentForModal?.id === student.id ? 'bg-purple-50 border-r-4 border-purple-500' : ''
+                          }`}
+                        >
+                          <div className="font-medium text-gray-900">{student.naam}</div>
+                          <div className="text-sm text-gray-500">{student.klas} • {student.email}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => setStudentSelectOpen(false)}
+                  onClick={closeStudentModal}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 >
                   Annuleren
                 </button>
                 <button
-                  onClick={() => {
-                    // Hier zou de leerling geselecteerd worden
-                    setStudentSelectOpen(false);
-                  }}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  onClick={confirmStudentSelection}
+                  disabled={!selectedStudentForModal}
+                  className={`flex-1 px-4 py-2 rounded-lg text-white transition-colors ${
+                    selectedStudentForModal 
+                      ? 'bg-purple-600 hover:bg-purple-700' 
+                      : 'bg-gray-300 cursor-not-allowed'
+                  }`}
                 >
                   Selecteren
                 </button>
@@ -257,7 +341,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               <UserCircleIcon className="h-8 w-8" />
             </button>
 
-            {/* Vereenvoudigd user menu ZONDER StudentSearch */}
+            {/* User menu */}
             {menuOpen && (
               <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50">
                 <div className="mb-2">
