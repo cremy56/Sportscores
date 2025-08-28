@@ -1055,7 +1055,26 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     
     return seasonalData[month] || null;
   };
+const fetchTodaysScores = async (school_id) => {
+  if (!school_id) return [];
+  try {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
 
+    const scoresQuery = query(
+      collection(db, 'scores'),
+      where('school_id', '==', school_id),
+      where('datum', '>=', startOfDay),
+      where('datum', '<=', endOfDay)
+    );
+    const scoresSnap = await getDocs(scoresQuery);
+    return scoresSnap.docs.map(doc => doc.data());
+  } catch (error) {
+    console.error("Fout bij ophalen scores van vandaag:", error);
+    return [];
+  }
+};
 
 const fetchMededelingen = async (school_id) => {
   if (!school_id) return [];
