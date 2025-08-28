@@ -702,9 +702,10 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
  const generateContentItems = async () => {
   console.log('🔄 Content generatie gestart...');
   
-  const [breakingNewsData, activeTestsData] = await Promise.all([
+  const [breakingNewsData, activeTestsData, mededelingenData] = await Promise.all([
     detectBreakingNews(),
-    fetchActiveTests()
+    fetchActiveTests(),
+    fetchMededelingen(profile?.school_id) // <-- DEZE AANROEP ONTBRAK
   ]);
   
   setBreakingNewsItems(breakingNewsData);
