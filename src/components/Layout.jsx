@@ -7,7 +7,6 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { UserCircleIcon } from '@heroicons/react/24/outline';
 import { Bars3Icon } from '@heroicons/react/24/solid';
 import logoSrc from '../assets/logo.png';
-import StudentSearch from './StudentSearch';
 
 export default function Layout({ profile, school, selectedStudent, setSelectedStudent }) {
 
@@ -48,6 +47,9 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // NIEUW: Aparte state voor leerling selectie modal
+  const [studentSelectOpen, setStudentSelectOpen] = useState(false);
 
   const routeTitles = {
     '/': 'Home',
@@ -82,14 +84,60 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     }
   };
 
-  // Handler voor student selectie in menu
-  const handleImpersonatedStudentSelect = (student) => {
-    setImpersonatedStudent(student);
-  };
-
   return (
    <div>
       <Toaster position="top-center" />
+      
+      {/* NIEUW: Student selectie modal - volledig gescheiden van user menu */}
+      {studentSelectOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[10000] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Selecteer leerling</h3>
+              <button
+                onClick={() => setStudentSelectOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Zoek leerling op naam..."
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                autoFocus
+              />
+              
+              <div className="text-center text-sm text-gray-500">
+                Hier komt de echte StudentSearch functionaliteit
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setStudentSelectOpen(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Annuleren
+                </button>
+                <button
+                  onClick={() => {
+                    // Hier zou de leerling geselecteerd worden
+                    setStudentSelectOpen(false);
+                  }}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                >
+                  Selecteren
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20">
         <nav className="container mx-auto px-4 py-2 flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -209,20 +257,10 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               <UserCircleIcon className="h-8 w-8" />
             </button>
 
-            {/* NIEUW: Portal-achtige approach voor het menu */}
+            {/* Vereenvoudigd user menu ZONDER StudentSearch */}
             {menuOpen && (
-              <div 
-                className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-2xl p-4"
-                style={{
-                  position: 'fixed',
-                  top: '64px',
-                  right: '16px',
-                  zIndex: 99999,
-                  maxHeight: 'calc(100vh - 80px)',
-                  overflowY: 'auto'
-                }}
-              >
-                <div className="mb-3">
+              <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50">
+                <div className="mb-2">
                   <p className="text-sm text-gray-500">Ingelogd als</p>
                   <p className="font-semibold text-gray-900">{profile?.naam || profile?.email}</p>
                   
@@ -239,7 +277,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                     <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">Wissel rol</label>
                     <select 
                       id="role-switcher" 
-                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500" 
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm" 
                       value={activeRole} 
                       onChange={(e) => {
                         setActiveRole(e.target.value);
@@ -255,21 +293,19 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                       <option value="leerling">Leerling</option>
                     </select>
                     
-                    {/* Student selector voor wanneer rol = leerling */}
+                    {/* Knop om student selectie modal te openen */}
                     {activeRole === 'leerling' && (
                       <div className="mt-3">
                         <label className="block text-xs font-semibold text-gray-500 mb-1">Test als leerling</label>
-                        <div 
-                          className="relative"
-                          style={{ zIndex: 100000 }}
+                        <button
+                          onClick={() => {
+                            setStudentSelectOpen(true);
+                            setMenuOpen(false); // Sluit user menu
+                          }}
+                          className="w-full px-3 py-2 text-sm bg-purple-50 text-purple-700 border border-purple-200 rounded-md hover:bg-purple-100 transition-colors"
                         >
-                          <StudentSearch 
-                            onStudentSelect={handleImpersonatedStudentSelect}
-                            schoolId={profile?.school_id}
-                            placeholder="Selecteer leerling..."
-                            compact={true}
-                          />
-                        </div>
+                          Selecteer leerling...
+                        </button>
                         {impersonatedStudent && (
                           <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
                             <p className="text-xs text-green-700 font-medium">
@@ -282,7 +318,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                               }}
                               className="text-xs text-green-600 hover:text-green-800 underline mt-1"
                             >
-                              Reset leerling selectie
+                              Reset selectie
                             </button>
                           </div>
                         )}
@@ -291,27 +327,15 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                   </div>
                 )}
 
-                <hr className="my-3" />
-                <Link 
-                  to="/wachtwoord-wijzigen" 
-                  className="w-full block px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 rounded-md transition-colors" 
-                  onClick={() => setMenuOpen(false)}
-                >
+                <hr className="my-2" />
+                <Link to="/wachtwoord-wijzigen" className="w-full block px-2 py-1 text-sm text-purple-700 hover:bg-purple-50 rounded-md" onClick={() => setMenuOpen(false)}>
                   Wachtwoord wijzigen
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left px-3 py-2 text-sm text-red-600 bg-transparent hover:bg-red-50 rounded-md mt-1 transition-colors"
+                  className="w-full text-left px-2 py-1 text-sm text-red-600 bg-transparent hover:bg-red-50 rounded-md mt-1"
                 >
                   Uitloggen
-                </button>
-                
-                {/* Menu sluiten knop */}
-                <button
-                  onClick={() => setMenuOpen(false)}
-                  className="w-full text-center px-3 py-2 text-xs text-gray-500 hover:text-gray-700 border-t border-gray-200 mt-3 pt-3"
-                >
-                  Menu sluiten
                 </button>
               </div>
             )}
