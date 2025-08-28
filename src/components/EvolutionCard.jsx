@@ -1,4 +1,4 @@
-// src/components/EvolutionCard.jsx - Mobile Optimized - FIXED AGE CALCULATION - Compact Layout
+// src/components/EvolutionCard.jsx - Mobile Optimized - Simplified Layout with Record + Ranking
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import EvolutionChart from './EvolutionChart';
@@ -6,15 +6,14 @@ import { formatDate, formatScoreWithUnit } from '../utils/formatters.js';
 
 import { getScoreNorms, calculateTestRanking } from '../utils/firebaseUtils';
 
-
 export default function EvolutionCard({ categoryName, tests, student }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedDataPoint, setSelectedDataPoint] = useState(null);
-   const [scoreNorms, setScoreNorms] = useState(null);
+  const [scoreNorms, setScoreNorms] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const cardRef = useRef(null);
-const [rankingData, setRankingData] = useState(null);
+  const [rankingData, setRankingData] = useState(null);
   const currentTest = tests[currentIndex];
 
   // FIXED: Enhanced age calculation with proper validation
@@ -345,9 +344,9 @@ useEffect(() => {
       tabIndex={0}
       className="bg-white/70 backdrop-blur-lg rounded-2xl sm:rounded-3xl shadow-lg border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col h-full focus:outline-none focus:ring-2 focus:ring-purple-500/50"
     >
-      {/* Header (met aangepaste performanceIndicator) */}
+      {/* Header */}
       <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-3 sm:p-6 border-b border-white/20">
-        {/* AANGEPAST: Gecentreerde titel met test count rechts */}
+        {/* Gecentreerde titel met test count rechts */}
         <div className="grid grid-cols-3 items-center mb-2 sm:mb-3">
             <div />
             <h2 className="text-base sm:text-xl font-bold text-gray-800 flex items-center gap-1 sm:gap-2 justify-center col-start-2">
@@ -386,67 +385,46 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Enhanced Stats Grid - Mobile Layout */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 p-3 sm:p-6 bg-white/30">
-        <div className="text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Eerste</p>
-          <p className="font-bold text-gray-800 text-xs sm:text-sm">
-    {formatScoreWithUnit(firstScore?.score, currentTest.eenheid)}
-</p>
-          {firstScore && (
-            <p className="text-xs text-gray-500 mt-1 hidden sm:block">
-              {formatDate(firstScore.datum)}
+      {/* NIEUW: Compact Record + Ranking Layout */}
+      <div className="px-3 sm:px-6 py-3 sm:py-4 bg-white/30 border-b border-white/10">
+        <div className="flex items-center justify-between gap-4">
+          {/* Personal Best */}
+          <div className="flex-1 text-center">
+            <p className="text-xs text-gray-500 uppercase font-medium mb-1">Record</p>
+            <p className="text-xl sm:text-2xl font-bold text-purple-700 mb-1">
+              {formatScoreWithUnit(currentTest.personal_best_score, currentTest.eenheid)}
             </p>
-          )}
-        </div>
-        
-        <div className="text-center">
-          <p className="text-xs text-gray-500 uppercase font-bold mb-1">Record</p>
-          <p className="text-lg sm:text-xl font-bold text-purple-700 mb-1">
-    {formatScoreWithUnit(currentTest.personal_best_score, currentTest.eenheid)}
-</p>
-          {currentTest.personal_best_datum && (
-            <p className="text-xs text-gray-500 hidden sm:block">
-              {formatDate(currentTest.personal_best_datum)}
-            </p>
-          )}
-        </div>
-        
-        <div className="text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Laatste</p>
-          <p className="font-bold text-gray-800 text-xs sm:text-sm">
-    {formatScoreWithUnit(lastScore?.score, currentTest.eenheid)}
-</p>
-          {lastScore && (
-            <p className="text-xs text-gray-500 mt-1 hidden sm:block">
-              {formatDate(lastScore.datum)}
-            </p>
-          )}
-        </div>
+            {currentTest.personal_best_datum && (
+              <p className="text-xs text-gray-500">
+                {formatDate(currentTest.personal_best_datum)}
+              </p>
+            )}
+          </div>
 
-        {/* AANGEPAST: Trend vervangen door Status indicator */}
-      <div className="text-center">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">Ranking</p>
-          {rankingData ? (
-            <div className="space-y-0.5">
-              <div className="bg-purple-50 rounded px-2 py-1">
-                <span className="font-bold text-purple-700 text-sm">#{rankingData.overallRank}</span>
-                <span className="text-xs text-gray-500 ml-1">/ {rankingData.totalStudents}</span>
+          {/* Ranking */}
+          <div className="flex-1">
+            <p className="text-xs text-gray-500 uppercase font-medium mb-2 text-center">Ranking</p>
+            {rankingData ? (
+              <div className="space-y-1">
+                <div className="bg-purple-50 rounded-lg px-3 py-2 text-center">
+                  <span className="font-bold text-purple-700 text-lg">#{rankingData.overallRank}</span>
+                  <span className="text-sm text-gray-500 ml-1">/ {rankingData.totalStudents}</span>
+                  <div className="text-xs text-gray-500 mt-0.5">Algemeen</div>
+                </div>
+                <div className="bg-orange-50 rounded-lg px-3 py-1.5 text-center">
+                  <span className="font-bold text-orange-600 text-sm">#{rankingData.ageRank}</span>
+                  <span className="text-xs text-gray-500 ml-1">({rankingData.leeftijd}j)</span>
+                </div>
               </div>
-              <div className="bg-orange-50 rounded px-2 py-1">
-                <span className="font-bold text-orange-600 text-xs">#{rankingData.ageRank}</span>
-                <span className="text-xs text-gray-500 ml-1">({rankingData.leeftijd}j)</span>
+            ) : (
+              <div className="text-center py-4">
+                <p className="font-bold text-gray-400 text-lg">-</p>
+                <p className="text-xs text-gray-400">Geen data</p>
               </div>
-            </div>
-          ) : (
-            <div className="text-center">
-              <p className="font-bold text-gray-400 text-sm">-</p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-
-     {/* VERWIJDERD: Improvement Indicator balk */}
 
      {/* Error State */}
      {error && (
@@ -456,8 +434,8 @@ useEffect(() => {
         </div>
       )}
       
-    {/* Chart container - Optimized height */}
-      <div className="w-full h-[400px] p-4 sm:p-6">
+    {/* Chart container - Reduced padding for tighter layout */}
+      <div className="w-full h-[400px] p-2 sm:p-4">
         {loading && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -472,7 +450,7 @@ useEffect(() => {
             scores={scores} 
             eenheid={currentTest.eenheid}
             onPointClick={setSelectedDataPoint}
-            scoreNorms={scoreNorms} // Nu correct doorgegeven
+            scoreNorms={scoreNorms}
             scoreRichting={currentTest.score_richting}
           />
         ) : !loading && (
@@ -481,9 +459,10 @@ useEffect(() => {
           </div>
         )}
       </div>
-     {/* **AANGEPAST**: Selected Data Point met nieuwe normen */}
+     
+     {/* Selected Data Point */}
       {selectedDataPoint && (
-        <div className="mx-3 sm:mx-6 mb-3 sm:mb-6 p-2 sm:p-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-xl border border-purple-200">
+        <div className="mx-3 sm:mx-6 mb-3 sm:mb-4 p-2 sm:p-3 bg-gradient-to-r from-purple-100 to-blue-100 rounded-xl border border-purple-200">
           <p className="text-xs sm:text-sm text-purple-800 text-center">
            <span className="font-bold">{formatScoreWithUnit(selectedDataPoint.score, currentTest.eenheid)}</span>
             <span className="mx-2">•</span>

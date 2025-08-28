@@ -1,4 +1,4 @@
-// src/components/EvolutionChart.jsx - Optimized and Consistent Layout
+// src/components/EvolutionChart.jsx - Optimized for Tighter Layout
 import { Line } from 'react-chartjs-2';
 import { Chart, registerables } from 'chart.js';
 import { formatDate, formatScoreWithUnit } from '../utils/formatters.js';
@@ -70,7 +70,7 @@ const thresholdLinesPlugin = {
   }
 };
 
-// **HERBOUWD**: Y-as schaling met nieuwe, conditionele logica.
+// Y-as schaling met nieuwe, conditionele logica.
 const calculateOptimalYRange = (scoreValues, scoreNorms) => {
   // Fallback als normen niet beschikbaar zijn: baseer op scores.
   if (!scoreNorms || scoreNorms['1'] === undefined || scoreNorms['20'] === undefined) {
@@ -111,7 +111,6 @@ const calculateOptimalYRange = (scoreValues, scoreNorms) => {
   return { minValue: finalMinValue, maxValue: finalMaxValue };
 };
 
-
 export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNorms, scoreRichting }) {
   const sortedScores = [...scores].sort((a, b) => new Date(a.datum) - new Date(b.datum));
   const isMobile = window.innerWidth < 640;
@@ -139,7 +138,6 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
   };
   
   const scoreValues = sortedScores.map(s => s.score);
-  // **AANGEPAST**: De functie gebruikt nu BEIDE parameters.
   const { minValue, maxValue } = calculateOptimalYRange(scoreValues, scoreNorms);
 
   const options = {
@@ -147,10 +145,10 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
     maintainAspectRatio: false,
     layout: {
       padding: {
-        top: 10,
-        right: 10,
-        bottom: 10,
-        left: 10
+        top: 5,
+        right: 5,
+        bottom: 5,
+        left: 5
       }
     },
     plugins: {
@@ -171,7 +169,7 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
           font: {
             size: isMobile ? 10 : 11
           },
-          padding: 8,
+          padding: 6,
           maxTicksLimit: 8
         },
         border: {
@@ -190,7 +188,7 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
           },
           maxRotation: isMobile ? 45 : 0,
           minRotation: isMobile ? 45 : 0,
-          padding: 8,
+          padding: 6,
           maxTicksLimit: isMobile ? 4 : 8
         },
         border: {
@@ -236,17 +234,17 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
       </div>
       
       {scoreNorms && (
-        <div className="mt-3 flex justify-center items-center">
-            <div className="flex items-center gap-x-4 sm:gap-x-6 text-xs sm:text-sm text-gray-600">
-    <div className="flex items-center gap-1 sm:gap-2">
-        <div className="w-4 sm:w-5 h-0.5" style={{borderTop: '2px dashed rgba(34, 197, 94, 0.8)'}}></div>
-        <span className="whitespace-nowrap font-medium">{formatScoreWithUnit(scoreNorms['14'], eenheid)} (Goed)</span>
-    </div>
-    <div className="flex items-center gap-1 sm:gap-2">
-        <div className="w-4 sm:w-5 h-0.5" style={{borderTop: '2px dashed rgba(249, 115, 22, 0.8)'}}></div>
-        <span className="whitespace-nowrap font-medium">{formatScoreWithUnit(scoreNorms['10'], eenheid)} (Voldoende)</span>
-    </div>
-</div>
+        <div className="mt-2 flex justify-center items-center">
+          <div className="flex items-center gap-x-3 sm:gap-x-5 text-xs text-gray-600">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="w-3 sm:w-4 h-0.5" style={{borderTop: '2px dashed rgba(34, 197, 94, 0.8)'}}></div>
+              <span className="whitespace-nowrap font-medium">{formatScoreWithUnit(scoreNorms['14'], eenheid)}</span>
+            </div>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="w-3 sm:w-4 h-0.5" style={{borderTop: '2px dashed rgba(249, 115, 22, 0.8)'}}></div>
+              <span className="whitespace-nowrap font-medium">{formatScoreWithUnit(scoreNorms['10'], eenheid)}</span>
+            </div>
+          </div>
         </div>
       )}
     </div>
