@@ -5,6 +5,8 @@ import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity, Quote, Flame, BookOpen, BarChart3, TrendingDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { formatScoreWithUnit } from '../utils/formatters.js';
+import { PlusCircle, X } from 'lucide-react'; // Voeg PlusCircle en X toe
+import MededelingModal from '../components/MededelingModal';
 
 // --- Helper functies ---
 const formatNameForDisplay = (fullName) => {
@@ -231,6 +233,7 @@ const SPORT_QUOTES = [
   { text: "Je laatste poging kan je eerste overwinning zijn.", author: "Final Effort" },
   { text: "Volhardende druppels maken het diepste gat.", author: "Persistence Proverb" },
   { text: "Doorzettingsvermogen is de moeder van alle prestaties.", author: "Achievement Mother" },
+  { text: "Don't wish for it, work for it!", authors: "Gareth Price en Dave Evans" },
   { text: "Elke dag dat je niet opgeeft, win je.", author: "Daily Victory" },
 
   // Jongerenspecifieke Motivatie (100+ quotes)
@@ -684,6 +687,14 @@ export default function AdValvas() {
 const [activeTests, setActiveTests] = useState([]);
 const [contentPattern, setContentPattern] = useState([]); // Alternerend patroon
 const [patternIndex, setPatternIndex] = useState(0);
+const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
+
+// Functie om de content te vernieuwen (belangrijk voor na het toevoegen)
+  const refreshContent = async () => {
+    if (loading) return;
+    const items = await generateContentItems();
+    setContentItems(items);
+  };
 
   // Enhanced content genereren met meer variatie
 // src/pages/adValvas.jsx
@@ -1486,10 +1497,32 @@ case CONTENT_TYPES.BREAKING_NEWS:
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
+      {/* --- POPUP FORMULIER --- */}
+      {isModalOpen && (
+        <MededelingModal 
+          profile={profile}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={() => {
+            setIsModalOpen(false);
+            refreshContent(); // Vernieuw de content na succes
+          }}
+        />
+      )}
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto pb-20 lg:pb-20">
         <div className="max-w-7xl mx-auto px-4 pt-24 pb-8 lg:px-8 lg:pt-20 lg:pb-10">
-          
+          {/* --- BERICHT MAKEN KNOP (ENKEL VOOR LEERKRACHT/ADMIN) --- */}
+          {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator') && (
+            <div className="absolute top-4 right-4 lg:top-6 lg:right-8 z-20">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-lg hover:scale-105 transition-transform"
+              >
+                <PlusCircle className="h-5 w-5" />
+                <span>Bericht maken</span>
+              </button>
+            </div>
+          )}
           {/* MOBILE HEADER */}
           <div className="lg:hidden flex justify-between items-center mb-6 px-4">
   <div className="flex items-center space-x-3">
