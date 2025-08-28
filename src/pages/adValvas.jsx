@@ -1495,7 +1495,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
 
   const currentItem = contentItems[currentContentIndex];
 
-  return (
+    return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
       {/* --- POPUP FORMULIER --- */}
       {isModalOpen && (
@@ -1508,12 +1508,63 @@ case CONTENT_TYPES.BREAKING_NEWS:
           }}
         />
       )}
+
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto pb-20 lg:pb-20">
-        <div className="max-w-7xl mx-auto px-4 pt-24 pb-8 lg:px-8 lg:pt-20 lg:pb-10">
-          {/* --- BERICHT MAKEN KNOP (ENKEL VOOR LEERKRACHT/ADMIN) --- */}
-          {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator') && (
-            <div className="absolute top-4 right-4 lg:top-6 lg:right-8 z-20">
+        <div className="max-w-7xl mx-auto px-4 pt-8 pb-8 lg:px-8 lg:pt-10 lg:pb-10">
+          
+          {/* --- OUDE KNOP HIER VERWIJDERD --- */}
+
+          {/* MOBILE HEADER */}
+          <div className="lg:hidden flex justify-between items-center mb-6 px-4">
+            <div className="flex items-center space-x-3">
+              <h1 className="text-lg font-black text-gray-800">
+                Sport Dashboard
+              </h1>
+            </div>
+            
+            {/* --- KNOP HIER TOEGEVOEGD (MOBIELE VERSIE) --- */}
+            {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator') && (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold px-3 py-1 rounded-lg shadow-md hover:scale-105 transition-transform text-sm"
+              >
+                <PlusCircle className="h-4 w-4" />
+                <span>Bericht</span>
+              </button>
+            )}
+
+            <div className="text-right">
+              <div className="text-xl font-bold text-gray-800 font-mono">
+                {formatTime(currentTime)}
+              </div>
+              <div className="text-xs text-gray-500">
+                {formatDate(currentTime)}
+              </div>
+            </div>
+          </div>
+
+          {/* DESKTOP HEADER */}
+          <div className="hidden lg:flex justify-between items-center mb-8">
+            <div className="flex items-center space-x-4">
+              <img 
+                src={school?.logo_url || "/logo.png"} 
+                alt="School Logo" 
+                className="h-12 w-auto object-contain rounded-lg" 
+                onError={(e) => { e.target.src = '/logo.png'; }} 
+              />
+              <div>
+                <h1 className="text-2xl font-black text-gray-800">
+                  Sport Dashboard
+                </h1>
+                <div className="text-gray-500 text-sm font-medium">
+                  Live resultaten en nieuws
+                </div>
+              </div>
+            </div>
+
+            {/* --- KNOP HIER TOEGEVOEGD (DESKTOP VERSIE) --- */}
+            {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator') && (
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-lg hover:scale-105 transition-transform"
@@ -1521,58 +1572,17 @@ case CONTENT_TYPES.BREAKING_NEWS:
                 <PlusCircle className="h-5 w-5" />
                 <span>Bericht maken</span>
               </button>
-            </div>
-          )}
-          {/* MOBILE HEADER */}
-          <div className="lg:hidden flex justify-between items-center mb-6 px-4">
-  <div className="flex items-center space-x-3">
-    <img 
-      src={school?.logo_url || "/logo.png"} 
-      alt="School Logo" 
-      className="h-10 w-auto object-contain rounded-md" 
-      onError={(e) => { e.target.src = '/logo.png'; }} 
-    />
-    <h1 className="text-lg font-black text-gray-800">
-      Sport Dashboard
-    </h1>
-  </div>
-  <div className="text-right">
-    <div className="text-xl font-bold text-gray-800 font-mono">
-      {formatTime(currentTime)}
-    </div>
-    <div className="text-xs text-gray-500">
-      {formatDate(currentTime)}
-    </div>
-  </div>
-</div>
+            )}
 
-          {/* DESKTOP HEADER */}
-          <div className="hidden lg:flex justify-between items-center mb-8">
-  <div className="flex items-center space-x-4">
-    <img 
-      src={school?.logo_url || "/logo.png"} 
-      alt="School Logo" 
-      className="h-12 w-auto object-contain rounded-lg" 
-      onError={(e) => { e.target.src = '/logo.png'; }} 
-    />
-    <div>
-      <h1 className="text-2xl font-black text-gray-800">
-        Sport Dashboard
-      </h1>
-      <div className="text-gray-500 text-sm font-medium">
-        Live resultaten en nieuws
-      </div>
-    </div>
-  </div>
-  <div className="text-right">
-    <div className="text-4xl font-bold text-gray-800 font-mono">
-      {formatTime(currentTime)}
-    </div>
-    <div className="text-gray-600">
-      {formatDate(currentTime)}
-    </div>
-  </div>
-</div>
+            <div className="text-right">
+              <div className="text-4xl font-bold text-gray-800 font-mono">
+                {formatTime(currentTime)}
+              </div>
+              <div className="text-gray-600">
+                {formatDate(currentTime)}
+              </div>
+            </div>
+          </div>
 
           {/* Main Content */}
           {contentItems.length > 0 && currentItem ? (
