@@ -85,8 +85,6 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   // Handler voor student selectie in menu
   const handleImpersonatedStudentSelect = (student) => {
     setImpersonatedStudent(student);
-    // Menu NIET sluiten na selectie zodat gebruiker kan zien wat er gebeurd is
-    // setMenuOpen(false); // Deze regel uitcommentariëren
   };
 
   return (
@@ -211,98 +209,110 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               <UserCircleIcon className="h-8 w-8" />
             </button>
 
+            {/* NIEUW: Portal-achtige approach voor het menu */}
             {menuOpen && (
-              <div className="fixed top-16 right-4 w-80 bg-white border border-gray-200 rounded-xl shadow-2xl z-[9999] max-h-[calc(100vh-80px)] overflow-y-auto">
-                <div className="p-4">
-                  <div className="mb-3">
-                    <p className="text-sm text-gray-500">Ingelogd als</p>
-                    <p className="font-semibold text-gray-900">{profile?.naam || profile?.email}</p>
-                    
-                    <div className="flex items-center mt-2">
-                      {school?.logo_url && (
-                        <img src={school.logo_url} alt={`${school.naam} logo`} className="h-8 w-8 rounded-full mr-2 object-cover" />
-                      )}
-                      <p className="text-xs text-gray-400">School: {school?.naam || 'Niet gevonden'}</p>
-                    </div>
-                  </div>
-
-                  {profile?.rol === 'administrator' && (
-                    <div className="mb-4">
-                      <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">Wissel rol</label>
-                      <select 
-                        id="role-switcher" 
-                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500" 
-                        value={activeRole} 
-                        onChange={(e) => {
-                          setActiveRole(e.target.value);
-                          if (e.target.value !== 'leerling') {
-                            setImpersonatedStudent(null);
-                            setSelectedStudent(null);
-                          }
-                        }} 
-                        title="Switch rol"
-                      >
-                        <option value="administrator">Administrator</option>
-                        <option value="leerkracht">Leerkracht</option>
-                        <option value="leerling">Leerling</option>
-                      </select>
-                      
-                      {/* Student selector voor wanneer rol = leerling */}
-                      {activeRole === 'leerling' && (
-                        <div className="mt-3">
-                          <label className="block text-xs font-semibold text-gray-500 mb-1">Test als leerling</label>
-                          <div className="relative" style={{ zIndex: 10001 }}>
-                            <StudentSearch 
-                              onStudentSelect={handleImpersonatedStudentSelect}
-                              schoolId={profile?.school_id}
-                              placeholder="Selecteer leerling..."
-                              compact={true}
-                            />
-                          </div>
-                          {impersonatedStudent && (
-                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
-                              <p className="text-xs text-green-700 font-medium">
-                                ✓ Actief als: {impersonatedStudent.naam}
-                              </p>
-                              <button
-                                onClick={() => {
-                                  setImpersonatedStudent(null);
-                                  setSelectedStudent(null);
-                                }}
-                                className="text-xs text-green-600 hover:text-green-800 underline mt-1"
-                              >
-                                Reset leerling selectie
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <hr className="my-3" />
-                  <Link 
-                    to="/wachtwoord-wijzigen" 
-                    className="w-full block px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 rounded-md transition-colors" 
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Wachtwoord wijzigen
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-3 py-2 text-sm text-red-600 bg-transparent hover:bg-red-50 rounded-md mt-1 transition-colors"
-                  >
-                    Uitloggen
-                  </button>
+              <div 
+                className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-2xl p-4"
+                style={{
+                  position: 'fixed',
+                  top: '64px',
+                  right: '16px',
+                  zIndex: 99999,
+                  maxHeight: 'calc(100vh - 80px)',
+                  overflowY: 'auto'
+                }}
+              >
+                <div className="mb-3">
+                  <p className="text-sm text-gray-500">Ingelogd als</p>
+                  <p className="font-semibold text-gray-900">{profile?.naam || profile?.email}</p>
                   
-                  {/* Menu sluiten knop */}
-                  <button
-                    onClick={() => setMenuOpen(false)}
-                    className="w-full text-center px-3 py-2 text-xs text-gray-500 hover:text-gray-700 border-t border-gray-200 mt-3 pt-3"
-                  >
-                    Menu sluiten
-                  </button>
+                  <div className="flex items-center mt-2">
+                    {school?.logo_url && (
+                      <img src={school.logo_url} alt={`${school.naam} logo`} className="h-8 w-8 rounded-full mr-2 object-cover" />
+                    )}
+                    <p className="text-xs text-gray-400">School: {school?.naam || 'Niet gevonden'}</p>
+                  </div>
                 </div>
+
+                {profile?.rol === 'administrator' && (
+                  <div className="mb-4">
+                    <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">Wissel rol</label>
+                    <select 
+                      id="role-switcher" 
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500" 
+                      value={activeRole} 
+                      onChange={(e) => {
+                        setActiveRole(e.target.value);
+                        if (e.target.value !== 'leerling') {
+                          setImpersonatedStudent(null);
+                          setSelectedStudent(null);
+                        }
+                      }} 
+                      title="Switch rol"
+                    >
+                      <option value="administrator">Administrator</option>
+                      <option value="leerkracht">Leerkracht</option>
+                      <option value="leerling">Leerling</option>
+                    </select>
+                    
+                    {/* Student selector voor wanneer rol = leerling */}
+                    {activeRole === 'leerling' && (
+                      <div className="mt-3">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Test als leerling</label>
+                        <div 
+                          className="relative"
+                          style={{ zIndex: 100000 }}
+                        >
+                          <StudentSearch 
+                            onStudentSelect={handleImpersonatedStudentSelect}
+                            schoolId={profile?.school_id}
+                            placeholder="Selecteer leerling..."
+                            compact={true}
+                          />
+                        </div>
+                        {impersonatedStudent && (
+                          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                            <p className="text-xs text-green-700 font-medium">
+                              ✓ Actief als: {impersonatedStudent.naam}
+                            </p>
+                            <button
+                              onClick={() => {
+                                setImpersonatedStudent(null);
+                                setSelectedStudent(null);
+                              }}
+                              className="text-xs text-green-600 hover:text-green-800 underline mt-1"
+                            >
+                              Reset leerling selectie
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <hr className="my-3" />
+                <Link 
+                  to="/wachtwoord-wijzigen" 
+                  className="w-full block px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 rounded-md transition-colors" 
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Wachtwoord wijzigen
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-3 py-2 text-sm text-red-600 bg-transparent hover:bg-red-50 rounded-md mt-1 transition-colors"
+                >
+                  Uitloggen
+                </button>
+                
+                {/* Menu sluiten knop */}
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className="w-full text-center px-3 py-2 text-xs text-gray-500 hover:text-gray-700 border-t border-gray-200 mt-3 pt-3"
+                >
+                  Menu sluiten
+                </button>
               </div>
             )}
           </div>
