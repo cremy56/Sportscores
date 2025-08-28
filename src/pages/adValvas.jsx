@@ -702,11 +702,32 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
  const generateContentItems = async () => {
   console.log('🔄 Content generatie gestart...');
   
-  const [breakingNewsData, activeTestsData, mededelingenData] = await Promise.all([
+  // 1. AANGEPASTE FETCH: fetchActiveTests is hier verwijderd.
+  const [breakingNewsData, mededelingenData, todaysScoresData] = await Promise.all([
     detectBreakingNews(),
-    fetchActiveTests(),
-    fetchMededelingen(profile?.school_id) // <-- DEZE AANROEP ONTBRAK
+    fetchMededelingen(profile?.school_id),
+    fetchTodaysScores(profile?.school_id)
   ]);
+  
+  // --- NIEUWE LOGICA ---
+  // 2. LEID ACTIEVE TESTEN AF UIT DE OPGEHAALDE SCORES
+  // Dit vervangt de logica van de oude fetchActiveTests functie.
+  
+  const todayTestIds = new Set();
+  todaysScoresData.forEach(score => {
+    if (score.test_id) {
+      todayTestIds.add(score.test_id);
+    }
+  });
+
+  let activeTestsData = [];
+  if (todayTestIds.size > 0) {
+    const testPromises = Array.from(todayTestIds).map(testId => getDoc(doc(db, 'testen', testId)));
+    const testSnaps = await Promise.all(testPromises);
+    activeTestsData = testSnaps
+      .filter(snap => snap.exists())
+      .map(snap => ({ id: snap.id, ...snap.data() }));
+  }
   
   setBreakingNewsItems(breakingNewsData);
   setActiveTests(activeTestsData);
@@ -742,17 +763,7 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
   const otherContent = [];
   
   try {
-    const dailyActivities = [
-      { text: "Vandaag legde klas 4B de coopertest af - super resultaten! 💪", icon: BookOpen, color: "from-green-500 to-emerald-600" },
-      { text: "Atletiekdag: Leerlingen braken persoonlijke records! 🏃‍♂️", icon: Target, color: "from-blue-500 to-cyan-600" },
-    ];
-    otherContent.push({
-      type: CONTENT_TYPES.DAILY_ACTIVITY,
-      data: dailyActivities[Math.floor(Math.random() * dailyActivities.length)],
-      priority: 5,
-      id: `daily-${Date.now()}`
-    });
-
+    
     const upcomingEvents = generateUpcomingEvents();
     upcomingEvents.forEach((event, index) => otherContent.push({
       type: CONTENT_TYPES.UPCOMING_EVENT,
@@ -1053,49 +1064,7 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     return seasonalData[month] || null;
   };
 
-// Functie om actieve testen op te halen (vandaag afgenomen)
-const fetchActiveTests = async () => {
-  if (!profile?.school_id) return [];
-  
-  try {
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-    
-    const scoresQuery = query(
-      collection(db, 'scores'),
-      where('school_id', '==', profile.school_id),
-      where('datum', '>=', startOfDay),
-      where('datum', '<=', endOfDay)
-    );
-    
-    const scoresSnap = await getDocs(scoresQuery);
-    const todayTests = new Set();
-    
-    scoresSnap.docs.forEach(doc => {
-      const data = doc.data();
-      if (data.test_id) {
-        todayTests.add(data.test_id);
-      }
-    });
-    
-    if (todayTests.size === 0) return [];
-    
-    // Haal test details op
-    const testPromises = Array.from(todayTests).map(async (testId) => {
-      const testRef = doc(db, 'testen', testId);
-      const testSnap = await getDoc(testRef);
-      return testSnap.exists() ? { id: testId, ...testSnap.data() } : null;
-    });
-    
-    const tests = await Promise.all(testPromises);
-    return tests.filter(Boolean);
-    
-  } catch (error) {
-    console.error('Error fetching active tests:', error);
-    return [];
-  }
-};
+
 const fetchMededelingen = async (school_id) => {
   if (!school_id) return [];
   try {
