@@ -1084,6 +1084,22 @@ const fetchActiveTests = async () => {
     return [];
   }
 };
+const fetchMededelingen = async (school_id) => {
+  if (!school_id) return [];
+  try {
+    const vandaag = new Date();
+    const mededelingenQuery = query(
+      collection(db, 'mededelingen'),
+      where('school_id', '==', school_id),
+      where('vervalDatum', '>', Timestamp.fromDate(vandaag))
+    );
+    const querySnapshot = await getDocs(mededelingenQuery);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("Fout bij ophalen mededelingen:", error);
+    return [];
+  }
+};
 
 // Functie om breaking news te detecteren (nieuwe highscores vandaag)
 const detectBreakingNews = async () => {
