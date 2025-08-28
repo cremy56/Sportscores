@@ -3,11 +3,11 @@ import { Outlet, NavLink, useOutletContext, Link, useLocation } from 'react-rout
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { Toaster } from 'react-hot-toast';
-import { useState, useRef, useEffect, useMemo } from 'react'; // useMemo toegevoegd
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { UserCircleIcon } from '@heroicons/react/24/outline';
 import { Bars3Icon } from '@heroicons/react/24/solid';
-import logoSrc from '../assets/logo.png'; // Importeer het logo
-import StudentSearch from './StudentSearch'; // NIEUW
+import logoSrc from '../assets/logo.png';
+import StudentSearch from './StudentSearch';
 
 export default function Layout({ profile, school, selectedStudent, setSelectedStudent }) {
 
@@ -15,23 +15,20 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const [activeRole, setActiveRole] = useState(profile?.rol || 'leerling');
   const [impersonatedStudent, setImpersonatedStudent] = useState(null);
 
-  // NIEUW: Sync impersonatedStudent met selectedStudent
+  // Sync impersonatedStudent met selectedStudent
   useEffect(() => {
     if (activeRole === 'leerling' && impersonatedStudent && profile?.rol === 'administrator') {
       setSelectedStudent(impersonatedStudent);
     }
   }, [impersonatedStudent, activeRole, profile?.rol, setSelectedStudent]);
 
-
-  // AANGEPAST: Maak een "gesimuleerd" profiel aan op basis van de geselecteerde rol.
-  // Dit object wordt doorgegeven aan alle onderliggende pagina's.
+  // Maak een "gesimuleerd" profiel aan op basis van de geselecteerde rol
   const simulatedProfile = useMemo(() => {
     if (activeRole === 'leerling' && impersonatedStudent && profile?.rol === 'administrator') {
-      // Als administrator een leerling heeft geselecteerd, gebruik die leerling data
       return {
         ...impersonatedStudent,
         rol: 'leerling',
-        originalProfile: profile // Behoud originele admin profiel voor referentie
+        originalProfile: profile
       };
     }
     return {
@@ -43,7 +40,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator';
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
   const testbeheerLinkText = activeRole === 'administrator' ? 'Testbeheer' : 'Sporttesten';
-  const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan'; // NIEUW TOEGEVOEGD
+  const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan';
 
   const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
   const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
@@ -56,7 +53,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     '/': 'Home',
     '/highscores': 'Highscores',
     '/evolutie': evolutieLinkText,
-    '/groeiplan': groeiplanLinkText, // AANGEPAST
+    '/groeiplan': groeiplanLinkText,
     '/groepsbeheer': 'Groepsbeheer',
     '/scores': 'Scores',
     '/leerlingbeheer': 'Leerlingbeheer',
@@ -84,11 +81,12 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
       console.error("Fout bij uitloggen:", error);
     }
   };
-// NIEUW: Handler voor student selectie in menu
+
+  // Handler voor student selectie in menu
   const handleImpersonatedStudentSelect = (student) => {
     setImpersonatedStudent(student);
-    // Menu sluiten na selectie
-    setMenuOpen(false);
+    // Menu NIET sluiten na selectie zodat gebruiker kan zien wat er gebeurd is
+    // setMenuOpen(false); // Deze regel uitcommentariëren
   };
 
   return (
@@ -106,18 +104,16 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             </button>
 
             <NavLink 
-  to="/" 
-  aria-label="Sportscores Logo"
-  className="block h-8 w-32" // Geef de link een vaste breedte
-  style={{
-    backgroundImage: `url(${logoSrc})`,
-    backgroundSize: 'contain',
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'center',
-  }}
->
-  {/* De img-tag is nu weg, de NavLink ZELF is nu de afbeelding */}
-</NavLink>
+              to="/" 
+              aria-label="Sportscores Logo"
+              className="block h-8 w-32"
+              style={{
+                backgroundImage: `url(${logoSrc})`,
+                backgroundSize: 'contain',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center',
+              }}
+            />
           </div>
           <div className="flex-grow text-center md:hidden">
             <h1 className="text-lg font-semibold text-gray-800">{currentTitle}</h1>
@@ -179,10 +175,10 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             )}
           </ul>
 
-        <ul
-          className={`mobile-menu bg-white text-black dark:bg-white dark:text-black md:hidden absolute top-full left-0 right-0 border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
-           ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
-          `}
+          <ul
+            className={`mobile-menu bg-white text-black dark:bg-white dark:text-black md:hidden absolute top-full left-0 right-0 border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out z-40
+             ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
+            `}
             onClick={() => setMobileMenuOpen(false)}
           >
             <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
@@ -216,8 +212,8 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50">
-                <div className="mb-2">
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-[9999] max-h-[calc(100vh-80px)] overflow-y-auto">
+                <div className="mb-3">
                   <p className="text-sm text-gray-500">Ingelogd als</p>
                   <p className="font-semibold text-gray-900">{profile?.naam || profile?.email}</p>
                   
@@ -234,13 +230,13 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                     <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">Wissel rol</label>
                     <select 
                       id="role-switcher" 
-                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm" 
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500" 
                       value={activeRole} 
                       onChange={(e) => {
                         setActiveRole(e.target.value);
                         if (e.target.value !== 'leerling') {
-                          setImpersonatedStudent(null); // Reset student selection wanneer niet meer in leerling modus
-                          setSelectedStudent(null); // NIEUW: Reset ook de globale selectedStudent
+                          setImpersonatedStudent(null);
+                          setSelectedStudent(null);
                         }
                       }} 
                       title="Switch rol"
@@ -250,33 +246,60 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                       <option value="leerling">Leerling</option>
                     </select>
                     
-                    {/* NIEUW: Student selector voor wanneer rol = leerling */}
+                    {/* Student selector voor wanneer rol = leerling */}
                     {activeRole === 'leerling' && (
                       <div className="mt-3">
                         <label className="block text-xs font-semibold text-gray-500 mb-1">Test als leerling</label>
-                        <StudentSearch 
-                          onStudentSelect={handleImpersonatedStudentSelect}
-                          schoolId={profile?.school_id}
-                          placeholder="Selecteer leerling..."
-                          compact={true}
-                        />
+                        <div className="relative">
+                          <StudentSearch 
+                            onStudentSelect={handleImpersonatedStudentSelect}
+                            schoolId={profile?.school_id}
+                            placeholder="Selecteer leerling..."
+                            compact={true}
+                          />
+                        </div>
                         {impersonatedStudent && (
-                          <p className="text-xs text-green-600 mt-1">Actief als: {impersonatedStudent.naam}</p>
+                          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                            <p className="text-xs text-green-700 font-medium">
+                              ✓ Actief als: {impersonatedStudent.naam}
+                            </p>
+                            <button
+                              onClick={() => {
+                                setImpersonatedStudent(null);
+                                setSelectedStudent(null);
+                              }}
+                              className="text-xs text-green-600 hover:text-green-800 underline mt-1"
+                            >
+                              Reset leerling selectie
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
                 )}
 
-                <hr className="my-2" />
-                <Link to="/wachtwoord-wijzigen" className="w-full block px-2 py-1 text-sm text-purple-700 hover:bg-purple-50 rounded-md" onClick={() => setMenuOpen(false)}>
+                <hr className="my-3" />
+                <Link 
+                  to="/wachtwoord-wijzigen" 
+                  className="w-full block px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 rounded-md transition-colors" 
+                  onClick={() => setMenuOpen(false)}
+                >
                   Wachtwoord wijzigen
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left px-2 py-1 text-sm text-red-600 bg-transparent hover:bg-red-50 rounded-md mt-1"
+                  className="w-full text-left px-3 py-2 text-sm text-red-600 bg-transparent hover:bg-red-50 rounded-md mt-1 transition-colors"
                 >
                   Uitloggen
+                </button>
+                
+                {/* Menu sluiten knop */}
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className="w-full text-center px-3 py-2 text-xs text-gray-500 hover:text-gray-700 border-t border-gray-200 mt-3 pt-3"
+                >
+                  Menu sluiten
                 </button>
               </div>
             )}
@@ -285,12 +308,11 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* AANGEPAST: Geef het gemodificeerde 'simulatedProfile' door ipv het originele 'profile' */}
-       <Outlet context={{ 
+        <Outlet context={{ 
           profile: simulatedProfile, 
           school,
-          selectedStudent,      // De globale leerling die we willen onthouden
-          setSelectedStudent  // De globale functie om de leerling aan te passen
+          selectedStudent,
+          setSelectedStudent
         }} />
       </main>
     </div>
