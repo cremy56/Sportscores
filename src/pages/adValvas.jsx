@@ -1310,6 +1310,29 @@ const PodiumCard = ({ score, position, eenheid }) => {
       </div>
     </div>
   );
+  case 'mededeling':
+        const MededelingIcoon = item.data.icoon;
+        return (
+          <div className={`relative bg-gradient-to-br ${item.data.kleur} rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden`}>
+            <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
+              <MededelingIcoon className="h-4 w-4" />
+              <span className="text-sm font-bold uppercase tracking-wider">
+                {item.data.type === 'prestatie' ? 'Prestatie in de Kijker' : 'Mededeling'}
+              </span>
+            </div>
+            <div className="relative z-10 text-center">
+              <div className="inline-flex items-center justify-center w-24 h-24 bg-white/10 rounded-full mb-8">
+                <MededelingIcoon className="h-12 w-12 opacity-90" />
+              </div>
+              <h2 className="text-2xl lg:text-4xl font-bold leading-tight drop-shadow-lg mb-4">
+                {item.data.tekst}
+              </h2>
+              <p className="text-base opacity-80">
+                {item.data.auteur}
+              </p>
+            </div>
+          </div>
+        );
     case 'placeholder':
         const PlaceholderIcon = item.data.icon;
         return (
