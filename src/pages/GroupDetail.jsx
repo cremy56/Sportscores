@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, arrayUnion, arrayRemove } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
-import { TrashIcon, PlusIcon, ArrowLeftIcon, UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PlusIcon, ArrowLeftIcon, UserPlusIcon, XMarkIcon, BarsArrowUpIcon } from '@heroicons/react/24/outline';
 import { ClipboardDocumentListIcon } from '@heroicons/react/24/solid';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -22,6 +22,64 @@ function getSchoolYear(date) {
     };
 }
 
+
+// --- Modal om leerlingen te sorteren ---
+function SortStudentsModal({ isOpen, onClose, availableTests, onSortChange, currentSort }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20 w-full max-w-md">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Sorteren Op</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <div className="space-y-3">
+          <button
+            onClick={() => {
+              onSortChange('naam');
+              onClose();
+            }}
+            className={`w-full text-left px-4 py-3 rounded-2xl transition-colors ${
+              currentSort === 'naam' 
+                ? 'bg-purple-100 text-purple-800 border-2 border-purple-300' 
+                : 'bg-gray-50 text-gray-800 hover:bg-gray-100 border-2 border-transparent'
+            }`}
+          >
+            <div className="font-medium">Naam (A-Z)</div>
+            <div className="text-sm opacity-75">Alfabetisch sorteren op voornaam</div>
+          </button>
+
+          {availableTests.length > 0 && (
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <p className="text-sm font-medium text-gray-700 mb-3">Sorteren op testresultaat:</p>
+              {availableTests.map(test => (
+                <button
+                  key={test.id}
+                  onClick={() => {
+                    onSortChange(test.id);
+                    onClose();
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-2xl transition-colors mb-2 ${
+                    currentSort === test.id 
+                      ? 'bg-purple-100 text-purple-800 border-2 border-purple-300' 
+                      : 'bg-gray-50 text-gray-800 hover:bg-gray-100 border-2 border-transparent'
+                  }`}
+                >
+                  <div className="font-medium">{test.naam}</div>
+                  <div className="text-sm opacity-75">Ranking binnen de groep</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // --- Modal om leerlingen toe te voegen ---
 function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
@@ -131,9 +189,14 @@ export default function GroupDetail() {
   const [showRemoveStudentModal, setShowRemoveStudentModal] = useState(false);
   const [studentToRemove, setStudentToRemove] = useState(null);
   
-  // AANGEPAST: State voor de scores en laadstatus
+  // State voor de scores en laadstatus
   const [scoresByLeerling, setScoresByLeerling] = useState(new Map());
   const [loadingScores, setLoadingScores] = useState(true);
+  
+  // NIEUW: State voor sortering
+  const [isSortModalOpen, setIsSortModalOpen] = useState(false);
+  const [currentSort, setCurrentSort] = useState('naam');
+  const [availableTests, setAvailableTests] = useState([]);
 
   const fetchGroupData = useCallback(async () => {
     if (!groepId) return;
@@ -151,8 +214,7 @@ export default function GroupDetail() {
           const membersDocs = await Promise.all(membersPromises);
           const membersData = membersDocs
             .filter(doc => doc.exists())
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .sort((a,b) => a.naam.localeCompare(b.naam)); // Sorteer leerlingen op naam
+            .map(doc => ({ id: doc.id, ...doc.data() }));
           setMembers(membersData);
         } else {
           setMembers([]);
@@ -171,7 +233,7 @@ export default function GroupDetail() {
     fetchGroupData();
   }, [fetchGroupData]);
   
-  // AANGEPAST: Nieuwe useEffect om scores op te halen zodra de leden bekend zijn
+  // useEffect om scores op te halen zodra de leden bekend zijn
   useEffect(() => {
     const fetchScoresForGroup = async () => {
         if (members.length === 0) {
@@ -196,11 +258,20 @@ export default function GroupDetail() {
             // Haal de namen van de testen op
             const testIds = [...new Set(scoresData.map(s => s.test_id))];
             let testNamen = new Map();
+            let testenVoorSorteren = [];
+            
             if (testIds.length > 0) {
                 const testenQuery = query(collection(db, 'testen'), where('__name__', 'in', testIds));
                 const testenSnapshot = await getDocs(testenQuery);
-                testenSnapshot.docs.forEach(d => testNamen.set(d.id, d.data().naam));
+                testenSnapshot.docs.forEach(d => {
+                    const testData = d.data();
+                    testNamen.set(d.id, testData.naam);
+                    testenVoorSorteren.push({ id: d.id, naam: testData.naam });
+                });
             }
+            
+            // NIEUW: Stel beschikbare testen in voor sortering
+            setAvailableTests(testenVoorSorteren.sort((a, b) => a.naam.localeCompare(b.naam)));
             
             // Groepeer scores per leerling
             const scoresMap = new Map();
@@ -227,6 +298,56 @@ export default function GroupDetail() {
     fetchScoresForGroup();
   }, [members]);
 
+  // NIEUW: Sorteer de leden op basis van de huidige sorteeroptie
+  const sortedMembers = useMemo(() => {
+    if (!members || members.length === 0) return [];
+    
+    if (currentSort === 'naam') {
+      return [...members].sort((a, b) => a.naam.localeCompare(b.naam));
+    }
+    
+    // Sorteren op testresultaat
+    const membersWithScores = members.map(member => {
+      const memberScores = scoresByLeerling.get(member.id) || [];
+      const testScore = memberScores.find(score => score.test_id === currentSort);
+      return {
+        ...member,
+        testScore: testScore ? testScore.totale_score : null,
+        hasScore: !!testScore
+      };
+    });
+    
+    // Sorteer: eerst degenen met score (hoogste score eerst), dan degenen zonder score
+    return membersWithScores.sort((a, b) => {
+      if (a.hasScore && !b.hasScore) return -1;
+      if (!a.hasScore && b.hasScore) return 1;
+      if (a.hasScore && b.hasScore) {
+        return b.testScore - a.testScore; // Hoogste score eerst
+      }
+      return a.naam.localeCompare(b.naam); // Alfabetisch voor degenen zonder score
+    });
+  }, [members, scoresByLeerling, currentSort]);
+
+  // NIEUW: Functie om ranking te bepalen voor een specifieke test
+  const getRankingForTest = useCallback((memberId, testId) => {
+    if (testId === 'naam') return null;
+    
+    const membersWithScores = members
+      .map(member => {
+        const memberScores = scoresByLeerling.get(member.id) || [];
+        const testScore = memberScores.find(score => score.test_id === testId);
+        return {
+          id: member.id,
+          score: testScore ? testScore.totale_score : null
+        };
+      })
+      .filter(member => member.score !== null)
+      .sort((a, b) => b.score - a.score);
+    
+    const memberIndex = membersWithScores.findIndex(member => member.id === memberId);
+    return memberIndex !== -1 ? memberIndex + 1 : null;
+  }, [members, scoresByLeerling]);
+
   const handleRemoveStudentClick = (student) => {
     setStudentToRemove(student);
     setShowRemoveStudentModal(true);
@@ -248,6 +369,18 @@ export default function GroupDetail() {
       console.error("Fout bij verwijderen leerling:", error);
       toast.error("Kon leerling niet verwijderen.");
     }
+  };
+
+  // NIEUW: Functie om sortering te wijzigen
+  const handleSortChange = (newSort) => {
+    setCurrentSort(newSort);
+  };
+
+  // NIEUW: Haal de naam van de huidige sorteeroptie op
+  const getCurrentSortName = () => {
+    if (currentSort === 'naam') return 'Naam (A-Z)';
+    const test = availableTests.find(t => t.id === currentSort);
+    return test ? `${test.naam} (Ranking)` : 'Naam (A-Z)';
   };
 
   if (loading) {
@@ -322,18 +455,51 @@ export default function GroupDetail() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
-            <h2 className="font-bold text-xl text-gray-800 mb-6">Groepsleden ({members.length})</h2>
+            {/* NIEUW: Header met sorteeroptie */}
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="font-bold text-xl text-gray-800">Groepsleden ({members.length})</h2>
+              {members.length > 1 && (
+                <button
+                  onClick={() => setIsSortModalOpen(true)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-sm font-medium text-gray-700"
+                >
+                  <BarsArrowUpIcon className="h-5 w-5" />
+                  <span>Sorteer op: {getCurrentSortName()}</span>
+                </button>
+              )}
+            </div>
+            
             <div className="flow-root">
               <ul className="-my-4 divide-y divide-gray-200">
-                {members.length > 0 ? (
-                  members.map((lid) => {
+                {sortedMembers.length > 0 ? (
+                  sortedMembers.map((lid, index) => {
                     const afgenomenTesten = scoresByLeerling.get(lid.id) || [];
+                    const ranking = currentSort !== 'naam' ? getRankingForTest(lid.id, currentSort) : null;
+                    
                     return (
                         <li key={lid.id} className="flex items-center py-4 space-x-4">
+                            {/* NIEUW: Ranking indicator */}
+                            {currentSort !== 'naam' && (
+                              <div className="flex-shrink-0 w-8 text-center">
+                                {ranking ? (
+                                  <span className={`inline-flex items-center justify-center w-6 h-6 text-xs font-bold rounded-full ${
+                                    ranking === 1 ? 'bg-yellow-100 text-yellow-800' :
+                                    ranking === 2 ? 'bg-gray-100 text-gray-800' :
+                                    ranking === 3 ? 'bg-amber-100 text-amber-800' :
+                                    'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {ranking}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">-</span>
+                                )}
+                              </div>
+                            )}
+                            
                             <div className="flex-1 min-w-0">
                                 <p className="text-md font-medium text-gray-900 truncate">{lid.naam}</p>
                       
-                                {/* AANGEPAST: Weergave van afgenomen testen */}
+                                {/* Weergave van afgenomen testen */}
                                 {loadingScores ? (
                                     <p className="text-xs text-gray-400 mt-2">Testgeschiedenis laden...</p>
                                 ) : (
@@ -381,6 +547,15 @@ export default function GroupDetail() {
         isOpen={isAddStudentModalOpen}
         onClose={() => setIsAddStudentModalOpen(false)}
         onStudentAdded={fetchGroupData}
+      />
+
+      {/* NIEUW: Sort Modal */}
+      <SortStudentsModal
+        isOpen={isSortModalOpen}
+        onClose={() => setIsSortModalOpen(false)}
+        availableTests={availableTests}
+        onSortChange={handleSortChange}
+        currentSort={currentSort}
       />
 
       {/* Remove Student Confirmation Modal */}
