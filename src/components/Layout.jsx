@@ -15,6 +15,14 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const [activeRole, setActiveRole] = useState(profile?.rol || 'leerling');
   const [impersonatedStudent, setImpersonatedStudent] = useState(null);
 
+  // NIEUW: Sync impersonatedStudent met selectedStudent
+  useEffect(() => {
+    if (activeRole === 'leerling' && impersonatedStudent && profile?.rol === 'administrator') {
+      setSelectedStudent(impersonatedStudent);
+    }
+  }, [impersonatedStudent, activeRole, profile?.rol, setSelectedStudent]);
+
+
   // AANGEPAST: Maak een "gesimuleerd" profiel aan op basis van de geselecteerde rol.
   // Dit object wordt doorgegeven aan alle onderliggende pagina's.
   const simulatedProfile = useMemo(() => {
@@ -75,6 +83,12 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     } catch (error) {
       console.error("Fout bij uitloggen:", error);
     }
+  };
+// NIEUW: Handler voor student selectie in menu
+  const handleImpersonatedStudentSelect = (student) => {
+    setImpersonatedStudent(student);
+    // Menu sluiten na selectie
+    setMenuOpen(false);
   };
 
   return (
@@ -226,6 +240,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                         setActiveRole(e.target.value);
                         if (e.target.value !== 'leerling') {
                           setImpersonatedStudent(null); // Reset student selection wanneer niet meer in leerling modus
+                          setSelectedStudent(null); // NIEUW: Reset ook de globale selectedStudent
                         }
                       }} 
                       title="Switch rol"
@@ -240,7 +255,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                       <div className="mt-3">
                         <label className="block text-xs font-semibold text-gray-500 mb-1">Test als leerling</label>
                         <StudentSearch 
-                          onStudentSelect={setImpersonatedStudent} 
+                          onStudentSelect={handleImpersonatedStudentSelect}
                           schoolId={profile?.school_id}
                           placeholder="Selecteer leerling..."
                           compact={true}
