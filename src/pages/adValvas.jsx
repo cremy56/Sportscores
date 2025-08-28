@@ -1327,9 +1327,7 @@ const PodiumCard = ({ score, position, eenheid }) => {
               <h2 className="text-2xl lg:text-4xl font-bold leading-tight drop-shadow-lg mb-4">
                 {item.data.tekst}
               </h2>
-              <p className="text-base opacity-80">
-                {item.data.auteur}
-              </p>
+             
             </div>
           </div>
         );
