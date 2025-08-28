@@ -385,9 +385,9 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* NIEUW: Compact Record + Ranking Layout */}
-      <div className="px-3 sm:px-6 py-3 sm:py-4 bg-white/30 border-b border-white/10">
-        <div className="flex items-center justify-between gap-4">
+      {/* NIEUW: Ultra Compact Record + Ranking Layout */}
+      <div className="px-3 sm:px-6 py-2 sm:py-3 bg-white/30 border-b border-white/10">
+        <div className="flex items-center justify-between gap-6">
           {/* Personal Best */}
           <div className="flex-1 text-center">
             <p className="text-xs text-gray-500 uppercase font-medium mb-1">Record</p>
@@ -401,23 +401,23 @@ useEffect(() => {
             )}
           </div>
 
-          {/* Ranking */}
+          {/* Compact Ranking */}
           <div className="flex-1">
-            <p className="text-xs text-gray-500 uppercase font-medium mb-2 text-center">Ranking</p>
+            <p className="text-xs text-gray-500 uppercase font-medium mb-1 text-center">Ranking</p>
             {rankingData ? (
-              <div className="space-y-1">
-                <div className="bg-purple-50 rounded-lg px-3 py-2 text-center">
+              <div className="flex justify-center items-center gap-3">
+                <div className="text-center">
                   <span className="font-bold text-purple-700 text-lg">#{rankingData.overallRank}</span>
-                  <span className="text-sm text-gray-500 ml-1">/ {rankingData.totalStudents}</span>
-                  <div className="text-xs text-gray-500 mt-0.5">Algemeen</div>
+                  <span className="text-sm text-gray-500">/{rankingData.totalStudents}</span>
+                  <div className="text-xs text-gray-500">Algemeen</div>
                 </div>
-                <div className="bg-orange-50 rounded-lg px-3 py-1.5 text-center">
+                <div className="text-center">
                   <span className="font-bold text-orange-600 text-sm">#{rankingData.ageRank}</span>
-                  <span className="text-xs text-gray-500 ml-1">({rankingData.leeftijd}j)</span>
+                  <div className="text-xs text-gray-500">({rankingData.leeftijd}j)</div>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-4">
+              <div className="text-center">
                 <p className="font-bold text-gray-400 text-lg">-</p>
                 <p className="text-xs text-gray-400">Geen data</p>
               </div>
