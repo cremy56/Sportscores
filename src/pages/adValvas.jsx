@@ -1500,6 +1500,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
       {/* --- POPUP FORMULIER --- */}
       {isModalOpen && (
         <MededelingModal 
+          isOpen={isModalOpen} // <-- DEZE REGEL ONTBRAK
           profile={profile}
           onClose={() => setIsModalOpen(false)}
           onSuccess={() => {
