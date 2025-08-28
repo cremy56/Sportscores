@@ -686,10 +686,11 @@ const [contentPattern, setContentPattern] = useState([]); // Alternerend patroon
 const [patternIndex, setPatternIndex] = useState(0);
 
   // Enhanced content genereren met meer variatie
+// src/pages/adValvas.jsx
+
  const generateContentItems = async () => {
-  console.log('🔄 Generating content items with alternating pattern...');
+  console.log('🔄 Content generatie gestart...');
   
-  // Haal alle data op
   const [breakingNewsData, activeTestsData] = await Promise.all([
     detectBreakingNews(),
     fetchActiveTests()
@@ -698,10 +699,7 @@ const [patternIndex, setPatternIndex] = useState(0);
   setBreakingNewsItems(breakingNewsData);
   setActiveTests(activeTestsData);
   
-  const items = [];
-  
-  // 1. HIGHSCORES (basis content)
-  const highscoreItems = testHighscores.map((testData, index) => ({
+  const highscoreItems = testHighscores.map((testData) => ({
     type: CONTENT_TYPES.HIGHSCORES,
     data: testData,
     priority: 10,
@@ -709,15 +707,13 @@ const [patternIndex, setPatternIndex] = useState(0);
     lastShown: 0
   }));
   
-  // 2. BREAKING NEWS (hele dag tonen, hogere frequentie)
-  const breakingItems = breakingNewsData.map((item, index) => ({
+  const breakingItems = breakingNewsData.map((item) => ({
     ...item,
     priority: 15,
-    showFrequency: 3 // Toon 3x zo vaak als normale content
+    showFrequency: 3
   }));
   
-  // 3. ACTIVE TESTS (vandaag afgenomen)
-  const activeTestItems = activeTestsData.map((test, index) => ({
+  const activeTestItems = activeTestsData.map((test) => ({
     type: CONTENT_TYPES.ACTIVE_TEST,
     data: {
       text: `📝 Test afgenomen: ${test.naam}`,
@@ -731,165 +727,105 @@ const [patternIndex, setPatternIndex] = useState(0);
     lastShown: 0
   }));
   
-  // 4. OTHER CONTENT TYPES
   const otherContent = [];
   
-  // Daily activities
-  const dailyActivities = [
-    { text: "Vandaag legde klas 4B de coopertest af - super resultaten! 💪", icon: BookOpen, color: "from-green-500 to-emerald-600" },
-    { text: "Atletiekdag: Leerlingen braken persoonlijke records! 🏃‍♂️", icon: Target, color: "from-blue-500 to-cyan-600" },
-    { text: "Zwemles 3A: Iedereen haalde zijn diploma! 🏊‍♀️", icon: Activity, color: "from-teal-500 to-blue-600" },
-    { text: "Voetbaltoernooi: Spannende wedstrijden op het schoolplein ⚽", icon: Users, color: "from-orange-500 to-red-600" }
-  ];
-  
-  const randomDaily = dailyActivities[Math.floor(Math.random() * dailyActivities.length)];
-  otherContent.push({
-    type: CONTENT_TYPES.DAILY_ACTIVITY,
-    data: randomDaily,
-    priority: 5,
-    id: `daily-${Date.now()}`,
-    lastShown: 0
-  });
-  
-  // Upcoming events
-  const upcomingEvents = generateUpcomingEvents();
-  upcomingEvents.forEach((event, index) => {
+  try {
+    const dailyActivities = [
+      { text: "Vandaag legde klas 4B de coopertest af - super resultaten! 💪", icon: BookOpen, color: "from-green-500 to-emerald-600" },
+      { text: "Atletiekdag: Leerlingen braken persoonlijke records! 🏃‍♂️", icon: Target, color: "from-blue-500 to-cyan-600" },
+    ];
     otherContent.push({
-      type: CONTENT_TYPES.UPCOMING_EVENT,
-      data: {
-        text: event.text,
-        date: event.date,
-        icon: event.icon,
-        color: "from-purple-500 to-pink-600"
-      },
-      priority: 6,
-      id: `event-${index}-${Date.now()}`,
-      lastShown: 0
+      type: CONTENT_TYPES.DAILY_ACTIVITY,
+      data: dailyActivities[Math.floor(Math.random() * dailyActivities.length)],
+      priority: 5,
+      id: `daily-${Date.now()}`
     });
-  });
-  
-  // Sport quotes (minder)
-  const shuffledQuotes = shuffleArray([...SPORT_QUOTES]);
-  for (let i = 0; i < 2; i++) {
-    otherContent.push({
+
+    const upcomingEvents = generateUpcomingEvents();
+    upcomingEvents.forEach((event, index) => otherContent.push({
+      type: CONTENT_TYPES.UPCOMING_EVENT,
+      data: { ...event, color: "from-purple-500 to-pink-600" },
+      priority: 6,
+      id: `event-${index}-${Date.now()}`
+    }));
+
+    const shuffledQuotes = shuffleArray([...SPORT_QUOTES]);
+    for (let i = 0; i < 2; i++) otherContent.push({
       type: CONTENT_TYPES.QUOTE,
       data: shuffledQuotes[i],
       priority: 3,
-      id: `quote-${i}-${Date.now()}`,
-      lastShown: 0
+      id: `quote-${i}-${Date.now()}`
     });
-  }
-  
-  // Sport facts (minder)
-  const shuffledFacts = shuffleArray([...SPORT_FACTS]);
-  for (let i = 0; i < 3; i++) {
-    otherContent.push({
+
+    const shuffledFacts = shuffleArray([...SPORT_FACTS]);
+    for (let i = 0; i < 3; i++) otherContent.push({
       type: CONTENT_TYPES.SPORT_FACT,
-      data: {
-        text: shuffledFacts[i],
-        icon: Target,
-        color: "from-indigo-500 to-purple-600"
-      },
+      data: { text: shuffledFacts[i], icon: Target, color: "from-indigo-500 to-purple-600" },
       priority: 3,
-      id: `fact-${i}-${Date.now()}`,
-      lastShown: 0
+      id: `fact-${i}-${Date.now()}`
     });
-  }
-  
-  // Seasonal content
-  const currentMonth = new Date().getMonth();
-  const seasonalContent = getSeasonalContent(currentMonth);
-  if (seasonalContent) {
-    otherContent.push({
+
+    const currentMonth = new Date().getMonth();
+    const seasonalContent = getSeasonalContent(currentMonth);
+    if (seasonalContent) otherContent.push({
       type: CONTENT_TYPES.SEASON_STATS,
       data: seasonalContent,
       priority: 4,
-      id: `seasonal-${currentMonth}`,
-      lastShown: 0
+      id: `seasonal-${currentMonth}`
     });
+  } catch (error) {
+    console.error("Fout bij het aanmaken van statische content:", error);
   }
-  
+
   // BUILD ALTERNATING PATTERN
-  const pattern = [];
-  
-  // Voeg breaking news toe met hogere frequentie
-  breakingItems.forEach(item => {
-    for (let i = 0; i < (item.showFrequency || 1); i++) {
-      pattern.push(item);
-    }
-  });
-  
-  // Voeg actieve testen toe
-  activeTestItems.forEach(item => {
-    pattern.push(item);
-  });
-  
-  // Creëer alternerend patroon: highscore -> other content -> highscore -> other content
-  const maxLength = Math.max(highscoreItems.length, otherContent.length);
-  
-  for (let i = 0; i < maxLength; i++) {
-    // Voeg highscore toe (als beschikbaar)
-    if (i < highscoreItems.length) {
-      pattern.push(highscoreItems[i]);
-    }
-    
-    // Voeg andere content toe (als beschikbaar)
-    if (i < otherContent.length) {
-      pattern.push(otherContent[i]);
-    }
-    
-    // Voeg breaking news periodiek toe
-    if (breakingItems.length > 0 && i % 2 === 0) {
-      const randomBreaking = breakingItems[Math.floor(Math.random() * breakingItems.length)];
-      pattern.push(randomBreaking);
-    }
-  }
-  
-  // Shuffle het finale patroon licht (behoud structuur maar voeg variatie toe)
-  // BUILD ALTERNATING PATTERN
-  
-  // 1. Verzamel alle "andere" content
   let diverseContent = [];
   breakingItems.forEach(item => {
-    for (let i = 0; i < (item.showFrequency || 1); i++) {
-      diverseContent.push(item);
-    }
+    for (let i = 0; i < (item.showFrequency || 1); i++) diverseContent.push(item);
   });
   diverseContent.push(...activeTestItems);
   diverseContent.push(...otherContent);
 
-  // 2. Shuffle de "andere" content voor variatie onderling
+  // --- DIAGNOSTISCHE LOGS ---
+  console.log('--- DEBUGGING CONTENT ---');
+  console.log(`Gevonden highscores: ${highscoreItems.length}`);
+  console.log(`Totaal diverse items: ${diverseContent.length}`);
+  console.log(`  - Breaking News: ${breakingItems.length}`);
+  console.log(`  - Actieve Tests: ${activeTestItems.length}`);
+  console.log(`  - Overige (quotes, facts, etc.): ${otherContent.length}`);
+  // -------------------------
+
   const shuffledDiverseContent = shuffleArray(diverseContent);
-  
-  // 3. Creëer het ECHT strikt alternerende patroon door diverse content te herhalen
   const finalPattern = [];
   const highscoreCount = highscoreItems.length;
-  const diverseCount = shuffledDiverseContent.length;
+  let diverseItemsForLoop = [...shuffledDiverseContent];
 
-  if (diverseCount === 0) {
-    // Als er geen diverse content is, kunnen we niet anders dan alleen highscores tonen.
-    return highscoreItems;
-  }
-
-  // Itereer door de highscores...
-  for (let i = 0; i < highscoreCount; i++) {
-    // ...voeg de highscore toe...
-    finalPattern.push(highscoreItems[i]);
-    
-    // ...en voeg daarna een divers item toe.
-    // De modulo-operator (%) zorgt ervoor dat we terugkeren naar het begin van de
-    // shuffledDiverseContent-lijst als we aan het einde zijn.
-    // Dit voorkomt dat highscores na elkaar komen.
-    finalPattern.push(shuffledDiverseContent[i % diverseCount]);
+  if (highscoreCount > 0 && diverseItemsForLoop.length === 0) {
+    console.warn('GEEN DIVERSE CONTENT GEVONDEN. Voeg een placeholder toe om de shuffle te testen.');
+    diverseItemsForLoop.push({
+      type: 'placeholder', // Uniek type voor de placeholder
+      data: {
+        text: "Geen ander nieuws gevonden, resultaten worden wel getoond!",
+        icon: RefreshCw,
+        color: "from-gray-400 to-gray-500"
+      },
+      id: 'placeholder-item'
+    });
   }
   
-  // Als er MEER diverse content is dan highscores, voegen we de rest toe aan het einde.
-  if (diverseCount > highscoreCount) {
-    finalPattern.push(...shuffledDiverseContent.slice(highscoreCount));
+  const diverseCount = diverseItemsForLoop.length;
+  if (diverseCount > 0) {
+      for (let i = 0; i < highscoreCount; i++) {
+        finalPattern.push(highscoreItems[i]);
+        finalPattern.push(diverseItemsForLoop[i % diverseCount]);
+      }
+      if (diverseCount > highscoreCount) {
+        finalPattern.push(...diverseItemsForLoop.slice(highscoreCount));
+      }
+  } else {
+      finalPattern.push(...highscoreItems);
   }
-
-  console.log(`📊 Pattern generated: ${finalPattern.length} items. Strict alternation applied by repeating diverse content.`);
   
+  console.log(`📊 Finaal patroon gegenereerd: ${finalPattern.length} items.`);
   return finalPattern;
 };
 
