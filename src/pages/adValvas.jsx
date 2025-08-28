@@ -829,49 +829,7 @@ const [patternIndex, setPatternIndex] = useState(0);
   return finalPattern;
 };
 
-  // Intelligente content selectie - vermijd herhaling
-  const getNextContentIndex = (currentItems) => {
-    if (currentItems.length <= 1) return 0;
-    
-    const now = Date.now();
-    const MIN_INTERVAL = 60000; // 1 minuut minimum tussen zelfde items
-    
-    // Filter items die recent getoond zijn
-    let availableIndices = [];
-    for (let i = 0; i < currentItems.length; i++) {
-      const item = currentItems[i];
-      const timeSinceShown = now - (item.lastShown || 0);
-      
-      // Skip als recent getoond of huidige item
-      if (i !== currentContentIndex && timeSinceShown > MIN_INTERVAL) {
-        availableIndices.push(i);
-      }
-    }
-    
-    // Als geen items beschikbaar, reset timing
-    if (availableIndices.length === 0) {
-      availableIndices = currentItems
-        .map((_, index) => index)
-        .filter(i => i !== currentContentIndex);
-    }
-    
-    // Selecteer geweigd op prioriteit
-    const prioritizedIndices = availableIndices.sort((a, b) => {
-      const priorityDiff = currentItems[b].priority - currentItems[a].priority;
-      if (priorityDiff !== 0) return priorityDiff;
-      // Als zelfde prioriteit, kies random
-      return Math.random() - 0.5;
-    });
-    
-    const selectedIndex = prioritizedIndices[0];
-    
-    // Update timing
-    if (currentItems[selectedIndex]) {
-      currentItems[selectedIndex].lastShown = now;
-    }
-    
-    return selectedIndex;
-  };
+ 
 
   // Live sport feed ophalen met 5 minuten interval  
   useEffect(() => {
@@ -1001,6 +959,7 @@ const [patternIndex, setPatternIndex] = useState(0);
   }, []);
 
   // Smart content wisselen - elke 8 seconden met intelligente selectie
+// Content wisselen - elke 8 seconden in de correcte volgorde
   useEffect(() => {
     if (contentItems.length === 0) return;
     
@@ -1008,14 +967,15 @@ const [patternIndex, setPatternIndex] = useState(0);
       setAnimationClass('animate-pulse');
       
       setTimeout(() => {
-        const nextIndex = getNextContentIndex(contentItems);
-        setCurrentContentIndex(nextIndex);
+        // Ga simpelweg naar het volgende item in de lijst.
+        // De modulo (%) zorgt ervoor dat het terugspringt naar 0 aan het einde.
+        setCurrentContentIndex((prevIndex) => (prevIndex + 1) % contentItems.length);
         setAnimationClass('');
       }, 300);
     }, 8000);
     
     return () => clearInterval(slideTimer);
-  }, [contentItems, currentContentIndex]);
+  }, [contentItems]); // De afhankelijkheid van currentContentIndex is niet meer nodig
 
   // Live nieuws ticker - elke 15 seconden voor betere leesbaarheid
   useEffect(() => {
