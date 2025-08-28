@@ -488,15 +488,6 @@ useEffect(() => {
           </p>
         </div>
       )}
-
-      {/* Keyboard Navigation Hint - Hide on mobile */}
-      {tests.length > 1 && (
-        <div className="px-3 sm:px-6 pb-2 hidden sm:block">
-          <p className="text-xs text-gray-400 text-center">
-            💡 Gebruik ← → pijltjestoetsen om te navigeren
-          </p>
-        </div>
-      )}
     </div>
   );
 }

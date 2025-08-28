@@ -27,7 +27,7 @@ const shuffleArray = (array) => {
   return shuffled;
 };
 
-// --- Content Types ---
+// --- NIEUWE CONTENT TYPES ---
 const CONTENT_TYPES = {
   HIGHSCORES: 'highscores',
   QUOTE: 'quote',
@@ -38,7 +38,8 @@ const CONTENT_TYPES = {
   SEASON_STATS: 'season_stats',
   SPORT_FACT: 'sport_fact',
   UPCOMING_EVENT: 'upcoming_event',
-  LIVE_SPORTS_NEWS: 'live_sports_news'
+  LIVE_SPORTS_NEWS: 'live_sports_news',
+  ACTIVE_TEST: 'active_test' // NIEUW
 };
 
 // --- MASSIEF UITGEBREIDE Sportquotes (1000+ quotes voor heel schooljaar) ---
@@ -679,101 +680,186 @@ export default function AdValvas() {
   const [usedContentIndices, setUsedContentIndices] = useState([]);
   const [feedStatus, setFeedStatus] = useState('connecting');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [breakingNewsItems, setBreakingNewsItems] = useState([]);
+const [activeTests, setActiveTests] = useState([]);
+const [contentPattern, setContentPattern] = useState([]); // Alternerend patroon
+const [patternIndex, setPatternIndex] = useState(0);
 
   // Enhanced content genereren met meer variatie
-  const generateContentItems = async () => {
-    const items = [];
-    
-    // Voeg highscores toe met veel hogere prioriteit (50% van content)
-    testHighscores.forEach(testData => {
-      items.push({
-        type: CONTENT_TYPES.HIGHSCORES,
-        data: testData,
-        priority: 10,
-        id: `highscore-${testData.test.id}`,
-        lastShown: 0
-      });
-      
-      // Voeg elke highscore test meerdere keren toe voor meer kans
-      items.push({
-        type: CONTENT_TYPES.HIGHSCORES,
-        data: testData,
-        priority: 10,
-        id: `highscore-dup-${testData.test.id}`,
-        lastShown: 0
-      });
-    });
-
-    // GEEN live sport nieuws in main content - enkel in feed
-
-    // Dagelijkse activiteiten (meer variatie)
-    const dailyActivities = [
-      { text: "Vandaag legde klas 4B de coopertest af - super resultaten! 💪", icon: BookOpen, color: "from-green-500 to-emerald-600" },
-      { text: "Atletiekdag: Leerlingen braken persoonlijke records! 🏃‍♂️", icon: Target, color: "from-blue-500 to-cyan-600" },
-      { text: "Zwemles 3A: Iedereen haalde zijn diploma! 🏊‍♀️", icon: Activity, color: "from-teal-500 to-blue-600" },
-      { text: "Voetbaltoernooi: Spannende wedstrijden op het schoolplein ⚽", icon: Users, color: "from-orange-500 to-red-600" },
-      { text: "Fitness challenge: Record aantal deelnemers dit semester! 💪", icon: TrendingUp, color: "from-purple-500 to-pink-600" },
-      { text: "Basketbalcompetitie: Halve finales deze week! 🏀", icon: Target, color: "from-yellow-500 to-orange-600" },
-      { text: "Gymnastiekles: Nieuwe toestellen geïnstalleerd! 🤸‍♀️", icon: Activity, color: "from-pink-500 to-purple-600" },
-      { text: "Tennisles: Leerlingen bereiden zich voor op toernooi! 🎾", icon: Medal, color: "from-indigo-500 to-blue-600" }
-    ];
-
-    const randomDaily = dailyActivities[Math.floor(Math.random() * dailyActivities.length)];
-    items.push({
-      type: CONTENT_TYPES.DAILY_ACTIVITY,
-      data: randomDaily,
-      priority: 3,
-      id: `daily-${Date.now()}`,
+ const generateContentItems = async () => {
+  console.log('🔄 Generating content items with alternating pattern...');
+  
+  // Haal alle data op
+  const [breakingNewsData, activeTestsData] = await Promise.all([
+    detectBreakingNews(),
+    fetchActiveTests()
+  ]);
+  
+  setBreakingNewsItems(breakingNewsData);
+  setActiveTests(activeTestsData);
+  
+  const items = [];
+  
+  // 1. HIGHSCORES (basis content)
+  const highscoreItems = testHighscores.map((testData, index) => ({
+    type: CONTENT_TYPES.HIGHSCORES,
+    data: testData,
+    priority: 10,
+    id: `highscore-${testData.test.id}`,
+    lastShown: 0
+  }));
+  
+  // 2. BREAKING NEWS (hele dag tonen, hogere frequentie)
+  const breakingItems = breakingNewsData.map((item, index) => ({
+    ...item,
+    priority: 15,
+    showFrequency: 3 // Toon 3x zo vaak als normale content
+  }));
+  
+  // 3. ACTIVE TESTS (vandaag afgenomen)
+  const activeTestItems = activeTestsData.map((test, index) => ({
+    type: CONTENT_TYPES.ACTIVE_TEST,
+    data: {
+      text: `📝 Test afgenomen: ${test.naam}`,
+      subtitle: "Resultaten worden live bijgewerkt",
+      test: test,
+      icon: BookOpen,
+      color: "from-blue-500 to-indigo-600"
+    },
+    priority: 12,
+    id: `active-test-${test.id}`,
+    lastShown: 0
+  }));
+  
+  // 4. OTHER CONTENT TYPES
+  const otherContent = [];
+  
+  // Daily activities
+  const dailyActivities = [
+    { text: "Vandaag legde klas 4B de coopertest af - super resultaten! 💪", icon: BookOpen, color: "from-green-500 to-emerald-600" },
+    { text: "Atletiekdag: Leerlingen braken persoonlijke records! 🏃‍♂️", icon: Target, color: "from-blue-500 to-cyan-600" },
+    { text: "Zwemles 3A: Iedereen haalde zijn diploma! 🏊‍♀️", icon: Activity, color: "from-teal-500 to-blue-600" },
+    { text: "Voetbaltoernooi: Spannende wedstrijden op het schoolplein ⚽", icon: Users, color: "from-orange-500 to-red-600" }
+  ];
+  
+  const randomDaily = dailyActivities[Math.floor(Math.random() * dailyActivities.length)];
+  otherContent.push({
+    type: CONTENT_TYPES.DAILY_ACTIVITY,
+    data: randomDaily,
+    priority: 5,
+    id: `daily-${Date.now()}`,
+    lastShown: 0
+  });
+  
+  // Upcoming events
+  const upcomingEvents = generateUpcomingEvents();
+  upcomingEvents.forEach((event, index) => {
+    otherContent.push({
+      type: CONTENT_TYPES.UPCOMING_EVENT,
+      data: {
+        text: event.text,
+        date: event.date,
+        icon: event.icon,
+        color: "from-purple-500 to-pink-600"
+      },
+      priority: 6,
+      id: `event-${index}-${Date.now()}`,
       lastShown: 0
     });
-
-    // Random sport quotes (5-8 quotes voor meer variatie)
-    const numQuotes = 5 + Math.floor(Math.random() * 4);
-    const shuffledQuotes = shuffleArray([...SPORT_QUOTES]);
-    for (let i = 0; i < numQuotes && i < shuffledQuotes.length; i++) {
-      items.push({
-        type: CONTENT_TYPES.QUOTE,
-        data: shuffledQuotes[i],
-        priority: 2,
-        id: `quote-${i}-${Date.now()}`,
-        lastShown: 0
-      });
+  });
+  
+  // Sport quotes (minder)
+  const shuffledQuotes = shuffleArray([...SPORT_QUOTES]);
+  for (let i = 0; i < 2; i++) {
+    otherContent.push({
+      type: CONTENT_TYPES.QUOTE,
+      data: shuffledQuotes[i],
+      priority: 3,
+      id: `quote-${i}-${Date.now()}`,
+      lastShown: 0
+    });
+  }
+  
+  // Sport facts (minder)
+  const shuffledFacts = shuffleArray([...SPORT_FACTS]);
+  for (let i = 0; i < 3; i++) {
+    otherContent.push({
+      type: CONTENT_TYPES.SPORT_FACT,
+      data: {
+        text: shuffledFacts[i],
+        icon: Target,
+        color: "from-indigo-500 to-purple-600"
+      },
+      priority: 3,
+      id: `fact-${i}-${Date.now()}`,
+      lastShown: 0
+    });
+  }
+  
+  // Seasonal content
+  const currentMonth = new Date().getMonth();
+  const seasonalContent = getSeasonalContent(currentMonth);
+  if (seasonalContent) {
+    otherContent.push({
+      type: CONTENT_TYPES.SEASON_STATS,
+      data: seasonalContent,
+      priority: 4,
+      id: `seasonal-${currentMonth}`,
+      lastShown: 0
+    });
+  }
+  
+  // BUILD ALTERNATING PATTERN
+  const pattern = [];
+  
+  // Voeg breaking news toe met hogere frequentie
+  breakingItems.forEach(item => {
+    for (let i = 0; i < (item.showFrequency || 1); i++) {
+      pattern.push(item);
     }
-
-    // Random sport feiten (8-12 feiten voor meer variatie)
-    const numFacts = 8 + Math.floor(Math.random() * 5);
-    const shuffledFacts = shuffleArray([...SPORT_FACTS]);
-    for (let i = 0; i < numFacts && i < shuffledFacts.length; i++) {
-      items.push({
-        type: CONTENT_TYPES.SPORT_FACT,
-        data: {
-          text: shuffledFacts[i],
-          icon: Target,
-          color: "from-purple-500 to-indigo-600"
-        },
-        priority: 2,
-        id: `fact-${i}-${Date.now()}`,
-        lastShown: 0
-      });
+  });
+  
+  // Voeg actieve testen toe
+  activeTestItems.forEach(item => {
+    pattern.push(item);
+  });
+  
+  // Creëer alternerend patroon: highscore -> other content -> highscore -> other content
+  const maxLength = Math.max(highscoreItems.length, otherContent.length);
+  
+  for (let i = 0; i < maxLength; i++) {
+    // Voeg highscore toe (als beschikbaar)
+    if (i < highscoreItems.length) {
+      pattern.push(highscoreItems[i]);
     }
-
-    // Seizoensgebonden content
-    const currentMonth = new Date().getMonth();
-    const seasonalContent = getSeasonalContent(currentMonth);
-    if (seasonalContent) {
-      items.push({
-        type: CONTENT_TYPES.SEASON_STATS,
-        data: seasonalContent,
-        priority: 3,
-        id: `seasonal-${currentMonth}`,
-        lastShown: 0
-      });
+    
+    // Voeg andere content toe (als beschikbaar)
+    if (i < otherContent.length) {
+      pattern.push(otherContent[i]);
     }
-
-    // Shuffle en sorteer op prioriteit
-    const shuffledItems = shuffleArray(items);
-    return shuffledItems.sort((a, b) => b.priority - a.priority);
-  };
+    
+    // Voeg breaking news periodiek toe
+    if (breakingItems.length > 0 && i % 2 === 0) {
+      const randomBreaking = breakingItems[Math.floor(Math.random() * breakingItems.length)];
+      pattern.push(randomBreaking);
+    }
+  }
+  
+  // Shuffle het finale patroon licht (behoud structuur maar voeg variatie toe)
+  const finalPattern = [];
+  const patternCopy = [...pattern];
+  
+  while (patternCopy.length > 0) {
+    // Kies random uit eerste 3 items om enige variatie te behouden
+    const maxIndex = Math.min(3, patternCopy.length);
+    const randomIndex = Math.floor(Math.random() * maxIndex);
+    finalPattern.push(patternCopy.splice(randomIndex, 1)[0]);
+  }
+  
+  console.log(`📊 Pattern generated: ${finalPattern.length} items (${highscoreItems.length} highscores, ${breakingItems.length} breaking news, ${activeTestItems.length} active tests, ${otherContent.length} other)`);
+  
+  return finalPattern;
+};
 
   // Intelligente content selectie - vermijd herhaling
   const getNextContentIndex = (currentItems) => {
@@ -1016,6 +1102,143 @@ export default function AdValvas() {
     return seasonalData[month] || null;
   };
 
+// Functie om actieve testen op te halen (vandaag afgenomen)
+const fetchActiveTests = async () => {
+  if (!profile?.school_id) return [];
+  
+  try {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+    
+    const scoresQuery = query(
+      collection(db, 'scores'),
+      where('school_id', '==', profile.school_id),
+      where('datum', '>=', startOfDay),
+      where('datum', '<=', endOfDay)
+    );
+    
+    const scoresSnap = await getDocs(scoresQuery);
+    const todayTests = new Set();
+    
+    scoresSnap.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.test_id) {
+        todayTests.add(data.test_id);
+      }
+    });
+    
+    if (todayTests.size === 0) return [];
+    
+    // Haal test details op
+    const testPromises = Array.from(todayTests).map(async (testId) => {
+      const testRef = doc(db, 'testen', testId);
+      const testSnap = await getDoc(testRef);
+      return testSnap.exists() ? { id: testId, ...testSnap.data() } : null;
+    });
+    
+    const tests = await Promise.all(testPromises);
+    return tests.filter(Boolean);
+    
+  } catch (error) {
+    console.error('Error fetching active tests:', error);
+    return [];
+  }
+};
+
+// Functie om breaking news te detecteren (nieuwe highscores vandaag)
+const detectBreakingNews = async () => {
+  if (!profile?.school_id) return [];
+  
+  try {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    // Haal vandaag's scores op
+    const todayScoresQuery = query(
+      collection(db, 'scores'),
+      where('school_id', '==', profile.school_id),
+      where('datum', '>=', startOfDay)
+    );
+    
+    const todayScoresSnap = await getDocs(todayScoresQuery);
+    const breakingNews = [];
+    
+    for (const scoreDoc of todayScoresSnap.docs) {
+      const scoreData = scoreDoc.data();
+      
+      // Controleer of dit een nieuwe highscore is
+      const testRef = doc(db, 'testen', scoreData.test_id);
+      const testSnap = await getDoc(testRef);
+      
+      if (!testSnap.exists()) continue;
+      
+      const testData = testSnap.data();
+      const direction = testData.score_richting === 'laag' ? 'asc' : 'desc';
+      
+      // Haal beste score vóór vandaag op
+      const previousBestQuery = query(
+        collection(db, 'scores'),
+        where('test_id', '==', scoreData.test_id),
+        where('datum', '<', startOfDay),
+        orderBy('score', direction),
+        limit(1)
+      );
+      
+      const previousBestSnap = await getDocs(previousBestQuery);
+      
+      let isNewRecord = false;
+      if (previousBestSnap.empty) {
+        // Eerste score voor deze test
+        isNewRecord = true;
+      } else {
+        const previousBest = previousBestSnap.docs[0].data();
+        if (testData.score_richting === 'hoog') {
+          isNewRecord = scoreData.score > previousBest.score;
+        } else {
+          isNewRecord = scoreData.score < previousBest.score;
+        }
+      }
+      
+      if (isNewRecord) {
+        breakingNews.push({
+          type: CONTENT_TYPES.BREAKING_NEWS,
+          data: {
+            title: `🏆 NIEUW RECORD! ${testData.naam}`,
+            subtitle: `${scoreData.leerling_naam} behaalde ${formatScoreWithUnit(scoreData.score, testData.eenheid)}`,
+            test: testData,
+            score: scoreData,
+            timestamp: scoreData.datum?.toDate ? scoreData.datum.toDate() : new Date()
+          },
+          priority: 15, // Hoogste prioriteit
+          id: `breaking-${scoreDoc.id}`,
+          createdAt: Date.now()
+        });
+      }
+    }
+    
+    return breakingNews;
+    
+  } catch (error) {
+    console.error('Error detecting breaking news:', error);
+    return [];
+  }
+};
+// Functie om upcoming events te genereren
+const generateUpcomingEvents = () => {
+  const events = [
+    { text: "Volgende week: Atletiekdag voor alle klassen! 🏃‍♂️", date: "Volgende week", icon: Calendar },
+    { text: "Aankomende donderdag: Zwemcompetitie in het stedelijk zwembad 🏊‍♀️", date: "Donderdag", icon: Activity },
+    { text: "Over 2 weken: Schoolsportdag met verschillende disciplines 🏆", date: "Over 2 weken", icon: Trophy },
+    { text: "Eind van de maand: Cross-country loop in het stadspark 🌳", date: "Eind maand", icon: Users },
+    { text: "Volgende maand: Start badmintontoernooi 🏸", date: "Volgende maand", icon: Target }
+  ];
+  
+  // Kies willekeurig 1-2 events
+  const shuffled = shuffleArray([...events]);
+  return shuffled.slice(0, 1 + Math.floor(Math.random() * 2));
+};
+
   // Manual feed refresh functie
   const handleFeedRefresh = async () => {
     setFeedLoading(true);
@@ -1151,7 +1374,85 @@ export default function AdValvas() {
             </div>
           </div>
         );
-
+case CONTENT_TYPES.BREAKING_NEWS:
+      return (
+        <div className="relative bg-gradient-to-br from-red-600 via-red-700 to-pink-800 rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden animate-pulse">
+          {/* BREAKING NEWS indicator */}
+          <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 animate-bounce">
+            <div className="w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
+            <span className="text-sm font-bold uppercase tracking-wider">BREAKING NEWS</span>
+          </div>
+          
+          {/* Animated background */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white/20 rounded-full animate-ping"></div>
+            <div className="absolute top-3/4 right-1/3 w-1 h-1 bg-white/30 rounded-full animate-pulse delay-1000"></div>
+            <div className="absolute bottom-1/4 left-1/2 w-1.5 h-1.5 bg-white/25 rounded-full animate-ping delay-2000"></div>
+          </div>
+          
+          <div className="relative z-10 text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 backdrop-blur-sm rounded-full mb-8">
+              <Trophy className="h-10 w-10 opacity-80 animate-spin" style={{animationDuration: '3s'}} />
+            </div>
+            <h2 className="text-2xl lg:text-4xl font-bold leading-tight drop-shadow-lg mb-4">
+              {item.data.title}
+            </h2>
+            <p className="text-xl lg:text-2xl mb-6 opacity-90">
+              {item.data.subtitle}
+            </p>
+            <div className="flex items-center justify-center space-x-4 text-red-100">
+              <span className="text-sm font-medium bg-white/20 rounded-full px-3 py-1">
+                {getRelativeTime(item.data.timestamp)}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+      
+    case CONTENT_TYPES.ACTIVE_TEST:
+      return (
+        <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden`}>
+          {/* LIVE indicator */}
+          <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
+            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+            <span className="text-sm font-bold uppercase tracking-wider">VANDAAG ACTIEF</span>
+          </div>
+          
+          <div className="relative z-10 text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 backdrop-blur-sm rounded-full mb-8">
+              <BookOpen className="h-10 w-10 opacity-80" />
+            </div>
+            <h2 className="text-2xl lg:text-4xl font-bold leading-tight drop-shadow-lg mb-4">
+              {item.data.text}
+            </h2>
+            <p className="text-xl opacity-80 mb-6">
+              {item.data.subtitle}
+            </p>
+            <div className="inline-flex items-center space-x-2 bg-white/20 rounded-full px-4 py-2">
+              <Activity className="h-4 w-4 animate-pulse" />
+              <span className="text-sm font-medium">Live updates</span>
+            </div>
+          </div>
+        </div>
+      );
+      
+    case CONTENT_TYPES.UPCOMING_EVENT:
+      return (
+        <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden`}>
+          <div className="relative z-10 text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 backdrop-blur-sm rounded-full mb-8">
+              <Calendar className="h-10 w-10 opacity-80" />
+            </div>
+            <h2 className="text-2xl lg:text-4xl font-bold leading-tight drop-shadow-lg mb-6">
+              {item.data.text}
+            </h2>
+            <div className="inline-flex items-center space-x-2 bg-white/20 rounded-full px-4 py-2">
+              <Clock className="h-4 w-4" />
+              <span className="text-sm font-medium">{item.data.date}</span>
+            </div>
+          </div>
+        </div>
+      );
       case CONTENT_TYPES.QUOTE:
         return (
           <div className="relative bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden">
