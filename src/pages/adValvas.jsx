@@ -790,6 +790,7 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
 
   // BUILD ALTERNATING PATTERN
   let diverseContent = [];
+  diverseContent.push(...mededelingItems);
   breakingItems.forEach(item => {
     for (let i = 0; i < (item.showFrequency || 1); i++) diverseContent.push(item);
   });
