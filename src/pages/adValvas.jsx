@@ -847,46 +847,48 @@ const [patternIndex, setPatternIndex] = useState(0);
   
   // Shuffle het finale patroon licht (behoud structuur maar voeg variatie toe)
   // BUILD ALTERNATING PATTERN
-  const finalPattern = [];
   
   // 1. Verzamel alle "andere" content
   let diverseContent = [];
-  
-  // Voeg breaking news toe (met respect voor frequentie)
   breakingItems.forEach(item => {
     for (let i = 0; i < (item.showFrequency || 1); i++) {
       diverseContent.push(item);
     }
   });
-  
-  // Voeg actieve testen toe
   diverseContent.push(...activeTestItems);
-  
-  // Voeg overige content types toe
   diverseContent.push(...otherContent);
 
   // 2. Shuffle de "andere" content voor variatie onderling
   const shuffledDiverseContent = shuffleArray(diverseContent);
   
-  // 3. Creëer het strikt alternerende patroon
+  // 3. Creëer het ECHT strikt alternerende patroon door diverse content te herhalen
+  const finalPattern = [];
   const highscoreCount = highscoreItems.length;
   const diverseCount = shuffledDiverseContent.length;
-  // Variabele hernoemd om conflict te vermijden
-  const loopLength = Math.max(highscoreCount, diverseCount);
 
-  for (let i = 0; i < loopLength; i++) {
-    // Voeg een highscore toe als er nog een is
-    if (i < highscoreCount) {
-      finalPattern.push(highscoreItems[i]);
-    }
-    
-    // Voeg een "ander" item toe als er nog een is
-    if (i < diverseCount) {
-      finalPattern.push(shuffledDiverseContent[i]);
-    }
+  if (diverseCount === 0) {
+    // Als er geen diverse content is, kunnen we niet anders dan alleen highscores tonen.
+    return highscoreItems;
   }
 
-  console.log(`📊 Pattern generated: ${finalPattern.length} items (${highscoreItems.length} highscores, ${diverseContent.length} diverse items)`);
+  // Itereer door de highscores...
+  for (let i = 0; i < highscoreCount; i++) {
+    // ...voeg de highscore toe...
+    finalPattern.push(highscoreItems[i]);
+    
+    // ...en voeg daarna een divers item toe.
+    // De modulo-operator (%) zorgt ervoor dat we terugkeren naar het begin van de
+    // shuffledDiverseContent-lijst als we aan het einde zijn.
+    // Dit voorkomt dat highscores na elkaar komen.
+    finalPattern.push(shuffledDiverseContent[i % diverseCount]);
+  }
+  
+  // Als er MEER diverse content is dan highscores, voegen we de rest toe aan het einde.
+  if (diverseCount > highscoreCount) {
+    finalPattern.push(...shuffledDiverseContent.slice(highscoreCount));
+  }
+
+  console.log(`📊 Pattern generated: ${finalPattern.length} items. Strict alternation applied by repeating diverse content.`);
   
   return finalPattern;
 };
