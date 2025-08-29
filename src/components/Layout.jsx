@@ -1,13 +1,13 @@
 // src/components/Layout.jsx
 import { Outlet, NavLink, useOutletContext, Link, useLocation } from 'react-router-dom';
-import { auth, db } from '../firebase';
+import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { Toaster } from 'react-hot-toast';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react'; // useMemo toegevoegd
 import { UserCircleIcon } from '@heroicons/react/24/outline';
 import { Bars3Icon } from '@heroicons/react/24/solid';
-import logoSrc from '../assets/logo.png';
+import logoSrc from '../assets/logo.png'; // Importeer het logo
+import StudentSearch from './StudentSearch'; // NIEUW
 
 export default function Layout({ profile, school, selectedStudent, setSelectedStudent }) {
 
@@ -15,20 +15,23 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const [activeRole, setActiveRole] = useState(profile?.rol || 'leerling');
   const [impersonatedStudent, setImpersonatedStudent] = useState(null);
 
-  // Sync impersonatedStudent met selectedStudent
+  // NIEUW: Sync impersonatedStudent met selectedStudent
   useEffect(() => {
     if (activeRole === 'leerling' && impersonatedStudent && profile?.rol === 'administrator') {
       setSelectedStudent(impersonatedStudent);
     }
   }, [impersonatedStudent, activeRole, profile?.rol, setSelectedStudent]);
 
-  // Maak een "gesimuleerd" profiel aan op basis van de geselecteerde rol
+
+  // AANGEPAST: Maak een "gesimuleerd" profiel aan op basis van de geselecteerde rol.
+  // Dit object wordt doorgegeven aan alle onderliggende pagina's.
   const simulatedProfile = useMemo(() => {
     if (activeRole === 'leerling' && impersonatedStudent && profile?.rol === 'administrator') {
+      // Als administrator een leerling heeft geselecteerd, gebruik die leerling data
       return {
         ...impersonatedStudent,
         rol: 'leerling',
-        originalProfile: profile
+        originalProfile: profile // Behoud originele admin profiel voor referentie
       };
     }
     return {
@@ -40,7 +43,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator';
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
   const testbeheerLinkText = activeRole === 'administrator' ? 'Testbeheer' : 'Sporttesten';
-  const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan';
+  const groeiplanLinkText = isTeacherOrAdmin ? 'RemediÃ«ring' : 'Groeiplan'; // NIEUW TOEGEVOEGD
 
   const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
   const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
@@ -48,76 +51,12 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
-  // Student selectie modal states
-  const [studentSelectOpen, setStudentSelectOpen] = useState(false);
-  const [studentSearchTerm, setStudentSearchTerm] = useState('');
-  const [students, setStudents] = useState([]); // This should come from your API/database
-  const [loading, setLoading] = useState(false);
-  const [selectedStudentForModal, setSelectedStudentForModal] = useState(null);
-
-  // Filter students based on search term
-  const filteredStudents = useMemo(() => {
-    if (!studentSearchTerm) return students;
-    return students.filter(student => 
-      student.naam.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
-      (student.klas && student.klas.toLowerCase().includes(studentSearchTerm.toLowerCase())) ||
-      student.email.toLowerCase().includes(studentSearchTerm.toLowerCase())
-    );
-  }, [students, studentSearchTerm]);
-
-  // Load students from Firestore when modal opens
-  useEffect(() => {
-    const fetchStudents = async () => {
-      if (!studentSelectOpen || !school?.id) return;
-      
-      setLoading(true);
-      try {
-        // Query students from the same school with rol 'leerling'
-        const studentsRef = collection(db, 'users');
-        const studentsQuery = query(
-          studentsRef,
-          where('school_id', '==', school.id),
-          where('rol', '==', 'leerling'),
-          orderBy('naam')
-        );
-        
-        const querySnapshot = await getDocs(studentsQuery);
-        const fetchedStudents = [];
-        
-        querySnapshot.forEach((doc) => {
-          const studentData = doc.data();
-          fetchedStudents.push({
-            id: doc.id,
-            naam: studentData.naam,
-            email: studentData.email,
-            klas: studentData.klas || 'Geen klas',
-            geboortedatum: studentData.geboortedatum,
-            geslacht: studentData.geslacht,
-            school_id: studentData.school_id,
-            rol: studentData.rol,
-            // Include any other fields you need
-            ...studentData
-          });
-        });
-        
-        setStudents(fetchedStudents);
-      } catch (error) {
-        console.error('Fout bij ophalen studenten:', error);
-        setStudents([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStudents();
-  }, [studentSelectOpen, school?.id]);
 
   const routeTitles = {
     '/': 'Home',
     '/highscores': 'Highscores',
     '/evolutie': evolutieLinkText,
-    '/groeiplan': groeiplanLinkText,
+    '/groeiplan': groeiplanLinkText, // AANGEPAST
     '/groepsbeheer': 'Groepsbeheer',
     '/scores': 'Scores',
     '/leerlingbeheer': 'Leerlingbeheer',
@@ -145,112 +84,16 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
       console.error("Fout bij uitloggen:", error);
     }
   };
-
-  const handleStudentSelect = (student) => {
-    setSelectedStudentForModal(student);
-  };
-
-  const confirmStudentSelection = () => {
-    if (selectedStudentForModal) {
-      setImpersonatedStudent(selectedStudentForModal);
-      setSelectedStudent(selectedStudentForModal);
-    }
-    setStudentSelectOpen(false);
-    setStudentSearchTerm('');
-    setSelectedStudentForModal(null);
-  };
-
-  const closeStudentModal = () => {
-    setStudentSelectOpen(false);
-    setStudentSearchTerm('');
-    setSelectedStudentForModal(null);
+// NIEUW: Handler voor student selectie in menu
+  const handleImpersonatedStudentSelect = (student) => {
+    setImpersonatedStudent(student);
+    // Menu sluiten na selectie
+    setMenuOpen(false);
   };
 
   return (
    <div>
       <Toaster position="top-center" />
-      
-      {/* Student selectie modal - nu met werkende functionaliteit */}
-      {studentSelectOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[10000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] p-6 flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Selecteer leerling</h3>
-              <button
-                onClick={closeStudentModal}
-                className="text-gray-400 hover:text-gray-600 p-1"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="flex flex-col flex-1">
-              <input
-                type="text"
-                placeholder="Zoek leerling op naam, klas of email..."
-                value={studentSearchTerm}
-                onChange={(e) => setStudentSearchTerm(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 mb-4"
-                autoFocus
-              />
-              
-              {loading ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-sm text-gray-500">Laden...</div>
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg">
-                  {filteredStudents.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-gray-500">
-                      {studentSearchTerm ? 'Geen leerlingen gevonden' : 'Geen leerlingen beschikbaar'}
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-gray-200">
-                      {filteredStudents.map((student) => (
-                        <button
-                          key={student.id}
-                          onClick={() => handleStudentSelect(student)}
-                          className={`w-full p-3 text-left hover:bg-gray-50 transition-colors ${
-                            selectedStudentForModal?.id === student.id ? 'bg-purple-50 border-r-4 border-purple-500' : ''
-                          }`}
-                        >
-                          <div className="font-medium text-gray-900">{student.naam}</div>
-                          <div className="text-sm text-gray-500">
-                            {student.klas || 'Geen klas'} • {student.email}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={closeStudentModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                >
-                  Annuleren
-                </button>
-                <button
-                  onClick={confirmStudentSelection}
-                  disabled={!selectedStudentForModal}
-                  className={`flex-1 px-4 py-2 rounded-lg text-white transition-colors ${
-                    selectedStudentForModal 
-                      ? 'bg-purple-600 hover:bg-purple-700' 
-                      : 'bg-gray-300 cursor-not-allowed'
-                  }`}
-                >
-                  Selecteren
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20">
         <nav className="container mx-auto px-4 py-2 flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -263,16 +106,18 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             </button>
 
             <NavLink 
-              to="/" 
-              aria-label="Sportscores Logo"
-              className="block h-8 w-32"
-              style={{
-                backgroundImage: `url(${logoSrc})`,
-                backgroundSize: 'contain',
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'center',
-              }}
-            />
+  to="/" 
+  aria-label="Sportscores Logo"
+  className="block h-8 w-32" // Geef de link een vaste breedte
+  style={{
+    backgroundImage: `url(${logoSrc})`,
+    backgroundSize: 'contain',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'center',
+  }}
+>
+  {/* De img-tag is nu weg, de NavLink ZELF is nu de afbeelding */}
+</NavLink>
           </div>
           <div className="flex-grow text-center md:hidden">
             <h1 className="text-lg font-semibold text-gray-800">{currentTitle}</h1>
@@ -334,10 +179,10 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             )}
           </ul>
 
-          <ul
-            className={`mobile-menu bg-white text-black dark:bg-white dark:text-black md:hidden absolute top-full left-0 right-0 border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out z-40
-             ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
-            `}
+        <ul
+          className={`mobile-menu bg-white text-black dark:bg-white dark:text-black md:hidden absolute top-full left-0 right-0 border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
+           ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
+          `}
             onClick={() => setMobileMenuOpen(false)}
           >
             <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
@@ -370,9 +215,8 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               <UserCircleIcon className="h-8 w-8" />
             </button>
 
-            {/* User menu */}
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50">
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50">
                 <div className="mb-2">
                   <p className="text-sm text-gray-500">Ingelogd als</p>
                   <p className="font-semibold text-gray-900">{profile?.naam || profile?.email}</p>
@@ -395,8 +239,8 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                       onChange={(e) => {
                         setActiveRole(e.target.value);
                         if (e.target.value !== 'leerling') {
-                          setImpersonatedStudent(null);
-                          setSelectedStudent(null);
+                          setImpersonatedStudent(null); // Reset student selection wanneer niet meer in leerling modus
+                          setSelectedStudent(null); // NIEUW: Reset ook de globale selectedStudent
                         }
                       }} 
                       title="Switch rol"
@@ -406,34 +250,18 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                       <option value="leerling">Leerling</option>
                     </select>
                     
-                    {/* Knop om student selectie modal te openen */}
+                    {/* NIEUW: Student selector voor wanneer rol = leerling */}
                     {activeRole === 'leerling' && (
                       <div className="mt-3">
                         <label className="block text-xs font-semibold text-gray-500 mb-1">Test als leerling</label>
-                        <button
-                          onClick={() => {
-                            setStudentSelectOpen(true);
-                            setMenuOpen(false); // Sluit user menu
-                          }}
-                          className="w-full px-3 py-2 text-sm bg-purple-50 text-purple-700 border border-purple-200 rounded-md hover:bg-purple-100 transition-colors"
-                        >
-                          Selecteer leerling...
-                        </button>
+                        <StudentSearch 
+                          onStudentSelect={handleImpersonatedStudentSelect}
+                          schoolId={profile?.school_id}
+                          placeholder="Selecteer leerling..."
+                          compact={true}
+                        />
                         {impersonatedStudent && (
-                          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
-                            <p className="text-xs text-green-700 font-medium">
-                              ✓ Actief als: {impersonatedStudent.naam}
-                            </p>
-                            <button
-                              onClick={() => {
-                                setImpersonatedStudent(null);
-                                setSelectedStudent(null);
-                              }}
-                              className="text-xs text-green-600 hover:text-green-800 underline mt-1"
-                            >
-                              Reset selectie
-                            </button>
-                          </div>
+                          <p className="text-xs text-green-600 mt-1">Actief als: {impersonatedStudent.naam}</p>
                         )}
                       </div>
                     )}
@@ -457,11 +285,12 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Outlet context={{ 
+        {/* AANGEPAST: Geef het gemodificeerde 'simulatedProfile' door ipv het originele 'profile' */}
+       <Outlet context={{ 
           profile: simulatedProfile, 
           school,
-          selectedStudent,
-          setSelectedStudent
+          selectedStudent,      // De globale leerling die we willen onthouden
+          setSelectedStudent  // De globale functie om de leerling aan te passen
         }} />
       </main>
     </div>
