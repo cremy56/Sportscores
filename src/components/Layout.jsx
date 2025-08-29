@@ -30,8 +30,9 @@ const ProfileMenu = ({
   };
 
   const handleImpersonatedStudentSelect = (student) => {
-    setImpersonatedStudent(student);
-  };
+  setImpersonatedStudent(student);
+  onClose(); // <-- VOEG DEZE REGEL TOE
+};
 
   return (
     <div className="w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4">
