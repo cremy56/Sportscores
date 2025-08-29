@@ -172,15 +172,16 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
 
   const currentTitle = routeTitles[location.pathname] || '';
 
+  // src/components/Layout.jsx
+
   return (
-    <div>
+   <div>
       <Toaster position="top-center" />
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20">
-        {/* --- NIEUWE, VERBETERDE NAVIGATIESTRUCTUUR --- */}
         <nav className="relative w-full px-4 md:px-8 py-2 flex items-center justify-between">
           
           {/* LINKERKANT: Hamburger & Logo */}
-          <div className="flex items-center space-x-2 flex-shrink-0">
+          <div className="relative z-20 flex items-center space-x-2 flex-shrink-0">
             <button
               onClick={() => setMobileMenuOpen(prev => !prev)}
               className="md:hidden p-2 text-black hover:text-purple-700"
@@ -191,7 +192,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <NavLink
               to="/"
               aria-label="Sportscores Logo"
-              className="block h-8 w-28" // Iets smaller logo voor betere verhouding
+              className="block h-8 w-28"
               style={{ backgroundImage: `url(${logoSrc})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'left center' }}
             />
           </div>
@@ -218,13 +219,13 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
           </ul>
 
           {/* MIDDEN (Mobiel): Gecentreerde paginatitel */}
-          <div className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
             <h1 className="text-lg font-semibold text-gray-800 whitespace-nowrap">{currentTitle}</h1>
           </div>
 
           {/* RECHTERKANT: Profielmenu */}
-          <div className="flex justify-end flex-shrink-0">
-            <div className="relative" ref={menuButtonRef}>
+          <div className="flex justify-end flex-shrink-0 relative z-20">
+            <div ref={menuButtonRef}>
               <button
                 onClick={toggleMenu}
                 className="p-2 text-purple-700 bg-transparent hover:text-purple-900 transition-colors"
@@ -234,36 +235,13 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               </button>
             </div>
           </div>
-        </nav>
-      </header>
-      
-      {/* NIEUW: Het menu wordt hier gerenderd via de Portal */}
-      {menuOpen && createPortal(
-        <div 
-          style={{ position: 'absolute', top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
-          className="z-50"
-        >
-          <ProfileMenu 
-            profile={profile}
-            school={school}
-            activeRole={activeRole}
-            setActiveRole={setActiveRole}
-            impersonatedStudent={impersonatedStudent}
-            setImpersonatedStudent={setImpersonatedStudent}
-            setSelectedStudent={setSelectedStudent}
-            onClose={() => setMenuOpen(false)}
-          />
-        </div>,
-        document.getElementById('portal-root')
-      )}
-
-      // src/components/Layout.jsx
-
-      {/* Mobiele menu blijft hetzelfde */}
-      <ul
-          className={`mobile-menu bg-white text-black dark:bg-white dark:text-black md:hidden absolute top-full left-0 right-0 border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
-           ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
-          `}
+          
+          {/* --- HET MOBIELE MENU IS HIERHEEN VERPLAATST --- */}
+          {/* --- HET STAAT NU BINNEN DE <NAV> TAG --- */}
+          <ul
+            className={`mobile-menu bg-white text-black dark:bg-white dark:text-black md:hidden absolute top-full left-0 right-0 border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
+            ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
+            `}
             onClick={() => setMobileMenuOpen(false)}
           >
             <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
@@ -285,7 +263,29 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                 <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
               </>
             )}
-      </ul>
+          </ul>
+        </nav>
+      </header>
+      
+      {/* Portal voor profielmenu blijft ongewijzigd */}
+      {menuOpen && createPortal(
+        <div 
+          style={{ position: 'absolute', top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
+          className="z-50"
+        >
+          <ProfileMenu 
+            profile={profile}
+            school={school}
+            activeRole={activeRole}
+            setActiveRole={setActiveRole}
+            impersonatedStudent={impersonatedStudent}
+            setImpersonatedStudent={setImpersonatedStudent}
+            setSelectedStudent={setSelectedStudent}
+            onClose={() => setMenuOpen(false)}
+          />
+        </div>,
+        document.getElementById('portal-root')
+      )}
       
       <main className="relative z-10 container mx-auto px-4 py-8">
         <Outlet context={{ profile: simulatedProfile, school, selectedStudent, setSelectedStudent }} />
