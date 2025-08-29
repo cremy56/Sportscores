@@ -60,6 +60,7 @@ const ProfileMenu = ({
                 setImpersonatedStudent(null);
                 setSelectedStudent(null);
               }
+              onClose();
             }}
             title="Switch rol"
           >
