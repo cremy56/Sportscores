@@ -4,7 +4,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { db } from '../firebase';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { ClipboardList, CheckCircleIcon } from 'lucide-react'; // Nieuwe iconen
+import { ClipboardList, CheckCircleIcon, Loader2 } from 'lucide-react';
 
 export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, schoolId }) {
     const [naam, setNaam] = useState('');
@@ -142,9 +142,12 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
                                 </div>
                                 <div className="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row gap-3 sm:justify-end">
                                     <button type="button" onClick={onClose} className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-100">Annuleren</button>
-                                    <button type="submit" disabled={loading} className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-xl disabled:opacity-50 flex items-center justify-center space-x-2">
+                                    <button 
+                                        type="submit" 
+                                        disabled={loading} 
+                                        className="inline-flex w-full justify-center items-center space-x-2 rounded-md bg-purple-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-800 sm:ml-3 sm:w-auto disabled:opacity-50"
+                                    >
                                         {loading && <Loader2 className="h-5 w-5 animate-spin" />}
-                                        <CheckCircleIcon className="w-5 h-5" />
                                         <span>{isEditing ? 'Wijzigingen Opslaan' : 'Test Opslaan'}</span>
                                     </button>
                                 </div>
