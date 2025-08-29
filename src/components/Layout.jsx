@@ -54,14 +54,19 @@ const ProfileMenu = ({
             id="role-switcher"
             className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
             value={activeRole}
-            onChange={(e) => {
-              setActiveRole(e.target.value);
-              if (e.target.value !== 'leerling') {
-                setImpersonatedStudent(null);
-                setSelectedStudent(null);
-              }
-              onClose();
-            }}
+           onChange={(e) => {
+  const newRole = e.target.value;
+  setActiveRole(newRole);
+
+  if (newRole !== 'leerling') {
+    // Als de nieuwe rol NIET 'leerling' is, reset dan de data en sluit het menu
+    setImpersonatedStudent(null);
+    setSelectedStudent(null);
+    onClose();
+  }
+  // Als de nieuwe rol WEL 'leerling' is, gebeurt er hier niets
+  // en blijft het menu open voor de selectie.
+}}
             title="Switch rol"
           >
             <option value="administrator">Administrator</option>
