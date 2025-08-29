@@ -176,11 +176,14 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     <div>
       <Toaster position="top-center" />
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20">
-        <nav className="w-full px-4 md:px-8 py-2 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        {/* --- NIEUWE, VERBETERDE NAVIGATIESTRUCTUUR --- */}
+        <nav className="relative w-full px-4 md:px-8 py-2 flex items-center justify-between">
+          
+          {/* LINKERKANT: Hamburger & Logo */}
+          <div className="flex items-center space-x-2 flex-shrink-0">
             <button
               onClick={() => setMobileMenuOpen(prev => !prev)}
-              className="md:hidden p-2 text-black hover:text-purple-700 bg-white rounded"
+              className="md:hidden p-2 text-black hover:text-purple-700"
               aria-label="Toggle menu"
             >
               <Bars3Icon className="w-6 h-6 text-black" />
@@ -188,15 +191,13 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <NavLink
               to="/"
               aria-label="Sportscores Logo"
-              className="block h-8 w-32"
-              style={{ backgroundImage: `url(${logoSrc})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}
+              className="block h-8 w-28" // Iets smaller logo voor betere verhouding
+              style={{ backgroundImage: `url(${logoSrc})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'left center' }}
             />
           </div>
-          <div className="flex-grow text-center md:hidden">
-            <h1 className="text-lg font-semibold text-gray-800">{currentTitle}</h1>
-          </div>
-          <ul className="hidden md:flex items-center space-x-8 flex-grow mx-8">
-             {/* Nav links blijven hetzelfde */}
+
+          {/* MIDDEN (Desktop): Navigatie-items */}
+          <ul className="hidden md:flex items-center space-x-8 flex-grow justify-center">
              <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
              <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
              <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
@@ -215,14 +216,23 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               </>
             )}
           </ul>
-          <div className="relative ml-4 flex-shrink-0" ref={menuButtonRef}>
-            <button
-              onClick={toggleMenu}
-              className="text-purple-700 bg-transparent hover:text-purple-900 transition-colors"
-              aria-label="User menu"
-            >
-              <UserCircleIcon className="h-8 w-8" />
-            </button>
+
+          {/* MIDDEN (Mobiel): Gecentreerde paginatitel */}
+          <div className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <h1 className="text-lg font-semibold text-gray-800 whitespace-nowrap">{currentTitle}</h1>
+          </div>
+
+          {/* RECHTERKANT: Profielmenu */}
+          <div className="flex justify-end flex-shrink-0">
+            <div className="relative" ref={menuButtonRef}>
+              <button
+                onClick={toggleMenu}
+                className="p-2 text-purple-700 bg-transparent hover:text-purple-900 transition-colors"
+                aria-label="User menu"
+              >
+                <UserCircleIcon className="h-8 w-8" />
+              </button>
+            </div>
           </div>
         </nav>
       </header>
