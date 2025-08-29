@@ -176,7 +176,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     <div>
       <Toaster position="top-center" />
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20">
-        <nav className="container mx-auto px-4 py-2 flex items-center justify-between">
+        <nav className="w-full px-4 md:px-8 py-2 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setMobileMenuOpen(prev => !prev)}
