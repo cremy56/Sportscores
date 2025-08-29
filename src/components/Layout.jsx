@@ -43,7 +43,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator';
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
   const testbeheerLinkText = activeRole === 'administrator' ? 'Testbeheer' : 'Sporttesten';
-  const groeiplanLinkText = isTeacherOrAdmin ? 'RemediÃ«ring' : 'Groeiplan'; // NIEUW TOEGEVOEGD
+  const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan'; // NIEUW TOEGEVOEGD
 
   const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
   const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
