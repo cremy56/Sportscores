@@ -206,7 +206,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             )}
           </ul>
 
-          <div className="relative ml-4 flex-shrink-0 z-50" ref={menuRef}>
+          <div className="relative ml-4 flex-shrink-0" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((prev) => !prev)}
               className="text-purple-700 bg-transparent hover:text-purple-900 transition-colors"
@@ -284,7 +284,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
         </nav>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="relative z-10 container mx-auto px-4 py-8">
         {/* AANGEPAST: Geef het gemodificeerde 'simulatedProfile' door ipv het originele 'profile' */}
        <Outlet context={{ 
           profile: simulatedProfile, 
