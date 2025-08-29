@@ -11,6 +11,7 @@ export default function Trainingsbeheer() {
     const { profile } = useOutletContext();
     const [oefeningen, setOefeningen] = useState([]);
     const [schemas, setSchemas] = useState([]);
+    const [testen, setTesten] = useState([]); // <-- 2. State voor testen toevoegen
     const [loading, setLoading] = useState(true);
 
     // Modals state
@@ -19,35 +20,38 @@ export default function Trainingsbeheer() {
     const [selectedOefening, setSelectedOefening] = useState(null);
     const [selectedSchema, setSelectedSchema] = useState(null);
 
-const handleSave = () => {
-        // Deze functie kan leeg zijn of een refresh-trigger bevatten in de toekomst
-        console.log("Data opgeslagen, data wordt vernieuwd door onSnapshot.");
-    };
 
     useEffect(() => {
         if (!profile?.school_id) return;
 
-        // Listener voor Oefeningen
         const oefeningenQuery = collection(db, 'oefeningen');
         const unsubscribeOefeningen = onSnapshot(oefeningenQuery, (snapshot) => {
-            const oefeningenLijst = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setOefeningen(oefeningenLijst);
+            setOefeningen(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             setLoading(false);
         });
 
-        // Listener voor Schema's
         const schemasQuery = collection(db, 'trainingsschemas');
         const unsubscribeSchemas = onSnapshot(schemasQuery, (snapshot) => {
-            const schemasLijst = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setSchemas(schemasLijst);
+            setSchemas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setLoading(false);
+        });
+
+        // --- 3. Listener voor Testen toevoegen ---
+        const testenQuery = collection(db, 'testen');
+        const unsubscribeTesten = onSnapshot(testenQuery, (snapshot) => {
+            setTesten(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             setLoading(false);
         });
 
         return () => {
             unsubscribeOefeningen();
             unsubscribeSchemas();
+            unsubscribeTesten(); // <-- Unsubscribe toevoegen
         };
     }, [profile?.school_id]);
+    
+    const handleSave = () => console.log("Data opgeslagen, onSnapshot vernieuwt de lijst.");
+
 
     return (
         <div>
@@ -81,7 +85,15 @@ const handleSave = () => {
                 oefeningData={selectedOefening}
             />
 
-            {/* {isSchemaModalOpen && <SchemaFormModal ... />} */}
+             {/* --- 4. Schema Modal Toevoegen --- */}
+            <SchemaFormModal 
+                isOpen={isSchemaModalOpen}
+                onClose={() => { setIsSchemaModalOpen(false); setSelectedSchema(null); }}
+                onSave={handleSave}
+                schemaData={selectedSchema}
+                alleOefeningen={oefeningen}
+                alleTesten={testen}
+            />
 
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -112,8 +124,17 @@ const handleSave = () => {
                     <h2 className="text-xl font-bold mb-4">Trainingsschema's ({schemas.length})</h2>
                     <ul className="space-y-2 max-h-96 overflow-y-auto">
                         {schemas.map(schema => (
-                            <li key={schema.id} className="p-3 bg-slate-50 rounded-lg border">
-                                {schema.naam} - <span className="text-slate-500">{schema.duur_weken} weken</span>
+                            <li key={schema.id} className="p-3 bg-slate-50 rounded-lg border flex justify-between items-center">
+                                <span>{schema.naam} - <span className="text-slate-500">{schema.duur_weken} weken</span></span>
+                                <button
+                                    onClick={() => {
+                                        setSelectedSchema(schema);
+                                        setIsSchemaModalOpen(true);
+                                    }}
+                                    className="text-sm text-blue-600 hover:underline"
+                                >
+                                    Bewerk
+                                </button>
                             </li>
                         ))}
                     </ul>
