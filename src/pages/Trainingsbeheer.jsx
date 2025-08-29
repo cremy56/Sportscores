@@ -57,7 +57,7 @@ export default function Trainingsbeheer() {
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold">Trainingsbeheer</h1>
-                <div className="space-x-4">
+                <div className="flex items-center space-x-2 sm:space-x-4">
                     <button 
                         onClick={() => setIsOefeningModalOpen(true)}
                         className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center shadow-sm hover:bg-purple-700"
