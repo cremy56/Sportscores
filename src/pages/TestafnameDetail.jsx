@@ -18,6 +18,8 @@ import {
     ArrowPathIcon,
     ExclamationTriangleIcon
 } from '@heroicons/react/24/solid';
+import { parseTimeInputToSeconds, formatScoreWithUnit, getPointColorClass } from '../utils/formatters.js';
+
 
 async function calculatePuntFromScore(test, leerling, score, testDatum) {
     if (!test || !leerling || score === null || isNaN(score)) return null;
@@ -104,39 +106,6 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
     }
 }
 
-function formatScore(score, eenheid) {
-    if (score === null || score === undefined) return '-';
-    
-    const eenheidLower = eenheid?.toLowerCase();
-
-    // Speciale opmaak voor 'aantal'
-    if (eenheidLower === 'aantal') {
-        return `${score}x`;
-    }
-    
-    // Speciale opmaak voor tijd
-    if (eenheidLower === 'min' || eenheidLower === 'sec' || eenheidLower === 'minuten' || eenheidLower === 'seconden') {
-        const mins = Math.floor(score / 60);
-        const secs = Math.round(score % 60);
-        return `${mins}'${secs.toString().padStart(2, '0')}"`;
-    }
-    
-    // Standaard opmaak voor alle andere eenheden (bv. meter)
-    return `${score} ${eenheid}`;
-}
-
-function getScoreColorClass(punt, maxPunten = 20) {
-    if (punt === null || punt === undefined) return 'text-gray-400';
-
-    if (punt < 10) { // Onvoldoende
-        return 'text-red-600';
-    }
-    if (punt < 14) { // Voldoende (10 t/m 13.9)
-        return 'text-yellow-600';
-    }
-    // Goed en Uitstekend (14 en hoger)
-    return 'text-green-600';
-}
 
 function validateScore(score, eenheid) {
     if (!score || score.toString().trim() === '') {
@@ -469,14 +438,15 @@ export default function TestafnameDetail() {
     }, []);
 
     const handleEditClick = (leerling) => {
-       const initialValue = leerling.score !== null ? formatScore(leerling.score, details.test_volledig.eenheid) : '';
+        const initialValue = leerling.score !== null 
+            ? formatScoreWithUnit(leerling.score, details.test_volledig.eenheid) 
+            : '';
         setEditingScore({ 
             id: leerling.score_id, 
             score: initialValue, 
             validation: { valid: true }
         });
     };
-
     const handleScoreChange = (value) => {
        const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
         let isValid = true;
@@ -863,13 +833,15 @@ export default function TestafnameDetail() {
                                                                     </div>
                                                                 ) : (
                                                                     <span className="font-bold text-xl text-purple-700">
-                                                                        {lid.score !== null ? formatScore(lid.score, details.eenheid) : '-'}
+                                                                        {lid.score !== null ? formatScoreWithUnit(lid.score, details.test_volledig.eenheid) : '-'}
+
                                                                     </span>
                                                                 )}
                                                             </div>
                                                             <div className="text-center w-24">
                                                                 <span className={`font-bold text-xl ${getScoreColorClass(lid.punt, details.max_punten)}`}>
-                                                                    {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
+                                                                   {lid.score !== null ? formatScoreWithUnit(lid.score, details.test_volledig.eenheid) : '-'}
+
                                                                 </span>
                                                             </div>
                                                         </div>
