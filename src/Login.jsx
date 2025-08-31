@@ -39,7 +39,7 @@ export default function Login() {
         <div className="flex flex-col items-center mb-8">
           <div className="bg-gradient-to-br from-purple-100 to-blue-100 p-4 rounded-2xl mb-4 shadow-lg">
             <img
-              src="/logo.png"
+              src="/assets/logo.png"
               alt="Sportscores Logo"
               className="h-12 w-auto object-contain"
             />
