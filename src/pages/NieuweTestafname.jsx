@@ -122,7 +122,7 @@ export default function NieuweTestafname() {
     const [warningModal, setWarningModal] = useState({ isOpen: false });
     const [normenInfo, setNormenInfo] = useState({ M: true, V: true, loading: false });
     const [uitgeslotenLeerlingen, setUitgeslotenLeerlingen] = useState([]);
-
+    const [filtersZijnOpen, setFiltersZijnOpen] = useState(true);
     // Fetch initial data
     useEffect(() => {
         if (!profile?.school_id) return;
@@ -188,6 +188,13 @@ export default function NieuweTestafname() {
         checkNormen();
     }, [selectedTest]);
     
+// --- NIEUW: Effect om filters te sluiten na testselectie op mobiel ---
+    useEffect(() => {
+        if (selectedTest) {
+            setFiltersZijnOpen(false);
+        }
+    }, [selectedTest]);
+
     // Filter leerlingen op basis van beschikbare normen
     const gefilterdeLeerlingen = useMemo(() => {
         if (normenInfo.loading) return [];
@@ -354,17 +361,72 @@ export default function NieuweTestafname() {
                     
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
                         <div className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="md:col-span-1"><label className="block text-sm font-medium text-gray-700 mb-2">Datum</label><input type="date" value={datum} onChange={e => setDatum(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm"/></div>
-                                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div><label className="block text-sm font-medium text-gray-700 mb-2">Kies een groep</label><select value={selectedGroep?.id || ''} onChange={(e) => setSelectedGroep(groepen.find(g => g.id === e.target.value) || null)} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm"><option value="">-- Selecteer groep --</option>{groepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}</select></div>
-                                    <div><label className="block text-sm font-medium text-gray-700 mb-2">Kies een test</label><select value={selectedTest?.id || ''} onChange={(e) => setSelectedTest(testen.find(t => t.id === e.target.value) || null)} disabled={!selectedGroep} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm disabled:bg-gray-50"><option value="">-- Selecteer test --</option>{testen.map(t => <option key={t.id} value={t.id}>{t.naam} ({t.eenheid})</option>)}</select></div>
+                            {/* --- NIEUW: Knop om filters te tonen/verbergen (alleen mobiel) --- */}
+                                <div className="md:hidden flex justify-end">
+                                    <button
+                                        onClick={() => setFiltersZijnOpen(prev => !prev)}
+                                        className="flex items-center text-sm font-medium text-purple-600 hover:text-purple-800 p-2 -mr-2"
+                                    >
+                                        {filtersZijnOpen ? (
+                                            <>
+                                                <span>Verberg Selectie</span>
+                                                <ChevronUpIcon className="h-4 w-4 ml-1" />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span>Wijzig Selectie</span>
+                                                <PencilIcon className="h-4 w-4 ml-1" />
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
-                            </div>
+                           <div className={`transition-all duration-500 ease-in-out overflow-hidden ${filtersZijnOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'} md:max-h-full md:opacity-100`}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Datum</label>
+                    <input type="date" value={datum} onChange={e => setDatum(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm"/>
+                </div>
+                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Kies een groep</label>
+                        <select value={selectedGroep?.id || ''} onChange={(e) => setSelectedGroep(groepen.find(g => g.id === e.target.value) || null)} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm">
+                            <option value="">-- Selecteer groep --</option>
+                            {groepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Kies een test</label>
+                        <select value={selectedTest?.id || ''} onChange={(e) => setSelectedTest(testen.find(t => t.id === e.target.value) || null)} disabled={!selectedGroep} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm disabled:bg-gray-50">
+                            <option value="">-- Selecteer test --</option>
+                            {testen.map(t => <option key={t.id} value={t.id}>{t.naam} ({t.eenheid})</option>)}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
                             
                             {selectedTest && !normenInfo.loading && uitgeslotenLeerlingen.length > 0 && (
-                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">{/* Waarschuwingspaneel */}</div>
-                            )}
+    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+        <div className="flex">
+            <div className="flex-shrink-0">
+                <ExclamationTriangleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
+            </div>
+            <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                    Normen niet beschikbaar voor {(!normenInfo.M && !normenInfo.V) ? 'jongens en meisjes' : !normenInfo.M ? 'jongens' : 'meisjes'}
+                </h3>
+                <div className="mt-2 text-sm text-red-700">
+                    <p>
+                        Voor deze test konden geen normwaarden worden gevonden. De volgende {uitgeslotenLeerlingen.length === 1 ? 'leerling wordt' : 'leerlingen worden'} niet weergegeven:
+                    </p>
+                    <ul role="list" className="list-disc pl-5 space-y-1 mt-1">
+                        {uitgeslotenLeerlingen.map(l => <li key={l.id}>{l.data.naam}</li>)}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+)}
 
                            {selectedGroep && selectedTest && (
                             <div className="border-t border-gray-200 pt-8">
