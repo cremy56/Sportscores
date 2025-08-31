@@ -487,12 +487,12 @@ const handleScoreChange = (leerlingId, newScore) => {
                                             <div key={lid.id} className="grid grid-cols-3 items-center gap-4 p-4 bg-gray-50 rounded-xl">
                                                 <div className="font-medium text-gray-900">{lid.data.naam}</div>
                                                 <div>
-                                                    <input
+                                                   <input
                                                         type="text"
+                                                        // WIJZIGING: Veranderd naar "text" om het standaard toetsenbord op te roepen
                                                         inputMode="text"
                                                         className={`w-full p-3 border rounded-xl text-right transition-all shadow-sm 
                                                             ${scores[lid.id]?.isValid === false ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500'}`}
-                                                        // WIJZIGING: Gebruik de dynamische placeholder
                                                         placeholder={placeholderText}
                                                         value={scores[lid.id]?.score || ''}
                                                         onChange={(e) => handleScoreChange(lid.id, e.target.value)}
