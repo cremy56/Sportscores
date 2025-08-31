@@ -432,6 +432,8 @@ export default function TestafnameDetail() {
             setDetails({
                 groep_naam: groupData.naam,
                 test_naam: testData.naam,
+                eenheid: testData.eenheid,
+                max_punten: testData.max_punten || 20,
                 test_volledig: testData, // WIJZIGING: Sla het test-object op in de state
                 leerlingen: leerlingenData.sort((a,b) => a.naam.localeCompare(b.naam))
             });
