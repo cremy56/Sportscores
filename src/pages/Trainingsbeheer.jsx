@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, onSnapshot, query } from 'firebase/firestore';
-import { PlusIcon } from '@heroicons/react/24/solid';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { PlusIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import OefeningFormModal from '../components/OefeningFormModal';
 import SchemaFormModal from '../components/SchemaFormModal';
 
@@ -20,12 +20,20 @@ export default function Trainingsbeheer() {
     const [selectedOefening, setSelectedOefening] = useState(null);
     const [selectedSchema, setSelectedSchema] = useState(null);
 
+    // --- NIEUW: State voor het in- en uitklappen van de lijsten ---
+    const [isOefeningenOpen, setIsOefeningenOpen] = useState(false);
+    const [isSchemasOpen, setIsSchemasOpen] = useState(false);
 
     useEffect(() => {
         if (!profile?.school_id) {
             setLoading(false);
             return;
         }
+
+        // --- NIEUW: Bepaal de initiële open/dicht-status op basis van schermgrootte ---
+        const isDesktop = window.innerWidth >= 1024; // Tailwind's 'lg' breakpoint
+        setIsOefeningenOpen(isDesktop);
+        setIsSchemasOpen(isDesktop);
 
         const queries = [
             { ref: collection(db, 'oefeningen'), setter: setOefeningen },
@@ -54,7 +62,7 @@ export default function Trainingsbeheer() {
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
             <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
             
-                {/* --- MOBIELE HEADER (conform Testbeheer) --- */}
+                {/* Mobiele Header */}
                 <div className="lg:hidden mb-8">
                     <div className="flex justify-between items-center">
                         <h1 className="text-2xl font-bold text-gray-800">Trainingsbeheer</h1>
@@ -77,7 +85,7 @@ export default function Trainingsbeheer() {
                     </div>
                 </div>
 
-                {/* --- DESKTOP HEADER --- */}
+                {/* Desktop Header */}
                 <div className="hidden lg:flex justify-between items-center mb-12">
                     <h1 className="text-3xl font-bold">Trainingsbeheer</h1>
                     <div className="flex items-center space-x-4">
@@ -100,10 +108,7 @@ export default function Trainingsbeheer() {
 
                 <OefeningFormModal 
                     isOpen={isOefeningModalOpen}
-                    onClose={() => {
-                        setIsOefeningModalOpen(false);
-                        setSelectedOefening(null);
-                    }}
+                    onClose={() => { setIsOefeningModalOpen(false); setSelectedOefening(null); }}
                     onSave={handleSave}
                     oefeningData={selectedOefening}
                 />
@@ -118,46 +123,60 @@ export default function Trainingsbeheer() {
                 />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Kolom voor Oefeningen */}
+                    {/* --- AANGEPAST: Kolom voor Oefeningen (inklapbaar) --- */}
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h2 className="text-xl font-bold mb-4">Oefeningen ({oefeningen.length})</h2>
-                        <ul className="space-y-2 max-h-[60vh] overflow-y-auto">
-                            {oefeningen.map(oefening => (
-                                <li key={oefening.id} className="p-3 bg-slate-50 rounded-lg border flex justify-between items-center">
-                                    <span>{oefening.naam} - <span className="text-slate-500">{oefening.categorie}</span></span>
-                                    <button 
-                                        onClick={() => {
-                                            setSelectedOefening(oefening);
-                                            setIsOefeningModalOpen(true);
-                                        }}
-                                        className="text-sm text-purple-600 hover:underline"
-                                    >
-                                        Bewerk
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
+                        <button 
+                            onClick={() => setIsOefeningenOpen(prev => !prev)}
+                            className="w-full flex justify-between items-center text-left"
+                        >
+                            <h2 className="text-xl font-bold">Oefeningen ({oefeningen.length})</h2>
+                            <ChevronDownIcon className={`h-6 w-6 text-slate-400 transition-transform duration-300 ${isOefeningenOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        <div className={`transition-all duration-500 ease-in-out grid ${isOefeningenOpen ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden">
+                                <ul className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+                                    {oefeningen.map(oefening => (
+                                        <li key={oefening.id} className="p-3 bg-slate-50 rounded-lg border flex justify-between items-center">
+                                            <span>{oefening.naam} - <span className="text-slate-500">{oefening.categorie}</span></span>
+                                            <button 
+                                                onClick={() => { setSelectedOefening(oefening); setIsOefeningModalOpen(true); }}
+                                                className="text-sm text-purple-600 hover:underline"
+                                            >
+                                                Bewerk
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                     
-                    {/* Kolom voor Schema's */}
+                    {/* --- AANGEPAST: Kolom voor Schema's (inklapbaar) --- */}
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h2 className="text-xl font-bold mb-4">Trainingsschema's ({schemas.length})</h2>
-                        <ul className="space-y-2 max-h-[60vh] overflow-y-auto">
-                            {schemas.map(schema => (
-                                <li key={schema.id} className="p-3 bg-slate-50 rounded-lg border flex justify-between items-center">
-                                    <span>{schema.naam} - <span className="text-slate-500">{schema.duur_weken} weken</span></span>
-                                    <button
-                                        onClick={() => {
-                                            setSelectedSchema(schema);
-                                            setIsSchemaModalOpen(true);
-                                        }}
-                                        className="text-sm text-blue-600 hover:underline"
-                                    >
-                                        Bewerk
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
+                        <button
+                            onClick={() => setIsSchemasOpen(prev => !prev)}
+                            className="w-full flex justify-between items-center text-left"
+                        >
+                            <h2 className="text-xl font-bold">Trainingsschema's ({schemas.length})</h2>
+                            <ChevronDownIcon className={`h-6 w-6 text-slate-400 transition-transform duration-300 ${isSchemasOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        <div className={`transition-all duration-500 ease-in-out grid ${isSchemasOpen ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden">
+                                <ul className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+                                    {schemas.map(schema => (
+                                        <li key={schema.id} className="p-3 bg-slate-50 rounded-lg border flex justify-between items-center">
+                                            <span>{schema.naam} - <span className="text-slate-500">{schema.duur_weken} weken</span></span>
+                                            <button
+                                                onClick={() => { setSelectedSchema(schema); setIsSchemaModalOpen(true); }}
+                                                className="text-sm text-blue-600 hover:underline"
+                                            >
+                                                Bewerk
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
