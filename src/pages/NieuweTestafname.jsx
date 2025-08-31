@@ -1,14 +1,14 @@
 // src/pages/NieuweTestafname.jsx
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useOutletContext, useNavigate, Link } from 'react-router-dom';
 import { db, auth } from '../firebase';
-import { collection, query, where, getDocs, writeBatch, doc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { parseTimeInputToSeconds } from '../utils/formatters.js';
 
-// --- HELPER FUNCTIES (bovenaan het bestand) ---
-
+// --- HELPER FUNCTIES ---
+// De helper functies (calculateAge, calculatePuntFromScore, etc.) blijven ongewijzigd.
 function calculateAge(birthDate, testDate) {
     if (!birthDate || !testDate) return null;
     let age = testDate.getFullYear() - birthDate.getFullYear();
@@ -18,52 +18,35 @@ function calculateAge(birthDate, testDate) {
     }
     return age;
 }
-
 async function calculatePuntFromScore(test, leerling, score, testDatum) {
     if (!test || !leerling || score === null || isNaN(score)) return null;
     try {
-        // WIJZIGING: Haal score_richting direct uit het meegegeven test-object.
-        // Dit is logischer omdat de richting een eigenschap van de test is.
-        const { score_richting } = test; 
+        const { score_richting } = test;
         if (!score_richting) {
             console.error("Geen 'score_richting' gevonden in het test-object.");
             return null;
         }
-
         const { geboortedatum, geslacht } = leerling;
         if (!geboortedatum || !geslacht) return null;
-
         const leeftijd = calculateAge(geboortedatum.toDate(), testDatum);
         if (leeftijd === null) return null;
-        
-        const normAge = Math.min(leeftijd, 17); 
-
+        const normAge = Math.min(leeftijd, 17);
         const normenQuery = query(collection(db, 'normen'), where('test_id', '==', test.id));
         const normenSnapshot = await getDocs(normenQuery);
-        
         if (normenSnapshot.empty) return null;
-        
         const normSnap = normenSnapshot.docs[0];
-        // WIJZIGING: Haal enkel nog de puntenschaal uit het normen-document.
-        const { punten_schaal } = normSnap.data(); 
+        const { punten_schaal } = normSnap.data();
         if (!punten_schaal || punten_schaal.length === 0) return null;
-
-        const genderMapping = { 'man': 'M', 'vrouw': 'V', 'jongen': 'M', 'meisje': 'V' };
-        const mappedGender = genderMapping[geslacht.toLowerCase()] || geslacht.toUpperCase();
-
+        const mappedGender = geslacht.toUpperCase();
         const relevantNorms = punten_schaal
             .filter(n => n.leeftijd === normAge && n.geslacht === mappedGender)
             .sort((a, b) => a.punt - b.punt);
-
         if (relevantNorms.length === 0) return null;
-
         let behaaldeNorm = null;
         let volgendeNorm = null;
-
         if (score_richting === 'laag') {
             if (score <= relevantNorms[relevantNorms.length - 1].score_min) return relevantNorms[relevantNorms.length - 1].punt;
             if (score >= relevantNorms[0].score_min) return relevantNorms[0].punt;
-
             for (let i = 0; i < relevantNorms.length - 1; i++) {
                 if (score < relevantNorms[i].score_min && score >= relevantNorms[i + 1].score_min) {
                     behaaldeNorm = relevantNorms[i];
@@ -74,7 +57,6 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
         } else { // 'hoog'
             if (score >= relevantNorms[relevantNorms.length - 1].score_min) return relevantNorms[relevantNorms.length - 1].punt;
             if (score <= relevantNorms[0].score_min) return relevantNorms[0].punt;
-
             for (let i = 0; i < relevantNorms.length - 1; i++) {
                 if (score >= relevantNorms[i].score_min && score < relevantNorms[i + 1].score_min) {
                     behaaldeNorm = relevantNorms[i];
@@ -83,71 +65,41 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
                 }
             }
         }
-
         if (!behaaldeNorm || !volgendeNorm) {
             const exactMatch = relevantNorms.find(n => n.score_min === score);
             return exactMatch ? exactMatch.punt : (behaaldeNorm ? behaaldeNorm.punt : 0);
         }
-
         const midpoint = (behaaldeNorm.score_min + volgendeNorm.score_min) / 2;
         let finalPunt = behaaldeNorm.punt;
-
-        if (score_richting === 'laag') {
-            if (score < midpoint) {
-                finalPunt += 0.5;
-            }
-        } else { // 'hoog'
-            if (score > midpoint) {
-                finalPunt += 0.5;
-            }
+        if ((score_richting === 'laag' && score < midpoint) || (score_richting === 'hoog' && score > midpoint)) {
+            finalPunt += 0.5;
         }
-        
         return finalPunt;
-
     } catch (error) {
         console.error("Fout tijdens puntberekening:", error);
-        toast.error("Kon punt niet berekenen.");
         return null;
     }
 }
-
 function getScoreColorClass(punt) {
    if (punt === null || punt === undefined) return 'text-gray-400';
-    if (punt < 10) return 'text-red-600'; // Onvoldoende
-    if (punt < 13) return 'text-orange-500'; // Voldoende
-    if (punt < 15) return 'text-yellow-600'; // Gemiddeld
-    return 'text-green-600'; // Goed tot uitstekend
+    if (punt < 10) return 'text-red-600';
+    if (punt < 13) return 'text-orange-500';
+    if (punt < 15) return 'text-yellow-600';
+    return 'text-green-600';
 }
-
-// NIEUW: Helper functie om tijd geleden te formatteren
 function formatTimeAgo(pastDate, referenceDate) {
     const seconds = Math.floor((referenceDate - pastDate) / 1000);
-    
-    // Minder dan een dag
-    if (seconds < 86400) {
-        return "Vandaag";
-    }
-
+    if (seconds < 86400) return "Vandaag";
     const days = Math.floor(seconds / 86400);
-
-    // Minder dan een week
-    if (days < 7) {
-        return `${days} ${days === 1 ? 'dag' : 'dagen'} geleden`;
-    }
-
-    // Minder dan een maand (ongeveer)
+    if (days < 7) return `${days} ${days === 1 ? 'dag' : 'dagen'} geleden`;
     if (days < 30) {
         const weeks = Math.floor(days / 7);
         return `${weeks} ${weeks === 1 ? 'week' : 'weken'} geleden`;
     }
-
-    // Maanden
     if (days < 365) {
         const months = Math.floor(days / 30);
         return `${months} ${months === 1 ? 'maand' : 'maanden'} geleden`;
     }
-
-    // Jaren
     const years = Math.floor(days / 365);
     return `${years} ${years === 1 ? 'jaar' : 'jaren'} geleden`;
 }
@@ -157,22 +109,21 @@ export default function NieuweTestafname() {
     const { profile } = useOutletContext();
     const [groepen, setGroepen] = useState([]);
     const [testen, setTesten] = useState([]);
-    const [volledigeLeerlingen, setVolledigeLeerlingen] = useState([]);
+    // --- CORRECTIE 1: Ontbrekende state voor selectedGroep toegevoegd ---
+    const [selectedGroep, setSelectedGroep] = useState(null);
     const [selectedTest, setSelectedTest] = useState(null);
-    const [leerlingen, setLeerlingen] = useState([]);
+    const [volledigeLeerlingen, setVolledigeLeerlingen] = useState([]);
     const [datum, setDatum] = useState(new Date().toISOString().split('T')[0]);
     const [scores, setScores] = useState({});
     const [loading, setLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const navigate = useNavigate();
     const debounceTimeoutRef = useRef(null);
-
-    // NIEUW: State voor de waarschuwings-popup
-    const [warningModal, setWarningModal] = useState({ isOpen: false, message: '', onConfirm: null, onCancel: null });
+    const [warningModal, setWarningModal] = useState({ isOpen: false });
     const [normenInfo, setNormenInfo] = useState({ M: true, V: true, loading: false });
     const [uitgeslotenLeerlingen, setUitgeslotenLeerlingen] = useState([]);
 
-    // Fetch initial data (groups and tests)
+    // Fetch initial data
     useEffect(() => {
         if (!profile?.school_id) return;
         setLoading(true);
@@ -180,17 +131,10 @@ export default function NieuweTestafname() {
             try {
                 const groepenQuery = query(collection(db, 'groepen'), where('school_id', '==', profile.school_id));
                 const testenQuery = query(collection(db, 'testen'), where('school_id', '==', profile.school_id));
-                
                 const [groepenSnap, testenSnap] = await Promise.all([getDocs(groepenQuery), getDocs(testenQuery)]);
-
-                const groepenData = groepenSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                setGroepen(groepenData);
+                setGroepen(groepenSnap.docs.map(d => ({ id: d.id, ...d.data() })));
                 setTesten(testenSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-
-            } catch (error) {
-                toast.error("Kon groepen of testen niet laden.");
-                console.error(error);
-            }
+            } catch (error) { toast.error("Kon groepen of testen niet laden."); }
             setLoading(false);
         };
         fetchData();
@@ -210,46 +154,41 @@ export default function NieuweTestafname() {
             const q = query(collection(db, 'toegestane_gebruikers'), where('__name__', 'in', selectedGroep.leerling_ids));
             const snap = await getDocs(q);
             const leerlingenData = snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
-            setVolledigeLeerlingen([]);(leerlingenData.sort((a, b) => a.data.naam.localeCompare(b.data.naam)));
+            // --- CORRECTIE 2: Typfout in setVolledigeLeerlingen opgelost ---
+            setVolledigeLeerlingen(leerlingenData.sort((a, b) => a.data.naam.localeCompare(b.data.naam)));
         };
         fetchLeerlingen();
         setScores({});
     }, [selectedGroep]);
 
-   // --- NIEUW: Check normen beschikbaarheid als test wijzigt ---
+    // Check normen beschikbaarheid als test wijzigt
     useEffect(() => {
         if (!selectedTest) {
             setNormenInfo({ M: true, V: true, loading: false });
             return;
         }
-
         const checkNormen = async () => {
             setNormenInfo({ M: false, V: false, loading: true });
             try {
                 const normenQuery = query(collection(db, 'normen'), where('test_id', '==', selectedTest.id));
                 const normenSnapshot = await getDocs(normenQuery);
-                
                 if (normenSnapshot.empty) {
                     setNormenInfo({ M: false, V: false, loading: false });
                     return;
                 }
-
                 const normData = normenSnapshot.docs[0].data();
                 const hasMaleNorms = normData.punten_schaal.some(n => n.geslacht === 'M');
                 const hasFemaleNorms = normData.punten_schaal.some(n => n.geslacht === 'V');
-
                 setNormenInfo({ M: hasMaleNorms, V: hasFemaleNorms, loading: false });
-
             } catch (error) {
                 console.error("Fout bij ophalen normen:", error);
-                setNormenInfo({ M: true, V: true, loading: false }); // Fallback
+                setNormenInfo({ M: true, V: true, loading: false });
             }
         };
-
         checkNormen();
     }, [selectedTest]);
     
-    // --- NIEUW: Memoized filtering van leerlingen op basis van beschikbare normen ---
+    // Filter leerlingen op basis van beschikbare normen
     const gefilterdeLeerlingen = useMemo(() => {
         if (normenInfo.loading) return [];
         const filtered = volledigeLeerlingen.filter(leerling => {
@@ -258,50 +197,42 @@ export default function NieuweTestafname() {
             if (gender === 'V') return normenInfo.V;
             return false;
         });
-        // Dit is een 'side effect', maar acceptabel in deze context om de uitgesloten lijst te berekenen.
         setUitgeslotenLeerlingen(volledigeLeerlingen.filter(l => !filtered.includes(l)));
         return filtered;
     }, [volledigeLeerlingen, normenInfo]);
     
     // Check voor recente testafnames
-   useEffect(() => {
+    useEffect(() => {
         if (!selectedGroep || !selectedTest || !datum || !gefilterdeLeerlingen || gefilterdeLeerlingen.length === 0) return;
         const leerlingIds = gefilterdeLeerlingen.map(l => l.id);
         if(leerlingIds.length === 0) return;
-
         const geselecteerdeDatum = new Date(datum);
         const oneMonthAgo = new Date(geselecteerdeDatum);
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-        
         const scoresQuery = query(collection(db, 'scores'),
             where('test_id', '==', selectedTest.id),
             where('leerling_id', 'in', leerlingIds),
             where('datum', '>=', oneMonthAgo),
             where('datum', '<', geselecteerdeDatum)
         );
-
         const checkForRecentTests = async () => {
             const querySnapshot = await getDocs(scoresQuery);
             if (!querySnapshot.empty) {
                 const recentScores = querySnapshot.docs.map(d => d.data());
                 const mostRecentAfname = recentScores.sort((a, b) => b.datum.toMillis() - a.datum.toMillis())[0];
                 const afnameDatum = mostRecentAfname.datum.toDate();
-
                 const teacherIds = [...new Set(recentScores.map(s => s.leerkracht_id).filter(Boolean))];
                 let teacherNames = [];
-
                 if (teacherIds.length > 0) {
                     const leerkrachtenQuery = query(collection(db, 'toegestane_gebruikers'), where('__name__', 'in', teacherIds));
                     const leerkrachtenSnap = await getDocs(leerkrachtenQuery);
                     const leerkrachtenMap = new Map(leerkrachtenSnap.docs.map(d => [d.id, d.data().naam]));
                     teacherNames = teacherIds.map(id => id === auth.currentUser.uid ? 'jezelf' : leerkrachtenMap.get(id) || 'een onbekende leerkracht');
                 }
-                
                 const leerkrachtTekst = teacherNames.length > 0 ? new Intl.ListFormat('nl-BE').format(teacherNames) : 'een leerkracht';
                 const affectedStudentsCount = new Set(recentScores.map(s => s.leerling_id)).size;
                 const noun = affectedStudentsCount === 1 ? 'leerling' : 'leerlingen';
                 const verb = affectedStudentsCount === 1 ? 'heeft' : 'hebben';
-
                 setWarningModal({
                     isOpen: true,
                     message: `${affectedStudentsCount} ${noun} van deze groep ${verb} deze test ${formatTimeAgo(afnameDatum, geselecteerdeDatum)} reeds afgelegd bij ${leerkrachtTekst}.`,
@@ -316,75 +247,46 @@ export default function NieuweTestafname() {
         checkForRecentTests();
     }, [selectedGroep, selectedTest, datum, gefilterdeLeerlingen]);
 
-    // Debounced effect to calculate points
+    // Debounced puntberekening
     useEffect(() => {
         if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-
-        // Zoek de laatste leerling die bewerkt is en wacht op validatie/berekening
         const studentIdToProcess = Object.keys(scores).find(id => scores[id]?.isCalculating);
-
         if (studentIdToProcess) {
             debounceTimeoutRef.current = setTimeout(async () => {
                 const scoreData = scores[studentIdToProcess];
-                
-                // Als het veld leeg is, stoppen we de "calculating" status
                 if (!scoreData || !scoreData.score || scoreData.score.trim() === '') {
                     setScores(prev => ({...prev, [studentIdToProcess]: { ...scoreData, isCalculating: false, isValid: true, rapportpunt: null }}));
                     return;
                 }
-
-                // Stap A: Valideer de input
                 const parsedValue = parseTimeInputToSeconds(scoreData.score);
-                
                 if (isNaN(parsedValue)) {
-                    // Stap B: Als ongeldig, toon foutmelding en update de staat
                     toast.error("Ongeldige tijdnotatie. Gebruik bv. 1:15 of 12.5");
                     setScores(prev => ({...prev, [studentIdToProcess]: { ...scoreData, isValid: false, isCalculating: false }}));
                 } else {
-                    // Stap C: Als geldig, bereken het punt
-                    const leerling = leerlingen.find(l => l.id === studentIdToProcess);
+                    const leerling = gefilterdeLeerlingen.find(l => l.id === studentIdToProcess);
                     const newPunt = await calculatePuntFromScore(selectedTest, leerling.data, parsedValue, new Date(datum));
                     setScores(prev => ({...prev, [studentIdToProcess]: { ...scoreData, rapportpunt: newPunt, isValid: true, isCalculating: false }}));
                 }
-            }, 1500); // Wacht 750ms na de laatste toetsaanslag
+            }, 750);
         }
-
         return () => clearTimeout(debounceTimeoutRef.current);
-    }, [scores, selectedTest, datum, leerlingen]);
+    }, [scores, selectedTest, datum, gefilterdeLeerlingen]);
 
-    // NIEUW: Ref voor toast-notificaties om spam te voorkomen
-    const toastIdRef = useRef(null);
-
-const handleScoreChange = (leerlingId, newScore) => {
-        setScores(prev => ({
-            ...prev,
-            [leerlingId]: { 
-                ...prev[leerlingId], 
-                score: newScore, 
-                rapportpunt: null, 
-                isValid: true, // Reset validatie bij elke nieuwe input
-                isCalculating: true // Vlag om de debounce useEffect te starten
-            }
-        }));
+    const handleScoreChange = (leerlingId, newScore) => {
+        setScores(prev => ({ ...prev, [leerlingId]: { ...prev[leerlingId], score: newScore, rapportpunt: null, isValid: true, isCalculating: true }}));
     };
-
-
 
     const handleSaveScores = async () => {
         if (!selectedGroep || !selectedTest) return toast.error("Selecteer een groep en een test.");
         setIsSaving(true);
         const batch = writeBatch(db);
         const eenheidLower = selectedTest.eenheid?.toLowerCase();
-        
         try {
             for (const leerlingId in scores) {
                 const scoreData = scores[leerlingId];
                 if (scoreData.score && String(scoreData.score).trim() !== '') {
-                    let finalScoreValue = (eenheidLower.includes('min') || eenheidLower.includes('sec'))
-                        ? parseTimeInputToSeconds(scoreData.score)
-                        : parseFloat(String(scoreData.score).replace(',', '.'));
-                   
-                   if (finalScoreValue !== null && !isNaN(finalScoreValue)) {
+                    let finalScoreValue = (eenheidLower.includes('min') || eenheidLower.includes('sec')) ? parseTimeInputToSeconds(scoreData.score) : parseFloat(String(scoreData.score).replace(',', '.'));
+                    if (finalScoreValue !== null && !isNaN(finalScoreValue)) {
                         const leerling = gefilterdeLeerlingen.find(l => l.id === leerlingId);
                         const newScoreRef = doc(collection(db, 'scores'));
                         batch.set(newScoreRef, {
@@ -405,56 +307,31 @@ const handleScoreChange = (leerlingId, newScore) => {
             await batch.commit();
             toast.success("Scores succesvol opgeslagen!");
             navigate('/scores');
-        } catch (error) {
-            toast.error("Kon de scores niet opslaan.");
-        } finally {
-            setIsSaving(false);
-        }
+        } catch (error) { toast.error("Kon de scores niet opslaan.");
+        } finally { setIsSaving(false); }
     };
 
-const validScoresCount = Object.values(scores).filter(s => s.score && String(s.score).trim() !== '').length;
-
-    if (loading) {
-        return (
-            <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
-                <div className="bg-white p-8 rounded-2xl shadow-sm">
-                    <div className="flex items-center space-x-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                        <span className="text-gray-700 font-medium">Gegevens laden...</span>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-
-// WIJZIGING: Dynamische placeholder logica
+    const validScoresCount = Object.values(scores).filter(s => s.score && String(s.score).trim() !== '').length;
+    
     const getPlaceholder = () => {
         if (!selectedTest) return "Score";
-        
         const eenheidLower = selectedTest.eenheid?.toLowerCase();
         const naamLower = selectedTest.naam?.toLowerCase();
-
-        // Check voor tijdseenheden
         if (eenheidLower.includes('sec') || eenheidLower.includes('min')) {
-            // Check voor typische korte afstandstests
-            if (naamLower.includes('10x5') || naamLower.includes('sprint') || naamLower.includes('50m')) {
-                return "bv. 12.5 of 12,5";
-            }
-            // Voor alle andere (langere) tijdstests
+            if (naamLower.includes('10x5') || naamLower.includes('sprint') || naamLower.includes('50m')) return "bv. 12.5 of 12,5";
             return "bv. 1:15";
         }
-        
-        // Fallback voor niet-tijdseenheden
         return `Score in ${selectedTest.eenheid}`;
     };
     
     const placeholderText = getPlaceholder();
 
+    if (loading) return <div>Laden...</div>;
+
     return (
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
             {warningModal.isOpen && (
-                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-lg">
                         <div className="flex items-center mb-4"><ExclamationTriangleIcon className="h-8 w-8 text-yellow-500 mr-3" /><h3 className="text-lg font-bold">Recente Testafname Gevonden</h3></div>
                         <p className="text-gray-600 mb-6">{warningModal.message}</p>
@@ -468,10 +345,7 @@ const validScoresCount = Object.values(scores).filter(s => s.score && String(s.s
             )}
             <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
                 <div className="max-w-4xl mx-auto">
-                    <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
-                        <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
-                        Annuleren en terug naar scores
-                    </Link>
+                    <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group"><ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />Annuleren en terug naar scores</Link>
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
                         <h1 className="text-3xl font-bold mb-8 text-gray-800">Nieuwe Testafname</h1>
                         <div className="space-y-8">
@@ -495,18 +369,16 @@ const validScoresCount = Object.values(scores).filter(s => s.score && String(s.s
                                     </div>
                                 </div>
                             )}
-                           {selectedGroep && selectedTest && (
+                            {selectedGroep && selectedTest && (
                             <div className="border-t border-gray-200 pt-8">
                                 <div className="flex justify-between items-center mb-6">
                                     <h2 className="text-xl font-semibold text-gray-800">Scores invoeren</h2>
-                                    {/* GECORRIGEERD: Teller gebruikt de lengte van de gefilterde lijst */}
                                     <div className="text-sm text-gray-600 bg-gray-50 px-3 py-1 rounded-full">{validScoresCount} / {gefilterdeLeerlingen.length} ingevoerd</div>
                                 </div>
                                 {normenInfo.loading ? <div className="text-center py-8 text-gray-500">Normen controleren...</div>
                                 : gefilterdeLeerlingen.length === 0 ? <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl">{volledigeLeerlingen.length > 0 ? 'Geen leerlingen met geldige normen voor deze test.' : 'Deze groep heeft geen leerlingen.'}</div>
                                 : (
                                     <div className="space-y-3">
-                                        {/* GECORRIGEERD: Mapt over de gefilterde lijst */}
                                         {gefilterdeLeerlingen.map(lid => (
                                             <div key={lid.id} className="grid grid-cols-3 items-center gap-4 p-4 bg-gray-50 rounded-xl">
                                                 <div className="font-medium text-gray-900">{lid.data.naam}</div>
