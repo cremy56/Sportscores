@@ -124,6 +124,7 @@ export default function NieuweTestafname() {
     const [normenInfo, setNormenInfo] = useState({ M: true, V: true, loading: false });
     const [uitgeslotenLeerlingen, setUitgeslotenLeerlingen] = useState([]);
     const [filtersZijnOpen, setFiltersZijnOpen] = useState(true);
+    const [isMobile, setIsMobile] = useState(false);
     // Fetch initial data
     useEffect(() => {
         if (!profile?.school_id) return;
@@ -195,6 +196,16 @@ export default function NieuweTestafname() {
             setFiltersZijnOpen(false);
         }
     }, [selectedTest]);
+
+    // --- NIEUW: Detecteer mobiele weergave ---
+    useEffect(() => {
+        const checkIsMobile = () => {
+            setIsMobile(window.innerWidth < 768); // Tailwind's 'md' breakpoint is 768px
+        };
+        checkIsMobile();
+        window.addEventListener('resize', checkIsMobile);
+        return () => window.removeEventListener('resize', checkIsMobile);
+    }, []);
 
     // Filter leerlingen op basis van beschikbare normen
     const gefilterdeLeerlingen = useMemo(() => {
@@ -342,23 +353,23 @@ export default function NieuweTestafname() {
             <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
                 <div className="max-w-4xl mx-auto">
                     
-                    {/* --- AANGEPAST: MOBIELVRIENDELIJKE HEADER --- */}
-                    <div className="lg:hidden mb-6">
-                        <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
-                            <ArrowLeftIcon className="h-4 w-4 mr-1 transition-transform group-hover:-translate-x-1" />
-                            <span className="text-sm">Terug</span>
-                        </Link>
-                        <h1 className="text-2xl font-bold text-gray-800 truncate">Nieuwe Testafname</h1>
-                    </div>
+                   {/* --- AANGEPAST: MOBIELVRIENDELIJKE HEADER (mb verwijderd) --- */}
+                        <div className="lg:hidden"> {/* mb-6 verwijderd */}
+                            <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
+                                <ArrowLeftIcon className="h-4 w-4 mr-1 transition-transform group-hover:-translate-x-1" />
+                                <span className="text-sm">Terug</span>
+                            </Link>
+                            <h1 className="text-2xl font-bold text-gray-800 truncate">Nieuwe Testafname</h1>
+                        </div>
 
-                    {/* --- AANGEPAST: DESKTOP HEADER --- */}
-                    <div className="hidden lg:block">
-                        <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
-                            <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
-                            Annuleren en terug naar scores
-                        </Link>
-                        <h1 className="text-3xl font-bold mb-8 text-gray-800">Nieuwe Testafname</h1>
-                    </div>
+                        {/* --- AANGEPAST: DESKTOP HEADER (mb verwijderd) --- */}
+                        <div className="hidden lg:block"> {/* mb-8 verwijderd */}
+                            <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
+                                <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
+                                Annuleren en terug naar scores
+                            </Link>
+                            <h1 className="text-3xl font-bold text-gray-800">Nieuwe Testafname</h1>
+                        </div>
                     
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
                         <div className="space-y-8">
@@ -381,7 +392,12 @@ export default function NieuweTestafname() {
                                         )}
                                     </button>
                                 </div>
-                           <div className={`transition-all duration-500 ease-in-out overflow-hidden ${filtersZijnOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'} md:max-h-full md:opacity-100`}>
+                           <div className={`
+                                    transition-all duration-500 ease-in-out overflow-hidden
+                                    ${filtersZijnOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}
+                                    md:max-h-full md:opacity-100
+                                    ${filtersZijnOpen ? 'mb-4 lg:mb-8' : 'mb-0'} /* Dynamische margin */
+                                `}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-1">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Datum</label>
@@ -407,23 +423,32 @@ export default function NieuweTestafname() {
         </div>
                             
                             {selectedTest && !normenInfo.loading && uitgeslotenLeerlingen.length > 0 && (
-    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-8"> {/* mb-8 toegevoegd hier */}
         <div className="flex">
             <div className="flex-shrink-0">
                 <ExclamationTriangleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
             </div>
             <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">
-                    Normen niet beschikbaar voor {(!normenInfo.M && !normenInfo.V) ? 'jongens en meisjes' : !normenInfo.M ? 'jongens' : 'meisjes'}
-                </h3>
-                <div className="mt-2 text-sm text-red-700">
-                    <p>
-                        Voor deze test konden geen normwaarden worden gevonden. De volgende {uitgeslotenLeerlingen.length === 1 ? 'leerling wordt' : 'leerlingen worden'} niet weergegeven:
-                    </p>
-                    <ul role="list" className="list-disc pl-5 space-y-1 mt-1">
-                        {uitgeslotenLeerlingen.map(l => <li key={l.id}>{l.data.naam}</li>)}
-                    </ul>
-                </div>
+                {/* --- AANGEPAST: Dynamische tekst voor mobiel/desktop --- */}
+                {isMobile ? (
+                    <h3 className="text-sm font-medium text-red-800">
+                        Normen niet beschikbaar voor {(!normenInfo.M && !normenInfo.V) ? 'jongens en meisjes' : !normenInfo.M ? 'jongens' : 'meisjes'}
+                    </h3>
+                ) : (
+                    <>
+                        <h3 className="text-sm font-medium text-red-800">
+                            Normen niet beschikbaar voor {(!normenInfo.M && !normenInfo.V) ? 'jongens en meisjes' : !normenInfo.M ? 'jongens' : 'meisjes'}
+                        </h3>
+                        <div className="mt-2 text-sm text-red-700">
+                            <p>
+                                Voor deze test konden geen normwaarden worden gevonden. De volgende {uitgeslotenLeerlingen.length === 1 ? 'leerling wordt' : 'leerlingen worden'} niet weergegeven:
+                            </p>
+                            <ul role="list" className="list-disc pl-5 space-y-1 mt-1">
+                                {uitgeslotenLeerlingen.map(l => <li key={l.id}>{l.data.naam}</li>)}
+                            </ul>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     </div>
