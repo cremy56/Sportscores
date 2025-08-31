@@ -20,7 +20,7 @@ import AdValvas from './pages/adValvas'; // AANGEPAST: Correcte import
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
 import Groeiplan from './pages/Groeiplan';
-import Leerlingbeheer from './pages/Leerlingbeheer';
+import Gebruikersbeheer from './pages/Gebruikersbeheer';
 import Groepsbeheer from './pages/Groepsbeheer';
 import GroupDetail from './pages/GroupDetail';
 import Testbeheer from './pages/Testbeheer';
@@ -159,7 +159,8 @@ function App() {
                         
                         <Route path="/highscores" element={<Highscores />} />
                         <Route path="/evolutie" element={<Evolutie />} />
-                        <Route path="/leerlingbeheer" element={<Leerlingbeheer />} />
+                        <Route path="/gebruikersbeheer" element={<Gebruikersbeheer />} /> {/* GEWIJZIGD: Leerlingbeheer -> Gebruikersbeheer */}
+
                         <Route path="/groepsbeheer" element={<Groepsbeheer />} />
                         <Route path="/groep/:groepId" element={<GroupDetail />} />
                         <Route path="/scores" element={<ScoresOverzicht />} />

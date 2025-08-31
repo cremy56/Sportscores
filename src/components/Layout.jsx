@@ -164,7 +164,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     '/groeiplan': groeiplanLinkText,
     '/groepsbeheer': 'Groepsbeheer',
     '/scores': 'Scores',
-    '/leerlingbeheer': 'Leerlingbeheer',
+    '/gebruikersbeheer': 'Gebruikersbeheer',
     '/testbeheer': testbeheerLinkText,
     '/schoolbeheer': 'Schoolbeheer',
     '/wachtwoord-wijzigen': 'Wachtwoord wijzigen',
@@ -212,7 +212,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             )}
             {activeRole === 'administrator' && (
               <>
-                <li><NavLink to="/leerlingbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Leerlingbeheer</NavLink></li>
+                <li><NavLink to="/gebruikersbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gebruikersbeheer</NavLink></li> {/* GEWIJZIGD: Leerlingbeheer -> Gebruikersbeheer */}
                 <li><NavLink to="/trainingsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Trainingsbeheer</NavLink></li>
                 <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
               </>
@@ -260,7 +260,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
 
             {activeRole === 'administrator' && (
               <>
-                <li><NavLink to="/leerlingbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Leerlingbeheer</NavLink></li>
+                <li><NavLink to="/gebruikersbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gebruikersbeheer</NavLink></li> {/* GEWIJZIGD: Leerlingbeheer -> Gebruikersbeheer */}
                 <li><NavLink to="/trainingsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Trainingsbeheer</NavLink></li>
                 <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
               </>
