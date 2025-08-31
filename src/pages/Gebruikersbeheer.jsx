@@ -199,9 +199,17 @@ export default function Gebruikersbeheer() {
     };
 
     const handleUserSaved = () => {
+        // Als modal.data niet bestaat, betekent dit dat we een NIEUWE gebruiker hebben toegevoegd.
+        // In het geval van een bewerking, bevat modal.data de gegevens van de gebruiker en hoeft de telling niet te veranderen.
+        if (!modal.data) {
+            setTotalCount(prev => (prev !== null ? prev + 1 : 1));
+        }
+
+        // Voer de zoekopdracht opnieuw uit om de lijst bij te werken
         if (searchTerm.length >= 2) {
             searchUsers(searchTerm);
         }
+        
         handleCloseModal();
     };
     
