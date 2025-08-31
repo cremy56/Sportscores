@@ -75,36 +75,35 @@ export const formatScoreWithUnit = (score, eenheid) => {
   return `${score} ${eenheid}`;
 };
 /**
- * Zet tijdinvoer (bv. "10'30", "10.5") om naar totale seconden.
+ * // WIJZIGING: Functie is robuuster gemaakt en geeft NaN terug bij foute input.
+ * Zet tijdinvoer (bv. "1:15", "12.5", "12,5") om naar totale seconden.
  * @param {string} timeString - De ingevoerde tijd.
- * @returns {number|null} Het totaal aantal seconden, of null bij ongeldige invoer.
+ * @returns {number|null|NaN} Het totaal aantal seconden, null bij lege invoer, of NaN bij ongeldige invoer.
  */
-// src/utils/formatters.js
-
 export const parseTimeInputToSeconds = (timeString) => {
-    if (!timeString || typeof timeString !== 'string') return null;
+    if (!timeString || typeof timeString !== 'string' || String(timeString).trim() === '') return null;
 
-    const cleanString = String(timeString).replace(',', '.');
-    let totalSeconds = 0;
+    const cleanString = String(timeString).trim().replace(',', '.');
+    
+    // Formaat: 1:15 of 1'15
+    if (cleanString.includes(':') || cleanString.includes("'")) {
+        const parts = cleanString.split(/:|'/);
+        if (parts.length !== 2) return NaN; // Ongeldig formaat als er meer dan één scheidingsteken is
+        
+        const minutes = parseInt(parts[0], 10);
+        const seconds = parseFloat(parts[1]);
 
-    // Formaat: 10'30.50 of 10:30.50
-    if (cleanString.includes("'") || cleanString.includes(':')) {
-        const parts = cleanString.split(/'|:/);
-        const minutes = parseInt(parts[0], 10) || 0;
-        const secondsAndHundredths = parseFloat(parts[1]) || 0;
-        totalSeconds = (minutes * 60) + secondsAndHundredths;
-    } 
-    // Formaat: 12.80 (seconden en honderdsten) of 630 (totale seconden)
-    else {
-        const numericValue = parseFloat(cleanString);
-        if (!isNaN(numericValue)) {
-            totalSeconds = numericValue;
-        } else {
-            return null;
-        }
+        if (isNaN(minutes) || isNaN(seconds) || seconds >= 60) return NaN;
+        
+        return (minutes * 60) + seconds;
     }
     
-    if (isNaN(totalSeconds)) return null;
-
-    return totalSeconds;
+    // Formaat: 12.5 (seconden en tienden/honderdsten)
+    const numericValue = parseFloat(cleanString);
+    if (!isNaN(numericValue)) {
+        return numericValue;
+    }
+    
+    // Als geen van de formaten overeenkomt, is het ongeldig
+    return NaN;
 };

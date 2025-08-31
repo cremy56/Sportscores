@@ -270,12 +270,37 @@ export default function NieuweTestafname() {
         return () => clearTimeout(debounceTimeoutRef.current);
     }, [scores, selectedTest, datum, leerlingen]);
 
-    const handleScoreChange = (leerlingId, newScore) => {
+    // NIEUW: Ref voor toast-notificaties om spam te voorkomen
+    const toastIdRef = useRef(null);
+
+const handleScoreChange = (leerlingId, newScore) => {
+        // Lege input reset de staat
+        if (newScore.trim() === '') {
+             setScores(prev => ({
+                ...prev,
+                [leerlingId]: { score: '', rapportpunt: null, isCalculating: false, isValid: true } // Leeg is geldig
+            }));
+            return;
+        }
+
+        const parsedValue = parseTimeInputToSeconds(newScore);
+        
+        // WIJZIGING: Validatie en toast-notificatie logica
+        let isValid = true;
+        if (isNaN(parsedValue)) {
+            isValid = false;
+            // Toon de foutmelding slechts één keer, niet bij elke toetsaanslag
+            if (!toastIdRef.current || !toast.isActive(toastIdRef.current)) {
+                toastIdRef.current = toast.error("Ongeldige tijdnotatie. Gebruik bv. 1:15 of 12.5", { duration: 2000 });
+            }
+        }
+
         setScores(prev => ({
             ...prev,
-            [leerlingId]: { ...prev[leerlingId], score: newScore, rapportpunt: null, isCalculating: true }
+            [leerlingId]: { score: newScore, rapportpunt: null, isCalculating: isValid, isValid: isValid }
         }));
     };
+
 
     const handleSaveScores = async () => {
         if (!selectedGroep || !selectedTest) {
@@ -340,6 +365,10 @@ export default function NieuweTestafname() {
             </div>
         );
     }
+
+// WIJZIGING: Bepaal of eenheid een tijdseenheid is voor de placeholder
+    const isTimeUnit = selectedTest?.eenheid?.toLowerCase().includes('sec') || selectedTest?.eenheid?.toLowerCase().includes('min');
+
 
     return (
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
@@ -444,12 +473,11 @@ export default function NieuweTestafname() {
                                                     <input
                                                         type="text"
                                                         inputMode="decimal"
-                                                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-right transition-all"
-                                                        placeholder={
-                                                        selectedTest.eenheid?.toLowerCase().includes('sec') || selectedTest.eenheid?.toLowerCase().includes('min')
-                                                        ? "bv. 10'30"
-                                                        : `Score in ${selectedTest.eenheid}`
-                                                    }
+                                                        // WIJZIGING: Dynamische class voor validatie
+                                                        className={`w-full p-3 border rounded-xl text-right transition-all shadow-sm 
+                                                            ${scores[lid.id]?.isValid === false ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500'}`}
+                                                        // WIJZIGING: Nieuwe, duidelijkere placeholder
+                                                        placeholder={isTimeUnit ? "bv. 1:15 of 12.5" : `Score in ${selectedTest.eenheid}`}
                                                         value={scores[lid.id]?.score || ''}
                                                         onChange={(e) => handleScoreChange(lid.id, e.target.value)}
                                                     />
