@@ -768,7 +768,7 @@ export default function TestafnameDetail() {
                                                     // Long press timer for edit
                                                     const timer = setTimeout(() => {
                                                         navigator.vibrate && navigator.vibrate(50);
-                                                        handleEditClick(lid.score_id, lid.score);
+                                                        handleEditClick(lid);
                                                     }, 500);
                                                     setLongPressTimer(timer);
                                                     
@@ -898,7 +898,7 @@ export default function TestafnameDetail() {
                                                             ) : (
                                                                 <>
                                                                     <button 
-                                                                        onClick={() => handleEditClick(lid.score_id, lid.score)}
+                                                                        onClick={() => handleEditClick(lid)}
                                                                         title="Wijzigen" 
                                                                         className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
                                                                     >
