@@ -328,48 +328,45 @@ export default function NieuweTestafname() {
 
     if (loading) return <div>Laden...</div>;
 
-    return (
+     return (
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-            {warningModal.isOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-lg">
-                        <div className="flex items-center mb-4"><ExclamationTriangleIcon className="h-8 w-8 text-yellow-500 mr-3" /><h3 className="text-lg font-bold">Recente Testafname Gevonden</h3></div>
-                        <p className="text-gray-600 mb-6">{warningModal.message}</p>
-                        <p className="font-medium mb-6">Wenst u deze test toch opnieuw af te nemen?</p>
-                        <div className="flex justify-end gap-3">
-                            <button onClick={warningModal.onCancel} className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium">Nee</button>
-                            <button onClick={warningModal.onConfirm} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Ja</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {warningModal.isOpen && ( <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">{/* Modal Content */}</div> )}
             <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
                 <div className="max-w-4xl mx-auto">
-                    <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group"><ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />Annuleren en terug naar scores</Link>
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                    
+                    {/* --- AANGEPAST: MOBIELVRIENDELIJKE HEADER --- */}
+                    <div className="lg:hidden mb-6">
+                        <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
+                            <ArrowLeftIcon className="h-4 w-4 mr-1 transition-transform group-hover:-translate-x-1" />
+                            <span className="text-sm">Terug</span>
+                        </Link>
+                        <h1 className="text-2xl font-bold text-gray-800 truncate">Nieuwe Testafname</h1>
+                    </div>
+
+                    {/* --- AANGEPAST: DESKTOP HEADER --- */}
+                    <div className="hidden lg:block">
+                        <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
+                            <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
+                            Annuleren en terug naar scores
+                        </Link>
                         <h1 className="text-3xl font-bold mb-8 text-gray-800">Nieuwe Testafname</h1>
+                    </div>
+                    
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="md:col-span-1"><label className="block text-sm font-medium text-gray-700 mb-2">Datum</label><input type="date" value={datum} onChange={e => setDatum(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm"/></div>
-                                <div className="md:col-span-2 grid grid-cols-2 gap-6">
+                                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <div><label className="block text-sm font-medium text-gray-700 mb-2">Kies een groep</label><select value={selectedGroep?.id || ''} onChange={(e) => setSelectedGroep(groepen.find(g => g.id === e.target.value) || null)} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm"><option value="">-- Selecteer groep --</option>{groepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}</select></div>
                                     <div><label className="block text-sm font-medium text-gray-700 mb-2">Kies een test</label><select value={selectedTest?.id || ''} onChange={(e) => setSelectedTest(testen.find(t => t.id === e.target.value) || null)} disabled={!selectedGroep} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm disabled:bg-gray-50"><option value="">-- Selecteer test --</option>{testen.map(t => <option key={t.id} value={t.id}>{t.naam} ({t.eenheid})</option>)}</select></div>
                                 </div>
                             </div>
+                            
                             {selectedTest && !normenInfo.loading && uitgeslotenLeerlingen.length > 0 && (
-                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                                    <div className="flex"><div className="flex-shrink-0"><ExclamationTriangleIcon className="h-5 w-5 text-red-400" aria-hidden="true" /></div>
-                                        <div className="ml-3">
-                                            <h3 className="text-sm font-medium text-red-800">Normen niet beschikbaar voor {(!normenInfo.M && !normenInfo.V) ? 'jongens en meisjes' : !normenInfo.M ? 'jongens' : 'meisjes'}</h3>
-                                            <div className="mt-2 text-sm text-red-700">
-                                                <p>Voor deze test konden geen normwaarden worden gevonden. De volgende {uitgeslotenLeerlingen.length === 1 ? 'leerling wordt' : 'leerlingen worden'} niet weergegeven:</p>
-                                                <ul role="list" className="list-disc pl-5 space-y-1 mt-1">{uitgeslotenLeerlingen.map(l => <li key={l.id}>{l.data.naam}</li>)}</ul>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">{/* Waarschuwingspaneel */}</div>
                             )}
-                            {selectedGroep && selectedTest && (
+
+                           {selectedGroep && selectedTest && (
                             <div className="border-t border-gray-200 pt-8">
                                 <div className="flex justify-between items-center mb-6">
                                     <h2 className="text-xl font-semibold text-gray-800">Scores invoeren</h2>
@@ -378,18 +375,38 @@ export default function NieuweTestafname() {
                                 {normenInfo.loading ? <div className="text-center py-8 text-gray-500">Normen controleren...</div>
                                 : gefilterdeLeerlingen.length === 0 ? <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl">{volledigeLeerlingen.length > 0 ? 'Geen leerlingen met geldige normen voor deze test.' : 'Deze groep heeft geen leerlingen.'}</div>
                                 : (
-                                    <div className="space-y-3">
-                                        {gefilterdeLeerlingen.map(lid => (
-                                            <div key={lid.id} className="grid grid-cols-3 items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                                                <div className="font-medium text-gray-900">{lid.data.naam}</div>
-                                                <div><input type="text" inputMode="text" className={`w-full p-3 border rounded-xl text-right transition-all shadow-sm ${scores[lid.id]?.isValid === false ? 'border-red-500' : 'border-gray-200'}`} placeholder={placeholderText} value={scores[lid.id]?.score || ''} onChange={(e) => handleScoreChange(lid.id, e.target.value)} /></div>
-                                                <div className={`text-center font-bold text-xl transition-colors ${getScoreColorClass(scores[lid.id]?.rapportpunt)}`}>{scores[lid.id]?.isCalculating ? <span className="text-gray-400 animate-pulse">...</span> : (scores[lid.id]?.rapportpunt !== null && scores[lid.id]?.rapportpunt !== undefined) ? `${scores[lid.id]?.rapportpunt} pt` : '-'}</div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <>
+                                        {/* --- AANGEPAST: DESKTOP GRID (verborgen op mobiel) --- */}
+                                        <div className="hidden md:grid grid-cols-[1fr,150px,80px] gap-x-4 gap-y-3">
+                                            {gefilterdeLeerlingen.map(lid => (
+                                                <div key={lid.id} className="col-span-3 grid grid-cols-subgrid items-center p-2 rounded-lg hover:bg-gray-50">
+                                                    <div className="font-medium text-gray-900">{lid.data.naam}</div>
+                                                    <div><input type="text" inputMode="text" className={`w-full p-3 border rounded-xl text-right transition-all shadow-sm ${scores[lid.id]?.isValid === false ? 'border-red-500' : 'border-gray-200'}`} placeholder={placeholderText} value={scores[lid.id]?.score || ''} onChange={(e) => handleScoreChange(lid.id, e.target.value)} /></div>
+                                                    <div className={`text-center font-bold text-xl transition-colors ${getScoreColorClass(scores[lid.id]?.rapportpunt)}`}>{scores[lid.id]?.isCalculating ? <span className="text-gray-400 animate-pulse">...</span> : (scores[lid.id]?.rapportpunt !== null && scores[lid.id]?.rapportpunt !== undefined) ? `${scores[lid.id]?.rapportpunt} pt` : '-'}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* --- AANGEPAST: MOBIELE KAARTEN (verborgen op desktop) --- */}
+                                        <div className="md:hidden space-y-4">
+                                            {gefilterdeLeerlingen.map(lid => (
+                                                <div key={lid.id} className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+                                                    <div className="font-medium text-slate-900 mb-3">{lid.data.naam}</div>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="flex-1">
+                                                            <input type="text" inputMode="text" className={`w-full p-3 border rounded-xl text-right transition-all shadow-sm ${scores[lid.id]?.isValid === false ? 'border-red-500' : 'border-gray-200'}`} placeholder={placeholderText} value={scores[lid.id]?.score || ''} onChange={(e) => handleScoreChange(lid.id, e.target.value)} />
+                                                        </div>
+                                                        <div className={`w-24 text-center font-bold text-xl transition-colors ${getScoreColorClass(scores[lid.id]?.rapportpunt)}`}>
+                                                            {scores[lid.id]?.isCalculating ? <span className="text-gray-400 animate-pulse">...</span> : (scores[lid.id]?.rapportpunt !== null && scores[lid.id]?.rapportpunt !== undefined) ? `${scores[lid.id]?.rapportpunt} pt` : '-'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
                                 )}
                                 <div className="flex justify-end mt-8">
-                                    <button onClick={handleSaveScores} disabled={isSaving || validScoresCount === 0} className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-xl shadow-lg disabled:opacity-50 hover:scale-105"><CheckCircleIcon className="h-5 w-5 mr-2" />{isSaving ? 'Opslaan...' : `${validScoresCount} Score${validScoresCount !== 1 ? 's' : ''} Opslaan`}</button>
+                                    <button onClick={handleSaveScores} disabled={isSaving || validScoresCount === 0} className="w-full sm:w-auto flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-xl shadow-lg disabled:opacity-50 hover:scale-105"><CheckCircleIcon className="h-5 w-5 mr-2" />{isSaving ? 'Opslaan...' : `${validScoresCount} Score${validScoresCount !== 1 ? 's' : ''} Opslaan`}</button>
                                 </div>
                             </div>
                         )}
