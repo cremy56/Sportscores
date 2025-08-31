@@ -274,22 +274,19 @@ export default function NieuweTestafname() {
     const toastIdRef = useRef(null);
 
 const handleScoreChange = (leerlingId, newScore) => {
-        // Lege input reset de staat
         if (newScore.trim() === '') {
              setScores(prev => ({
                 ...prev,
-                [leerlingId]: { score: '', rapportpunt: null, isCalculating: false, isValid: true } // Leeg is geldig
+                [leerlingId]: { score: '', rapportpunt: null, isCalculating: false, isValid: true }
             }));
             return;
         }
 
         const parsedValue = parseTimeInputToSeconds(newScore);
         
-        // WIJZIGING: Validatie en toast-notificatie logica
         let isValid = true;
         if (isNaN(parsedValue)) {
             isValid = false;
-            // Toon de foutmelding slechts één keer, niet bij elke toetsaanslag
             if (!toastIdRef.current || !toast.isActive(toastIdRef.current)) {
                 toastIdRef.current = toast.error("Ongeldige tijdnotatie. Gebruik bv. 1:15 of 12.5", { duration: 2000 });
             }
@@ -366,9 +363,29 @@ const handleScoreChange = (leerlingId, newScore) => {
         );
     }
 
-// WIJZIGING: Bepaal of eenheid een tijdseenheid is voor de placeholder
-    const isTimeUnit = selectedTest?.eenheid?.toLowerCase().includes('sec') || selectedTest?.eenheid?.toLowerCase().includes('min');
 
+// WIJZIGING: Dynamische placeholder logica
+    const getPlaceholder = () => {
+        if (!selectedTest) return "Score";
+        
+        const eenheidLower = selectedTest.eenheid?.toLowerCase();
+        const naamLower = selectedTest.naam?.toLowerCase();
+
+        // Check voor tijdseenheden
+        if (eenheidLower.includes('sec') || eenheidLower.includes('min')) {
+            // Check voor typische korte afstandstests
+            if (naamLower.includes('10x5') || naamLower.includes('sprint') || naamLower.includes('50m')) {
+                return "bv. 12.5 of 12,5";
+            }
+            // Voor alle andere (langere) tijdstests
+            return "bv. 1:15";
+        }
+        
+        // Fallback voor niet-tijdseenheden
+        return `Score in ${selectedTest.eenheid}`;
+    };
+    
+    const placeholderText = getPlaceholder();
 
     return (
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
@@ -473,11 +490,10 @@ const handleScoreChange = (leerlingId, newScore) => {
                                                     <input
                                                         type="text"
                                                         inputMode="decimal"
-                                                        // WIJZIGING: Dynamische class voor validatie
                                                         className={`w-full p-3 border rounded-xl text-right transition-all shadow-sm 
                                                             ${scores[lid.id]?.isValid === false ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500'}`}
-                                                        // WIJZIGING: Nieuwe, duidelijkere placeholder
-                                                        placeholder={isTimeUnit ? "bv. 1:15 of 12.5" : `Score in ${selectedTest.eenheid}`}
+                                                        // WIJZIGING: Gebruik de dynamische placeholder
+                                                        placeholder={placeholderText}
                                                         value={scores[lid.id]?.score || ''}
                                                         onChange={(e) => handleScoreChange(lid.id, e.target.value)}
                                                     />
