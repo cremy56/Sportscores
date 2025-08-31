@@ -25,49 +25,82 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
         const { geboortedatum, geslacht } = leerling;
         if (!geboortedatum || !geslacht) return null;
 
-        // Gebruik de bestaande calculateAge functie
         const leeftijd = calculateAge(geboortedatum.toDate(), testDatum);
         if (leeftijd === null) return null;
 
-        const normAge = Math.min(leeftijd, 17); // Max leeftijd voor normen is 17
+        const normAge = Math.min(leeftijd, 17);
 
-        // --- START VAN DE WIJZIGING ---
-        // We gebruiken nu een QUERY om het juiste normendocument te vinden
-        const normenQuery = query(
-            collection(db, 'normen'),
-            where('test_id', '==', test.id)
-        );
+        const normenQuery = query(collection(db, 'normen'), where('test_id', '==', test.id));
         const normenSnapshot = await getDocs(normenQuery);
         
-        if (normenSnapshot.empty) {
-            console.warn(`Geen normendocument gevonden voor test ID: ${test.id}`);
-            return null;
-        }
+        if (normenSnapshot.empty) return null;
+        
         const normSnap = normenSnapshot.docs[0];
-        // --- EINDE VAN DE WIJZIGING ---
-
         const { punten_schaal, score_richting } = normSnap.data();
         if (!punten_schaal || punten_schaal.length === 0) return null;
 
         const genderMapping = { 'man': 'M', 'vrouw': 'V', 'jongen': 'M', 'meisje': 'V' };
         const mappedGender = genderMapping[geslacht.toLowerCase()] || geslacht.toUpperCase();
 
-        const relevantNorms = punten_schaal.filter(n => n.leeftijd === normAge && n.geslacht === mappedGender);
+        // 1. Filter en sorteer de relevante normen
+        const relevantNorms = punten_schaal
+            .filter(n => n.leeftijd === normAge && n.geslacht === mappedGender)
+            .sort((a, b) => a.score_min - b.score_min); // Altijd numeriek sorteren
+
         if (relevantNorms.length === 0) return null;
 
-        let behaaldPunt = 0;
-        for (const norm of relevantNorms) {
-            if (score_richting === 'hoog') {
-                if (score >= norm.score_min && norm.punt > behaaldPunt) {
-                    behaaldPunt = norm.punt;
-                }
-            } else { // 'laag'
-                if (score <= norm.score_min && norm.punt > behaaldPunt) {
-                    behaaldPunt = norm.punt;
+        let lowerNorm = null;
+        let upperNorm = null;
+
+        // 2. Vind de twee normen waartussen de score valt
+        if (score_richting === 'laag') { // Lager is beter (bv. tijd)
+            // Check of de score beter is dan de beste norm
+            if (score <= relevantNorms[0].score_min) return relevantNorms[0].punt;
+
+            for (let i = 0; i < relevantNorms.length; i++) {
+                if (score <= relevantNorms[i].score_min) {
+                    upperNorm = relevantNorms[i];
+                    lowerNorm = relevantNorms[i - 1];
+                    break;
                 }
             }
+             // Als de score slechter is dan de slechtste norm
+            if (!upperNorm) return relevantNorms[relevantNorms.length - 1].punt;
+
+        } else { // 'hoog' - Hoger is beter (bv. aantal)
+            // Draai de sortering om voor 'hoog'
+            relevantNorms.sort((a, b) => b.score_min - a.score_min);
+            
+            if (score >= relevantNorms[0].score_min) return relevantNorms[0].punt;
+
+            for (let i = 0; i < relevantNorms.length; i++) {
+                if (score >= relevantNorms[i].score_min) {
+                    // Bij 'hoog' is de "betere" norm de 'lowerNorm' in de array
+                    lowerNorm = relevantNorms[i];
+                    upperNorm = relevantNorms[i - 1]; 
+                    break;
+                }
+            }
+            if (!lowerNorm) return relevantNorms[relevantNorms.length - 1].punt;
         }
-        return behaaldPunt;
+
+        if (!lowerNorm || !upperNorm) return null; // Veiligheidcheck
+
+        // 3. Bereken het midden en bepaal het halve punt
+        const midpoint = (lowerNorm.score_min + upperNorm.score_min) / 2;
+        let finalPunt = lowerNorm.punt;
+
+        if (score_richting === 'laag') {
+            if (score < midpoint) {
+                finalPunt += 0.5; // Beter dan het midden
+            }
+        } else { // 'hoog'
+            if (score > midpoint) {
+                finalPunt += 0.5; // Beter dan het midden
+            }
+        }
+
+        return finalPunt;
 
     } catch (error) {
         console.error("Fout tijdens puntberekening:", error);
@@ -77,10 +110,11 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
 }
 
 function getScoreColorClass(punt) {
-    if (punt === null || punt === undefined) return 'text-gray-400';
-    if (punt < 5) return 'text-red-600';
-    if (punt <= 7) return 'text-yellow-600';
-    return 'text-green-600';
+   if (punt === null || punt === undefined) return 'text-gray-400';
+    if (punt < 10) return 'text-red-600'; // Onvoldoende
+    if (punt < 13) return 'text-orange-500'; // Voldoende
+    if (punt < 15) return 'text-yellow-600'; // Gemiddeld
+    return 'text-green-600'; // Goed tot uitstekend
 }
 
 // NIEUW: Helper functie om tijd geleden te formatteren
