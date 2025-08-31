@@ -552,58 +552,17 @@ export default function TestafnameDetail() {
         }
     };
 
-    const handleUpdateDate = async () => {
-        if (!editingScore.id || !editingScore.validation?.valid) return;
-        
-        const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
-        
-        let scoreValue;
-        if(isTimeTest) {
-            scoreValue = parseTimeInputToSeconds(editingScore.score);
-        } else {
-            scoreValue = parseFloat(String(editingScore.score).replace(',', '.'));
+   const handleUpdateDate = () => {
+        // Controleer of er een nieuwe datum is ingesteld die verschilt van de oude
+        if (newDate && newDate !== datum) {
+            // Bouw de nieuwe URL op met de geselecteerde datum
+            const newUrl = `/testafname/${groepId}/${testId}/${newDate}`;
+            navigate(newUrl); // Navigeer naar de nieuwe pagina
         }
-
-        if (scoreValue === null || isNaN(scoreValue)) {
-            toast.error("Voer een geldige score in.");
-            return;
-        }
-
-        setUpdating(true);
-        const scoreRef = doc(db, 'scores', editingScore.id);
-        
-        try {
-            // WIJZIGING: Herberekend het punt VOORDAT we opslaan
-            const leerling = details.leerlingen.find(l => l.score_id === editingScore.id);
-            const newPunt = await calculatePuntFromScore(details.test_volledig, leerling, scoreValue, new Date(datum));
-
-            // Sla ZOWEL de nieuwe score ALS het nieuwe punt op
-            await updateDoc(scoreRef, { 
-                score: scoreValue,
-                rapportpunt: newPunt 
-            });
-            
-            toast.success("Score succesvol bijgewerkt!");
-
-            // WIJZIGING: Update de lokale state direct, zonder alles te herladen
-            setDetails(prevDetails => ({
-                ...prevDetails,
-                leerlingen: prevDetails.leerlingen.map(l => 
-                    l.score_id === editingScore.id 
-                        ? { ...l, score: scoreValue, punt: newPunt } 
-                        : l
-                )
-            }));
-            
-            setEditingScore({ id: null, score: '', validation: null });
-
-        } catch (error) {
-            console.error("Fout bij bijwerken:", error);
-            toast.error(`Fout bij bijwerken: ${error.message}`);
-        } finally {
-            setUpdating(false);
-        }
+        // Sluit in elk geval de bewerkmodus voor de datum
+        setEditingDate(false);
     };
+
 
     const handleDeleteTestafname = async () => {
         const loadingToast = toast.loading('Testafname verwijderen...');
