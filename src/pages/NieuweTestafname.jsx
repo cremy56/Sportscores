@@ -157,7 +157,7 @@ export default function NieuweTestafname() {
     const { profile } = useOutletContext();
     const [groepen, setGroepen] = useState([]);
     const [testen, setTesten] = useState([]);
-    const [selectedGroep, setSelectedGroep] = useState(null);
+    const [volledigeLeerlingen, setVolledigeLeerlingen] = useState([]);
     const [selectedTest, setSelectedTest] = useState(null);
     const [leerlingen, setLeerlingen] = useState([]);
     const [datum, setDatum] = useState(new Date().toISOString().split('T')[0]);
@@ -169,7 +169,9 @@ export default function NieuweTestafname() {
 
     // NIEUW: State voor de waarschuwings-popup
     const [warningModal, setWarningModal] = useState({ isOpen: false, message: '', onConfirm: null, onCancel: null });
-    
+    const [normenInfo, setNormenInfo] = useState({ M: true, V: true, loading: false });
+    const [uitgeslotenLeerlingen, setUitgeslotenLeerlingen] = useState([]);
+
     // Fetch initial data (groups and tests)
     useEffect(() => {
         if (!profile?.school_id) return;
@@ -197,47 +199,94 @@ export default function NieuweTestafname() {
     // Fetch students when a group is selected
     useEffect(() => {
         if (!selectedGroep) {
-            setLeerlingen([]);
+            setVolledigeLeerlingen([]);
             return;
         }
         const fetchLeerlingen = async () => {
             if (!selectedGroep.leerling_ids || selectedGroep.leerling_ids.length === 0) {
-                 setLeerlingen([]);
+                 setVolledigeLeerlingen([]);
                  return;
             }
             const q = query(collection(db, 'toegestane_gebruikers'), where('__name__', 'in', selectedGroep.leerling_ids));
             const snap = await getDocs(q);
             const leerlingenData = snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
-            setLeerlingen(leerlingenData.sort((a, b) => a.data.naam.localeCompare(b.data.naam)));
+            setVolledigeLeerlingen([]);(leerlingenData.sort((a, b) => a.data.naam.localeCompare(b.data.naam)));
         };
         fetchLeerlingen();
         setScores({});
     }, [selectedGroep]);
 
-   useEffect(() => {
-        const checkForRecentTests = async () => {
-            if (!selectedGroep || !selectedTest || !datum || !selectedGroep.leerling_ids || selectedGroep.leerling_ids.length === 0) {
-                return;
+   // --- NIEUW: Check normen beschikbaarheid als test wijzigt ---
+    useEffect(() => {
+        if (!selectedTest) {
+            setNormenInfo({ M: true, V: true, loading: false });
+            return;
+        }
+
+        const checkNormen = async () => {
+            setNormenInfo({ M: false, V: false, loading: true });
+            try {
+                const normenQuery = query(collection(db, 'normen'), where('test_id', '==', selectedTest.id));
+                const normenSnapshot = await getDocs(normenQuery);
+                
+                if (normenSnapshot.empty) {
+                    setNormenInfo({ M: false, V: false, loading: false });
+                    return;
+                }
+
+                const normData = normenSnapshot.docs[0].data();
+                const hasMaleNorms = normData.punten_schaal.some(n => n.geslacht === 'M');
+                const hasFemaleNorms = normData.punten_schaal.some(n => n.geslacht === 'V');
+
+                setNormenInfo({ M: hasMaleNorms, V: hasFemaleNorms, loading: false });
+
+            } catch (error) {
+                console.error("Fout bij ophalen normen:", error);
+                setNormenInfo({ M: true, V: true, loading: false }); // Fallback
             }
+        };
 
-            const geselecteerdeDatum = new Date(datum);
-            const oneMonthAgo = new Date(geselecteerdeDatum);
-            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-            
-            const scoresQuery = query(collection(db, 'scores'),
-                where('test_id', '==', selectedTest.id),
-                where('leerling_id', 'in', selectedGroep.leerling_ids),
-                where('datum', '>=', oneMonthAgo),
-                where('datum', '<', geselecteerdeDatum)
-            );
+        checkNormen();
+    }, [selectedTest]);
+    
+    // --- NIEUW: Memoized filtering van leerlingen op basis van beschikbare normen ---
+    const gefilterdeLeerlingen = useMemo(() => {
+        if (normenInfo.loading) return [];
+        const filtered = volledigeLeerlingen.filter(leerling => {
+            const gender = leerling.data.geslacht.toUpperCase();
+            if (gender === 'M') return normenInfo.M;
+            if (gender === 'V') return normenInfo.V;
+            return false;
+        });
+        // Dit is een 'side effect', maar acceptabel in deze context om de uitgesloten lijst te berekenen.
+        setUitgeslotenLeerlingen(volledigeLeerlingen.filter(l => !filtered.includes(l)));
+        return filtered;
+    }, [volledigeLeerlingen, normenInfo]);
+    
+    // Check voor recente testafnames
+   useEffect(() => {
+        if (!selectedGroep || !selectedTest || !datum || !gefilterdeLeerlingen || gefilterdeLeerlingen.length === 0) return;
+        const leerlingIds = gefilterdeLeerlingen.map(l => l.id);
+        if(leerlingIds.length === 0) return;
 
+        const geselecteerdeDatum = new Date(datum);
+        const oneMonthAgo = new Date(geselecteerdeDatum);
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        
+        const scoresQuery = query(collection(db, 'scores'),
+            where('test_id', '==', selectedTest.id),
+            where('leerling_id', 'in', leerlingIds),
+            where('datum', '>=', oneMonthAgo),
+            where('datum', '<', geselecteerdeDatum)
+        );
+
+        const checkForRecentTests = async () => {
             const querySnapshot = await getDocs(scoresQuery);
             if (!querySnapshot.empty) {
                 const recentScores = querySnapshot.docs.map(d => d.data());
                 const mostRecentAfname = recentScores.sort((a, b) => b.datum.toMillis() - a.datum.toMillis())[0];
                 const afnameDatum = mostRecentAfname.datum.toDate();
 
-                // Haal alle unieke leerkracht IDs op
                 const teacherIds = [...new Set(recentScores.map(s => s.leerkracht_id).filter(Boolean))];
                 let teacherNames = [];
 
@@ -245,35 +294,27 @@ export default function NieuweTestafname() {
                     const leerkrachtenQuery = query(collection(db, 'toegestane_gebruikers'), where('__name__', 'in', teacherIds));
                     const leerkrachtenSnap = await getDocs(leerkrachtenQuery);
                     const leerkrachtenMap = new Map(leerkrachtenSnap.docs.map(d => [d.id, d.data().naam]));
-                    
-                    teacherNames = teacherIds.map(id => {
-                        if (id === auth.currentUser.uid) return 'jezelf';
-                        return leerkrachtenMap.get(id) || 'een onbekende leerkracht';
-                    });
+                    teacherNames = teacherIds.map(id => id === auth.currentUser.uid ? 'jezelf' : leerkrachtenMap.get(id) || 'een onbekende leerkracht');
                 }
                 
-                const leerkrachtTekst = teacherNames.length > 0 
-                    ? new Intl.ListFormat('nl-BE', { style: 'long', type: 'conjunction' }).format(teacherNames)
-                    : 'een leerkracht';
-
-             const affectedStudentsCount = new Set(recentScores.map(s => s.leerling_id)).size;
+                const leerkrachtTekst = teacherNames.length > 0 ? new Intl.ListFormat('nl-BE').format(teacherNames) : 'een leerkracht';
+                const affectedStudentsCount = new Set(recentScores.map(s => s.leerling_id)).size;
                 const noun = affectedStudentsCount === 1 ? 'leerling' : 'leerlingen';
                 const verb = affectedStudentsCount === 1 ? 'heeft' : 'hebben';
 
                 setWarningModal({
                     isOpen: true,
                     message: `${affectedStudentsCount} ${noun} van deze groep ${verb} deze test ${formatTimeAgo(afnameDatum, geselecteerdeDatum)} reeds afgelegd bij ${leerkrachtTekst}.`,
-                    onConfirm: () => setWarningModal({ isOpen: false, message: '', onConfirm: null, onCancel: null }),
+                    onConfirm: () => setWarningModal({ isOpen: false }),
                     onCancel: () => {
                         setSelectedTest(null);
-                        setWarningModal({ isOpen: false, message: '', onConfirm: null, onCancel: null });
+                        setWarningModal({ isOpen: false });
                     }
                 });
             }
         };
-
         checkForRecentTests();
-    }, [selectedGroep, selectedTest, datum]);
+    }, [selectedGroep, selectedTest, datum, gefilterdeLeerlingen]);
 
     // Debounced effect to calculate points
     useEffect(() => {
@@ -330,10 +371,7 @@ const handleScoreChange = (leerlingId, newScore) => {
 
 
     const handleSaveScores = async () => {
-        if (!selectedGroep || !selectedTest) {
-            toast.error("Selecteer een groep en een test.");
-            return;
-        }
+        if (!selectedGroep || !selectedTest) return toast.error("Selecteer een groep en een test.");
         setIsSaving(true);
         const batch = writeBatch(db);
         const eenheidLower = selectedTest.eenheid?.toLowerCase();
@@ -342,22 +380,19 @@ const handleScoreChange = (leerlingId, newScore) => {
             for (const leerlingId in scores) {
                 const scoreData = scores[leerlingId];
                 if (scoreData.score && String(scoreData.score).trim() !== '') {
-                    // --- START WIJZIGING ---
-                    let finalScoreValue = null;
-                    if (eenheidLower.includes('min') || eenheidLower.includes('sec')) {
-                     finalScoreValue = parseTimeInputToSeconds(scoreData.score);
-                    } else {
-                        finalScoreValue = parseFloat(String(scoreData.score).replace(',', '.'));
-                    }
+                    let finalScoreValue = (eenheidLower.includes('min') || eenheidLower.includes('sec'))
+                        ? parseTimeInputToSeconds(scoreData.score)
+                        : parseFloat(String(scoreData.score).replace(',', '.'));
+                   
                    if (finalScoreValue !== null && !isNaN(finalScoreValue)) {
-                        const leerling = leerlingen.find(l => l.id === leerlingId);
+                        const leerling = gefilterdeLeerlingen.find(l => l.id === leerlingId);
                         const newScoreRef = doc(collection(db, 'scores'));
                         batch.set(newScoreRef, {
                             datum: new Date(datum),
                             groep_id: selectedGroep.id,
                             leerling_id: leerlingId,
                             leerling_naam: leerling?.data?.naam || 'Onbekend',
-                            score: finalScoreValue, // Sla de omgerekende seconden op
+                            score: finalScoreValue,
                             rapportpunt: scoreData.rapportpunt ?? null,
                             school_id: profile.school_id,
                             test_id: selectedTest.id,
@@ -371,14 +406,13 @@ const handleScoreChange = (leerlingId, newScore) => {
             toast.success("Scores succesvol opgeslagen!");
             navigate('/scores');
         } catch (error) {
-            console.error("Fout bij opslaan:", error);
             toast.error("Kon de scores niet opslaan.");
         } finally {
             setIsSaving(false);
         }
     };
 
-    const validScoresCount = Object.values(scores).filter(s => s.score && String(s.score).trim() !== '').length;
+const validScoresCount = Object.values(scores).filter(s => s.score && String(s.score).trim() !== '').length;
 
     if (loading) {
         return (
@@ -419,138 +453,71 @@ const handleScoreChange = (leerlingId, newScore) => {
 
     return (
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-            {/* NIEUW: Waarschuwings-popup */}
             {warningModal.isOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-lg">
-                        <div className="flex items-center mb-4">
-                            <ExclamationTriangleIcon className="h-8 w-8 text-yellow-500 mr-3" />
-                            <h3 className="text-lg font-bold text-gray-900">Recente Testafname Gevonden</h3>
-                        </div>
+                        <div className="flex items-center mb-4"><ExclamationTriangleIcon className="h-8 w-8 text-yellow-500 mr-3" /><h3 className="text-lg font-bold">Recente Testafname Gevonden</h3></div>
                         <p className="text-gray-600 mb-6">{warningModal.message}</p>
-                        <p className="text-gray-800 font-medium mb-6">Wenst u deze test toch opnieuw af te nemen?</p>
+                        <p className="font-medium mb-6">Wenst u deze test toch opnieuw af te nemen?</p>
                         <div className="flex justify-end gap-3">
-                            <button
-                                onClick={warningModal.onCancel}
-                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-                            >
-                                Nee
-                            </button>
-                            <button
-                                onClick={warningModal.onConfirm}
-                                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-                            >
-                                Ja
-                            </button>
+                            <button onClick={warningModal.onCancel} className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium">Nee</button>
+                            <button onClick={warningModal.onConfirm} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Ja</button>
                         </div>
                     </div>
                 </div>
             )}
-
             <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
                 <div className="max-w-4xl mx-auto">
                     <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
                         <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
                         Annuleren en terug naar scores
                     </Link>
-                    
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
                         <h1 className="text-3xl font-bold mb-8 text-gray-800">Nieuwe Testafname</h1>
-                        
                         <div className="space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="md:col-span-1">
-                                    <label htmlFor="date-input" className="block text-sm font-medium text-gray-700 mb-2">Datum</label>
-                                    <input 
-                                        type="date" 
-                                        id="date-input" 
-                                        value={datum} 
-                                        onChange={e => setDatum(e.target.value)} 
-                                        className="w-full p-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all" 
-                                    />
-                                </div>
+                                <div className="md:col-span-1"><label className="block text-sm font-medium text-gray-700 mb-2">Datum</label><input type="date" value={datum} onChange={e => setDatum(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm"/></div>
                                 <div className="md:col-span-2 grid grid-cols-2 gap-6">
-                                    <div>
-                                        <label htmlFor="group-select" className="block text-sm font-medium text-gray-700 mb-2">Kies een groep</label>
-                                        <select 
-                                            id="group-select" 
-                                            value={selectedGroep?.id || ''} 
-                                            onChange={(e) => setSelectedGroep(groepen.find(g => g.id === e.target.value) || null)} 
-                                            className="w-full p-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                                        >
-                                            <option value="">-- Selecteer groep --</option>
-                                            {groepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label htmlFor="test-select" className="block text-sm font-medium text-gray-700 mb-2">Kies een test</label>
-                                        <select 
-                                            id="test-select" 
-                                            value={selectedTest?.id || ''} 
-                                            onChange={(e) => setSelectedTest(testen.find(t => t.id === e.target.value) || null)} 
-                                            disabled={!selectedGroep} 
-                                            className="w-full p-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all disabled:bg-gray-50 disabled:cursor-not-allowed"
-                                        >
-                                            <option value="">-- Selecteer test --</option>
-                                            {testen.map(t => <option key={t.id} value={t.id}>{t.naam} ({t.eenheid})</option>)}
-                                        </select>
-                                    </div>
+                                    <div><label className="block text-sm font-medium text-gray-700 mb-2">Kies een groep</label><select value={selectedGroep?.id || ''} onChange={(e) => setSelectedGroep(groepen.find(g => g.id === e.target.value) || null)} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm"><option value="">-- Selecteer groep --</option>{groepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}</select></div>
+                                    <div><label className="block text-sm font-medium text-gray-700 mb-2">Kies een test</label><select value={selectedTest?.id || ''} onChange={(e) => setSelectedTest(testen.find(t => t.id === e.target.value) || null)} disabled={!selectedGroep} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm disabled:bg-gray-50"><option value="">-- Selecteer test --</option>{testen.map(t => <option key={t.id} value={t.id}>{t.naam} ({t.eenheid})</option>)}</select></div>
                                 </div>
                             </div>
-
+                            {selectedTest && !normenInfo.loading && uitgeslotenLeerlingen.length > 0 && (
+                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                    <div className="flex"><div className="flex-shrink-0"><ExclamationTriangleIcon className="h-5 w-5 text-red-400" aria-hidden="true" /></div>
+                                        <div className="ml-3">
+                                            <h3 className="text-sm font-medium text-red-800">Normen niet beschikbaar voor {(!normenInfo.M && !normenInfo.V) ? 'jongens en meisjes' : !normenInfo.M ? 'jongens' : 'meisjes'}</h3>
+                                            <div className="mt-2 text-sm text-red-700">
+                                                <p>Voor deze test konden geen normwaarden worden gevonden. De volgende {uitgeslotenLeerlingen.length === 1 ? 'leerling wordt' : 'leerlingen worden'} niet weergegeven:</p>
+                                                <ul role="list" className="list-disc pl-5 space-y-1 mt-1">{uitgeslotenLeerlingen.map(l => <li key={l.id}>{l.data.naam}</li>)}</ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                            {selectedGroep && selectedTest && (
                             <div className="border-t border-gray-200 pt-8">
                                 <div className="flex justify-between items-center mb-6">
                                     <h2 className="text-xl font-semibold text-gray-800">Scores invoeren</h2>
-                                    <div className="text-sm text-gray-600 bg-gray-50 px-3 py-1 rounded-full">
-                                        {validScoresCount} / {leerlingen.length} ingevoerd
-                                    </div>
+                                    {/* GECORRIGEERD: Teller gebruikt de lengte van de gefilterde lijst */}
+                                    <div className="text-sm text-gray-600 bg-gray-50 px-3 py-1 rounded-full">{validScoresCount} / {gefilterdeLeerlingen.length} ingevoerd</div>
                                 </div>
-                                
-                                {leerlingen.length === 0 ? (
-                                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl">
-                                        Deze groep heeft geen leerlingen. Voeg eerst leerlingen toe aan de groep.
-                                    </div>
-                                ) : (
+                                {normenInfo.loading ? <div className="text-center py-8 text-gray-500">Normen controleren...</div>
+                                : gefilterdeLeerlingen.length === 0 ? <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl">{volledigeLeerlingen.length > 0 ? 'Geen leerlingen met geldige normen voor deze test.' : 'Deze groep heeft geen leerlingen.'}</div>
+                                : (
                                     <div className="space-y-3">
-                                        {leerlingen.map(lid => (
+                                        {/* GECORRIGEERD: Mapt over de gefilterde lijst */}
+                                        {gefilterdeLeerlingen.map(lid => (
                                             <div key={lid.id} className="grid grid-cols-3 items-center gap-4 p-4 bg-gray-50 rounded-xl">
                                                 <div className="font-medium text-gray-900">{lid.data.naam}</div>
-                                                <div>
-                                                   <input
-                                                        type="text"
-                                                        inputMode="text"
-                                                        className={`w-full p-3 border rounded-xl text-right transition-all shadow-sm 
-                                                            ${scores[lid.id]?.isValid === false ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500'}`}
-                                                        placeholder={placeholderText}
-                                                        value={scores[lid.id]?.score || ''}
-                                                        onChange={(e) => handleScoreChange(lid.id, e.target.value)}
-                                                        // WIJZIGING 3: onBlur is niet meer nodig en is verwijderd
-                                                    />
-                                                </div>
-                                                <div className={`text-center font-bold text-xl transition-colors ${getScoreColorClass(scores[lid.id]?.rapportpunt)}`}>
-                                                    {scores[lid.id]?.isCalculating ? (
-                                                        <span className="text-gray-400 animate-pulse">...</span>
-                                                    ) : (
-                                                        scores[lid.id]?.rapportpunt !== null && scores[lid.id]?.rapportpunt !== undefined 
-                                                            ? `${scores[lid.id]?.rapportpunt} pt` 
-                                                            : '-'
-                                                    )}
-                                                </div>
+                                                <div><input type="text" inputMode="text" className={`w-full p-3 border rounded-xl text-right transition-all shadow-sm ${scores[lid.id]?.isValid === false ? 'border-red-500' : 'border-gray-200'}`} placeholder={placeholderText} value={scores[lid.id]?.score || ''} onChange={(e) => handleScoreChange(lid.id, e.target.value)} /></div>
+                                                <div className={`text-center font-bold text-xl transition-colors ${getScoreColorClass(scores[lid.id]?.rapportpunt)}`}>{scores[lid.id]?.isCalculating ? <span className="text-gray-400 animate-pulse">...</span> : (scores[lid.id]?.rapportpunt !== null && scores[lid.id]?.rapportpunt !== undefined) ? `${scores[lid.id]?.rapportpunt} pt` : '-'}</div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
-                                
                                 <div className="flex justify-end mt-8">
-                                    <button 
-                                        onClick={handleSaveScores}
-                                        disabled={isSaving || validScoresCount === 0}
-                                        className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
-                                    >
-                                        <CheckCircleIcon className="h-5 w-5 mr-2" />
-                                        {isSaving ? 'Opslaan...' : `${validScoresCount} Score${validScoresCount !== 1 ? 's' : ''} Opslaan`}
-                                    </button>
+                                    <button onClick={handleSaveScores} disabled={isSaving || validScoresCount === 0} className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-xl shadow-lg disabled:opacity-50 hover:scale-105"><CheckCircleIcon className="h-5 w-5 mr-2" />{isSaving ? 'Opslaan...' : `${validScoresCount} Score${validScoresCount !== 1 ? 's' : ''} Opslaan`}</button>
                                 </div>
                             </div>
                         )}
