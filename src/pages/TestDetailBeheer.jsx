@@ -276,38 +276,34 @@ export default function TestDetailBeheer() {
     const toggleMobileMenu = (normId) => {
         setShowMobileMenu(prev => ({ ...prev, [normId]: !prev[normId] }));
     };
-
-    if (loading) {
+const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
+   if (loading || !test) {
         return (
             <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
-                <div className="bg-white p-8 rounded-2xl shadow-sm">
-                    <div className="flex items-center space-x-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                        <span className="text-gray-700 font-medium">Testdetails laden...</span>
-                    </div>
+                <div className="bg-white p-8 rounded-2xl shadow-sm max-w-md mx-auto text-center">
+                    {loading ? (
+                        // Toon de spinner zolang 'loading' true is
+                        <div className="flex items-center space-x-4">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                            <span className="text-gray-700 font-medium">Testdetails laden...</span>
+                        </div>
+                    ) : (
+                        // Toon dit enkel als het laden klaar is én er geen test is
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-2">Test niet gevonden</h3>
+                            <p className="text-gray-600 mb-4">De opgevraagde test bestaat niet of u heeft geen toegang.</p>
+                            <Link to="/testbeheer" className="inline-flex items-center text-purple-600 hover:text-purple-700">
+                                <ArrowLeftIcon className="h-5 w-5 mr-2" />
+                                Terug naar {isAdmin ? 'testbeheer' : 'sporttesten'}
+                            </Link>
+                        </div>
+                    )}
                 </div>
             </div>
         );
     }
 
-    if (!test) {
-        return (
-            <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-                <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto">
-                        <h3 className="text-xl font-bold text-gray-800 mb-2">Test niet gevonden</h3>
-                        <p className="text-gray-600 mb-4">De opgevraagde test bestaat niet of u heeft geen toegang.</p>
-                        <Link to="/testbeheer" className="inline-flex items-center text-purple-600 hover:text-purple-700">
-                            <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                            Terug naar {isAdmin ? 'testbeheer' : 'sporttesten'}
-                        </Link>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
+    
     
     return (
         <>
