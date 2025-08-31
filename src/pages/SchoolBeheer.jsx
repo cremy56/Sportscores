@@ -1,116 +1,171 @@
 // src/pages/SchoolBeheer.jsx
 import { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import SchoolLogoUploader from '../components/SchoolLogoUploader';
-import { DataConsistencyNotifications } from '../components/DataConsistencyNotifications';
+import { collection, onSnapshot, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
+import toast, { Toaster } from 'react-hot-toast';
+import { PlusIcon, TrashIcon, PencilIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { BuildingOffice2Icon } from '@heroicons/react/24/solid';
+import SchoolFormModal from '../components/SchoolFormModal'; // Nieuw component
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function SchoolBeheer() {
-  // We gaan ervan uit dat de ingelogde beheerder een 'profile' heeft met een 'school_id'
-  const { profile } = useOutletContext();
-  const [school, setSchool] = useState(null);
-  const [loading, setLoading] = useState(true);
+    const [scholen, setScholen] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [modal, setModal] = useState({ type: null, data: null });
 
-  useEffect(() => {
-    if (!profile?.school_id) {
-      setLoading(false);
-      return;
-    }
+    useEffect(() => {
+        const scholenRef = collection(db, 'scholen');
+        const q = query(scholenRef);
 
-    const fetchSchoolData = async () => {
-      const schoolDocRef = doc(db, 'scholen', profile.school_id);
-      const docSnap = await getDoc(schoolDocRef);
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const scholenData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            scholenData.sort((a, b) => a.naam.localeCompare(b.naam));
+            setScholen(scholenData);
+            setLoading(false);
+        }, (error) => {
+            console.error("Fout bij ophalen scholen:", error);
+            toast.error("Kon de scholen niet laden.");
+            setLoading(false);
+        });
 
-      if (docSnap.exists()) {
-        setSchool({ id: docSnap.id, ...docSnap.data() });
-      } else {
-        console.error("Geen school gevonden voor deze beheerder.");
-      }
-      setLoading(false);
+        return () => unsubscribe();
+    }, []);
+
+    const handleCloseModal = () => {
+        setModal({ type: null, data: null });
     };
 
-    fetchSchoolData();
-  }, [profile?.school_id]);
+    const handleDeleteSchool = async () => {
+        const schoolToDelete = modal.data;
+        if (!schoolToDelete) return;
 
-  if (loading) {
+        const loadingToast = toast.loading('School verwijderen...');
+
+        try {
+            // Veiligheidscheck: controleer of er gebruikers aan de school gekoppeld zijn
+            const usersRef = collection(db, 'toegestane_gebruikers');
+            const usersQuery = query(usersRef, where('school_id', '==', schoolToDelete.id));
+            const usersSnapshot = await getDocs(usersQuery);
+
+            if (!usersSnapshot.empty) {
+                toast.error(`Kan '${schoolToDelete.naam}' niet verwijderen. Er zijn nog ${usersSnapshot.size} gebruikers aan gekoppeld.`);
+                toast.dismiss(loadingToast);
+                handleCloseModal();
+                return;
+            }
+
+            await deleteDoc(doc(db, 'scholen', schoolToDelete.id));
+            toast.success(`'${schoolToDelete.naam}' succesvol verwijderd.`);
+        } catch (error) {
+            toast.error(`Fout bij verwijderen: ${error.message}`);
+        } finally {
+            toast.dismiss(loadingToast);
+            handleCloseModal();
+        }
+    };
+
+    if (loading) {
+        return <div className="text-center p-12">Scholen laden...</div>;
+    }
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 flex items-center justify-center p-4">
-        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            <p className="text-lg font-medium text-gray-700">Schoolgegevens laden...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+        <>
+            <Toaster position="top-center" />
+            <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+                <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+                
+                    {/* --- Mobiele Header --- */}
+                    <div className="lg:hidden mb-8">
+                        <div className="flex justify-between items-center">
+                            <h1 className="text-2xl font-bold text-gray-800">Schoolbeheer</h1>
+                            <button
+                                onClick={() => setModal({ type: 'form', data: null })}
+                                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg"
+                                title="Nieuwe School"
+                            >
+                                <PlusIcon className="h-6 w-6" />
+                            </button>
+                        </div>
+                    </div>
 
-  if (!school) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 flex items-center justify-center p-4">
-        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20 text-center">
-          <p className="text-lg text-gray-700">
-            Geen schoolgegevens gevonden. Zorg ervoor dat de beheerder is gekoppeld aan een school.
-          </p>
-        </div>
-      </div>
-    );
-  }
+                    {/* --- Desktop Header --- */}
+                    <div className="hidden lg:block mb-12">
+                        <div className="flex justify-between items-center">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Schoolbeheer</h1>
+                            <button
+                                onClick={() => setModal({ type: 'form', data: null })}
+                                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                            >
+                                <PlusIcon className="h-6 w-6 mr-2" />
+                                Nieuwe School
+                            </button>
+                        </div>
+                    </div>
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 p-4 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        
-        {/* Data Consistency Notifications - bovenaan voor zichtbaarheid */}
-        <DataConsistencyNotifications userRole={profile?.rol} />
-        
-        {/* Header */}
-        <div className="bg-white/70 backdrop-blur-lg rounded-3xl shadow-lg border border-white/20 p-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Beheer voor: {school.naam}</h1>
-              <p className="text-sm text-gray-600">Hier kun je de gegevens van de school aanpassen.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* School Details */}
-        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">School Details</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <p className="text-gray-600 mb-2"><span className="font-semibold">Naam:</span> {school.naam}</p>
-              <p className="text-gray-600"><span className="font-semibold">Stad:</span> {school.stad}</p>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Huidig Logo</h3>
-              {school.logo_url ? (
-                <img 
-                  src={school.logo_url} 
-                  alt={`${school.naam} logo`} 
-                  className="h-24 w-auto border-2 border-gray-200 p-2 rounded-lg bg-white" 
-                />
-              ) : (
-                <div className="h-24 w-24 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
-                  <p className="text-gray-500 text-sm">Geen logo</p>
+                    {/* --- Inhoud --- */}
+                    {scholen.length === 0 ? (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto">
+                           <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                               <BuildingOffice2Icon className="w-8 h-8 text-purple-600" />
+                           </div>
+                           <h3 className="text-2xl font-bold text-gray-800 mb-2">Geen Scholen Gevonden</h3>
+                           <p className="text-gray-600">Klik op de knop hierboven om de eerste school aan te maken.</p>
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <ul className="divide-y divide-gray-200/70">
+                                {scholen.map(school => (
+                                    <li key={school.id} className="group">
+                                        <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-purple-50/50 transition-colors">
+                                            <div>
+                                                <p className="text-lg font-semibold text-gray-900 group-hover:text-purple-700">{school.naam}</p>
+                                                <p className="text-sm text-gray-500">{school.stad}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2 sm:gap-4">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setModal({ type: 'form', data: school });
+                                                    }}
+                                                    className="p-2 text-gray-400 rounded-full hover:bg-blue-100 hover:text-blue-600 transition-colors"
+                                                    aria-label="Bewerk school"
+                                                >
+                                                    <PencilIcon className="h-5 w-5" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setModal({ type: 'confirm', data: school });
+                                                    }}
+                                                    className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
+                                                    aria-label="Verwijder school"
+                                                >
+                                                    <TrashIcon className="h-5 w-5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
-              )}
             </div>
-          </div>
-        </div>
 
-        {/* Logo Uploader */}
-        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-6">
-          <SchoolLogoUploader schoolId={school.id} />
-        </div>
-      </div>
-    </div>
-  );
+            <SchoolFormModal
+                isOpen={modal.type === 'form'}
+                onClose={handleCloseModal}
+                schoolData={modal.data}
+            />
+
+            <ConfirmModal
+                isOpen={modal.type === 'confirm'}
+                onClose={handleCloseModal}
+                onConfirm={handleDeleteSchool}
+                title="School Verwijderen"
+            >
+                Weet u zeker dat u school "{modal.data?.naam}" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+            </ConfirmModal>
+        </>
+    );
 }
