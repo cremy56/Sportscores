@@ -489,7 +489,7 @@ const handleScoreChange = (leerlingId, newScore) => {
                                                 <div>
                                                     <input
                                                         type="text"
-                                                        inputMode="decimal"
+                                                        inputMode="text"
                                                         className={`w-full p-3 border rounded-xl text-right transition-all shadow-sm 
                                                             ${scores[lid.id]?.isValid === false ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500'}`}
                                                         // WIJZIGING: Gebruik de dynamische placeholder
