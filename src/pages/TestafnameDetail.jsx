@@ -950,7 +950,7 @@ export default function TestafnameDetail() {
                                                                     </div>
                                                                 ) : (
                                                                     <span className="font-bold text-2xl text-purple-700">
-                                                                        {lid.score !== null ? formatScoreWithUnit(lid.score, details.eenheid) : '-'}
+                                                                        {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
                                                                     </span>
                                                                 )}
                                                             </div>
