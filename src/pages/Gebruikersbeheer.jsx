@@ -255,52 +255,35 @@ export default function Gebruikersbeheer() {
             <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
                 <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
                     
-                    {/* --- AANGEPAST: Mobiele header ingevuld --- */}
+                    {/* --- AANGEPAST: Mobiele header zoals in Testbeheer --- */}
                     <div className="lg:hidden mb-8">
-                        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-6">
-                            <div className="text-center mb-6">
-                                <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                    <UsersIcon className="w-8 h-8 text-purple-600" />
-                                </div>
+                        <div className="flex justify-between items-center">
+                            <div>
                                 <h1 className="text-2xl font-bold text-gray-800">Gebruikersbeheer</h1>
                                 <p className="text-sm text-gray-600">
-                                    {totalCount !== null ? `Totaal ${totalCount} gebruikers` : 'Gebruikers beheren'}
+                                    {totalCount !== null ? `Totaal ${totalCount} gebruikers` : ''}
                                 </p>
                             </div>
-                            
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="flex gap-2">
                                 <button
                                     onClick={() => setModal({ type: 'form', data: null, role: 'leerkracht' })}
-                                    className="flex flex-col items-center justify-center px-3 py-4 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+                                    className="flex items-center justify-center bg-gradient-to-r from-blue-600 to-sky-600 text-white p-3 rounded-full shadow-lg"
+                                    title="Nieuwe Leerkracht"
                                 >
-                                    <UserPlusIcon className="h-6 w-6 mb-1" />
-                                    <span className="text-sm text-center">Leerkracht</span>
+                                    <UserPlusIcon className="h-6 w-6" />
                                 </button>
                                 <button
                                     onClick={() => setModal({ type: 'form', data: null, role: 'leerling' })}
-                                    className="flex flex-col items-center justify-center px-3 py-4 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium"
+                                    className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg"
+                                    title="Nieuwe Leerling"
                                 >
-                                    <PlusIcon className="h-6 w-6 mb-1" />
-                                    <span className="text-sm text-center">Leerling</span>
-                                </button>
-                                 <input
-                                    type="file"
-                                    accept=".csv"
-                                    ref={fileInputRef}
-                                    onChange={handleFileChange}
-                                    className="hidden"
-                                />
-                                <button 
-                                    onClick={() => fileInputRef.current.click()}
-                                    className="flex flex-col items-center justify-center px-3 py-4 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors font-medium"
-                                >
-                                    <ArrowUpTrayIcon className="h-6 w-6 mb-1" />
-                                    <span className="text-sm text-center">Importeer</span>
+                                    <PlusIcon className="h-6 w-6" />
                                 </button>
                             </div>
                         </div>
                     </div>
 
+                    {/* --- AANGEPAST: Desktop header, titel links en knoppen rechts --- */}
                     <div className="hidden lg:block mb-12">
                         <div className="flex justify-between items-center">
                             <div>
@@ -329,13 +312,14 @@ export default function Gebruikersbeheer() {
                         </div>
                     </div>
 
+                    {/* --- De rest van de pagina (zoekbalk, resultaten, etc.) blijft ongewijzigd --- */}
                     <div className="relative mb-8">
                         <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
                         <input
                             type="text"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Zoek gebruikers op naam of e-mail (minimaal 2 karakters)..."
+                            placeholder="Zoek gebruikers op naam of e-mail..."
                             className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300"
                         />
                         {loading && (
@@ -350,7 +334,7 @@ export default function Gebruikersbeheer() {
                             <div className="text-center p-12">
                                 <UsersIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                                 <h3 className="text-xl font-bold text-gray-800 mb-2">Zoek naar gebruikers</h3>
-                                <p className="text-gray-600">Gebruik de zoekbalk hierboven om leerlingen en leerkrachten te vinden.</p>
+                                <p className="text-gray-600">Gebruik de zoekbalk hierboven om gebruikers te vinden.</p>
                             </div>
                         ) : loading ? (
                            <div className="text-center p-12 text-gray-600">Laden...</div>
@@ -395,14 +379,13 @@ export default function Gebruikersbeheer() {
                 </div>
             </div>
 
-            {/* Aanname: StudentFormModal is hernoemd naar UserFormModal en accepteert een 'role' prop */}
             <UserFormModal
                 isOpen={modal.type === 'form'}
                 onClose={handleCloseModal}
                 onUserSaved={handleUserSaved}
                 userData={modal.data}
                 schoolId={profile?.school_id}
-                role={modal.role} // Stuur de rol mee voor nieuwe gebruikers
+                role={modal.role}
             />
             
             <ConfirmModal
