@@ -4,7 +4,8 @@ import { useOutletContext, useNavigate, Link } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { collection, query, where, getDocs, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, PencilIcon, ChevronUpIcon } from '@heroicons/react/24/outline'; // Voeg PencilIcon en ChevronUpIcon toe
+
 import { parseTimeInputToSeconds } from '../utils/formatters.js';
 
 // --- HELPER FUNCTIES ---
