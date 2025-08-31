@@ -283,8 +283,10 @@ export default function TestafnameDetail() {
     const [details, setDetails] = useState({ 
        groep_naam: '', 
         test_naam: '', 
-        test_volledig: null, // WIJZIGING: Bewaar het volledige test-object
-        leerlingen: [] 
+        test_volledig: null,
+        leerlingen: [],
+        eenheid: '',
+        max_punten: 20
     });
     const [loading, setLoading] = useState(true);
     const [editingScore, setEditingScore] = useState({ id: null, score: '', validation: null });
@@ -439,7 +441,7 @@ export default function TestafnameDetail() {
 
     const handleEditClick = (leerling) => {
         const initialValue = leerling.score !== null 
-            ? formatScoreWithUnit(leerling.score, details.test_volledig.eenheid) 
+            ? leerling.score.toString().replace('.', ',') // Gebruik de ruwe score voor bewerken
             : '';
         setEditingScore({ 
             id: leerling.score_id, 
@@ -447,13 +449,13 @@ export default function TestafnameDetail() {
             validation: { valid: true }
         });
     };
+
     const handleScoreChange = (value) => {
-       const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
+        const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
         let isValid = true;
 
         if(isTimeTest) {
             const parsed = parseTimeInputToSeconds(value);
-            // Leeg is oké, maar NaN (ongeldig formaat) niet
             if (value.trim() !== '' && isNaN(parsed)) {
                 isValid = false;
                 toast.error("Ongeldige notatie. Gebruik bv. 1:15 of 12.5", { id: 'time-validation-toast' });
@@ -463,11 +465,20 @@ export default function TestafnameDetail() {
         setEditingScore(prev => ({ ...prev, score: value, validation: { valid: isValid } }));
     };
 
-    const handleUpdateScore = async () => {
+
+   const handleUpdateScore = async () => {
         if (!editingScore.id || !editingScore.validation?.valid) return;
+
+        const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
         
-        const scoreValue = parseFloat(editingScore.score.replace(',', '.'));
-        if (isNaN(scoreValue)) {
+        let scoreValue;
+        if (isTimeTest) {
+            scoreValue = parseTimeInputToSeconds(editingScore.score);
+        } else {
+            scoreValue = parseFloat(String(editingScore.score).replace(',', '.'));
+        }
+
+        if (scoreValue === null || isNaN(scoreValue)) {
             toast.error("Voer een geldige score in.");
             return;
         }
@@ -476,17 +487,34 @@ export default function TestafnameDetail() {
         const scoreRef = doc(db, 'scores', editingScore.id);
         
         try {
-            await updateDoc(scoreRef, { score: scoreValue });
+            // Herberekent het punt VOORDAT we opslaan
+            const leerling = details.leerlingen.find(l => l.score_id === editingScore.id);
+            const testDatum = new Date(datum); // Gebruik de datum van de testafname
+            const newPunt = await calculatePuntFromScore(details.test_volledig, leerling, scoreValue, testDatum);
+
+            // Sla ZOWEL de nieuwe score ALS het nieuwe punt op
+            await updateDoc(scoreRef, { 
+                score: scoreValue,
+                rapportpunt: newPunt 
+            });
+            
             toast.success("Score succesvol bijgewerkt!");
-            fetchDetails();
+
+            // Update de lokale state direct, zonder alles te herladen
+            setDetails(prevDetails => ({
+                ...prevDetails,
+                leerlingen: prevDetails.leerlingen.map(l => 
+                    l.score_id === editingScore.id 
+                        ? { ...l, score: scoreValue, punt: newPunt } 
+                        : l
+                )
+            }));
+            
             setEditingScore({ id: null, score: '', validation: null });
+
         } catch (error) {
             console.error("Fout bij bijwerken:", error);
-            if (error.code === 'permission-denied') {
-                toast.error("Geen toegang om deze score bij te werken.");
-            } else {
-                toast.error(`Fout bij bijwerken: ${error.message}`);
-            }
+            toast.error(`Fout bij bijwerken: ${error.message}`);
         } finally {
             setUpdating(false);
         }
