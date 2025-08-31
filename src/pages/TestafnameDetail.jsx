@@ -19,6 +19,7 @@ import {
     ExclamationTriangleIcon
 } from '@heroicons/react/24/solid';
 import { parseTimeInputToSeconds, formatScoreWithUnit, getPointColorClass } from '../utils/formatters.js';
+import ConfirmModal from '../components/ConfirmModal';
 
 
 async function calculatePuntFromScore(test, leerling, score, testDatum) {
@@ -296,6 +297,7 @@ export default function TestafnameDetail() {
     const [swipeState, setSwipeState] = useState({ id: null, translateX: 0, isDeleting: false });
     const [longPressTimer, setLongPressTimer] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // FIXED: Added missing state
+    const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, scoreId: null, leerlingNaam: '' });
 
     const stats = useMemo(() => {
         const leerlingenMetScore = details.leerlingen.filter(l => l.score !== null);
@@ -520,23 +522,33 @@ export default function TestafnameDetail() {
         }
     };
 
-    const handleDeleteScore = async (scoreId, leerlingNaam) => {
-        if (!window.confirm(`Weet je zeker dat je de score van ${leerlingNaam} wilt verwijderen?`)) return;
-        
+    const handleDeleteScore = (scoreId, leerlingNaam) => {
+        setDeleteModalState({ isOpen: true, scoreId, leerlingNaam });
+    };
+
+    const confirmDeleteScore = async () => {
+        const { scoreId } = deleteModalState;
+        if (!scoreId) return;
+
         const loadingToast = toast.loading('Score verwijderen...');
         try {
             await deleteDoc(doc(db, 'scores', scoreId));
             toast.success("Score succesvol verwijderd!");
-            fetchDetails();
+            
+            // Lokale state bijwerken voor een snelle UI update
+            setDetails(prev => ({
+                ...prev,
+                leerlingen: prev.leerlingen.map(l => 
+                    l.score_id === scoreId ? { ...l, score: null, punt: null, score_id: null } : l
+                )
+            }));
+
         } catch (error) {
             console.error("Fout bij verwijderen:", error);
-            if (error.code === 'permission-denied') {
-                toast.error("Geen toegang om deze score te verwijderen.");
-            } else {
-                toast.error(`Fout bij verwijderen: ${error.message}`);
-            }
+            toast.error("Fout bij verwijderen van de score.");
         } finally {
             toast.dismiss(loadingToast);
+            setDeleteModalState({ isOpen: false, scoreId: null, leerlingNaam: '' }); // Sluit de modal
         }
     };
 
@@ -1112,6 +1124,15 @@ export default function TestafnameDetail() {
                     </div>
                 )}
             </div>
+            {/* V- VOEG DEZE COMPONENT TOE V-- */}
+            <ConfirmModal
+                isOpen={deleteModalState.isOpen}
+                onClose={() => setDeleteModalState({ isOpen: false, scoreId: null, leerlingNaam: '' })}
+                onConfirm={confirmDeleteScore}
+                title="Score Verwijderen"
+            >
+                Weet je zeker dat je de score van <strong>{deleteModalState.leerlingNaam}</strong> permanent wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+            </ConfirmModal>
         </div>
     );
 }
