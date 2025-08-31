@@ -867,7 +867,7 @@ export default function TestafnameDetail() {
                                                                 )}
                                                             </div>
                                                             <div className="text-center w-24">
-                                                                <span className={`font-bold text-xl ${getScoreColorClass(lid.punt, details.max_punten)}`}>
+                                                                <span className={`font-bold text-xl ${getPointColorClass(lid.punt, details.max_punten)}`}>
                                                                    {lid.score !== null ? formatScoreWithUnit(lid.score, details.test_volledig.eenheid) : '-'}
 
                                                                 </span>
@@ -956,7 +956,7 @@ export default function TestafnameDetail() {
                                                             </div>
                                                             
                                                             <div className="text-center">
-                                                                <span className={`font-bold text-2xl ${getScoreColorClass(lid.punt, details.max_punten)}`}>
+                                                                <span className={`font-bold text-2xl ${getPointColorClass(lid.punt, details.max_punten)}`}>
                                                                     {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
                                                                 </span>
                                                             </div>
