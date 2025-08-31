@@ -4,29 +4,40 @@ import { Link } from 'react-router-dom';
 import { auth } from './firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import toast, { Toaster } from 'react-hot-toast';
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'; // Importeer de iconen
-import logoSrc from './assets/logo.png'; 
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import logoSrc from './assets/logo.png'; // Zorg dat deze import bovenaan staat
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // State voor wachtwoord zichtbaarheid
 
-  const handlePasswordLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error('Vul zowel e-mailadres als wachtwoord in.');
-      return;
-    }
     setLoading(true);
-
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast.success('Succesvol ingelogd!');
     } catch (error) {
-      console.error(error);
-      toast.error('Ongeldige inloggegevens.');
+      console.error('Login error:', error);
+      let errorMessage = 'Onbekende fout bij inloggen.';
+      switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          errorMessage = 'Verkeerd e-mailadres of wachtwoord.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Ongeldig e-mailadres.';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'Deze gebruiker is uitgeschakeld.';
+          break;
+        default:
+          errorMessage = 'Fout bij inloggen. Controleer je gegevens of probeer het later opnieuw.';
+      }
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
