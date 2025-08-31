@@ -49,7 +49,6 @@ export default function SchoolFormModal({ isOpen, onClose, schoolData }) {
                 const schoolRef = doc(db, 'scholen', schoolData.id);
                 await updateDoc(schoolRef, schoolObject);
             } else {
-                // Maak een ID van de schoolnaam, bv. "KA Beveren" -> "ka_beveren"
                 const schoolId = formData.naam.trim().toLowerCase().replace(/\s+/g, '_');
                 const schoolRef = doc(db, 'scholen', schoolId);
                 await setDoc(schoolRef, schoolObject);
@@ -74,28 +73,40 @@ export default function SchoolFormModal({ isOpen, onClose, schoolData }) {
                 <div className="fixed inset-0 z-10 overflow-y-auto">
                     <div className="flex min-h-full items-center justify-center p-4 text-center">
                         <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                            <Dialog.Panel className="relative w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                                <Dialog.Title as="h3" className="text-xl font-bold leading-6 text-gray-900 mb-4">
-                                    {isEditing ? "School Bewerken" : "Nieuwe School Toevoegen"}
-                                </Dialog.Title>
-                                <form onSubmit={handleSubmit} className="space-y-4">
-                                    <div>
-                                        <label htmlFor="naam" className="block text-sm font-medium text-gray-700">Naam van de school</label>
-                                        <div className="relative mt-1">
-                                            <BuildingOffice2Icon className="pointer-events-none absolute top-3.5 left-4 h-5 w-5 text-gray-400" />
-                                            <input type="text" name="naam" id="naam" value={formData.naam} onChange={handleChange} required className="w-full rounded-xl border-gray-300 py-3 pl-11 shadow-sm" placeholder="bv. KA Beveren" />
+                            <Dialog.Panel className="relative w-full max-w-lg transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all">
+                                <form onSubmit={handleSubmit}>
+                                    {/* --- AANGEPAST: Consistente header toegevoegd --- */}
+                                    <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-4">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                                                <BuildingOffice2Icon className="w-6 h-6 text-white" />
+                                            </div>
+                                            <div>
+                                                <Dialog.Title as="h3" className="text-xl font-semibold text-white">
+                                                    {isEditing ? "School Bewerken" : "Nieuwe School Toevoegen"}
+                                                </Dialog.Title>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div>
-                                        <label htmlFor="stad" className="block text-sm font-medium text-gray-700">Stad</label>
-                                        <div className="relative mt-1">
-                                            <MapPinIcon className="pointer-events-none absolute top-3.5 left-4 h-5 w-5 text-gray-400" />
-                                            <input type="text" name="stad" id="stad" value={formData.stad} onChange={handleChange} required className="w-full rounded-xl border-gray-300 py-3 pl-11 shadow-sm" placeholder="bv. Beveren" />
+
+                                    {/* --- AANGEPAST: Body met consistente padding en input-stijl --- */}
+                                    <div className="px-6 py-6 space-y-4">
+                                        <div>
+                                            <label htmlFor="naam" className="block text-sm font-medium text-gray-700 mb-2">Naam van de school</label>
+                                            <input type="text" name="naam" id="naam" value={formData.naam} onChange={handleChange} required className="w-full px-4 py-3 border border-gray-300 rounded-xl" placeholder="bv. KA Beveren" />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="stad" className="block text-sm font-medium text-gray-700 mb-2">Stad</label>
+                                            <input type="text" name="stad" id="stad" value={formData.stad} onChange={handleChange} required className="w-full px-4 py-3 border border-gray-300 rounded-xl" placeholder="bv. Beveren" />
                                         </div>
                                     </div>
-                                    <div className="pt-4 flex justify-end gap-3">
-                                        <button type="button" onClick={onClose} className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Annuleren</button>
-                                        <button type="submit" disabled={loading} className="rounded-xl border border-transparent bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50">
+                                    
+                                    {/* --- AANGEPAST: Consistente footer en knoppen --- */}
+                                    <div className="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row gap-3 sm:justify-end">
+                                        <button type="button" onClick={onClose} className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-100">
+                                            Annuleren
+                                        </button>
+                                        <button type="submit" disabled={loading} className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-xl disabled:opacity-50">
                                             {loading ? "Opslaan..." : "Opslaan"}
                                         </button>
                                     </div>
