@@ -625,7 +625,7 @@ export default function TestafnameDetail() {
         const headers = ['Naam', 'Score', 'Punten'];
         const rows = details.leerlingen.map(leerling => [
             leerling.naam,
-            leerling.score !== null ? formatScore(leerling.score, details.eenheid) : '',
+            leerling.score !== null ? formatScoreWithUnit(leerling.score, details.eenheid) : '',
             leerling.punt !== null ? leerling.punt : ''
         ]);
 
@@ -950,7 +950,7 @@ export default function TestafnameDetail() {
                                                                     </div>
                                                                 ) : (
                                                                     <span className="font-bold text-2xl text-purple-700">
-                                                                        {lid.score !== null ? formatScore(lid.score, details.eenheid) : '-'}
+                                                                        {lid.score !== null ? formatScoreWithUnit(lid.score, details.eenheid) : '-'}
                                                                     </span>
                                                                 )}
                                                             </div>
