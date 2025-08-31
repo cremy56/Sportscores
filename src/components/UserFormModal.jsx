@@ -1,0 +1,266 @@
+// src/components/UserFormModal.jsx
+import { useState, useEffect, Fragment } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
+import { db } from '../firebase';
+import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
+import toast from 'react-hot-toast';
+import { 
+    UserIcon, 
+    EnvelopeIcon, 
+    CalendarIcon, 
+    UserGroupIcon,
+    ExclamationTriangleIcon,
+    CheckCircleIcon 
+} from '@heroicons/react/24/outline';
+
+// Helper-functies (onveranderd)
+const formatDateForInput = (date) => {
+    if (!date) return '';
+    let d = date.toDate ? date.toDate() : new Date(date);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const calculateAge = (birthDate) => {
+    if (!birthDate) return null;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+    return age;
+};
+
+const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const capitalize = (s) => s && s.charAt(0).toUpperCase() + s.slice(1);
+
+export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, schoolId, role }) {
+    const [formData, setFormData] = useState({
+        naam: '',
+        email: '',
+        geboortedatum: '',
+        geslacht: 'M'
+    });
+    const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
+    const [emailExists, setEmailExists] = useState(false);
+    const [checkingEmail, setCheckingEmail] = useState(false);
+
+    const isEditing = !!userData;
+    // Bepaal de rol: gebruik de rol van de bestaande gebruiker bij bewerken, of de doorgegeven rol bij aanmaken.
+    const currentUserRole = isEditing ? userData?.rol : role;
+
+    useEffect(() => {
+        if (isOpen) {
+            if (isEditing) {
+                setFormData({
+                    naam: userData.naam || '',
+                    email: userData.id || userData.email || '',
+                    geboortedatum: formatDateForInput(userData.geboortedatum),
+                    geslacht: userData.geslacht || 'M',
+                });
+            } else {
+                // Reset formulier voor een nieuwe gebruiker
+                setFormData({
+                    naam: '',
+                    email: '',
+                    geboortedatum: '',
+                    geslacht: 'M'
+                });
+            }
+            setErrors({});
+            setEmailExists(false);
+        }
+    }, [userData, isEditing, isOpen]);
+
+    const validateForm = () => {
+        const newErrors = {};
+        if (!formData.naam.trim() || formData.naam.trim().length < 2) {
+            newErrors.naam = 'Naam is verplicht en moet minimaal 2 karakters bevatten';
+        }
+        if (!formData.email.trim() || !validateEmail(formData.email)) {
+            newErrors.email = 'Een geldig e-mailadres is verplicht';
+        }
+
+        // Pas leeftijdvalidatie alleen toe voor leerlingen
+        if (currentUserRole === 'leerling' && formData.geboortedatum) {
+            const age = calculateAge(formData.geboortedatum);
+            if (age !== null && (age < 4 || age > 25)) {
+                newErrors.geboortedatum = 'Leeftijd moet tussen 4 en 25 jaar zijn';
+            }
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const checkEmailExists = async (email) => {
+        if (!email || !validateEmail(email) || isEditing) return;
+        setCheckingEmail(true);
+        try {
+            const docRef = doc(db, 'toegestane_gebruikers', email);
+            const docSnap = await getDoc(docRef);
+            setEmailExists(docSnap.exists());
+        } catch (error) {
+            console.error('Error checking email:', error);
+        } finally {
+            setCheckingEmail(false);
+        }
+    };
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+        if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+
+        if (name === 'email' && !isEditing) {
+            setEmailExists(false);
+            const timeoutId = setTimeout(() => {
+                if (value) checkEmailExists(value);
+            }, 500);
+            return () => clearTimeout(timeoutId);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!validateForm() || emailExists) {
+            toast.error("Corrigeer de fouten in het formulier.");
+            return;
+        }
+
+        setLoading(true);
+        const loadingToast = toast.loading(`${capitalize(currentUserRole)} ${isEditing ? 'bijwerken...' : 'toevoegen...'}`);
+
+        const userObject = {
+            naam: formData.naam.trim(),
+            email: formData.email.trim().toLowerCase(),
+            rol: currentUserRole,
+            school_id: schoolId,
+            naam_keywords: formData.naam.toLowerCase().split(' ').filter(Boolean),
+            updated_at: new Date(),
+        };
+        
+        // Voeg leerling-specifieke velden alleen toe als de rol 'leerling' is
+        if (currentUserRole === 'leerling') {
+            userObject.geslacht = formData.geslacht;
+            userObject.geboortedatum = formData.geboortedatum ? new Date(formData.geboortedatum) : null;
+        }
+        
+        if (!isEditing) {
+            userObject.created_at = new Date();
+        }
+
+        try {
+            if (isEditing) {
+                const { email, ...updateData } = userObject;
+                const userRef = doc(db, 'toegestane_gebruikers', userData.id);
+                await updateDoc(userRef, updateData);
+            } else {
+                const userRef = doc(db, 'toegestane_gebruikers', formData.email.trim().toLowerCase());
+                await setDoc(userRef, userObject);
+            }
+            
+            toast.success(`${capitalize(currentUserRole)} succesvol ${isEditing ? 'bijgewerkt' : 'toegevoegd'}!`);
+            onUserSaved();
+            onClose();
+        } catch (error) {
+            console.error(`Fout bij opslaan ${currentUserRole}:`, error);
+            toast.error(`Fout: ${error.message}`);
+        } finally {
+            toast.dismiss(loadingToast);
+            setLoading(false);
+        }
+    };
+
+    const age = formData.geboortedatum ? calculateAge(formData.geboortedatum) : null;
+
+    return (
+        <Transition.Root show={isOpen} as={Fragment}>
+            <Dialog as="div" className="relative z-50" onClose={onClose}>
+                {/* Overlay */}
+                <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
+                    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+                </Transition.Child>
+
+                <div className="fixed inset-0 z-10 overflow-y-auto">
+                    <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                        <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" enterTo="opacity-100 translate-y-0 sm:scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 translate-y-0 sm:scale-100" leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
+                            <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                                <form onSubmit={handleSubmit}>
+                                    {/* Header */}
+                                    <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-4">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                                                <UserIcon className="w-6 h-6 text-white" />
+                                            </div>
+                                            <div>
+                                                <Dialog.Title as="h3" className="text-xl font-semibold text-white">
+                                                    {isEditing ? `Gebruiker Bewerken` : `Nieuwe ${capitalize(currentUserRole)} Toevoegen`}
+                                                </Dialog.Title>
+                                                <p className="text-purple-100 text-sm">
+                                                    {isEditing ? `Wijzig de gegevens van ${userData?.naam}` : `Voeg een nieuwe ${currentUserRole} toe aan uw school`}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Formulier velden */}
+                                    <div className="px-6 py-6 space-y-6">
+                                        {/* Naam & Email (voor iedereen) */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Volledige naam *</label>
+                                            <input type="text" name="naam" value={formData.naam} onChange={handleChange} required className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 ${errors.naam ? 'border-red-300' : 'border-gray-300'}`} />
+                                            {errors.naam && <p className="mt-1 text-sm text-red-600">{errors.naam}</p>}
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">E-mailadres *</label>
+                                            <input type="email" name="email" value={formData.email} onChange={handleChange} required disabled={isEditing} className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 ${errors.email || emailExists ? 'border-red-300' : 'border-gray-300'} ${isEditing ? 'bg-gray-50' : ''}`} />
+                                            {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+                                            {emailExists && <p className="mt-1 text-sm text-red-600">Dit e-mailadres is al in gebruik</p>}
+                                            {isEditing && <p className="mt-1 text-xs text-gray-500">E-mailadres kan niet worden gewijzigd.</p>}
+                                        </div>
+
+                                        {/* Alleen voor Leerlingen */}
+                                        {currentUserRole === 'leerling' && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Geboortedatum</label>
+                                                    <input type="date" name="geboortedatum" value={formData.geboortedatum} onChange={handleChange} max={new Date().toISOString().split('T')[0]} className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 ${errors.geboortedatum ? 'border-red-300' : 'border-gray-300'}`} />
+                                                    {age !== null && <p className="mt-1 text-sm text-gray-600">Leeftijd: {age} jaar</p>}
+                                                    {errors.geboortedatum && <p className="mt-1 text-sm text-red-600">{errors.geboortedatum}</p>}
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Geslacht</label>
+                                                    <select name="geslacht" value={formData.geslacht} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500">
+                                                        <option value="M">Mannelijk</option>
+                                                        <option value="V">Vrouwelijk</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Footer & Knoppen */}
+                                    <div className="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row gap-3 sm:justify-end">
+                                        <button type="button" onClick={onClose} className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-100">
+                                            Annuleren
+                                        </button>
+                                        <button type="submit" disabled={loading || checkingEmail || emailExists} className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-xl disabled:opacity-50">
+                                            {loading ? 'Opslaan...' : isEditing ? 'Wijzigingen Opslaan' : `${capitalize(currentUserRole)} Toevoegen`}
+                                        </button>
+                                    </div>
+                                </form>
+                            </Dialog.Panel>
+                        </Transition.Child>
+                    </div>
+                </div>
+            </Dialog>
+        </Transition.Root>
+    );
+}
