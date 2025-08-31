@@ -5,6 +5,7 @@ import { auth } from './firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import toast, { Toaster } from 'react-hot-toast';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'; // Importeer de iconen
+import logoSrc from './assets/logo.png'; 
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -39,7 +40,7 @@ export default function Login() {
         <div className="flex flex-col items-center mb-8">
           <div className="bg-gradient-to-br from-purple-100 to-blue-100 p-4 rounded-2xl mb-4 shadow-lg">
             <img
-              src="/src/assets/logo.png"
+              src={logoSrc}
               alt="Sportscores Logo"
               className="h-12 w-auto object-contain"
             />
