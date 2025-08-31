@@ -242,31 +242,36 @@ export default function NieuweTestafname() {
     // Debounced effect to calculate points
     useEffect(() => {
         if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-        const studentIdToCalculate = Object.keys(scores).find(id => scores[id]?.isCalculating);
-        if (studentIdToCalculate && selectedTest) {
+
+        // Zoek de laatste leerling die bewerkt is en wacht op validatie/berekening
+        const studentIdToProcess = Object.keys(scores).find(id => scores[id]?.isCalculating);
+
+        if (studentIdToProcess) {
             debounceTimeoutRef.current = setTimeout(async () => {
-                const leerling = leerlingen.find(l => l.id === studentIdToCalculate);
-                const scoreToCalc = scores[studentIdToCalculate];
-
-                let scoreValueInSeconds = null;
-                const eenheidLower = selectedTest.eenheid?.toLowerCase();
+                const scoreData = scores[studentIdToProcess];
                 
-                // Als het een tijdseenheid is, gebruik de 'vertaler'. Anders, parse als normaal getal.
-               if (eenheidLower.includes('min') || eenheidLower.includes('sec')) {
-                    scoreValueInSeconds = parseTimeInputToSeconds(scoreToCalc.score);
-                } else {
-                    scoreValueInSeconds = parseFloat(String(scoreToCalc.score).replace(',', '.'));
+                // Als het veld leeg is, stoppen we de "calculating" status
+                if (!scoreData || !scoreData.score || scoreData.score.trim() === '') {
+                    setScores(prev => ({...prev, [studentIdToProcess]: { ...scoreData, isCalculating: false, isValid: true, rapportpunt: null }}));
+                    return;
                 }
 
-                const scoreValue = parseFloat(String(scoreToCalc.score).replace(',', '.'));
-                if (scoreValueInSeconds !== null && !isNaN(scoreValueInSeconds) && leerling) {
-                    const newPunt = await calculatePuntFromScore(selectedTest, leerling.data, scoreValueInSeconds, new Date(datum));
-                    setScores(prev => ({ ...prev, [studentIdToCalculate]: { ...prev[studentIdToCalculate], rapportpunt: newPunt, isCalculating: false } }));
+                // Stap A: Valideer de input
+                const parsedValue = parseTimeInputToSeconds(scoreData.score);
+                
+                if (isNaN(parsedValue)) {
+                    // Stap B: Als ongeldig, toon foutmelding en update de staat
+                    toast.error("Ongeldige tijdnotatie. Gebruik bv. 1:15 of 12.5");
+                    setScores(prev => ({...prev, [studentIdToProcess]: { ...scoreData, isValid: false, isCalculating: false }}));
                 } else {
-                    setScores(prev => ({ ...prev, [studentIdToCalculate]: { ...prev[studentIdToCalculate], rapportpunt: null, isCalculating: false } }));
+                    // Stap C: Als geldig, bereken het punt
+                    const leerling = leerlingen.find(l => l.id === studentIdToProcess);
+                    const newPunt = await calculatePuntFromScore(selectedTest, leerling.data, parsedValue, new Date(datum));
+                    setScores(prev => ({...prev, [studentIdToProcess]: { ...scoreData, rapportpunt: newPunt, isValid: true, isCalculating: false }}));
                 }
-            }, 500);
+            }, 750); // Wacht 750ms na de laatste toetsaanslag
         }
+
         return () => clearTimeout(debounceTimeoutRef.current);
     }, [scores, selectedTest, datum, leerlingen]);
 
@@ -274,29 +279,18 @@ export default function NieuweTestafname() {
     const toastIdRef = useRef(null);
 
 const handleScoreChange = (leerlingId, newScore) => {
-        if (newScore.trim() === '') {
-             setScores(prev => ({
-                ...prev,
-                [leerlingId]: { score: '', rapportpunt: null, isCalculating: false, isValid: true }
-            }));
-            return;
-        }
-
-        const parsedValue = parseTimeInputToSeconds(newScore);
-        
-        let isValid = true;
-        if (isNaN(parsedValue)) {
-            isValid = false;
-            if (!toastIdRef.current || !toast.isActive(toastIdRef.current)) {
-                toastIdRef.current = toast.error("Ongeldige tijdnotatie. Gebruik bv. 1:15 of 12.5", { duration: 2000 });
-            }
-        }
-
         setScores(prev => ({
             ...prev,
-            [leerlingId]: { score: newScore, rapportpunt: null, isCalculating: isValid, isValid: isValid }
+            [leerlingId]: { 
+                ...prev[leerlingId], 
+                score: newScore, 
+                rapportpunt: null, 
+                isValid: true, // Reset validatie bij elke nieuwe input
+                isCalculating: true // Vlag om de debounce useEffect te starten
+            }
         }));
     };
+
 
 
     const handleSaveScores = async () => {
@@ -489,13 +483,13 @@ const handleScoreChange = (leerlingId, newScore) => {
                                                 <div>
                                                    <input
                                                         type="text"
-                                                        // WIJZIGING: Veranderd naar "text" om het standaard toetsenbord op te roepen
                                                         inputMode="text"
                                                         className={`w-full p-3 border rounded-xl text-right transition-all shadow-sm 
                                                             ${scores[lid.id]?.isValid === false ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500'}`}
                                                         placeholder={placeholderText}
                                                         value={scores[lid.id]?.score || ''}
                                                         onChange={(e) => handleScoreChange(lid.id, e.target.value)}
+                                                        // WIJZIGING 3: onBlur is niet meer nodig en is verwijderd
                                                     />
                                                 </div>
                                                 <div className={`text-center font-bold text-xl transition-colors ${getScoreColorClass(scores[lid.id]?.rapportpunt)}`}>
