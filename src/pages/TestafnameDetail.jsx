@@ -19,6 +19,91 @@ import {
     ExclamationTriangleIcon
 } from '@heroicons/react/24/solid';
 
+async function calculatePuntFromScore(test, leerling, score, testDatum) {
+    if (!test || !leerling || score === null || isNaN(score)) return null;
+    try {
+        const { score_richting } = test; 
+        if (!score_richting) return null;
+
+        const { geboortedatum, geslacht } = leerling;
+        if (!geboortedatum || !geslacht) return null;
+
+        const ageDate = geboortedatum.toDate ? geboortedatum.toDate() : new Date(geboortedatum);
+        
+        let leeftijd = testDatum.getFullYear() - ageDate.getFullYear();
+        const m = testDatum.getMonth() - ageDate.getMonth();
+        if (m < 0 || (m === 0 && testDatum.getDate() < ageDate.getDate())) {
+            leeftijd--;
+        }
+
+        const normAge = Math.min(leeftijd, 17);
+
+        const normenQuery = query(collection(db, 'normen'), where('test_id', '==', test.id));
+        const normenSnapshot = await getDocs(normenQuery);
+        
+        if (normenSnapshot.empty) return null;
+        
+        const normSnap = normenSnapshot.docs[0];
+        const { punten_schaal } = normSnap.data(); 
+        if (!punten_schaal || punten_schaal.length === 0) return null;
+
+        const genderMapping = { 'man': 'M', 'vrouw': 'V', 'jongen': 'M', 'meisje': 'V' };
+        const mappedGender = genderMapping[geslacht.toLowerCase()] || geslacht.toUpperCase();
+
+        const relevantNorms = punten_schaal
+            .filter(n => n.leeftijd === normAge && n.geslacht === mappedGender)
+            .sort((a, b) => a.punt - b.punt);
+
+        if (relevantNorms.length === 0) return null;
+
+        let behaaldeNorm = null;
+        let volgendeNorm = null;
+
+        if (score_richting === 'laag') {
+            if (score <= relevantNorms[relevantNorms.length - 1].score_min) return relevantNorms[relevantNorms.length - 1].punt;
+            if (score >= relevantNorms[0].score_min) return relevantNorms[0].punt;
+
+            for (let i = 0; i < relevantNorms.length - 1; i++) {
+                if (score < relevantNorms[i].score_min && score >= relevantNorms[i + 1].score_min) {
+                    behaaldeNorm = relevantNorms[i];
+                    volgendeNorm = relevantNorms[i + 1];
+                    break;
+                }
+            }
+        } else { // 'hoog'
+            if (score >= relevantNorms[relevantNorms.length - 1].score_min) return relevantNorms[relevantNorms.length - 1].punt;
+            if (score <= relevantNorms[0].score_min) return relevantNorms[0].punt;
+
+            for (let i = 0; i < relevantNorms.length - 1; i++) {
+                if (score >= relevantNorms[i].score_min && score < relevantNorms[i + 1].score_min) {
+                    behaaldeNorm = relevantNorms[i];
+                    volgendeNorm = relevantNorms[i + 1];
+                    break;
+                }
+            }
+        }
+
+        if (!behaaldeNorm || !volgendeNorm) {
+            const exactMatch = relevantNorms.find(n => n.score_min === score);
+            return exactMatch ? exactMatch.punt : (behaaldeNorm ? behaaldeNorm.punt : 0);
+        }
+
+        const midpoint = (behaaldeNorm.score_min + volgendeNorm.score_min) / 2;
+        let finalPunt = behaaldeNorm.punt;
+
+        if (score_richting === 'laag') {
+            if (score < midpoint) finalPunt += 0.5;
+        } else {
+            if (score > midpoint) finalPunt += 0.5;
+        }
+        
+        return finalPunt;
+    } catch (error) {
+        console.error("Fout tijdens puntberekening:", error);
+        return null;
+    }
+}
+
 function formatScore(score, eenheid) {
     if (score === null || score === undefined) return '-';
     
@@ -227,10 +312,9 @@ export default function TestafnameDetail() {
     const { groepId, testId, datum } = useParams();
     const navigate = useNavigate();
     const [details, setDetails] = useState({ 
-        groep_naam: '', 
+       groep_naam: '', 
         test_naam: '', 
-        eenheid: '',
-        max_punten: 20,
+        test_volledig: null, // WIJZIGING: Bewaar het volledige test-object
         leerlingen: [] 
     });
     const [loading, setLoading] = useState(true);
@@ -284,7 +368,8 @@ export default function TestafnameDetail() {
             }
 
             const groupData = groupSnap.data();
-            const testData = testSnap.data();
+            const testData = { id: testSnap.id, ...testSnap.data() }; // WIJZIGING: Sla het volledige test-object op
+
             
             // FIXED: Better date parsing
             let targetDate;
@@ -325,61 +410,32 @@ export default function TestafnameDetail() {
             
             let leerlingenData = [];
             if (leerlingIds.length > 0) {
-                // FIXED: Handle large arrays by batching queries if needed
-                if (leerlingIds.length > 10) {
-                    // Firestore 'in' queries are limited to 10 items
-                    const batches = [];
-                    for (let i = 0; i < leerlingIds.length; i += 10) {
-                        const batch = leerlingIds.slice(i, i + 10);
-                        const leerlingenQuery = query(
-                            collection(db, 'toegestane_gebruikers'), 
-                            where('__name__', 'in', batch)
-                        );
-                        batches.push(getDocs(leerlingenQuery));
-                    }
-                    
-                    const batchResults = await Promise.all(batches);
-                    const allDocs = batchResults.flatMap(snap => snap.docs);
-                    
-                    leerlingenData = allDocs.map(d => {
-                        const scoreInfo = scoresMap.get(d.id);
-                        return {
-                            id: d.id,
-                            naam: d.data().naam,
-                            score: scoreInfo?.score ?? null,
-                            punt: scoreInfo?.rapportpunt ?? null,
-                            score_id: scoreInfo?.id
-                        };
-                    });
-                } else {
-                    const leerlingenQuery = query(
+                 const leerlingenQuery = query(
                         collection(db, 'toegestane_gebruikers'), 
                         where('__name__', 'in', leerlingIds)
                     );
-                    const leerlingenSnap = await getDocs(leerlingenQuery);
-                    
-                    leerlingenData = leerlingenSnap.docs.map(d => {
-                        const scoreInfo = scoresMap.get(d.id);
-                        return {
-                            id: d.id,
-                            naam: d.data().naam,
-                            score: scoreInfo?.score ?? null,
-                            punt: scoreInfo?.rapportpunt ?? null,
-                            score_id: scoreInfo?.id
-                        };
-                    });
-                }
+                const leerlingenSnap = await getDocs(leerlingenQuery);
+                
+                leerlingenData = leerlingenSnap.docs.map(d => {
+                    const scoreInfo = scoresMap.get(d.id);
+                    return {
+                        id: d.id,
+                        // WIJZIGING: Sla het volledige leerling-object op
+                        ...d.data(), 
+                        score: scoreInfo?.score ?? null,
+                        punt: scoreInfo?.rapportpunt ?? null,
+                        score_id: scoreInfo?.id
+                    };
+                });
             }
-            
-            console.log('Final leerlingen data:', leerlingenData.length);
             
             setDetails({
                 groep_naam: groupData.naam,
                 test_naam: testData.naam,
-                eenheid: testData.eenheid,
-                max_punten: testData.max_punten || 20,
+                test_volledig: testData, // WIJZIGING: Sla het test-object op in de state
                 leerlingen: leerlingenData.sort((a,b) => a.naam.localeCompare(b.naam))
             });
+
 
         } catch (error) {
             console.error("Error fetching details:", error);
@@ -410,21 +466,29 @@ export default function TestafnameDetail() {
         };
     }, []);
 
-    const handleEditClick = (scoreId, currentScore) => {
+    const handleEditClick = (leerling) => {
+       const initialValue = leerling.score !== null ? formatScore(leerling.score, details.test_volledig.eenheid) : '';
         setEditingScore({ 
-            id: scoreId, 
-            score: currentScore ?? '', 
-            validation: { valid: true, message: '' }
+            id: leerling.score_id, 
+            score: initialValue, 
+            validation: { valid: true }
         });
     };
 
     const handleScoreChange = (value) => {
-        const validation = validateScore(value, details.eenheid);
-        setEditingScore(prev => ({ 
-            ...prev, 
-            score: value, 
-            validation 
-        }));
+       const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
+        let isValid = true;
+
+        if(isTimeTest) {
+            const parsed = parseTimeInputToSeconds(value);
+            // Leeg is oké, maar NaN (ongeldig formaat) niet
+            if (value.trim() !== '' && isNaN(parsed)) {
+                isValid = false;
+                toast.error("Ongeldige notatie. Gebruik bv. 1:15 of 12.5", { id: 'time-validation-toast' });
+            }
+        }
+        
+        setEditingScore(prev => ({ ...prev, score: value, validation: { valid: isValid } }));
     };
 
     const handleUpdateScore = async () => {
@@ -477,39 +541,55 @@ export default function TestafnameDetail() {
     };
 
     const handleUpdateDate = async () => {
-        const originalDate = new Date(datum);
-        const updatedDate = new Date(newDate);
+        if (!editingScore.id || !editingScore.validation?.valid) return;
+        
+        const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
+        
+        let scoreValue;
+        if(isTimeTest) {
+            scoreValue = parseTimeInputToSeconds(editingScore.score);
+        } else {
+            scoreValue = parseFloat(String(editingScore.score).replace(',', '.'));
+        }
 
-        if (!newDate || originalDate.toISOString().split('T')[0] === updatedDate.toISOString().split('T')[0]) {
-            setEditingDate(false);
+        if (scoreValue === null || isNaN(scoreValue)) {
+            toast.error("Voer een geldige score in.");
             return;
         }
 
-        const loadingToast = toast.loading('Datum bijwerken...');
+        setUpdating(true);
+        const scoreRef = doc(db, 'scores', editingScore.id);
+        
         try {
-            // Update all scores with the new date
-            const scoresQuery = query(collection(db, 'scores'), 
-                where('groep_id', '==', groepId),
-                where('test_id', '==', testId),
-                where('datum', '==', originalDate)
-            );
-            const scoresSnap = await getDocs(scoresQuery);
-            
-            const batch = writeBatch(db);
-            scoresSnap.docs.forEach(doc => {
-                batch.update(doc.ref, { datum: updatedDate });
-            });
-            await batch.commit();
+            // WIJZIGING: Herberekend het punt VOORDAT we opslaan
+            const leerling = details.leerlingen.find(l => l.score_id === editingScore.id);
+            const newPunt = await calculatePuntFromScore(details.test_volledig, leerling, scoreValue, new Date(datum));
 
-            toast.success("Testdatum succesvol bijgewerkt!");
-            setEditingDate(false);
-            navigate(`/testafname/${groepId}/${testId}/${updatedDate.toISOString()}`);
+            // Sla ZOWEL de nieuwe score ALS het nieuwe punt op
+            await updateDoc(scoreRef, { 
+                score: scoreValue,
+                rapportpunt: newPunt 
+            });
+            
+            toast.success("Score succesvol bijgewerkt!");
+
+            // WIJZIGING: Update de lokale state direct, zonder alles te herladen
+            setDetails(prevDetails => ({
+                ...prevDetails,
+                leerlingen: prevDetails.leerlingen.map(l => 
+                    l.score_id === editingScore.id 
+                        ? { ...l, score: scoreValue, punt: newPunt } 
+                        : l
+                )
+            }));
+            
+            setEditingScore({ id: null, score: '', validation: null });
 
         } catch (error) {
-            console.error("Fout bij bijwerken datum:", error);
-            toast.error("Fout bij bijwerken van de datum.");
+            console.error("Fout bij bijwerken:", error);
+            toast.error(`Fout bij bijwerken: ${error.message}`);
         } finally {
-            toast.dismiss(loadingToast);
+            setUpdating(false);
         }
     };
 

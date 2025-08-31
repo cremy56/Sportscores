@@ -305,7 +305,7 @@ export default function NieuweTestafname() {
                     const newPunt = await calculatePuntFromScore(selectedTest, leerling.data, parsedValue, new Date(datum));
                     setScores(prev => ({...prev, [studentIdToProcess]: { ...scoreData, rapportpunt: newPunt, isValid: true, isCalculating: false }}));
                 }
-            }, 750); // Wacht 750ms na de laatste toetsaanslag
+            }, 1500); // Wacht 750ms na de laatste toetsaanslag
         }
 
         return () => clearTimeout(debounceTimeoutRef.current);
