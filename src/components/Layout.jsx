@@ -122,11 +122,11 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const menuButtonRef = useRef();
 
 useEffect(() => {
-    // CORRECTIE 3: Impersonation werkt nu ook voor super-administrator
     if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
       setSelectedStudent(impersonatedStudent);
     }
   }, [impersonatedStudent, activeRole, profile?.rol, setSelectedStudent]);
+
   
   // Functie om het menu te openen en de positie te berekenen
   const toggleMenu = () => {
@@ -141,7 +141,7 @@ useEffect(() => {
   };
 
   const simulatedProfile = useMemo(() => {
-    if (activeRole === 'leerling' && impersonatedStudent && profile?.rol === 'administrator') {
+    if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
       return {
         ...impersonatedStudent,
         rol: 'leerling',
@@ -258,7 +258,7 @@ useEffect(() => {
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
 
-            {(isTeacherOrAdmin || activeRole === 'super-administrator') && (
+           {isTeacherOrAdmin && (
               <>
                 <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
                 <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
