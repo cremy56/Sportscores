@@ -159,8 +159,6 @@ function App() {
                         
                         <Route path="/highscores" element={<Highscores />} />
                         <Route path="/evolutie" element={<Evolutie />} />
-                        <Route path="/gebruikersbeheer" element={<Gebruikersbeheer />} /> {/* GEWIJZIGD: Leerlingbeheer -> Gebruikersbeheer */}
-
                         <Route path="/groepsbeheer" element={<Groepsbeheer />} />
                         <Route path="/groep/:groepId" element={<GroupDetail />} />
                         <Route path="/scores" element={<ScoresOverzicht />} />
@@ -170,11 +168,15 @@ function App() {
                         <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
                         <Route path="/groeiplan" element={<Groeiplan />} />
                         <Route path="/groeiplan/:schemaId" element={<SchemaDetail />} />
-                        {profile?.rol === 'administrator' && (
+                        {(profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
                           <>
-                            <Route path="/schoolbeheer" element={<SchoolBeheer />} />
+                            <Route path="/gebruikersbeheer" element={<Gebruikersbeheer />} />
                             <Route path="/trainingsbeheer" element={<Trainingsbeheer />} /> 
                           </>
+                        )}
+                        {/* Route die ENKEL voor de super-admin is */}
+                        {profile?.rol === 'super-administrator' && (
+                            <Route path="/schoolbeheer" element={<SchoolBeheer />} />
                         )}
                     </Route>
                 </Route>

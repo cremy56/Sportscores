@@ -47,7 +47,7 @@ const ProfileMenu = ({
         </div>
       </div>
 
-      {profile?.rol === 'administrator' && (
+      {(profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
         <div className="mb-4">
           <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">Wissel rol</label>
           <select
@@ -69,6 +69,10 @@ const ProfileMenu = ({
 }}
             title="Switch rol"
           >
+            {/* De super-admin optie is alleen zichtbaar als je ook echt een super-admin bent */}
+            {profile?.rol === 'super-administrator' && (
+                <option value="super-administrator">Super-administrator</option>
+            )}
             <option value="administrator">Administrator</option>
             <option value="leerkracht">Leerkracht</option>
             <option value="leerling">Leerling</option>
@@ -210,13 +214,19 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                 <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
               </>
             )}
-            {activeRole === 'administrator' && (
+             {/* Enkel voor super-admin */}
+            {activeRole === 'super-administrator' && (
+                <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
+
+            )}
+
+            {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
               <>
                 <li><NavLink to="/gebruikersbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gebruikersbeheer</NavLink></li> {/* GEWIJZIGD: Leerlingbeheer -> Gebruikersbeheer */}
                 <li><NavLink to="/trainingsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Trainingsbeheer</NavLink></li>
-                <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
-              </>
+             </>
             )}
+            
           </ul>
 
           {/* MIDDEN (Mobiel): Gecentreerde paginatitel */}
@@ -250,7 +260,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
 
-            {isTeacherOrAdmin && (
+            {(isTeacherOrAdmin || activeRole === 'super-administrator') && (
               <>
                 <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
                 <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
@@ -258,12 +268,16 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               </>
             )}
 
-            {activeRole === 'administrator' && (
+            {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
               <>
                 <li><NavLink to="/gebruikersbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gebruikersbeheer</NavLink></li> {/* GEWIJZIGD: Leerlingbeheer -> Gebruikersbeheer */}
                 <li><NavLink to="/trainingsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Trainingsbeheer</NavLink></li>
-                <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
+                
               </>
+            )}
+            {/* Enkel voor super-admin */}
+            {activeRole === 'super-administrator' && (
+                <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
             )}
           </ul>
         </nav>
