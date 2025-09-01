@@ -47,7 +47,7 @@ const ProfileMenu = ({
         </div>
       </div>
 
-      {(profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
+       {(profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
         <div className="mb-4">
           <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">Wissel rol</label>
           <select
@@ -121,8 +121,8 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef();
 
-  useEffect(() => {
-    if (activeRole === 'leerling' && impersonatedStudent && profile?.rol === 'administrator') {
+useEffect(() => {
+    if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
       setSelectedStudent(impersonatedStudent);
     }
   }, [impersonatedStudent, activeRole, profile?.rol, setSelectedStudent]);
@@ -153,7 +153,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     };
   }, [profile, activeRole, impersonatedStudent]);
 
-  const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator';
+  const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator';
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
   const testbeheerLinkText = activeRole === 'administrator' ? 'Testbeheer' : 'Sporttesten';
   const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan';
