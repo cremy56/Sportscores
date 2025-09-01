@@ -127,7 +127,13 @@ useEffect(() => {
     }
   }, [impersonatedStudent, activeRole, profile?.rol, setSelectedStudent]);
 
-  
+  // Voeg deze useEffect toe na de bestaande useEffect
+useEffect(() => {
+  if (profile?.rol && activeRole !== profile.rol) {
+    setActiveRole(profile.rol);
+  }
+}, [profile?.rol, activeRole]);
+
   // Functie om het menu te openen en de positie te berekenen
   const toggleMenu = () => {
     if (menuButtonRef.current) {
