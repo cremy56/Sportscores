@@ -122,6 +122,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const menuButtonRef = useRef();
 
 useEffect(() => {
+    // CORRECTIE 3: Impersonation werkt nu ook voor super-administrator
     if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
       setSelectedStudent(impersonatedStudent);
     }
@@ -155,7 +156,7 @@ useEffect(() => {
 
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator';
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
-  const testbeheerLinkText = activeRole === 'administrator' ? 'Testbeheer' : 'Sporttesten';
+  const testbeheerLinkText = (activeRole === 'administrator' || activeRole === 'super-administrator') ? 'Testbeheer' : 'Sporttesten';
   const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan';
 
   const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
@@ -168,8 +169,8 @@ useEffect(() => {
     '/groeiplan': groeiplanLinkText,
     '/groepsbeheer': 'Groepsbeheer',
     '/scores': 'Scores',
-    '/gebruikersbeheer': 'Gebruikersbeheer',
     '/testbeheer': testbeheerLinkText,
+    '/gebruikersbeheer': 'Gebruikersbeheer',
     '/schoolbeheer': 'Schoolbeheer',
     '/wachtwoord-wijzigen': 'Wachtwoord wijzigen',
   };
@@ -215,18 +216,15 @@ useEffect(() => {
               </>
             )}
              {/* Enkel voor super-admin */}
-            {activeRole === 'super-administrator' && (
-                <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
-
-            )}
-
             {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
               <>
-                <li><NavLink to="/gebruikersbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gebruikersbeheer</NavLink></li> {/* GEWIJZIGD: Leerlingbeheer -> Gebruikersbeheer */}
+                <li><NavLink to="/gebruikersbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gebruikersbeheer</NavLink></li>
                 <li><NavLink to="/trainingsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Trainingsbeheer</NavLink></li>
-             </>
+                {activeRole === 'super-administrator' && (
+                    <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
+                )}
+              </>
             )}
-            
           </ul>
 
           {/* MIDDEN (Mobiel): Gecentreerde paginatitel */}
@@ -273,11 +271,11 @@ useEffect(() => {
                 <li><NavLink to="/gebruikersbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gebruikersbeheer</NavLink></li> {/* GEWIJZIGD: Leerlingbeheer -> Gebruikersbeheer */}
                 <li><NavLink to="/trainingsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Trainingsbeheer</NavLink></li>
                 
-              </>
-            )}
-            {/* Enkel voor super-admin */}
-            {activeRole === 'super-administrator' && (
+              {activeRole === 'super-administrator' && (
+           
                 <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
+            )}
+              </>
             )}
           </ul>
         </nav>
