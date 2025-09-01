@@ -117,6 +117,14 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+// DEBUG: Voeg deze console.logs toe
+  console.log("=== LAYOUT DEBUG ===");
+  console.log("profile?.rol:", profile?.rol);
+  console.log("activeRole:", activeRole);
+  console.log("isTeacherOrAdmin:", activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator');
+  console.log("Can see schoolbeheer?", activeRole === 'super-administrator');
+  console.log("====================");
+
   // NIEUW: State om de positie van de menu-knop op te slaan
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef();
@@ -129,10 +137,12 @@ useEffect(() => {
 
   // Voeg deze useEffect toe na de bestaande useEffect
 useEffect(() => {
-  if (profile?.rol && activeRole !== profile.rol) {
-    setActiveRole(profile.rol);
-  }
-}, [profile?.rol, activeRole]);
+    if (profile?.rol) {
+      console.log("Updating activeRole from", activeRole, "to", profile.rol);
+      setActiveRole(profile.rol);
+    }
+  }, [profile?.rol]);
+
 
   // Functie om het menu te openen en de positie te berekenen
   const toggleMenu = () => {
