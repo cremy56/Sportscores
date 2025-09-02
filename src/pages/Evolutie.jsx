@@ -5,7 +5,7 @@ import StudentSearch from '../components/StudentSearch';
 import EvolutionCard from '../components/EvolutionCard';
 import PageHeader from '../components/PageHeader';
 import { getStudentEvolutionData } from '../utils/firebaseUtils';
-import * as XLSX from 'xlsx';
+import { utils, writeFile } from 'xlsx';
 import { 
     generateSchoolYears, 
     getCurrentSchoolYear, 
@@ -93,12 +93,12 @@ export default function Evolutie() {
     const currentYearInfo = availableYears.find(year => year.value === selectedYear);
     const isCurrentYear = currentYearInfo?.isCurrent || false;
 
-    const exportToExcel = () => {
+   const exportToExcel = () => {
     if (!selectedStudent || Object.keys(grouped_data).length === 0) {
         return;
     }
 
-    const workbook = XLSX.utils.book_new();
+    const workbook = utils.book_new();
     
     // Maak een werkblad per categorie
     Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
@@ -123,14 +123,14 @@ export default function Evolutie() {
             worksheetData.push(['', '', '', '']);
         });
         
-        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-        XLSX.utils.book_append_sheet(workbook, worksheet, categoryName.substring(0, 31)); // Excel sheet naam limiet
+        const worksheet = utils.aoa_to_sheet(worksheetData);
+        utils.book_append_sheet(workbook, worksheet, categoryName.substring(0, 31));
     });
     
     // Download bestand
     const yearLabel = selectedYear === 'all' ? 'Alle_Jaren' : formatSchoolYear(selectedYear).replace('/', '-');
     const fileName = `${selectedStudent.naam.replace(/\s+/g, '_')}_Evolutie_${yearLabel}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
+    writeFile(workbook, fileName);
 };
 
     if (loading && !evolutionData.length) {
