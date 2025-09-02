@@ -275,7 +275,7 @@ export default function Groeiplan() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
 
-    const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
+    const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator';
     const currentProfile = isTeacherOrAdmin ? selectedStudent : profile;
 
     useEffect(() => {
