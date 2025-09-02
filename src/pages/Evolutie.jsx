@@ -93,7 +93,7 @@ export default function Evolutie() {
     const currentYearInfo = availableYears.find(year => year.value === selectedYear);
     const isCurrentYear = currentYearInfo?.isCurrent || false;
 
-  const exportToCSV = () => {
+const exportToCSV = () => {
     if (!selectedStudent || Object.keys(grouped_data).length === 0) {
         return;
     }
@@ -112,7 +112,13 @@ export default function Evolutie() {
         
         testsInCategory.forEach(test => {
             test.all_scores.forEach(score => {
-                csvContent += `"${test.naam}","${new Date(score.datum.toDate()).toLocaleDateString('nl-BE')}","${score.score}","${test.eenheid}","${score.rapportpunt || '-'}"\n`;
+                // Simple date formatting since datum is already converted to Date object in getStudentEvolutionData
+                let formattedDate = '-';
+                if (score.datum && score.datum instanceof Date && !isNaN(score.datum.getTime())) {
+                    formattedDate = score.datum.toLocaleDateString('nl-BE');
+                }
+                
+                csvContent += `"${test.naam}","${formattedDate}","${score.score}","${test.eenheid}","${score.rapportpunt || '-'}"\n`;
             });
         });
         csvContent += '\n';
