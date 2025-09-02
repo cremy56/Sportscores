@@ -35,70 +35,87 @@ export default function SchemaDetail() {
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
     const isCurrentUser = profile?.id === leerlingProfiel?.id || profile?.email === leerlingProfiel?.email;
 
-    useEffect(() => {
-        const fetchData = async () => {
-            if (!profile || !schemaData) {
-                console.log("Wachten op profiel en schema data...");
-                setLoading(false);
-                return;
-            }
-
-            setLoading(true);
-            
+  useEffect(() => {
+    const fetchData = async () => {
+        console.log("=== FETCHDATA START ===");
+        console.log("profile:", profile);
+        console.log("schemaData:", schemaData);
+        
+        if (!profile || !schemaData) {
+            console.log("Missing profile or schemaData - stopping");
+            setLoading(false);
+            return;
+        }
+        
+        console.log("Starting data fetch...");
+        setLoading(true);
+        
+        // Voeg timeout toe
+        const timeoutId = setTimeout(() => {
+            console.error("Fetch timeout - something is stuck");
+            setLoading(false);
+        }, 10000); // 10 seconden timeout
+        
+        try {
             const { userId, schemaTemplateId } = schemaData;
+            console.log("userId:", userId);
+            console.log("schemaTemplateId:", schemaTemplateId);
             const schemaId = `${userId}_${schemaTemplateId}`;
 
             const leerlingRef = doc(db, 'users', userId);
             const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
             const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
 
-            try {
-                const [leerlingSnap, schemaDetailsSnap, actiefSchemaSnap] = await Promise.all([
-                    getDoc(leerlingRef),
-                    getDoc(schemaDetailsRef),
-                    getDoc(actiefSchemaRef)
-                ]);
+            const [leerlingSnap, schemaDetailsSnap, actiefSchemaSnap] = await Promise.all([
+                getDoc(leerlingRef),
+                getDoc(schemaDetailsRef),
+                getDoc(actiefSchemaRef)
+            ]);
 
-                // Zoek leerling data
-                if (leerlingSnap.exists()) {
-                    setLeerlingProfiel(leerlingSnap.data());
+            // Zoek leerling data
+            if (leerlingSnap.exists()) {
+                setLeerlingProfiel(leerlingSnap.data());
+            } else {
+                // Fallback zoeken in verschillende collecties
+                const toegestaneQuery = query(
+                    collection(db, 'toegestane_gebruikers'),
+                    where('email', '==', userId)
+                );
+                const toegestaneSnapshot = await getDocs(toegestaneQuery);
+                
+                if (!toegestaneSnapshot.empty) {
+                    setLeerlingProfiel(toegestaneSnapshot.docs[0].data());
                 } else {
-                    // Fallback zoeken in verschillende collecties
-                    const toegestaneQuery = query(
-                        collection(db, 'toegestane_gebruikers'),
-                        where('email', '==', userId)
-                    );
-                    const toegestaneSnapshot = await getDocs(toegestaneQuery);
-                    
-                    if (!toegestaneSnapshot.empty) {
-                        setLeerlingProfiel(toegestaneSnapshot.docs[0].data());
-                    } else {
-                        const toegestaneRef = doc(db, 'toegestane_gebruikers', userId);
-                        const toegestaneSnap = await getDoc(toegestaneRef);
-                        if (toegestaneSnap.exists()) {
-                            setLeerlingProfiel(toegestaneSnap.data());
-                        }
+                    const toegestaneRef = doc(db, 'toegestane_gebruikers', userId);
+                    const toegestaneSnap = await getDoc(toegestaneRef);
+                    if (toegestaneSnap.exists()) {
+                        setLeerlingProfiel(toegestaneSnap.data());
                     }
                 }
-
-                if (schemaDetailsSnap.exists()) {
-                    setSchemaDetails({ id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() });
-                }
-
-                if (actiefSchemaSnap.exists()) {
-                    setActiefSchema({ id: actiefSchemaSnap.id, ...actiefSchemaSnap.data() });
-                }
-
-            } catch (error) {
-                console.error("Fout bij ophalen schema data:", error);
-                toast.error("Kon de schema gegevens niet laden.");
-            } finally {
-                setLoading(false);
             }
-        };
 
-        fetchData();
-    }, [profile, schemaData]);
+            if (schemaDetailsSnap.exists()) {
+                setSchemaDetails({ id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() });
+            }
+
+            if (actiefSchemaSnap.exists()) {
+                setActiefSchema({ id: actiefSchemaSnap.id, ...actiefSchemaSnap.data() });
+            }
+
+            clearTimeout(timeoutId); // Cancel timeout als succesvol
+            console.log("=== FETCHDATA SUCCESS ===");
+            
+        } catch (error) {
+            clearTimeout(timeoutId);
+            console.error("Fout bij ophalen schema data:", error);
+            toast.error("Kon de schema gegevens niet laden.");
+        } finally {
+            setLoading(false); // DIT ONTBRAK - altijd loading op false zetten
+        }
+    };
+
+    fetchData();
+}, [profile, schemaData]);
 
     useEffect(() => {
         return () => {
