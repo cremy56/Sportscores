@@ -93,6 +93,8 @@ export default function Evolutie() {
     const currentYearInfo = availableYears.find(year => year.value === selectedYear);
     const isCurrentYear = currentYearInfo?.isCurrent || false;
 
+// Vervang je huidige exportToCSV functie in Evolutie.jsx met deze verbeterde versie:
+
 const exportToCSV = () => {
     if (!selectedStudent || Object.keys(grouped_data).length === 0) {
         return;
@@ -101,28 +103,253 @@ const exportToCSV = () => {
     let csvContent = '';
     
     // Header informatie
-    csvContent += `Leerling,${selectedStudent.naam}\n`;
+    csvContent += `EVOLUTIE RAPPORT - ${selectedStudent.naam.toUpperCase()}\n`;
     csvContent += `Schooljaar,${selectedYear === 'all' ? 'Alle Schooljaren' : formatSchoolYear(selectedYear)}\n`;
-    csvContent += `Export datum,${new Date().toLocaleDateString('nl-BE')}\n\n`;
+    csvContent += `Export datum,${new Date().toLocaleDateString('nl-BE')}\n`;
+    csvContent += `Export tijd,${new Date().toLocaleTimeString('nl-BE')}\n`;
+    csvContent += `Totaal aantal scores,${totalScores}\n`;
+    csvContent += `Aantal categorieën,${Object.keys(grouped_data).length}\n\n`;
     
-    // Data per categorie
-    Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
-        csvContent += `Categorie: ${categoryName}\n`;
-        csvContent += `Test,Datum,Score,Eenheid,Rapportpunt\n`;
+    // Functie voor statistieken berekening
+    const calculateStats = (testsInCategory) => {
+        const allScores = testsInCategory.flatMap(test => 
+            test.all_scores.map(score => ({
+                ...score,
+                datum: score.datum,
+                numericScore: parseFloat(score.score)
+            }))
+        ).filter(score => !isNaN(score.numericScore))
+          .sort((a, b) => new Date(a.datum) - new Date(b.datum));
         
-        testsInCategory.forEach(test => {
+        if (allScores.length === 0) return null;
+        
+        const scores = allScores.map(s => s.numericScore);
+        const sum = scores.reduce((a, b) => a + b, 0);
+        const average = sum / scores.length;
+        const min = Math.min(...scores);
+        const max = Math.max(...scores);
+        
+        // Trend berekening (vergelijk eerste en laatste scores)
+        let trend = 'Stabiel';
+        let improvement = 0;
+        
+        if (allScores.length >= 2) {
+            const firstScore = allScores[0].numericScore;
+            const lastScore = allScores[allScores.length - 1].numericScore;
+            improvement = ((lastScore - firstScore) / firstScore) * 100;
+            
+            if (improvement > 10) trend = 'Sterk stijgend';
+            else if (improvement > 2) trend = 'Stijgend';
+            else if (improvement < -10) trend = 'Sterk dalend';
+            else if (improvement < -2) trend = 'Dalend';
+        }
+        
+        // Standaarddeviatie
+        const variance = scores.reduce((acc, score) => acc + Math.pow(score - average, 2), 0) / scores.length;
+        const standardDeviation = Math.sqrt(variance);
+        
+        return {
+            count: allScores.length,
+            average: Math.round(average * 10) / 10,
+            min,
+            max,
+            trend,
+            improvement: Math.round(improvement * 10) / 10,
+            standardDeviation: Math.round(standardDeviation * 10) / 10,
+            firstScore: allScores[0].numericScore,
+            lastScore: allScores[allScores.length - 1].numericScore
+        };
+    };
+    
+    // OVERZICHT - Statistieken per categorie
+    csvContent += `STATISTISCH OVERZICHT\n`;
+    csvContent += `Categorie,Aantal Tests,Aantal Scores,Gemiddelde,Min Score,Max Score,Eerste Score,Laatste Score,Trend,Verbetering %,Standaard Deviatie\n`;
+    
+    Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
+        const stats = calculateStats(testsInCategory);
+        if (stats) {
+            csvContent += `"${categoryName}",${testsInCategory.length},${stats.count},${stats.average},${stats.min},${stats.max},${stats.firstScore},${stats.lastScore},"${stats.trend}",${stats.improvement},${stats.standardDeviation}\n`;
+        }
+    });
+    
+    csvContent += `\n`;
+    
+    // AANBEVELINGEN op basis van trends
+    csvContent += `AANBEVELINGEN\n`;
+    csvContent += `Categorie,Aanbeveling\n`;
+    
+    Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
+        const stats = calculateStats(testsInCategory);
+        if (stats) {
+            let recommendation = '';
+            
+            if (stats.improvement > 15) {
+                recommendation = 'Uitstekende vooruitgang! Behoud de huidige aanpak en blijf uitdagen.';
+            } else if (stats.improvement > 5) {
+                recommendation = 'Goede vooruitgang zichtbaar. Overweeg intensivering van oefeningen.';
+            } else if (stats.improvement > 0) {
+                recommendation = 'Lichte verbetering. Focus op consistentie en geleidelijke opbouw.';
+            } else if (stats.improvement > -5) {
+                recommendation = 'Stabiele prestaties. Zoek naar nieuwe uitdagingen om groei te stimuleren.';
+            } else if (stats.improvement > -15) {
+                recommendation = 'Dalende trend. Herzie de aanpak en zoek extra ondersteuning.';
+            } else {
+                recommendation = 'Sterke daling. Direct ingrijpen nodig - overleg met begeleider.';
+            }
+            
+            // Extra aanbeveling op basis van spreiding
+            if (stats.standardDeviation > stats.average * 0.3) {
+                recommendation += ' Let op: grote variatie in scores - werk aan consistentie.';
+            }
+            
+            csvContent += `"${categoryName}","${recommendation}"\n`;
+        }
+    });
+    
+    csvContent += `\n`;
+    
+    // GEDETAILLEERDE DATA per categorie
+    csvContent += `GEDETAILLEERDE SCOREGEGEVENS\n\n`;
+    
+    Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
+        const stats = calculateStats(testsInCategory);
+        
+        csvContent += `CATEGORIE: ${categoryName}\n`;
+        if (stats) {
+            csvContent += `Samenvatting: ${stats.count} scores | Gemiddelde: ${stats.average} | Trend: ${stats.trend} (${stats.improvement > 0 ? '+' : ''}${stats.improvement}%)\n`;
+        }
+        csvContent += `Test,Datum,Score,Eenheid,Rapportpunt,Verschil t.o.v. vorige,Positie in categorie,Opmerkingen\n`;
+        
+        // Verzamel alle scores voor rangschikking
+        const allCategoryScores = testsInCategory.flatMap(test => 
+            test.all_scores.map(score => parseFloat(score.score))
+        ).filter(score => !isNaN(score)).sort((a, b) => a - b);
+        
+        // Sorteer tests op datum voor chronologische volgorde
+        const sortedTests = testsInCategory.map(test => ({
+            ...test,
+            all_scores: test.all_scores.sort((a, b) => new Date(a.datum) - new Date(b.datum))
+        }));
+        
+        let previousScore = null;
+        const allTestScores = [];
+        
+        // Verzamel alle scores in chronologische volgorde
+        sortedTests.forEach(test => {
             test.all_scores.forEach(score => {
-                // Simple date formatting since datum is already converted to Date object in getStudentEvolutionData
-                let formattedDate = '-';
-                if (score.datum && score.datum instanceof Date && !isNaN(score.datum.getTime())) {
-                    formattedDate = score.datum.toLocaleDateString('nl-BE');
-                }
-                
-                csvContent += `"${test.test_naam || test.naam || 'Onbekende test'}","${formattedDate}","${score.score}","${test.eenheid}","${score.rapportpunt || '-'}"\n`;
+                allTestScores.push({
+                    testName: test.test_naam || test.naam || 'Onbekende test',
+                    score: score,
+                    unit: test.eenheid
+                });
             });
         });
-        csvContent += '\n';
+        
+        // Sorteer alle scores op datum
+        allTestScores.sort((a, b) => new Date(a.score.datum) - new Date(b.score.datum));
+        
+        // Voeg scores toe aan CSV
+        allTestScores.forEach(testScore => {
+            let formattedDate = '-';
+            if (testScore.score.datum && testScore.score.datum instanceof Date && !isNaN(testScore.score.datum.getTime())) {
+                formattedDate = testScore.score.datum.toLocaleDateString('nl-BE');
+            }
+            
+            const currentScore = parseFloat(testScore.score.score);
+            let difference = '-';
+            if (previousScore !== null && !isNaN(currentScore)) {
+                const diff = currentScore - previousScore;
+                difference = diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
+            }
+            
+            // Bereken positie in categorie (percentiel)
+            let position = '-';
+            if (!isNaN(currentScore) && allCategoryScores.length > 1) {
+                const rank = allCategoryScores.filter(s => s <= currentScore).length;
+                const percentile = Math.round((rank / allCategoryScores.length) * 100);
+                position = `${percentile}e percentiel`;
+            }
+            
+            csvContent += `"${testScore.testName}","${formattedDate}","${testScore.score.score}","${testScore.unit}","${testScore.score.rapportpunt || '-'}","${difference}","${position}","${testScore.score.opmerkingen || '-'}"\n`;
+            
+            if (!isNaN(currentScore)) {
+                previousScore = currentScore;
+            }
+        });
+        
+        csvContent += `\n`;
     });
+    
+    // TIJDLIJN ANALYSE
+    csvContent += `TIJDLIJN ANALYSE\n`;
+    csvContent += `Maand,Jaar,Aantal Scores,Gemiddelde Score Alle Categorieën\n`;
+    
+    // Verzamel alle scores met datum
+    const allScoresByDate = [];
+    Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
+        testsInCategory.forEach(test => {
+            test.all_scores.forEach(score => {
+                if (score.datum && score.datum instanceof Date && !isNaN(score.datum.getTime())) {
+                    allScoresByDate.push({
+                        date: score.datum,
+                        score: parseFloat(score.score),
+                        category: categoryName
+                    });
+                }
+            });
+        });
+    });
+    
+    // Groepeer per maand
+    const scoresByMonth = {};
+    allScoresByDate.forEach(item => {
+        if (!isNaN(item.score)) {
+            const monthKey = `${item.date.getFullYear()}-${String(item.date.getMonth() + 1).padStart(2, '0')}`;
+            if (!scoresByMonth[monthKey]) {
+                scoresByMonth[monthKey] = [];
+            }
+            scoresByMonth[monthKey].push(item.score);
+        }
+    });
+    
+    // Voeg maandelijkse samenvattingen toe
+    Object.keys(scoresByMonth).sort().forEach(monthKey => {
+        const [year, month] = monthKey.split('-');
+        const monthNames = ['Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
+        const monthName = monthNames[parseInt(month) - 1];
+        const scores = scoresByMonth[monthKey];
+        const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+        
+        csvContent += `${monthName},${year},${scores.length},${Math.round(avgScore * 10) / 10}\n`;
+    });
+    
+    csvContent += `\n`;
+    
+    // TOTAAL SAMENVATTING
+    const allNumericScores = [];
+    Object.values(grouped_data).forEach(testsInCategory => {
+        testsInCategory.forEach(test => {
+            test.all_scores.forEach(score => {
+                const numScore = parseFloat(score.score);
+                if (!isNaN(numScore)) {
+                    allNumericScores.push(numScore);
+                }
+            });
+        });
+    });
+    
+    if (allNumericScores.length > 0) {
+        const overallAverage = allNumericScores.reduce((a, b) => a + b, 0) / allNumericScores.length;
+        const overallMin = Math.min(...allNumericScores);
+        const overallMax = Math.max(...allNumericScores);
+        
+        csvContent += `TOTAAL SAMENVATTING\n`;
+        csvContent += `Totaal aantal scores,${allNumericScores.length}\n`;
+        csvContent += `Gemiddelde over alle categorieën,${Math.round(overallAverage * 10) / 10}\n`;
+        csvContent += `Laagste score ooit,${overallMin}\n`;
+        csvContent += `Hoogste score ooit,${overallMax}\n`;
+        csvContent += `Score spreiding,${Math.round((overallMax - overallMin) * 10) / 10}\n`;
+    }
     
     // Download CSV
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -131,7 +358,7 @@ const exportToCSV = () => {
     link.setAttribute('href', url);
     
     const yearLabel = selectedYear === 'all' ? 'Alle_Jaren' : formatSchoolYear(selectedYear).replace('/', '-');
-    const fileName = `${selectedStudent.naam.replace(/\s+/g, '_')}_Evolutie_${yearLabel}.csv`;
+    const fileName = `${selectedStudent.naam.replace(/\s+/g, '_')}_Uitgebreid_Evolutie_${yearLabel}.csv`;
     link.setAttribute('download', fileName);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
