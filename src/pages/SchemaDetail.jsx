@@ -7,6 +7,7 @@ import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc } fro
 import { ArrowLeftIcon, PlayIcon, CheckCircleIcon, ClockIcon, CameraIcon, StarIcon, TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid';
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { useState, useEffect, useMemo } from 'react'; // Voeg useMemo toe
 
 export default function SchemaDetail() {
     
@@ -24,7 +25,7 @@ export default function SchemaDetail() {
         return parsed;
     };
 
-    const schemaData = getSchemaFromStorage();
+    const schemaData = useMemo(() => getSchemaFromStorage(), []);
     
     // ALLE HOOKS EERST - ALTIJD IN DEZELFDE VOLGORDE
     const [actiefSchema, setActiefSchema] = useState(null);
