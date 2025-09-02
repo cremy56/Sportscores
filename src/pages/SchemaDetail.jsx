@@ -30,6 +30,21 @@ export default function SchemaDetail() {
     const [leerlingProfiel, setLeerlingProfiel] = useState(null);
     const [loading, setLoading] = useState(true);
 
+if (!schemaData) {
+    return (
+        <div className="fixed inset-0 bg-slate-50">
+            <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+                <div className="bg-white rounded-2xl shadow-sm p-8">
+                    <p className="text-lg text-slate-600 mb-4">Deze pagina is niet direct toegankelijk.</p>
+                    <Link to="/groeiplan" className="text-purple-600 hover:text-purple-700 font-medium">
+                        Ga naar groeiplan overzicht
+                    </Link>
+                </div>
+            </div>
+        </div>
+    );
+}
+
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
     const isCurrentUser = profile?.id === leerlingProfiel?.id || profile?.email === leerlingProfiel?.email;
 
@@ -353,20 +368,7 @@ useEffect(() => {
         trainingsXP: totalTrainingsXP
     };
 };
-if (!schemaData) {
-    return (
-        <div className="fixed inset-0 bg-slate-50">
-            <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-                <div className="bg-white rounded-2xl shadow-sm p-8">
-                    <p className="text-lg text-slate-600 mb-4">Deze pagina is niet direct toegankelijk.</p>
-                    <Link to="/groeiplan" className="text-purple-600 hover:text-purple-700 font-medium">
-                        Ga naar groeiplan overzicht
-                    </Link>
-                </div>
-            </div>
-        </div>
-    );
-}
+
     if (loading) {
         return (
             <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
