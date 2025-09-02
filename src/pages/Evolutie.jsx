@@ -170,51 +170,49 @@ export default function Evolutie() {
                             </div>
                             
                             {/* Controls sectie */}
-                            <div className="lg:flex-shrink-0 lg:w-[500px]">
-                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 items-end">
-                                    <div>
-                                        <label className="inline-block text-sm font-medium text-slate-700 mb-2">
-                                            Zoek Leerling
-                                        </label>
-                                        <StudentSearch 
-                                             onStudentSelect={setSelectedStudent}
-                                            schoolId={profile?.school_id}
-                                            initialStudent={selectedStudent}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="school-year-select" className="inline-block text-sm font-medium text-slate-700 mb-2">
-                                            Schooljaar
-                                        </label>
-                                        <select
-                                            id="school-year-select"
-                                            value={selectedYear}
-                                            onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                                            className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg"
-                                        >
-                                            {availableYears.map(year => (
-                                                <option key={year.value} value={year.value}>
-                                                    {year.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                                <label className="inline-block text-sm font-medium text-slate-700 mb-2">
-                                                    Export
-                                                </label>
-                                                <button
-                                                    onClick={exportToExcel}
-                                                    disabled={!selectedStudent || Object.keys(grouped_data).length === 0}
-                                                    className="w-full h-10 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
-                                                >
-                                                    Excel Export
-                                                </button>
-                                            </div>
-
-
-                                </div>
-                            </div>
+<div className="lg:flex-shrink-0 lg:w-[600px]">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 items-end">
+        <div>
+            <label className="inline-block text-sm font-medium text-slate-700 mb-2">
+                Zoek Leerling
+            </label>
+            <StudentSearch 
+                onStudentSelect={setSelectedStudent}
+                schoolId={profile?.school_id}
+                initialStudent={selectedStudent}
+            />
+        </div>
+        <div>
+            <label htmlFor="school-year-select" className="inline-block text-sm font-medium text-slate-700 mb-2">
+                Schooljaar
+            </label>
+            <select
+                id="school-year-select"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg"
+            >
+                {availableYears.map(year => (
+                    <option key={year.value} value={year.value}>
+                        {year.label}
+                    </option>
+                ))}
+            </select>
+        </div>
+        <div>
+            <label className="inline-block text-sm font-medium text-slate-700 mb-2">
+                Export
+            </label>
+            <button
+                onClick={exportToExcel}
+                disabled={!selectedStudent || Object.keys(grouped_data).length === 0}
+                className="w-full h-10 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+            >
+                Excel Export
+            </button>
+        </div>
+    </div>
+</div>
                         </div>
                     </div>
                 ) : (
@@ -239,42 +237,46 @@ export default function Evolutie() {
                             </div>
                             
                             {/* Controls sectie voor leerling */}
-                            <div className="sm:flex-shrink-0 sm:w-64">
-                                <label htmlFor="student-year-select" className="inline-block text-sm font-medium text-slate-700 mb-2">
-                                    <span className="flex items-center justify-center sm:justify-start">
-                                        Bekijk schooljaar
-                                        {isCurrentYear && (
-                                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                Huidig
-                                            </span>
-                                        )}
-                                    </span>
-                                </label>
-                                <select
-                                    id="student-year-select"
-                                    value={selectedYear}
-                                    onChange={(e) => handleYearChange(e.target.value)}
-                                    className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
-                                >
-                                    {availableYears.map(year => (
-                                        <option key={year.value} value={year.value}>
-                                            {year.label}{year.isCurrent ? ' (Huidig)' : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                                    <div>
-                                        <label className="inline-block text-sm font-medium text-slate-700 mb-2">
-                                            Export
-                                        </label>
-                                        <button
-                                            onClick={exportToExcel}
-                                            disabled={Object.keys(grouped_data).length === 0}
-                                            className="w-full h-10 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
-                                        >
-                                            Excel Export
-                                        </button>
-                                    </div>
+<div className="sm:flex-shrink-0 sm:w-80">
+    <div className="grid grid-cols-2 gap-3">
+        <div>
+            <label htmlFor="student-year-select" className="inline-block text-sm font-medium text-slate-700 mb-2">
+                <span className="flex items-center justify-center sm:justify-start">
+                    Bekijk schooljaar
+                    {isCurrentYear && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Huidig
+                        </span>
+                    )}
+                </span>
+            </label>
+            <select
+                id="student-year-select"
+                value={selectedYear}
+                onChange={(e) => handleYearChange(e.target.value)}
+                className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-purple-500 focus:ring-purple-500 text-sm"
+            >
+                {availableYears.map(year => (
+                    <option key={year.value} value={year.value}>
+                        {year.label}{year.isCurrent ? ' (Huidig)' : ''}
+                    </option>
+                ))}
+            </select>
+        </div>
+        <div>
+            <label className="inline-block text-sm font-medium text-slate-700 mb-2">
+                Export
+            </label>
+            <button
+                onClick={exportToExcel}
+                disabled={Object.keys(grouped_data).length === 0}
+                className="w-full h-10 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+            >
+                Excel Export
+            </button>
+        </div>
+    </div>
+</div>
 
                         </div>
                     </div>
