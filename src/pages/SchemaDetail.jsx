@@ -353,19 +353,6 @@ useEffect(() => {
         trainingsXP: totalTrainingsXP
     };
 };
-
-    if (loading) {
-        return (
-            <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
-                <div className="bg-white p-8 rounded-2xl shadow-sm">
-                    <div className="flex items-center space-x-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                        <span className="text-gray-700 font-medium">Training wordt geladen...</span>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 if (!schemaData) {
     return (
         <div className="fixed inset-0 bg-slate-50">
@@ -380,6 +367,19 @@ if (!schemaData) {
         </div>
     );
 }
+    if (loading) {
+        return (
+            <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
+                <div className="bg-white p-8 rounded-2xl shadow-sm">
+                    <div className="flex items-center space-x-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                        <span className="text-gray-700 font-medium">Training wordt geladen...</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (!schemaDetails) {
         return (
             <div className="fixed inset-0 bg-slate-50">
