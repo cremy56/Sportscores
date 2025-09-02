@@ -71,12 +71,11 @@ export default function Evolutie() {
         return acc;
     }, {});
 
-    const pageTitle = (profile?.rol === 'leerkracht' || profile?.rol === 'administrator') 
+    const pageTitle = (profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator') 
         ? 'Evolutie leerlingen' 
         : 'Mijn Evolutie';
 
-    const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
-
+    const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator';
     const handleStudentSelect = (student) => {
         setSelectedStudent(student);
         setError(null);
