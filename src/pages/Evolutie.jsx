@@ -5,6 +5,7 @@ import StudentSearch from '../components/StudentSearch';
 import EvolutionCard from '../components/EvolutionCard';
 import PageHeader from '../components/PageHeader';
 import { getStudentEvolutionData } from '../utils/firebaseUtils';
+import * as XLSX from 'xlsx';
 import { 
     generateSchoolYears, 
     getCurrentSchoolYear, 
@@ -92,6 +93,46 @@ export default function Evolutie() {
     const currentYearInfo = availableYears.find(year => year.value === selectedYear);
     const isCurrentYear = currentYearInfo?.isCurrent || false;
 
+    const exportToExcel = () => {
+    if (!selectedStudent || Object.keys(grouped_data).length === 0) {
+        return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+    
+    // Maak een werkblad per categorie
+    Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
+        const worksheetData = [];
+        
+        testsInCategory.forEach(test => {
+            // Header voor elke test
+            worksheetData.push([`Test: ${test.naam}`, '', '', '']);
+            worksheetData.push(['Datum', 'Score', `Eenheid (${test.eenheid})`, 'Rapportpunt']);
+            
+            // Scores voor deze test
+            test.all_scores.forEach(score => {
+                worksheetData.push([
+                    new Date(score.datum.toDate()).toLocaleDateString('nl-BE'),
+                    score.score,
+                    test.eenheid,
+                    score.rapportpunt || '-'
+                ]);
+            });
+            
+            // Lege rij tussen testen
+            worksheetData.push(['', '', '', '']);
+        });
+        
+        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+        XLSX.utils.book_append_sheet(workbook, worksheet, categoryName.substring(0, 31)); // Excel sheet naam limiet
+    });
+    
+    // Download bestand
+    const yearLabel = selectedYear === 'all' ? 'Alle_Jaren' : formatSchoolYear(selectedYear).replace('/', '-');
+    const fileName = `${selectedStudent.naam.replace(/\s+/g, '_')}_Evolutie_${yearLabel}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+};
+
     if (loading && !evolutionData.length) {
         return (
             <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
@@ -158,6 +199,20 @@ export default function Evolutie() {
                                             ))}
                                         </select>
                                     </div>
+                                    <div>
+                                                <label className="inline-block text-sm font-medium text-slate-700 mb-2">
+                                                    Export
+                                                </label>
+                                                <button
+                                                    onClick={exportToExcel}
+                                                    disabled={!selectedStudent || Object.keys(grouped_data).length === 0}
+                                                    className="w-full h-10 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                                                >
+                                                    Excel Export
+                                                </button>
+                                            </div>
+
+
                                 </div>
                             </div>
                         </div>
@@ -208,6 +263,19 @@ export default function Evolutie() {
                                     ))}
                                 </select>
                             </div>
+                                    <div>
+                                        <label className="inline-block text-sm font-medium text-slate-700 mb-2">
+                                            Export
+                                        </label>
+                                        <button
+                                            onClick={exportToExcel}
+                                            disabled={Object.keys(grouped_data).length === 0}
+                                            className="w-full h-10 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                                        >
+                                            Excel Export
+                                        </button>
+                                    </div>
+
                         </div>
                     </div>
                 )}
