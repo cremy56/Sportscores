@@ -5,7 +5,7 @@ import StudentSearch from '../components/StudentSearch';
 import EvolutionCard from '../components/EvolutionCard';
 import PageHeader from '../components/PageHeader';
 import { getStudentEvolutionData } from '../utils/firebaseUtils';
-import { utils, writeFile } from 'xlsx';
+
 import { 
     generateSchoolYears, 
     getCurrentSchoolYear, 
@@ -93,46 +93,44 @@ export default function Evolutie() {
     const currentYearInfo = availableYears.find(year => year.value === selectedYear);
     const isCurrentYear = currentYearInfo?.isCurrent || false;
 
-   const exportToExcel = async () => {
+  const exportToCSV = () => {
     if (!selectedStudent || Object.keys(grouped_data).length === 0) {
         return;
     }
 
-    try {
-        const XLSX = await import('xlsx');
-        const workbook = XLSX.utils.book_new();
+    let csvContent = '';
+    
+    // Header informatie
+    csvContent += `Leerling,${selectedStudent.naam}\n`;
+    csvContent += `Schooljaar,${selectedYear === 'all' ? 'Alle Schooljaren' : formatSchoolYear(selectedYear)}\n`;
+    csvContent += `Export datum,${new Date().toLocaleDateString('nl-BE')}\n\n`;
+    
+    // Data per categorie
+    Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
+        csvContent += `Categorie: ${categoryName}\n`;
+        csvContent += `Test,Datum,Score,Eenheid,Rapportpunt\n`;
         
-        // Rest van de functie blijft hetzelfde, maar gebruik XLSX.utils en XLSX.writeFile
-        Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
-            const worksheetData = [];
-            
-            testsInCategory.forEach(test => {
-                worksheetData.push([`Test: ${test.naam}`, '', '', '']);
-                worksheetData.push(['Datum', 'Score', `Eenheid (${test.eenheid})`, 'Rapportpunt']);
-                
-                test.all_scores.forEach(score => {
-                    worksheetData.push([
-                        new Date(score.datum.toDate()).toLocaleDateString('nl-BE'),
-                        score.score,
-                        test.eenheid,
-                        score.rapportpunt || '-'
-                    ]);
-                });
-                
-                worksheetData.push(['', '', '', '']);
+        testsInCategory.forEach(test => {
+            test.all_scores.forEach(score => {
+                csvContent += `"${test.naam}","${new Date(score.datum.toDate()).toLocaleDateString('nl-BE')}","${score.score}","${test.eenheid}","${score.rapportpunt || '-'}"\n`;
             });
-            
-            const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-            XLSX.utils.book_append_sheet(workbook, worksheet, categoryName.substring(0, 31));
         });
-        
-        const yearLabel = selectedYear === 'all' ? 'Alle_Jaren' : formatSchoolYear(selectedYear).replace('/', '-');
-        const fileName = `${selectedStudent.naam.replace(/\s+/g, '_')}_Evolutie_${yearLabel}.xlsx`;
-        XLSX.writeFile(workbook, fileName);
-    } catch (error) {
-        console.error('Error loading XLSX:', error);
-        alert('Excel export niet beschikbaar');
-    }
+        csvContent += '\n';
+    });
+    
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    
+    const yearLabel = selectedYear === 'all' ? 'Alle_Jaren' : formatSchoolYear(selectedYear).replace('/', '-');
+    const fileName = `${selectedStudent.naam.replace(/\s+/g, '_')}_Evolutie_${yearLabel}.csv`;
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
 
     if (loading && !evolutionData.length) {
@@ -206,11 +204,11 @@ export default function Evolutie() {
                 Export
             </label>
             <button
-                onClick={exportToExcel}
+                onClick={exportToCSV}
                 disabled={!selectedStudent || Object.keys(grouped_data).length === 0}
                 className="w-full h-10 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
             >
-                Excel Export
+                CSV Export
             </button>
         </div>
     </div>
@@ -270,12 +268,12 @@ export default function Evolutie() {
                 Export
             </label>
             <button
-                onClick={exportToExcel}
-                disabled={Object.keys(grouped_data).length === 0}
-                className="w-full h-10 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
-            >
-                Excel Export
-            </button>
+    onClick={exportToCSV}
+    disabled={Object.keys(grouped_data).length === 0}
+    className="w-full h-10 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+>
+    CSV Export
+</button>
         </div>
     </div>
 </div>
