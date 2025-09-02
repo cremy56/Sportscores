@@ -118,7 +118,7 @@ const exportToCSV = () => {
                     formattedDate = score.datum.toLocaleDateString('nl-BE');
                 }
                 
-                csvContent += `"${test.naam}","${formattedDate}","${score.score}","${test.eenheid}","${score.rapportpunt || '-'}"\n`;
+                csvContent += `"${test.test_naam || test.naam || 'Onbekende test'}","${formattedDate}","${score.score}","${test.eenheid}","${score.rapportpunt || '-'}"\n`;
             });
         });
         csvContent += '\n';
