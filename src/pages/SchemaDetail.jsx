@@ -1,5 +1,5 @@
 // src/pages/SchemaDetail.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
@@ -7,17 +7,18 @@ import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc } fro
 import { ArrowLeftIcon, PlayIcon, CheckCircleIcon, ClockIcon, CameraIcon, StarIcon, TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid';
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-import { useState, useEffect, useMemo } from 'react'; // Voeg useMemo toe
 
 export default function SchemaDetail() {
     
     const { profile } = useOutletContext();
+     // Gebruik useRef om bij te houden of we al aan het fetchen zijn
+    const isFetchingRef = useRef(false);
+    const hasInitializedRef = useRef(false);
     const getSchemaFromStorage = () => {
         const stored = sessionStorage.getItem('currentSchema');
         if (!stored) return null;
         
         const parsed = JSON.parse(stored);
-        // Check if data is not too old (30 minutes)
         if (Date.now() - parsed.timestamp > 30 * 60 * 1000) {
             sessionStorage.removeItem('currentSchema');
             return null;
@@ -37,41 +38,35 @@ export default function SchemaDetail() {
     const isCurrentUser = profile?.id === leerlingProfiel?.id || profile?.email === leerlingProfiel?.email;
 
   useEffect(() => {
-    const fetchData = async () => {
-        console.log("=== FETCHDATA START ===");
-        console.log("profile:", profile);
-        console.log("schemaData:", schemaData);
-        
-        if (!profile || !schemaData) {
-            console.log("Missing profile or schemaData - stopping");
-            setLoading(false);
+    // Voorkom multiple fetches
+        if (isFetchingRef.current || hasInitializedRef.current) {
             return;
         }
-        
-        console.log("Starting data fetch...");
-        setLoading(true);
-        
-        // Voeg timeout toe
-        const timeoutId = setTimeout(() => {
-            console.error("Fetch timeout - something is stuck");
-            setLoading(false);
-        }, 10000); // 10 seconden timeout
-        
-        try {
+    const fetchData = async () => {
+            console.log("=== FETCHDATA START (ONCE) ===");
+            
+            if (!profile || !schemaData) {
+                console.log("Missing profile or schemaData - stopping");
+                setLoading(false);
+                return;
+            }
+
+            isFetchingRef.current = true;
+            setLoading(true);
+            
+            try {
             const { userId, schemaTemplateId } = schemaData;
-            console.log("userId:", userId);
-            console.log("schemaTemplateId:", schemaTemplateId);
-            const schemaId = `${userId}_${schemaTemplateId}`;
+                const schemaId = `${userId}_${schemaTemplateId}`;
 
-            const leerlingRef = doc(db, 'users', userId);
-            const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
-            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
+                const leerlingRef = doc(db, 'users', userId);
+                const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
+                const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
 
-            const [leerlingSnap, schemaDetailsSnap, actiefSchemaSnap] = await Promise.all([
-                getDoc(leerlingRef),
-                getDoc(schemaDetailsRef),
-                getDoc(actiefSchemaRef)
-            ]);
+                const [leerlingSnap, schemaDetailsSnap, actiefSchemaSnap] = await Promise.all([
+                    getDoc(leerlingRef),
+                    getDoc(schemaDetailsRef),
+                    getDoc(actiefSchemaRef)
+                ]);
 
             // Zoek leerling data
             if (leerlingSnap.exists()) {
@@ -103,20 +98,21 @@ export default function SchemaDetail() {
                 setActiefSchema({ id: actiefSchemaSnap.id, ...actiefSchemaSnap.data() });
             }
 
-            clearTimeout(timeoutId); // Cancel timeout als succesvol
-            console.log("=== FETCHDATA SUCCESS ===");
+            hasInitializedRef.current = true;
+                console.log("=== FETCHDATA SUCCESS (ONCE) ===");
             
         } catch (error) {
-            clearTimeout(timeoutId);
+            
             console.error("Fout bij ophalen schema data:", error);
             toast.error("Kon de schema gegevens niet laden.");
         } finally {
             setLoading(false); // DIT ONTBRAK - altijd loading op false zetten
+            isFetchingRef.current = false;
         }
     };
 
     fetchData();
-}, [profile, schemaData]);
+  });
 
     useEffect(() => {
         return () => {
