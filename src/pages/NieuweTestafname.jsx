@@ -5,7 +5,8 @@ import { db, auth } from '../firebase';
 import { collection, query, where, getDocs, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, PencilIcon, ChevronUpIcon } from '@heroicons/react/24/outline'; // Voeg PencilIcon en ChevronUpIcon toe
-
+import { Fragment } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
 import { parseTimeInputToSeconds } from '../utils/formatters.js';
 
 // --- HELPER FUNCTIES ---
@@ -349,32 +350,64 @@ export default function NieuweTestafname() {
 
      return (
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-            {warningModal.isOpen && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-lg">
-            <div className="flex items-center mb-4">
-                <ExclamationTriangleIcon className="h-8 w-8 text-yellow-500 mr-3" />
-                <h3 className="text-lg font-bold text-gray-900">Recente Testafname Gevonden</h3>
-            </div>
-            <p className="text-gray-600 mb-6">{warningModal.message}</p>
-            <p className="text-gray-800 font-medium mb-6">Wenst u deze test toch opnieuw af te nemen?</p>
-            <div className="flex justify-end gap-3">
-                <button
-                    onClick={warningModal.onCancel}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+       {/* NIEUW: Waarschuwings-popup */}
+<Transition.Root show={warningModal.isOpen} as={Fragment}>
+    <Dialog as="div" className="relative z-50" onClose={() => {}}>
+        <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+        >
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 z-10 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+                <Transition.Child
+                    as={Fragment}
+                    enter="ease-out duration-300"
+                    enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    enterTo="opacity-100 translate-y-0 sm:scale-100"
+                    leave="ease-in duration-200"
+                    leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                    leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                 >
-                    Nee
-                </button>
-                <button
-                    onClick={warningModal.onConfirm}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-                >
-                    Ja
-                </button>
+                    <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                        <div className="bg-white px-6 py-6">
+                            <div className="flex items-center mb-4">
+                                <ExclamationTriangleIcon className="h-8 w-8 text-yellow-500 mr-3" />
+                                <Dialog.Title as="h3" className="text-lg font-bold text-gray-900">
+                                    Recente Testafname Gevonden
+                                </Dialog.Title>
+                            </div>
+                            <p className="text-gray-600 mb-4">{warningModal.message}</p>
+                            <p className="text-gray-800 font-medium mb-6">Wenst u deze test toch opnieuw af te nemen?</p>
+                        </div>
+                        <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+                            <button
+                                onClick={warningModal.onCancel}
+                                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                            >
+                                Nee
+                            </button>
+                            <button
+                                onClick={warningModal.onConfirm}
+                                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                            >
+                                Ja
+                            </button>
+                        </div>
+                    </Dialog.Panel>
+                </Transition.Child>
             </div>
         </div>
-    </div>
-)}            <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+    </Dialog>
+</Transition.Root>
+         <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
                 <div className="max-w-4xl mx-auto">
                     
                    {/* --- AANGEPAST: MOBIELVRIENDELIJKE HEADER (mb verwijderd) --- */}
