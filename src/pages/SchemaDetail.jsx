@@ -26,7 +26,7 @@ export default function SchemaDetail() {
         return parsed;
     };
 
-    const schemaData = useMemo(() => getSchemaFromStorage(), []);
+    const schemaData = getSchemaFromStorage(); // Gewoon direct aanroepen
     
     // ALLE HOOKS EERST - ALTIJD IN DEZELFDE VOLGORDE
     const [actiefSchema, setActiefSchema] = useState(null);
