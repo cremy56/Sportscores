@@ -93,44 +93,46 @@ export default function Evolutie() {
     const currentYearInfo = availableYears.find(year => year.value === selectedYear);
     const isCurrentYear = currentYearInfo?.isCurrent || false;
 
-   const exportToExcel = () => {
+   const exportToExcel = async () => {
     if (!selectedStudent || Object.keys(grouped_data).length === 0) {
         return;
     }
 
-    const workbook = utils.book_new();
-    
-    // Maak een werkblad per categorie
-    Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
-        const worksheetData = [];
+    try {
+        const XLSX = await import('xlsx');
+        const workbook = XLSX.utils.book_new();
         
-        testsInCategory.forEach(test => {
-            // Header voor elke test
-            worksheetData.push([`Test: ${test.naam}`, '', '', '']);
-            worksheetData.push(['Datum', 'Score', `Eenheid (${test.eenheid})`, 'Rapportpunt']);
+        // Rest van de functie blijft hetzelfde, maar gebruik XLSX.utils en XLSX.writeFile
+        Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
+            const worksheetData = [];
             
-            // Scores voor deze test
-            test.all_scores.forEach(score => {
-                worksheetData.push([
-                    new Date(score.datum.toDate()).toLocaleDateString('nl-BE'),
-                    score.score,
-                    test.eenheid,
-                    score.rapportpunt || '-'
-                ]);
+            testsInCategory.forEach(test => {
+                worksheetData.push([`Test: ${test.naam}`, '', '', '']);
+                worksheetData.push(['Datum', 'Score', `Eenheid (${test.eenheid})`, 'Rapportpunt']);
+                
+                test.all_scores.forEach(score => {
+                    worksheetData.push([
+                        new Date(score.datum.toDate()).toLocaleDateString('nl-BE'),
+                        score.score,
+                        test.eenheid,
+                        score.rapportpunt || '-'
+                    ]);
+                });
+                
+                worksheetData.push(['', '', '', '']);
             });
             
-            // Lege rij tussen testen
-            worksheetData.push(['', '', '', '']);
+            const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+            XLSX.utils.book_append_sheet(workbook, worksheet, categoryName.substring(0, 31));
         });
         
-        const worksheet = utils.aoa_to_sheet(worksheetData);
-        utils.book_append_sheet(workbook, worksheet, categoryName.substring(0, 31));
-    });
-    
-    // Download bestand
-    const yearLabel = selectedYear === 'all' ? 'Alle_Jaren' : formatSchoolYear(selectedYear).replace('/', '-');
-    const fileName = `${selectedStudent.naam.replace(/\s+/g, '_')}_Evolutie_${yearLabel}.xlsx`;
-    writeFile(workbook, fileName);
+        const yearLabel = selectedYear === 'all' ? 'Alle_Jaren' : formatSchoolYear(selectedYear).replace('/', '-');
+        const fileName = `${selectedStudent.naam.replace(/\s+/g, '_')}_Evolutie_${yearLabel}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+    } catch (error) {
+        console.error('Error loading XLSX:', error);
+        alert('Excel export niet beschikbaar');
+    }
 };
 
     if (loading && !evolutionData.length) {
