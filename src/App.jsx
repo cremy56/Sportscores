@@ -167,7 +167,7 @@ function App() {
                         <Route path="/testbeheer" element={<Testbeheer />} />
                         <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
                         <Route path="/groeiplan" element={<Groeiplan />} />
-                        <Route path="/groeiplan/:schemaId" element={<SchemaDetail />} />
+                        <Route path="/groeiplan/schema" element={<SchemaDetail />} />
                         {(profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
                           <>
                             <Route path="/gebruikersbeheer" element={<Gebruikersbeheer />} />

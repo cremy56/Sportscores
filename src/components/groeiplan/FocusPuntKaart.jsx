@@ -64,7 +64,12 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
                 voltooide_taken: {}
             });
             toast.success("Schema gestart! Veel succes!");
-            navigate(`/groeiplan/${schemaInstanceId}`);
+                        sessionStorage.setItem('currentSchema', JSON.stringify({
+                userId: studentIdentifier,
+                schemaTemplateId: schema.id,
+                timestamp: Date.now()
+            }));
+            navigate('/groeiplan/schema');
 
         } catch (error) {
             console.error("Fout bij starten schema:", error);
@@ -73,7 +78,14 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
     };
 
     const handleContinueSchema = () => {
-        navigate(`/groeiplan/${schemaInstanceId}`);
+
+
+            sessionStorage.setItem('currentSchema', JSON.stringify({
+            userId: studentIdentifier,
+            schemaTemplateId: schema.id,
+            timestamp: Date.now()
+        }));
+        navigate('/groeiplan/schema');
     };
 // --- START STYLING AANPASSINGEN ---
     if (isVerplicht) {
@@ -106,12 +118,19 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
 
                 <div className="text-center mt-8">
                     {isTeacherOrAdmin ? (
-                        <Link
-                            to={`/groeiplan/${schemaInstanceId}`}
+                        <button 
+                            onClick={() => {
+                                sessionStorage.setItem('currentSchema', JSON.stringify({
+                                    userId: studentIdentifier,
+                                    schemaTemplateId: schema.id,
+                                    timestamp: Date.now()
+                                }));
+                                navigate('/groeiplan/schema');
+                            }}
                             className="px-8 py-3 bg-slate-600 text-white rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 font-medium"
                         >
                             Bekijk Voortgang
-                        </Link>
+                        </button>
                     ) : loading ? (
                         <div className="px-8 py-3 bg-gray-300 text-gray-500 rounded-xl font-medium cursor-not-allowed">Laden...</div>
                     ) : schemaExists ? (
@@ -158,12 +177,19 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
             <div className="text-center mt-8">
                 {isTeacherOrAdmin ? (
                     // Knop voor de leerkracht
-                    <Link
-                        to={`/groeiplan/${schemaInstanceId}`}
+                    <button 
+                        onClick={() => {
+                            sessionStorage.setItem('currentSchema', JSON.stringify({
+                                userId: studentIdentifier,
+                                schemaTemplateId: schema.id,
+                                timestamp: Date.now()
+                            }));
+                            navigate('/groeiplan/schema');
+                        }}
                         className="px-8 py-3 bg-slate-600 text-white rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 font-medium"
                     >
                         Bekijk Voortgang
-                    </Link>
+                    </button>
                 ) : loading ? (
                     // Loading state voor leerlingen
                     <div className="px-8 py-3 bg-gray-300 text-gray-500 rounded-xl font-medium cursor-not-allowed">

@@ -1,6 +1,6 @@
 // src/pages/SchemaDetail.jsx
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc } from 'firebase/firestore';
@@ -9,8 +9,22 @@ import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 export default function SchemaDetail() {
-    const { schemaId } = useParams();
+    
     const { profile } = useOutletContext();
+    const getSchemaFromStorage = () => {
+        const stored = sessionStorage.getItem('currentSchema');
+        if (!stored) return null;
+        
+        const parsed = JSON.parse(stored);
+        // Check if data is not too old (30 minutes)
+        if (Date.now() - parsed.timestamp > 30 * 60 * 1000) {
+            sessionStorage.removeItem('currentSchema');
+            return null;
+        }
+        return parsed;
+    };
+
+    const schemaData = getSchemaFromStorage();
     const [actiefSchema, setActiefSchema] = useState(null);
     const [schemaDetails, setSchemaDetails] = useState(null);
     const [leerlingProfiel, setLeerlingProfiel] = useState(null);
@@ -19,73 +33,79 @@ export default function SchemaDetail() {
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
     const isCurrentUser = profile?.id === leerlingProfiel?.id || profile?.email === leerlingProfiel?.email;
 
-    useEffect(() => {
-        const fetchData = async () => {
-            if (!profile || !schemaId) {
-                console.log("Wachten op profiel en schemaId...");
-                return;
-            }
+  useEffect(() => {
+    const fetchData = async () => {
+        if (!profile || !schemaData) {
+            console.log("Wachten op profiel en schema data...");
+            setLoading(false);
+            return;
+        }
 
-            setLoading(true);
-            
-            const [leerlingId, schemaTemplateId] = schemaId.split('_');
-            const firstUnderscoreIndex = schemaId.indexOf('_');
-            const actualLeerlingId = schemaId.substring(0, firstUnderscoreIndex);
-            const actualSchemaTemplateId = schemaId.substring(firstUnderscoreIndex + 1);
+        setLoading(true);
+        
+        const { userId, schemaTemplateId } = schemaData;
+        const schemaId = `${userId}_${schemaTemplateId}`;
 
-            const leerlingRef = doc(db, 'users', actualLeerlingId);
-            const schemaDetailsRef = doc(db, 'trainingsschemas', actualSchemaTemplateId);
-            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
+        const leerlingRef = doc(db, 'users', userId);
+        const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
+        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
 
-            try {
-                const [leerlingSnap, schemaDetailsSnap, actiefSchemaSnap] = await Promise.all([
-                    getDoc(leerlingRef),
-                    getDoc(schemaDetailsRef),
-                    getDoc(actiefSchemaRef)
-                ]);
+        try {
+            const [leerlingSnap, schemaDetailsSnap, actiefSchemaSnap] = await Promise.all([
+                getDoc(leerlingRef),
+                getDoc(schemaDetailsRef),
+                getDoc(actiefSchemaRef)
+            ]);
 
-                // Zoek leerling data
-                if (leerlingSnap.exists()) {
-                    setLeerlingProfiel(leerlingSnap.data());
+            // Zoek leerling data
+            if (leerlingSnap.exists()) {
+                setLeerlingProfiel(leerlingSnap.data());
+            } else {
+                // Fallback zoeken in verschillende collecties
+                const toegestaneQuery = query(
+                    collection(db, 'toegestane_gebruikers'),
+                    where('email', '==', userId)
+                );
+                const toegestaneSnapshot = await getDocs(toegestaneQuery);
+                
+                if (!toegestaneSnapshot.empty) {
+                    setLeerlingProfiel(toegestaneSnapshot.docs[0].data());
                 } else {
-                    // Fallback zoeken in verschillende collecties
-                    const toegestaneQuery = query(
-                        collection(db, 'toegestane_gebruikers'),
-                        where('email', '==', actualLeerlingId)
-                    );
-                    const toegestaneSnapshot = await getDocs(toegestaneQuery);
-                    
-                    if (!toegestaneSnapshot.empty) {
-                        setLeerlingProfiel(toegestaneSnapshot.docs[0].data());
-                    } else {
-                        const toegestaneRef = doc(db, 'toegestane_gebruikers', actualLeerlingId);
-                        const toegestaneSnap = await getDoc(toegestaneRef);
-                        if (toegestaneSnap.exists()) {
-                            setLeerlingProfiel(toegestaneSnap.data());
-                        }
+                    const toegestaneRef = doc(db, 'toegestane_gebruikers', userId);
+                    const toegestaneSnap = await getDoc(toegestaneRef);
+                    if (toegestaneSnap.exists()) {
+                        setLeerlingProfiel(toegestaneSnap.data());
                     }
                 }
-
-                if (schemaDetailsSnap.exists()) {
-                    setSchemaDetails({ id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() });
-                }
-
-                if (actiefSchemaSnap.exists()) {
-                    setActiefSchema({ id: actiefSchemaSnap.id, ...actiefSchemaSnap.data() });
-                }
-
-            } catch (error) {
-                console.error("Fout bij ophalen schema data:", error);
-                toast.error("Kon de schema gegevens niet laden.");
-            } finally {
-                setLoading(false);
             }
-        };
 
-        fetchData();
-    }, [profile, schemaId]);
+            if (schemaDetailsSnap.exists()) {
+                setSchemaDetails({ id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() });
+            }
 
+            if (actiefSchemaSnap.exists()) {
+                setActiefSchema({ id: actiefSchemaSnap.id, ...actiefSchemaSnap.data() });
+            }
+
+        } catch (error) {
+            console.error("Fout bij ophalen schema data:", error);
+            toast.error("Kon de schema gegevens niet laden.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchData();
+}, [profile, schemaData]);
+
+useEffect(() => {
+    return () => {
+        // Cleanup sessionStorage when component unmounts
+        sessionStorage.removeItem('currentSchema');
+    };
+}, []);
     const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
+        const schemaId = `${schemaData.userId}_${schemaData.schemaTemplateId}`;
         if (!actiefSchema || !isCurrentUser) return;
 
         try {
@@ -127,6 +147,7 @@ export default function SchemaDetail() {
     let isProcessingValidation = false;
 
    const handleValidatieWeek = async (weekNummer, gevalideerd) => {
+    const schemaId = `${schemaData.userId}_${schemaData.schemaTemplateId}`;
     if (!actiefSchema || !isTeacherOrAdmin) return;
 
     if (isProcessingValidation) {
@@ -345,7 +366,20 @@ export default function SchemaDetail() {
             </div>
         );
     }
-
+if (!schemaData) {
+    return (
+        <div className="fixed inset-0 bg-slate-50">
+            <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+                <div className="bg-white rounded-2xl shadow-sm p-8">
+                    <p className="text-lg text-slate-600 mb-4">Deze pagina is niet direct toegankelijk.</p>
+                    <Link to="/groeiplan" className="text-purple-600 hover:text-purple-700 font-medium">
+                        Ga naar groeiplan overzicht
+                    </Link>
+                </div>
+            </div>
+        </div>
+    );
+}
     if (!schemaDetails) {
         return (
             <div className="fixed inset-0 bg-slate-50">

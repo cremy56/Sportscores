@@ -100,7 +100,12 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin })
                 return;
             }
         }
-        navigate(`/groeiplan/${schemaInstanceId}`);
+                sessionStorage.setItem('currentSchema', JSON.stringify({
+            userId: studentIdentifier,
+            schemaTemplateId: schema.id,
+            timestamp: Date.now()
+        }));
+        navigate('/groeiplan/schema');
     };
     
     const handleConfirmRemove = async () => {
@@ -147,8 +152,15 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin })
                     </div>
                     <div className="text-center mt-8">
                         {isTeacherOrAdmin ? (
-                            <button 
-                                onClick={() => navigate(`/groeiplan/${schemaInstanceId}`)}
+                           <button 
+                                onClick={() => {
+                                    sessionStorage.setItem('currentSchema', JSON.stringify({
+                                        userId: studentIdentifier,
+                                        schemaTemplateId: schema.id,
+                                        timestamp: Date.now()
+                                    }));
+                                    navigate('/groeiplan/schema');
+                                }}
                                 className="px-8 py-3 bg-slate-600 text-white rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 font-medium"
                             >
                                 Bekijk Voortgang
