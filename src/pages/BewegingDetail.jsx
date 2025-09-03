@@ -4,7 +4,7 @@ import { db } from '../../firebase';
 import { doc, onSnapshot, collection, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { ArrowUturnLeftIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-import { formatDate } from '../../utils/formatters'; // Importeer de formatter
+import { formatDate } from '../utils/formatters';
 
 const BewegingDetail = () => {
   const { profile } = useOutletContext();
