@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import WelzijnKompas from './WelzijnKompas'; // Importeer de nieuwe 3D component
+import WelzijnKompas from '../components/WelzijnKompas'; // Importeer de nieuwe 3D component
 
 const MijnGezondheid = () => {
   const [welzijnData, setWelzijnData] = useState({
