@@ -125,7 +125,7 @@ const MijnGezondheid = () => {
             className="absolute pointer-events-none"
             style={{ 
               top: '60%', 
-              right: '65px',
+              right: '80px',
               transform: 'translate(0, -50%)'
             }}
           >
@@ -181,7 +181,7 @@ const MijnGezondheid = () => {
             </div>
           </div>
 
-          <div className="absolute -left-6 top-1/2 transform -translate-y-1/2 text-center">
+          <div className="absolute -left-8 top-1/2 transform -translate-y-1/2 text-center">
             <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
               Mentaal
             </div>
