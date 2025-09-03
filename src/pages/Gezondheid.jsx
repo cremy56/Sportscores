@@ -11,6 +11,7 @@ const MijnGezondheid = () => {
   const [hartslag, setHartslag] = useState(72);
   const [showHartslagModal, setShowHartslagModal] = useState(false);
   const [tempHartslag, setTempHartslag] = useState(72);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const handleSegmentClick = (segment) => {
     console.log(`${segment} segment geklikt`);
@@ -149,8 +150,9 @@ const MijnGezondheid = () => {
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Mijn Gezondheid</h1>
             <div className="flex-shrink-0">
-              <div className="inline-flex items-center bg-white/80 backdrop-blur-sm rounded-full px-6 py-3 border border-white/30 shadow-lg">
-                <span className="text-sm font-medium text-gray-700">🔒 Privé gegevens</span>
+              <div className="inline-flex items-center text-gray-500 text-sm">
+                <span className="mr-2">🔒</span>
+                <span>Privé gegevens</span>
               </div>
             </div>
           </div>
@@ -238,6 +240,30 @@ const MijnGezondheid = () => {
           </div>
         </div>
       </div>
+
+      {/* Info Modal - eerste bezoek */}
+      {showInfoModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-4">👆</div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Welkom bij je Welzijnskompas!</h3>
+              <p className="text-gray-600">
+                Klik op de gekleurde segmenten of het hart in het kompas om meer details te bekijken en acties uit te voeren.
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <button 
+                onClick={() => setShowInfoModal(false)}
+                className="px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors"
+              >
+                Begrepen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hartslag Modal */}
       {showHartslagModal && (
