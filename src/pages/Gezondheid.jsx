@@ -184,62 +184,59 @@ const MijnGezondheid = () => {
           />
 
          {/* Klikgebieden voor modals - CORRECT uitgelijnd met CSS gradient */}
-{/* Beweging segment - begint rechtsboven bij -45deg, loopt tot 45deg */}
+{/* Klikgebieden voor modals - CORRECT uitgelijnd met visuele posities */}
+{/* Beweging segment - BOVENAAN */}
 <div 
   onClick={() => handleSegmentClick('Beweging')} 
   className="absolute cursor-pointer hover:bg-blue-500/5 transition-colors" 
   style={{ 
-    top: '0px', 
-    left: '50%', 
-    right: '0px', 
-    bottom: '50%',
-    transformOrigin: 'bottom left',
-    clipPath: 'polygon(0% 100%, 100% 100%, 100% 0%)',
+    top: '16px', 
+    left: '25%', 
+    right: '25%', 
+    height: '50%',
+    clipPath: 'polygon(25% 100%, 50% 0%, 75% 100%)',
     zIndex: 10
   }} 
 />
 
-{/* Voeding segment - van 45deg tot 135deg (rechts) */}
+{/* Voeding segment - RECHTS */}
 <div 
   onClick={() => handleSegmentClick('Voeding')} 
   className="absolute cursor-pointer hover:bg-green-500/5 transition-colors" 
   style={{ 
-    top: '50%', 
-    right: '0px', 
-    bottom: '0px', 
-    left: '50%',
-    transformOrigin: 'top left',
-    clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%)',
+    right: '16px', 
+    top: '25%', 
+    bottom: '25%', 
+    width: '50%',
+    clipPath: 'polygon(0% 25%, 100% 50%, 0% 75%)',
     zIndex: 10
   }} 
 />
 
-{/* Slaap segment - van 135deg tot 225deg (onder) */}
+{/* Slaap segment - ONDERAAN */}
 <div 
   onClick={() => handleSegmentClick('Slaap')} 
   className="absolute cursor-pointer hover:bg-purple-500/5 transition-colors" 
   style={{ 
-    bottom: '0px', 
-    right: '50%', 
-    left: '0px', 
-    top: '50%',
-    transformOrigin: 'top right',
-    clipPath: 'polygon(100% 0%, 100% 100%, 0% 100%)',
+    bottom: '16px', 
+    left: '25%', 
+    right: '25%', 
+    height: '50%',
+    clipPath: 'polygon(25% 0%, 75% 0%, 50% 100%)',
     zIndex: 10
   }} 
 />
 
-{/* Mentaal segment - van 225deg tot 315deg (links) */}
+{/* Mentaal segment - LINKS */}
 <div 
   onClick={() => handleSegmentClick('Mentaal')} 
   className="absolute cursor-pointer hover:bg-orange-500/5 transition-colors" 
   style={{ 
-    left: '0px', 
-    bottom: '50%', 
-    top: '0px', 
-    right: '50%',
-    transformOrigin: 'bottom right',
-    clipPath: 'polygon(0% 0%, 0% 100%, 100% 100%)',
+    left: '16px', 
+    top: '25%', 
+    bottom: '25%', 
+    width: '50%',
+    clipPath: 'polygon(100% 25%, 0% 50%, 100% 75%)',
     zIndex: 10
   }} 
 />
