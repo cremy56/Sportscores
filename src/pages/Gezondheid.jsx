@@ -14,7 +14,6 @@ const MijnGezondheid = () => {
 
   const handleSegmentClick = (segment) => {
     console.log(`${segment} segment geklikt`);
-    // Hier kun je functionaliteit toevoegen voor elk segment
   };
 
   const WelzijnsKompas = () => (
@@ -57,81 +56,138 @@ const MijnGezondheid = () => {
             }}
           />
 
-          {/* Segment Overlays voor klikgebieden */}
-          {/* Beweging - Rechtsboven */}
+          {/* Segment Overlays voor klikgebieden - aangepast voor correcte zones */}
+          {/* Beweging - Rechtsboven (0° tot 90°) */}
           <div 
             onClick={() => handleSegmentClick('Beweging')}
-            className="absolute top-4 right-4 w-44 h-44 cursor-pointer hover:bg-blue-500/10 rounded-full transition-colors"
+            className="absolute top-4 right-4 cursor-pointer hover:bg-blue-500/10 transition-colors"
             style={{
-              clipPath: 'polygon(50% 50%, 100% 0%, 100% 100%)',
-              transform: 'rotate(-45deg)',
+              width: '176px',
+              height: '176px',
+              clipPath: 'polygon(50% 50%, 100% 50%, 50% 0%)',
+              borderRadius: '50%',
             }}
           />
           
-          {/* Voeding - Rechtsonder */}
+          {/* Voeding - Rechtsonder (90° tot 180°) */}
           <div 
             onClick={() => handleSegmentClick('Voeding')}
-            className="absolute bottom-4 right-4 w-44 h-44 cursor-pointer hover:bg-green-500/10 rounded-full transition-colors"
+            className="absolute bottom-4 right-4 cursor-pointer hover:bg-green-500/10 transition-colors"
             style={{
-              clipPath: 'polygon(50% 50%, 100% 0%, 100% 100%)',
-              transform: 'rotate(45deg)',
+              width: '176px',
+              height: '176px',
+              clipPath: 'polygon(50% 50%, 100% 50%, 50% 100%)',
+              borderRadius: '50%',
             }}
           />
           
-          {/* Slaap - Linksonder */}
+          {/* Slaap - Linksonder (180° tot 270°) */}
           <div 
             onClick={() => handleSegmentClick('Slaap')}
-            className="absolute bottom-4 left-4 w-44 h-44 cursor-pointer hover:bg-purple-500/10 rounded-full transition-colors"
+            className="absolute bottom-4 left-4 cursor-pointer hover:bg-purple-500/10 transition-colors"
             style={{
-              clipPath: 'polygon(50% 50%, 100% 0%, 100% 100%)',
-              transform: 'rotate(135deg)',
+              width: '176px',
+              height: '176px',
+              clipPath: 'polygon(50% 50%, 0% 50%, 50% 100%)',
+              borderRadius: '50%',
             }}
           />
           
-          {/* Mentaal - Linksboven */}
+          {/* Mentaal - Linksboven (270° tot 360°) */}
           <div 
             onClick={() => handleSegmentClick('Mentaal')}
-            className="absolute top-4 left-4 w-44 h-44 cursor-pointer hover:bg-orange-500/10 rounded-full transition-colors"
+            className="absolute top-4 left-4 cursor-pointer hover:bg-orange-500/10 transition-colors"
             style={{
-              clipPath: 'polygon(50% 50%, 100% 0%, 100% 100%)',
-              transform: 'rotate(225deg)',
+              width: '176px',
+              height: '176px',
+              clipPath: 'polygon(50% 50%, 0% 50%, 50% 0%)',
+              borderRadius: '50%',
             }}
           />
 
-          {/* Labels met 3D-effect */}
-          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 text-center">
-            <div className="text-3xl mb-2 filter drop-shadow-lg">🏃‍♂️</div>
+          {/* Percentages aangepast naar het midden van de segmenten */}
+          {/* Beweging (85%) - hoger boven bij blauwe segment */}
+          <div 
+            className="absolute pointer-events-none"
+            style={{ 
+              top: '40px', 
+              left: '50%',
+              transform: 'translate(-50%, 0)'
+            }}
+          >
+            <span className="text-white font-bold text-xl drop-shadow-lg">
+              {welzijnData.beweging}%
+            </span>
+          </div>
+
+          {/* Voeding (75%) - lager rechts bij groene segment */}
+          <div 
+            className="absolute pointer-events-none"
+            style={{ 
+              top: '60%', 
+              right: '40px',
+              transform: 'translate(0, -50%)'
+            }}
+          >
+            <span className="text-white font-bold text-xl drop-shadow-lg">
+              {welzijnData.voeding}%
+            </span>
+          </div>
+
+          {/* Slaap (68%) - lager onder bij paarse segment */}
+          <div 
+            className="absolute pointer-events-none"
+            style={{ 
+              bottom: '40px', 
+              left: '50%',
+              transform: 'translate(-50%, 0)'
+            }}
+          >
+            <span className="text-white font-bold text-xl drop-shadow-lg">
+              {welzijnData.slaap}%
+            </span>
+          </div>
+
+          {/* Mentaal (88%) - lager links bij oranje segment */}
+          <div 
+            className="absolute pointer-events-none"
+            style={{ 
+              top: '60%', 
+              left: '40px',
+              transform: 'translate(0, -50%)'
+            }}
+          >
+            <span className="text-white font-bold text-xl drop-shadow-lg">
+              {welzijnData.mentaal}%
+            </span>
+          </div>
+
+          {/* Labels buiten het kompas */}
+          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-center">
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
               Beweging
             </div>
-            <div className="text-blue-600 font-bold text-xl mt-1 filter drop-shadow-md">{welzijnData.beweging}%</div>
           </div>
 
-          <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 text-center">
-            <div className="text-3xl mb-2 filter drop-shadow-lg">🥗</div>
+          <div className="absolute -right-6 top-1/2 transform -translate-y-1/2 text-center">
             <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
               Voeding
             </div>
-            <div className="text-green-600 font-bold text-xl mt-1 filter drop-shadow-md">{welzijnData.voeding}%</div>
           </div>
 
-          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 text-center">
-            <div className="text-3xl mb-2 filter drop-shadow-lg">🌙</div>
+          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-center">
             <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
               Slaap
             </div>
-            <div className="text-purple-600 font-bold text-xl mt-1 filter drop-shadow-md">{welzijnData.slaap}%</div>
           </div>
 
-          <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 text-center">
-            <div className="text-3xl mb-2 filter drop-shadow-lg">🧠</div>
+          <div className="absolute -left-6 top-1/2 transform -translate-y-1/2 text-center">
             <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
               Mentaal
             </div>
-            <div className="text-orange-600 font-bold text-xl mt-1 filter drop-shadow-md">{welzijnData.mentaal}%</div>
           </div>
 
-          {/* Groot pulserend hart in het midden - 3x groter */}
+          {/* Hart in het midden */}
           <div 
             className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform hover:scale-110"
             onClick={() => setShowHartslagModal(true)}
@@ -201,11 +257,10 @@ const MijnGezondheid = () => {
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-4">
         
-        {/* Header met extra top-margin voor de juiste hoogte - groeiplan stijl */}
         <div className="mb-8 mt-20">
           <div className="flex justify-between items-center mb-12">
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-              Mijn Welzijn Kompas
+              Mijn Gezondheid
             </h1>
             <div className="flex-shrink-0">
               <div className="inline-flex items-center bg-white/80 backdrop-blur-sm rounded-full px-6 py-3 border border-white/30 shadow-lg">
@@ -216,10 +271,8 @@ const MijnGezondheid = () => {
         </div>
 
         <div className="max-w-4xl mx-auto space-y-8">
-          {/* Welzijnskompas */}
           <WelzijnsKompas />
 
-          {/* Status overzicht - groeiplan kaart stijl */}
           <div className="bg-white rounded-2xl shadow-md border-2 border-slate-200 p-8 max-w-2xl mx-auto">
             <div className="text-center mb-6">
               <div className="text-5xl mb-3 filter drop-shadow-lg">{balansStatus.emoji}</div>
@@ -231,7 +284,6 @@ const MijnGezondheid = () => {
               </p>
             </div>
 
-            {/* Detailed breakdown */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-blue-50 rounded-xl border-2 border-blue-100 shadow-sm">
                 <div className="text-2xl mb-2">🏃‍♂️</div>
@@ -256,7 +308,6 @@ const MijnGezondheid = () => {
             </div>
           </div>
 
-          {/* Quick Actions - groeiplan kaart stijl */}
           <div className="bg-white rounded-2xl shadow-md border-2 border-slate-200 p-8 max-w-2xl mx-auto">
             <h3 className="text-xl font-bold text-slate-800 mb-6">Snelle Acties</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
