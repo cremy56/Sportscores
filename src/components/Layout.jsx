@@ -219,7 +219,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
   const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
   
-  // Check if any admin routes are active for dropdown highlighting
+  // Check if any admin routes are active for dropdown highlighting - AANGEPAST
   const isAdminDropdownActive = ['/groepsbeheer', '/testbeheer', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'].includes(location.pathname);
   
   const routeTitles = {
@@ -263,7 +263,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             />
           </div>
 
-          {/* MIDDEN (Desktop): Navigatie-items met Dropdowns */}
+          {/* MIDDEN (Desktop): Navigatie-items - AANGEPAST */}
           <ul className="hidden md:flex items-center space-x-6 flex-grow justify-center">
             <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
             <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
@@ -280,18 +280,17 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
             )}
 
-            {/* Reguliere data items voor leerkrachten en admins */}
-            {isTeacherOrAdmin && (
-              <>
-                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
-                <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
-                <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
-              </>
+            {/* ALLEEN Scores voor leerkrachten - AANGEPAST */}
+            {activeRole === 'leerkracht' && (
+              <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
             )}
 
-            {/* Beheer Dropdown voor admins */}
+            {/* Beheer Dropdown voor admins - UITGEBREID MET GROEPSBEHEER EN TESTBEHEER */}
             {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
               <DropdownMenu title="Beheer" isActive={isAdminDropdownActive}>
+                <DropdownItem to="/scores">Scores</DropdownItem>
+                <DropdownItem to="/groepsbeheer">Groepsbeheer</DropdownItem>
+                <DropdownItem to="/testbeheer">{testbeheerLinkText}</DropdownItem>
                 <DropdownItem to="/gebruikersbeheer">Gebruikersbeheer</DropdownItem>
                 <DropdownItem to="/trainingsbeheer">Trainingsbeheer</DropdownItem>
                 {activeRole === 'super-administrator' && (
@@ -319,7 +318,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             </div>
           </div>
           
-          {/* Mobiel Menu */}
+          {/* Mobiel Menu - AANGEPAST */}
           <ul
             className={`mobile-menu bg-white text-black md:hidden absolute top-full left-0 right-0 border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
             ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
@@ -339,11 +338,16 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
             )}
             
+            {/* Alle items voor mobiel - geen dropdown op mobiel */}
             {isTeacherOrAdmin && (
               <>
-                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
                 <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
-                <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
+                {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
+                  <>
+                    <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+                    <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
+                  </>
+                )}
               </>
             )}
 
