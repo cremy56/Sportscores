@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { db } from '../../firebase';
+import { db } from '../firebase';
 import { doc, onSnapshot, collection, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { ArrowUturnLeftIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { formatDate } from '../utils/formatters';
+
+// AANGEPAST: Gebruik dezelfde datum helper als in Gezondheid.jsx
+const getTodayString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const BewegingDetail = () => {
   const { profile } = useOutletContext();
@@ -32,12 +41,17 @@ const BewegingDetail = () => {
       }
     });
 
-    const todayString = new Date().toISOString().slice(0, 10);
+    // AANGEPAST: Gebruik getTodayString() in plaats van toISOString().slice(0, 10)
+    const todayString = getTodayString();
     const todayDocRef = doc(db, 'welzijn', profile.uid, 'dagelijkse_data', todayString);
     const unsubscribeToday = onSnapshot(todayDocRef, (docSnap) => {
+      console.log('DEBUG: Dagelijkse data document:', docSnap.exists() ? docSnap.data() : 'bestaat niet');
       if (docSnap.exists()) {
-        setCurrentSteps(docSnap.data().stappen || 0);
+        const stappen = docSnap.data().stappen || 0;
+        console.log('DEBUG: Stappen uit Firestore:', stappen);
+        setCurrentSteps(stappen);
       } else {
+        console.log('DEBUG: Geen dagelijkse data document gevonden voor:', todayString);
         setCurrentSteps(0);
       }
     });
@@ -50,6 +64,7 @@ const BewegingDetail = () => {
         id: doc.id,
         ...doc.data()
       }));
+      console.log('DEBUG: Activiteiten geschiedenis:', history);
       setActivityHistory(history);
       setLoading(false);
     });
@@ -133,6 +148,14 @@ const BewegingDetail = () => {
               ></div>
             </div>
             <p className="text-right text-sm text-slate-500 mt-2">{Math.round(progress)}% voltooid</p>
+            {/* DEBUG INFO - kan je later weghalen */}
+            <div className="mt-4 p-3 bg-gray-100 rounded-lg text-sm">
+              <p><strong>Debug info:</strong></p>
+              <p>Huidige stappen: {currentSteps}</p>
+              <p>Dagelijkse doel: {dailyGoal}</p>
+              <p>Voortgang: {Math.round(progress)}%</p>
+              <p>Datum: {getTodayString()}</p>
+            </div>
           </div>
 
           {/* Activiteit Geschiedenis */}
@@ -217,4 +240,3 @@ const BewegingDetail = () => {
 };
 
 export default BewegingDetail;
-
