@@ -1,57 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { db } from '../firebase';
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
-import toast from 'react-hot-toast';
-
-// Helper om de datum van vandaag in JJJJ-MM-DD formaat te krijgen
-const getTodayString = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const MijnGezondheid = () => {
-    const { profile } = useOutletContext();
-  const [welzijnDoelen, setWelzijnDoelen] = useState({ stappen: 10000, water: 2000, slaap: 8 });
-  const [dagelijkseData, setDagelijkseData] = useState({ stappen: 0, hartslag_rust: 72 });
+  const [welzijnData, setWelzijnData] = useState({
+    beweging: 85,
+    voeding: 75,
+    slaap: 68,
+    mentaal: 88
+  });
   
+  const [hartslag, setHartslag] = useState(72);
   const [showHartslagModal, setShowHartslagModal] = useState(false);
-  const [tempHartslag, setTempHartslag] = useState(dagelijkseData.hartslag_rust);
+  const [tempHartslag, setTempHartslag] = useState(72);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [stappen, setStappen] = useState(8500); // Voorbeeldwaarde
   const [showStappenModal, setShowStappenModal] = useState(false);
-  const [tempStappen, setTempStappen] = useState(dagelijkseData.stappen);
+  const [tempStappen, setTempStappen] = useState(8500);
 
+  // Simuleer eerste bezoek check - in echte app zou dit uit localStorage/database komen
   useEffect(() => {
-    if (!profile?.uid) return;
-
-    // Listener voor het hoofddocument (doelen, biometrie)
-    const welzijnDocRef = doc(db, 'welzijn', profile.uid);
-    const unsubscribeWelzijn = onSnapshot(welzijnDocRef, (docSnap) => {
-      if (docSnap.exists() && docSnap.data().doelen) {
-        setWelzijnDoelen(docSnap.data().doelen);
-      }
-    });
-
-    // Listener voor de data van vandaag
-    const todayDocRef = doc(db, 'welzijn', profile.uid, 'dagelijkse_data', getTodayString());
-    const unsubscribeVandaag = onSnapshot(todayDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setDagelijkseData(data);
-        setTempHartslag(data.hartslag_rust || 72);
-        setTempStappen(data.stappen || 0);
-      }
-    });
-
-    return () => {
-      unsubscribeWelzijn();
-      unsubscribeVandaag();
-    };
-  }, [profile?.uid]);
+    const hasVisited = localStorage.getItem('welzijn-visited');
+    if (!hasVisited) {
+      setShowInfoModal(true);
+      localStorage.setItem('welzijn-visited', 'true');
+    }
+  }, []);
 
   const handleSegmentClick = (segment) => {
     console.log(`${segment} segment geklikt`);
@@ -60,42 +33,7 @@ const MijnGezondheid = () => {
       setShowStappenModal(true);
     }
   };
-const saveDataToDayDoc = async (dataToSave) => {
-    if (!profile?.uid) return;
-    const todayDocRef = doc(db, 'welzijn', profile.uid, 'dagelijkse_data', getTodayString());
-    
-    try {
-      // Gebruik getDoc om te zien of het document bestaat, anders `set` met `merge: true`
-      const docSnap = await getDoc(todayDocRef);
-      if (docSnap.exists()) {
-        await setDoc(todayDocRef, dataToSave, { merge: true });
-      } else {
-        await setDoc(todayDocRef, dataToSave);
-      }
-      toast.success('Gegevens opgeslagen!');
-    } catch (error) {
-      console.error("Fout bij opslaan van dagelijkse data:", error);
-      toast.error('Kon gegevens niet opslaan.');
-    }
-  };
 
-  const handleHartslagSave = () => {
-    if (tempHartslag >= 30 && tempHartslag <= 220) {
-      saveDataToDayDoc({ hartslag_rust: tempHartslag });
-      setShowHartslagModal(false);
-    } else {
-      toast.error('Voer een geldige hartslag in (30-220 BPM)');
-    }
-  };
-
-  const handleStappenSave = () => {
-    if (tempStappen >= 0 && tempStappen <= 100000) {
-      saveDataToDayDoc({ stappen: tempStappen });
-      setShowStappenModal(false);
-    } else {
-      toast.error('Voer een geldig aantal stappen in (0-100.000)');
-    }
-  };
   const getGemiddeldeScore = () => {
     const totaal = welzijnData.beweging + welzijnData.voeding + welzijnData.slaap + welzijnData.mentaal;
     return Math.round(totaal / 4);
@@ -110,14 +48,7 @@ const saveDataToDayDoc = async (dataToSave) => {
   };
 
   const balansStatus = getBalansStatus();
-// Bereken de percentages voor de UI
-  const welzijnScores = {
-    beweging: welzijnDoelen.stappen > 0 ? Math.min(Math.round((dagelijkseData.stappen / welzijnDoelen.stappen) * 100), 100) : 0,
-    voeding: 75, // Placeholder
-    slaap: 68,   // Placeholder
-    mentaal: 88, // Placeholder
-  };
-  
+
   const WelzijnsKompas = () => (
     <div className="flex justify-center mb-8">
       <div className="relative">
@@ -218,7 +149,22 @@ const saveDataToDayDoc = async (dataToSave) => {
     </div>
   );
 
-  
+  const handleHartslagSave = () => {
+    if (tempHartslag >= 30 && tempHartslag <= 220) {
+      setHartslag(tempHartslag);
+      setShowHartslagModal(false);
+    } else {
+      alert('Voer een geldige hartslag in tussen 30 en 220 BPM');
+    }
+  };
+const handleStappenSave = () => {
+    if (tempStappen >= 0 && tempStappen <= 100000) {
+      setStappen(tempStappen);
+      setShowStappenModal(false);
+    } else {
+      alert('Voer een geldig aantal stappen in (0 - 100.000)');
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
