@@ -113,19 +113,32 @@ export default function WelzijnKompas({
                 <pointLight position={[10, 10, 5]} intensity={1} />
                 <pointLight position={[-10, -10, -5]} intensity={0.5} />
 
-                <group>
-                    {kompasData.map((item) => (
-                        <React.Fragment key={item.name}>
-                            <Segment
-                                percentage={100} baseColor="#e2e8f0" segmentAngle={segmentAngle}
-                                rotationY={item.rotation} isBackground={true}
-                            />
-                            <Segment
-                                percentage={item.value} baseColor={item.color} segmentAngle={segmentAngle}
-                                rotationY={item.rotation} onClick={onKompasClick} name={item.name} icon={item.icon}
-                            />
-                        </React.Fragment>
-                    ))}
+                {/* NIEUW: Een overkoepelende groep om alles te kantelen */}
+                <group rotation-x={-0.2}> 
+                    <group>
+                        {kompasData.map((item) => (
+                            <React.Fragment key={item.name}>
+                                {/* LAAG 1: De vaste grijze achtergrond-container */}
+                                <Segment
+                                    percentage={100} // Altijd 100% vol
+                                    baseColor="#e2e8f0" // Lichtgrijs
+                                    // ... rest van de props
+                                />
+                                {/* LAAG 2: De gekleurde, dynamische voorgrond */}
+                                <Segment
+                                    percentage={item.value} // Dynamisch percentage
+                                    baseColor={item.color}
+                                    // ... rest van de props
+                                />
+                                {/* LAAG 3: De iconen en tekst */}
+                                 <group rotation={[Math.PI / 2, 0, item.rotation]}>
+                                    {/* ... rest van de text component */}
+                                 </group>
+                            </React.Fragment>
+                        ))}
+                    </group>
+                    
+                    <Heart bpm={hartslag} onHeartClick={() => onKompasClick('Hartslag', hartslag)} />
                 </group>
                 <Heart bpm={hartslag} onHeartClick={() => onKompasClick('Hartslag', hartslag)} />
             </Canvas>
