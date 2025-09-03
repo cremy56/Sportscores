@@ -189,7 +189,7 @@ const MijnGezondheid = () => {
   className="absolute cursor-pointer hover:bg-blue-500/10 transition-colors" 
   style={{ 
     top: '16px', 
-    right: '150px', 
+    right: '100px', 
     width: '220px', 
     height: '60px',
     zIndex: 10
@@ -215,7 +215,7 @@ const MijnGezondheid = () => {
   className="absolute cursor-pointer hover:bg-purple-500/10 transition-colors" 
   style={{ 
     bottom: '16px', 
-    left: '150px', 
+    left: '100px', 
     width: '220px', 
     height: '60px',
     zIndex: 10
@@ -227,10 +227,10 @@ const MijnGezondheid = () => {
   onClick={() => handleSegmentClick('Mentaal')} 
   className="absolute cursor-pointer hover:bg-orange-500/10 transition-colors" 
   style={{ 
-    top: '16px', 
-    left: '16px', 
-    width: '120px', 
-    height: '120px',
+    top: '200px', 
+    left: '1px', 
+    width: '60px', 
+    height: '220px',
     zIndex: 10
   }} 
 />
