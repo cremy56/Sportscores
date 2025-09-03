@@ -189,8 +189,8 @@ const MijnGezondheid = () => {
   className="absolute cursor-pointer hover:bg-blue-500/10 transition-colors" 
   style={{ 
     top: '16px', 
-    right: '50px', 
-    width: '120px', 
+    right: '150px', 
+    width: '220px', 
     height: '60px',
     zIndex: 10
   }} 
@@ -215,9 +215,9 @@ const MijnGezondheid = () => {
   className="absolute cursor-pointer hover:bg-purple-500/10 transition-colors" 
   style={{ 
     bottom: '16px', 
-    left: '16px', 
-    width: '120px', 
-    height: '120px',
+    left: '150px', 
+    width: '220px', 
+    height: '60px',
     zIndex: 10
   }} 
 />
