@@ -184,7 +184,7 @@ const MijnGezondheid = () => {
           />
 
           {/* Klikgebieden voor modals */}
-          <div onClick={() => handleSegmentClick('Beweging')} className="absolute top-4 right cursor-pointer hover:bg-blue-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 100% 50%, 50% 0%)', borderRadius: '50%' }} />
+          <div onClick={() => handleSegmentClick('Beweging')} className="absolute top-4 right-1 cursor-pointer hover:bg-blue-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 100% 50%, 50% 0%)', borderRadius: '50%' }} />
           <div onClick={() => handleSegmentClick('Voeding')} className="absolute bottom-4 right-4 cursor-pointer hover:bg-green-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 100% 50%, 50% 100%)', borderRadius: '50%' }} />
           <div onClick={() => handleSegmentClick('Slaap')} className="absolute bottom-4 left-4 cursor-pointer hover:bg-purple-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 0% 50%, 50% 100%)', borderRadius: '50%' }} />
           <div onClick={() => handleSegmentClick('Mentaal')} className="absolute top-4 left-4 cursor-pointer hover:bg-orange-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 0% 50%, 50% 0%)', borderRadius: '50%' }} />
