@@ -3,7 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Text, Center } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Een enkel 3D-segment van de donut
+// Een enkel 3D-segment van de donut. Tekst-logica is hierin verwerkt.
 function Segment({ 
   percentage, 
   baseColor, 
@@ -11,8 +11,8 @@ function Segment({
   rotationY,
   isBackground = false,
   onClick,
-  name, // Toegevoegd voor de console log
-  icon // Toegevoegd voor de console log
+  name,
+  icon
 }) {
   const geometry = useMemo(() => {
     return new THREE.TorusGeometry(
@@ -20,15 +20,16 @@ function Segment({
       0.25, // Breedte van de 'donut'
       16,   // radialSegments
       50,   // tubularSegments
-      segmentAngle * (percentage / 100) // De booglengte, dynamisch voor voorgrond
+      segmentAngle * (percentage / 100)
     );
   }, [percentage, segmentAngle]);
 
+  // Bereken de positie voor de tekst en het icoon in het midden van de boog
   const textPosition = useMemo(() => {
-    const angle = rotationY + (segmentAngle * (percentage / 100)) / 2;
+    const angle = (segmentAngle * (percentage / 100)) / 2;
     const radius = 1.25;
     return [Math.cos(angle) * radius, Math.sin(angle) * radius, 0.3];
-  }, [rotationY, segmentAngle, percentage]);
+  }, [segmentAngle, percentage]);
 
   return (
     <group rotation={[Math.PI / 2, 0, rotationY]} onClick={isBackground ? null : () => onClick(name, percentage)}>
@@ -41,9 +42,11 @@ function Segment({
             opacity={isBackground ? 0.15 : 1}
         />
       </mesh>
+      
+      {/* FIX 2: Tekst en iconen worden nu correct in dit component getekend */}
       {!isBackground && (
         <group rotation={[-Math.PI / 2, 0, 0]}>
-             <Text position={textPosition} fontSize={0.15} color="white" anchorX="center" anchorY="middle" fontWeight="bold">
+             <Text position={textPosition} fontSize={0.15} color="white" anchorX="center" anchorY="top" fontWeight="bold">
                 {name}
              </Text>
              <Text position={[textPosition[0], textPosition[1] - 0.18, textPosition[2]]} fontSize={0.2} color="white" anchorX="center" anchorY="middle" fontWeight="bold">
@@ -58,7 +61,7 @@ function Segment({
   );
 }
 
-// Het centrale 3D-hart
+// Het centrale 3D-hart (onveranderd)
 function Heart({ bpm, onHeartClick }) {
     const heartRef = useRef();
     const shape = useMemo(() => {
@@ -99,6 +102,7 @@ export default function WelzijnKompas({
     onKompasClick = (type, value) => console.log(`Klik op ${type}: ${value}`),
 }) {
     const kompasData = useMemo(() => [
+      // FIX 3: Correcte iconen
       { name: 'Beweging', value: beweging, color: '#007bff', icon: '👟', rotation: Math.PI * 0.5 },
       { name: 'Mentaal', value: mentaal, color: '#ff9800', icon: '🧠', rotation: 0 },
       { name: 'Voeding', value: voeding, color: '#4caf50', icon: '🍏', rotation: Math.PI * 1.5 },
@@ -113,34 +117,35 @@ export default function WelzijnKompas({
                 <pointLight position={[10, 10, 5]} intensity={1} />
                 <pointLight position={[-10, -10, -5]} intensity={0.5} />
 
-                {/* NIEUW: Een overkoepelende groep om alles te kantelen */}
                 <group rotation-x={-0.2}> 
                     <group>
                         {kompasData.map((item) => (
                             <React.Fragment key={item.name}>
-                                {/* LAAG 1: De vaste grijze achtergrond-container */}
                                 <Segment
-                                    percentage={100} // Altijd 100% vol
-                                    baseColor="#e2e8f0" // Lichtgrijs
-                                    // ... rest van de props
+                                    percentage={100}
+                                    baseColor="#e2e8f0"
+                                    segmentAngle={segmentAngle}
+                                    rotationY={item.rotation}
+                                    isBackground={true}
                                 />
-                                {/* LAAG 2: De gekleurde, dynamische voorgrond */}
                                 <Segment
-                                    percentage={item.value} // Dynamisch percentage
+                                    percentage={item.value}
                                     baseColor={item.color}
-                                    // ... rest van de props
+                                    segmentAngle={segmentAngle}
+                                    rotationY={item.rotation}
+                                    onClick={onKompasClick}
+                                    name={item.name}
+                                    icon={item.icon}
                                 />
-                                {/* LAAG 3: De iconen en tekst */}
-                                 <group rotation={[Math.PI / 2, 0, item.rotation]}>
-                                    {/* ... rest van de text component */}
-                                 </group>
                             </React.Fragment>
                         ))}
                     </group>
                     
                     <Heart bpm={hartslag} onHeartClick={() => onKompasClick('Hartslag', hartslag)} />
                 </group>
-                <Heart bpm={hartslag} onHeartClick={() => onKompasClick('Hartslag', hartslag)} />
+                
+                {/* FIX 1: Verwijderde dubbele Heart-aanroep. Deze is weggehaald. */}
+
             </Canvas>
         </div>
     );
