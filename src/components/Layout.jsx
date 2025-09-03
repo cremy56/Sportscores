@@ -271,7 +271,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
             
             {/* Gezondheid voor leerlingen en super-admin */}
-            {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
+            {(activeRole === 'leerling' || profile?.rol === 'super-administrator') && (
               <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
             )}
             
@@ -330,7 +330,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
             
-            {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
+            {(activeRole === 'leerling' || profile?.rol === 'super-administrator') && (
               <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
             )}
             

@@ -16,7 +16,7 @@ const db = admin.firestore();
 
 // --- CONFIGURATIE ---
 // Vervang dit met een ECHTE userId van een leerling uit je 'users' collectie
-const USER_ID = '__VUL_HIER_EEN_LEERLING_USER_ID_IN__';
+const USER_ID = 'u2yfNRhRbKN7gxjc5vcvLObmoZP2';
 
 // --- VOORBEELDDATA ---
 
