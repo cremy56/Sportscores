@@ -31,6 +31,7 @@ import NieuweTestafname from './pages/NieuweTestafname';
 import SchemaDetail from './pages/SchemaDetail'; 
 import Trainingsbeheer from './pages/Trainingsbeheer';
 import Gezondheid from './pages/Gezondheid';
+import Welzijnsmonitor from './pages/Welzijnsmonitor';
 
 
 function HandleAuthRedirect() {
@@ -169,7 +170,13 @@ function App() {
                         <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
                         <Route path="/groeiplan" element={<Groeiplan />} />
                         <Route path="/groeiplan/schema" element={<SchemaDetail />} />
-                        <Route path="/gezondheid" element={<Gezondheid />} />
+
+                        {(profile?.rol === 'leerling' || profile?.rol === 'super-administrator') && (
+                          <Route path="/gezondheid" element={<Gezondheid />} />
+                        )}
+                        {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
+                          <Route path="/welzijnsmonitor" element={<Welzijnsmonitor />} />
+                        )}
                         {(profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
                           <>
                             <Route path="/gebruikersbeheer" element={<Gebruikersbeheer />} />

@@ -184,6 +184,7 @@ useEffect(() => {
     '/evolutie': evolutieLinkText,
     '/groeiplan': groeiplanLinkText,
     '/gezondheid': 'Mijn Gezondheid',
+    '/welzijnsmonitor': 'Welzijnsmonitor', // AANGEPAST
     '/groepsbeheer': 'Groepsbeheer',
     '/scores': 'Scores',
     '/testbeheer': testbeheerLinkText,
@@ -225,8 +226,13 @@ useEffect(() => {
              <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
              <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
              <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
-             <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn gezondheid</NavLink></li>
-             {isTeacherOrAdmin && (
+            {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
+                <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
+             )}
+             {(activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
+                <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
+             )}
+                          {isTeacherOrAdmin && (
               <>
                 <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
                 <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
@@ -275,8 +281,13 @@ useEffect(() => {
             <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
-            <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn gezondheid</NavLink></li>
-           {isTeacherOrAdmin && (
+            {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
+                <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
+            )}
+            {(activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
+                <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
+            )}
+                       {isTeacherOrAdmin && (
               <>
                 <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
                 <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
