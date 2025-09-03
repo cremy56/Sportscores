@@ -184,59 +184,59 @@ const MijnGezondheid = () => {
           />
 
          {/* Klikgebieden voor modals - CORRECT uitgelijnd met CSS gradient */}
-{/* Klikgebieden voor modals - CORRECT uitgelijnd met visuele posities */}
-{/* Beweging segment - BOVENAAN */}
+{/* Klikgebieden voor modals - RING-vormig om het hart te vermijden */}
+{/* Beweging segment - BOVENAAN (ring-vorm) */}
 <div 
   onClick={() => handleSegmentClick('Beweging')} 
   className="absolute cursor-pointer hover:bg-blue-500/5 transition-colors" 
   style={{ 
     top: '16px', 
-    left: '25%', 
-    right: '25%', 
-    height: '50%',
-    clipPath: 'polygon(25% 100%, 50% 0%, 75% 100%)',
+    left: '16px', 
+    right: '16px', 
+    bottom: '16px',
+    clipPath: 'polygon(35% 35%, 65% 35%, 50% 16px, 35% 35%)',
     zIndex: 10
   }} 
 />
 
-{/* Voeding segment - RECHTS */}
+{/* Voeding segment - RECHTS (ring-vorm) */}
 <div 
   onClick={() => handleSegmentClick('Voeding')} 
   className="absolute cursor-pointer hover:bg-green-500/5 transition-colors" 
   style={{ 
+    top: '16px', 
+    left: '16px', 
     right: '16px', 
-    top: '25%', 
-    bottom: '25%', 
-    width: '50%',
-    clipPath: 'polygon(0% 25%, 100% 50%, 0% 75%)',
+    bottom: '16px',
+    clipPath: 'polygon(65% 35%, 65% 65%, calc(100% - 16px) 50%, 65% 35%)',
     zIndex: 10
   }} 
 />
 
-{/* Slaap segment - ONDERAAN */}
+{/* Slaap segment - ONDERAAN (ring-vorm) */}
 <div 
   onClick={() => handleSegmentClick('Slaap')} 
   className="absolute cursor-pointer hover:bg-purple-500/5 transition-colors" 
   style={{ 
-    bottom: '16px', 
-    left: '25%', 
-    right: '25%', 
-    height: '50%',
-    clipPath: 'polygon(25% 0%, 75% 0%, 50% 100%)',
+    top: '16px', 
+    left: '16px', 
+    right: '16px', 
+    bottom: '16px',
+    clipPath: 'polygon(65% 65%, 35% 65%, 50% calc(100% - 16px), 65% 65%)',
     zIndex: 10
   }} 
 />
 
-{/* Mentaal segment - LINKS */}
+{/* Mentaal segment - LINKS (ring-vorm) */}
 <div 
   onClick={() => handleSegmentClick('Mentaal')} 
   className="absolute cursor-pointer hover:bg-orange-500/5 transition-colors" 
   style={{ 
+    top: '16px', 
     left: '16px', 
-    top: '25%', 
-    bottom: '25%', 
-    width: '50%',
-    clipPath: 'polygon(100% 25%, 0% 50%, 100% 75%)',
+    right: '16px', 
+    bottom: '16px',
+    clipPath: 'polygon(35% 65%, 35% 35%, 16px 50%, 35% 65%)',
     zIndex: 10
   }} 
 />
