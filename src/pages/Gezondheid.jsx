@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 const MijnGezondheid = () => {
   const [welzijnData, setWelzijnData] = useState({
@@ -12,6 +13,9 @@ const MijnGezondheid = () => {
   const [showHartslagModal, setShowHartslagModal] = useState(false);
   const [tempHartslag, setTempHartslag] = useState(72);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [stappen, setStappen] = useState(8500); // Voorbeeldwaarde
+  const [showStappenModal, setShowStappenModal] = useState(false);
+  const [tempStappen, setTempStappen] = useState(8500);
 
   // Simuleer eerste bezoek check - in echte app zou dit uit localStorage/database komen
   useEffect(() => {
@@ -24,6 +28,10 @@ const MijnGezondheid = () => {
 
   const handleSegmentClick = (segment) => {
     console.log(`${segment} segment geklikt`);
+    if (segment === 'Beweging') {
+      setTempStappen(stappen); // Reset temp waarde
+      setShowStappenModal(true);
+    }
   };
 
   const getGemiddeldeScore = () => {
@@ -147,6 +155,14 @@ const MijnGezondheid = () => {
       setShowHartslagModal(false);
     } else {
       alert('Voer een geldige hartslag in tussen 30 en 220 BPM');
+    }
+  };
+const handleStappenSave = () => {
+    if (tempStappen >= 0 && tempStappen <= 100000) {
+      setStappen(tempStappen);
+      setShowStappenModal(false);
+    } else {
+      alert('Voer een geldig aantal stappen in (0 - 100.000)');
     }
   };
 
@@ -310,6 +326,49 @@ const MijnGezondheid = () => {
               <button 
                 onClick={handleHartslagSave}
                 className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors"
+              >
+                Opslaan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+ {showStappenModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-4">👟</div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Stappen Invoeren</h3>
+              <p className="text-gray-600">Voer je aantal stappen voor vandaag in</p>
+            </div>
+            
+            <div className="mb-6">
+              <input 
+                type="number"
+                value={tempStappen}
+                onChange={(e) => setTempStappen(parseInt(e.target.value, 10) || 0)}
+                className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
+                placeholder="8500"
+                min="0"
+                max="100000"
+              />
+              <div className="text-center mt-4">
+                <Link to="/gezondheid/beweging" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
+                  Bekijk volledige bewegingsdetails →
+                </Link>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowStappenModal(false)}
+                className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+              >
+                Annuleren
+              </button>
+              <button 
+                onClick={handleStappenSave}
+                className="flex-1 py-3 px-4 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors"
               >
                 Opslaan
               </button>

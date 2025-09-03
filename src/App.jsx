@@ -32,6 +32,7 @@ import SchemaDetail from './pages/SchemaDetail';
 import Trainingsbeheer from './pages/Trainingsbeheer';
 import Gezondheid from './pages/Gezondheid';
 import Welzijnsmonitor from './pages/Welzijnsmonitor';
+import BewegingDetail from './pages/BewegingDetail';
 
 
 function HandleAuthRedirect() {
@@ -172,7 +173,11 @@ function App() {
                         <Route path="/groeiplan/schema" element={<SchemaDetail />} />
 
                         {(profile?.rol === 'leerling' || profile?.rol === 'super-administrator') && (
-                          <Route path="/gezondheid" element={<Gezondheid />} />
+                          <>
+                            <Route path="/gezondheid" element={<Gezondheid />} />
+                            <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
+                          </>
+
                         )}
                         {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
                           <Route path="/welzijnsmonitor" element={<Welzijnsmonitor />} />
