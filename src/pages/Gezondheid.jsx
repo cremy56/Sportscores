@@ -183,62 +183,66 @@ const MijnGezondheid = () => {
             }}
           />
 
-          {/* Klikgebieden voor modals - VERBETERD met grotere, nauwkeurige gebieden */}
-          {/* Beweging segment - rechtsboven (0-90 graden) */}
-          <div 
-            onClick={() => handleSegmentClick('Beweging')} 
-            className="absolute cursor-pointer hover:bg-blue-500/5 transition-colors rounded-full" 
-            style={{ 
-              top: '16px', 
-              right: '16px', 
-              width: '176px', 
-              height: '176px',
-              clipPath: 'polygon(50% 50%, 100% 0%, 100% 100%)',
-              zIndex: 10
-            }} 
-          />
-          
-          {/* Voeding segment - rechtsonder (90-180 graden) */}
-          <div 
-            onClick={() => handleSegmentClick('Voeding')} 
-            className="absolute cursor-pointer hover:bg-green-500/5 transition-colors rounded-full" 
-            style={{ 
-              bottom: '16px', 
-              right: '16px', 
-              width: '176px', 
-              height: '176px',
-              clipPath: 'polygon(50% 50%, 100% 0%, 100% 100%)',
-              zIndex: 10
-            }} 
-          />
-          
-          {/* Slaap segment - linksonder (180-270 graden) */}
-          <div 
-            onClick={() => handleSegmentClick('Slaap')} 
-            className="absolute cursor-pointer hover:bg-purple-500/5 transition-colors rounded-full" 
-            style={{ 
-              bottom: '16px', 
-              left: '16px', 
-              width: '176px', 
-              height: '176px',
-              clipPath: 'polygon(50% 50%, 0% 0%, 0% 100%)',
-              zIndex: 10
-            }} 
-          />
-          
-          {/* Mentaal segment - linksboven (270-360 graden) */}
-          <div 
-            onClick={() => handleSegmentClick('Mentaal')} 
-            className="absolute cursor-pointer hover:bg-orange-500/5 transition-colors rounded-full" 
-            style={{ 
-              top: '16px', 
-              left: '16px', 
-              width: '176px', 
-              height: '176px',
-              clipPath: 'polygon(50% 50%, 0% 0%, 0% 100%)',
-              zIndex: 10
-            }} 
-          />
+         {/* Klikgebieden voor modals - CORRECT uitgelijnd met CSS gradient */}
+{/* Beweging segment - begint rechtsboven bij -45deg, loopt tot 45deg */}
+<div 
+  onClick={() => handleSegmentClick('Beweging')} 
+  className="absolute cursor-pointer hover:bg-blue-500/5 transition-colors" 
+  style={{ 
+    top: '0px', 
+    left: '50%', 
+    right: '0px', 
+    bottom: '50%',
+    transformOrigin: 'bottom left',
+    clipPath: 'polygon(0% 100%, 100% 100%, 100% 0%)',
+    zIndex: 10
+  }} 
+/>
+
+{/* Voeding segment - van 45deg tot 135deg (rechts) */}
+<div 
+  onClick={() => handleSegmentClick('Voeding')} 
+  className="absolute cursor-pointer hover:bg-green-500/5 transition-colors" 
+  style={{ 
+    top: '50%', 
+    right: '0px', 
+    bottom: '0px', 
+    left: '50%',
+    transformOrigin: 'top left',
+    clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%)',
+    zIndex: 10
+  }} 
+/>
+
+{/* Slaap segment - van 135deg tot 225deg (onder) */}
+<div 
+  onClick={() => handleSegmentClick('Slaap')} 
+  className="absolute cursor-pointer hover:bg-purple-500/5 transition-colors" 
+  style={{ 
+    bottom: '0px', 
+    right: '50%', 
+    left: '0px', 
+    top: '50%',
+    transformOrigin: 'top right',
+    clipPath: 'polygon(100% 0%, 100% 100%, 0% 100%)',
+    zIndex: 10
+  }} 
+/>
+
+{/* Mentaal segment - van 225deg tot 315deg (links) */}
+<div 
+  onClick={() => handleSegmentClick('Mentaal')} 
+  className="absolute cursor-pointer hover:bg-orange-500/5 transition-colors" 
+  style={{ 
+    left: '0px', 
+    bottom: '50%', 
+    top: '0px', 
+    right: '50%',
+    transformOrigin: 'bottom right',
+    clipPath: 'polygon(0% 0%, 0% 100%, 100% 100%)',
+    zIndex: 10
+  }} 
+/>
           {/* Labels & Percentages */}
           <div className="absolute -top-4 left-1/2 transform -translate-x-1/2"><div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Beweging</div></div>
           <div className="absolute pointer-events-none" style={{ top: '40px', left: '50%' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.beweging}%</span></div>
