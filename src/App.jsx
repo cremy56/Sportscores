@@ -84,46 +84,67 @@ function App() {
     setupNetworkMonitoring();
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    const unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
-      if (docSnap.exists()) {
-        setProfile(docSnap.data());
-      } else {
-        const allowedUserRef = doc(db, 'toegestane_gebruikers', user.email);
-        const allowedUserSnap = await getDoc(allowedUserRef);
-        if (allowedUserSnap.exists()) {
-          const initialProfileData = allowedUserSnap.data();
-          initialProfileData.email = user.email;
-          initialProfileData.onboarding_complete = false;
-          await setDoc(doc(db, 'users', user.uid), initialProfileData);
-        } else {
-            setLoading(false);
+useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    const profileRef = doc(db, 'users', user.uid);
+    let unsubscribeProfile;
+
+    const setupListener = () => {
+      unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setProfile(docSnap.data());
         }
+      });
+    };
+
+    const checkAndCreateProfile = async () => {
+      try {
+        const docSnap = await getDoc(profileRef);
+        if (!docSnap.exists()) {
+          const allowedUserRef = doc(db, 'toegestane_gebruikers', user.email);
+          const allowedUserSnap = await getDoc(allowedUserRef);
+          if (allowedUserSnap.exists()) {
+            const initialProfileData = {
+              ...allowedUserSnap.data(),
+              email: user.email,
+              onboarding_complete: false
+            };
+            await setDoc(profileRef, initialProfileData);
+          } else {
+            console.error("Gebruiker niet gevonden in toegestane_gebruikers.");
+          }
+        }
+        setupListener();
+      } catch (error) {
+        console.error("Fout bij het controleren/aanmaken van profiel:", error);
       }
-    });
-    return () => unsubscribeProfile();
+    };
+
+    checkAndCreateProfile();
+
+    return () => {
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+      }
+    };
   }, [user]);
 
+
   useEffect(() => {
-    if (!profile) {
-        if(user) setLoading(true);
-        return;
-    };
-    if (!profile.school_id) {
-        setSchool(null);
+    if (profile?.school_id) {
+      const schoolRef = doc(db, 'scholen', profile.school_id);
+      const unsubscribeSchool = onSnapshot(schoolRef, (schoolSnap) => {
+        setSchool(schoolSnap.exists() ? { id: schoolSnap.id, ...schoolSnap.data() } : null);
         setLoading(false);
-        return;
+      });
+      return () => unsubscribeSchool;
+    } else {
+        if(user) setLoading(false);
     }
-    const unsubscribeSchool = onSnapshot(doc(db, 'scholen', profile.school_id), (schoolSnap) => {
-      if (schoolSnap.exists()) {
-        setSchool({ id: schoolSnap.id, ...schoolSnap.data() });
-      } else {
-        setSchool(null);
-      }
-      setLoading(false);
-    });
-    return () => unsubscribeSchool;
   }, [profile, user]);
 
   if (loading) {
