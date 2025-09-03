@@ -5,6 +5,7 @@ import { auth, db } from './firebase';
 import { sendSignInLinkToEmail } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
+import logoSrc from './assets/logo.png'; // Zorg dat deze import bovenaan staat
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -54,11 +55,13 @@ export default function Register() {
         {/* Logo en Header */}
         <div className="flex flex-col items-center mb-8">
           <div className="bg-gradient-to-br from-purple-100 to-blue-100 p-4 rounded-2xl mb-4 shadow-lg">
-            <img
-              src="/logo.png"
-              alt="Sportscores Logo"
-              className="h-12 w-auto object-contain"
-            />
+            <div className="mb-6">
+                     <img
+                       src={logoSrc}
+                       alt="Sportscores Logo"
+                       className="h-16 w-auto object-contain mx-auto" // mx-auto om te centreren
+                     />
+                   </div>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">
             KA Beveren
