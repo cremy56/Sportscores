@@ -220,7 +220,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
   
   // Check if any admin routes are active for dropdown highlighting
-  const isAdminDropdownActive = ['/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'].includes(location.pathname);
+  const isAdminDropdownActive = ['/groepsbeheer', '/testbeheer', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'].includes(location.pathname);
   
   const routeTitles = {
     '/': 'Home',
