@@ -184,7 +184,7 @@ const MijnGezondheid = () => {
           />
 
           {/* Klikgebieden voor modals */}
-          <div onClick={() => handleSegmentClick('Beweging')} className="absolute top-4 right-4 cursor-pointer hover:bg-blue-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 100% 50%, 50% 0%)', borderRadius: '50%' }} />
+          <div onClick={() => handleSegmentClick('Beweging')} className="absolute top-4 right cursor-pointer hover:bg-blue-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 100% 50%, 50% 0%)', borderRadius: '50%' }} />
           <div onClick={() => handleSegmentClick('Voeding')} className="absolute bottom-4 right-4 cursor-pointer hover:bg-green-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 100% 50%, 50% 100%)', borderRadius: '50%' }} />
           <div onClick={() => handleSegmentClick('Slaap')} className="absolute bottom-4 left-4 cursor-pointer hover:bg-purple-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 0% 50%, 50% 100%)', borderRadius: '50%' }} />
           <div onClick={() => handleSegmentClick('Mentaal')} className="absolute top-4 left-4 cursor-pointer hover:bg-orange-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 0% 50%, 50% 0%)', borderRadius: '50%' }} />
@@ -197,7 +197,7 @@ const MijnGezondheid = () => {
            <div className="absolute pointer-events-none" style={{ top: '60%', right: '30px' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.voeding}%</span></div>
 
           <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2"><div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Slaap</div></div>
-           <div className="absolute pointer-events-none" style={{ bottom: '40px', left: '505%' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.slaap}%</span></div>
+           <div className="absolute pointer-events-none" style={{ bottom: '40px', left: '50%' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.slaap}%</span></div>
           
           <div className="absolute -left top-1/2 transform -translate-y-1/2"><div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Mentaal</div></div>
            <div className="absolute pointer-events-none" style={{ top: '60%', left: '25px' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.mentaal}%</span></div>
