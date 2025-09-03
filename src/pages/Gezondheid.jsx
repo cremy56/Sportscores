@@ -163,7 +163,7 @@ const MijnGezondheid = () => {
           </div>
 
           {/* Labels buiten het kompas */}
-          <div className="absolute -top-7 left-1/2 transform -translate-x-1/2 text-center">
+          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-center">
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
               Beweging
             </div>
@@ -175,7 +175,7 @@ const MijnGezondheid = () => {
             </div>
           </div>
 
-          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-center">
+          <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-center">
             <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
               Slaap
             </div>
