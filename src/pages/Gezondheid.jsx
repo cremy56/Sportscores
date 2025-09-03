@@ -74,7 +74,7 @@ const MijnGezondheid = () => {
   const handleSegmentClick = (segment) => {
     console.log(`${segment} segment geklikt`);
     if (segment === 'Beweging') {
-      setTempStappen(stappen); // Reset temp waarde
+      setTempStappen(dagelijkseData.stappen || 0);  // Reset temp waarde
       setShowStappenModal(true);
     }
   };
@@ -258,7 +258,7 @@ const MijnGezondheid = () => {
             }}
           >
             <div style={{ fontSize: '4rem', marginBottom: '8px', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))' }}>❤️</div>
-            <div className="text-white font-bold text-3xl leading-none filter drop-shadow-md">{hartslag}</div>
+            <div className="text-white font-bold text-3xl leading-none filter drop-shadow-md">{dagelijkseData.hartslag_rust || 'N/A'}</div>
             <div className="text-white text-sm opacity-90 font-medium">BPM</div>
           </div>
         </div>
