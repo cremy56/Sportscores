@@ -191,16 +191,16 @@ const MijnGezondheid = () => {
 
           {/* Labels & Percentages */}
           <div className="absolute -top-4 left-1/2 transform -translate-x-1/2"><div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Beweging</div></div>
-          <div className="absolute pointer-events-none" style={{ top: '40px', left: '50%' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.beweging}%</span></div>
+          <div className="absolute pointer-events-none" style={{ top: '40px', left: '50%' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.beweging}%</span></div>
           
           <div className="absolute -right-1 top-1/2 transform -translate-y-1/2"><div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Voeding</div></div>
-           <div className="absolute pointer-events-none" style={{ top: '60%', right: '30px' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.voeding}%</span></div>
+           <div className="absolute pointer-events-none" style={{ top: '60%', right: '30px' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.voeding}%</span></div>
 
           <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2"><div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Slaap</div></div>
-           <div className="absolute pointer-events-none" style={{ bottom: '40px', left: '505%' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.slaap}%</span></div>
+           <div className="absolute pointer-events-none" style={{ bottom: '40px', left: '505%' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.slaap}%</span></div>
           
           <div className="absolute -left top-1/2 transform -translate-y-1/2"><div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Mentaal</div></div>
-           <div className="absolute pointer-events-none" style={{ top: '60%', left: '25px' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.mentaal}%</span></div>
+           <div className="absolute pointer-events-none" style={{ top: '60%', left: '25px' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.mentaal}%</span></div>
 
           {/* Hart in midden */}
           <div 
