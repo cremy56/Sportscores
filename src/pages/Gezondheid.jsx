@@ -247,25 +247,8 @@ const MijnGezondheid = () => {
       {showHartslagModal && ( <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"><div className="text-center mb-6"><div className="text-4xl mb-4">❤️</div><h3 className="text-xl font-bold text-gray-800 mb-2">Hartslag Invoeren</h3><p className="text-gray-600">Voer je hartslag in rust in</p></div><div className="mb-6"><input type="number" value={tempHartslag} onChange={(e) => setTempHartslag(parseInt(e.target.value, 10) || 0)} className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 focus:outline-none" min="30" max="220" /></div><div className="flex gap-3"><button onClick={() => setShowHartslagModal(false)} className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">Annuleren</button><button onClick={handleHartslagSave} className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors">Opslaan</button></div></div></div>)}
       {showStappenModal && ( <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"><div className="text-center mb-6"><div className="text-4xl mb-4">👟</div><h3 className="text-xl font-bold text-gray-800 mb-2">Stappen Invoeren</h3><p className="text-gray-600">Voer je aantal stappen voor vandaag in</p></div><div className="mb-6"><input type="number" value={tempStappen} onChange={(e) => setTempStappen(parseInt(e.target.value, 10) || 0)} className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" min="0" max="100000" /><div className="text-center mt-4"><Link to="/gezondheid/beweging" className="text-sm text-purple-600 hover:text-purple-800 font-medium">Bekijk volledige bewegingsdetails →</Link></div></div><div className="flex gap-3"><button onClick={() => setShowStappenModal(false)} className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">Annuleren</button><button onClick={handleStappenSave} className="flex-1 py-3 px-4 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors">Opslaan</button></div></div></div>)}
 
-     <style>{`
-        @keyframes slowPulse {
-          0%, 100% { 
-            transform: translate(-50%, -50%) scale(1); 
-            box-shadow: 
-              0 20px 40px rgba(239, 68, 68, 0.4),
-              inset 0 4px 8px rgba(255,255,255,0.2),
-              inset 0 -4px 8px rgba(0,0,0,0.1);
-          }
-          50% { 
-            transform: translate(-50%, -50%) scale(1.05); 
-            box-shadow: 
-              0 25px 50px rgba(239, 68, 68, 0.5),
-              inset 0 4px 8px rgba(255,255,255,0.3),
-              inset 0 -4px 8px rgba(0,0,0,0.1);
-          }
-        }
-      `}</style>
-          </div>
+      <style jsx>{` @keyframes slowPulse { 0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 20px 40px rgba(239, 68, 68, 0.4), inset 0 4px 8px rgba(255,255,255,0.2), inset 0 -4px 8px rgba(0,0,0,0.1); } 50% { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 25px 50px rgba(239, 68, 68, 0.5), inset 0 4px 8px rgba(255,255,255,0.3), inset 0 -4px 8px rgba(0,0,0,0.1); } } `}</style>
+    </div>
   );
 };
 
