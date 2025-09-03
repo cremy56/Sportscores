@@ -153,7 +153,7 @@ const MijnGezondheid = () => {
             className="absolute pointer-events-none"
             style={{ 
               top: '60%', 
-              left: '40px',
+              left: '35px',
               transform: 'translate(0, -50%)'
             }}
           >
