@@ -182,8 +182,6 @@ const MijnGezondheid = () => {
               WebkitMask: 'radial-gradient(transparent 120px, black 120px)',
             }}
           />
-
-         {/* Klikgebieden voor modals - CORRECT uitgelijnd met CSS gradient */}
 {/* Klikgebieden voor modals - SIMPELE rechthoeken in de hoeken */}
 {/* Beweging segment - rechtsboven */}
 <div 
@@ -191,9 +189,9 @@ const MijnGezondheid = () => {
   className="absolute cursor-pointer hover:bg-blue-500/10 transition-colors" 
   style={{ 
     top: '16px', 
-    right: '16px', 
+    right: '50px', 
     width: '120px', 
-    height: '120px',
+    height: '60px',
     zIndex: 10
   }} 
 />
