@@ -190,7 +190,7 @@ const MijnGezondheid = () => {
   onClick={() => handleSegmentClick('Beweging')} 
   className="absolute cursor-pointer hover:bg-blue-500/5 transition-colors" 
   style={{ 
-    top: '16px', 
+    top: '1px', 
     left: '16px', 
     right: '16px', 
     bottom: '16px',
