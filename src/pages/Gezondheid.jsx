@@ -13,9 +13,33 @@ const MijnGezondheid = () => {
   const [tempHartslag, setTempHartslag] = useState(72);
   const [showInfoModal, setShowInfoModal] = useState(false);
 
+  // Simuleer eerste bezoek check - in echte app zou dit uit localStorage/database komen
+  useEffect(() => {
+    const hasVisited = localStorage.getItem('welzijn-visited');
+    if (!hasVisited) {
+      setShowInfoModal(true);
+      localStorage.setItem('welzijn-visited', 'true');
+    }
+  }, []);
+
   const handleSegmentClick = (segment) => {
     console.log(`${segment} segment geklikt`);
   };
+
+  const getGemiddeldeScore = () => {
+    const totaal = welzijnData.beweging + welzijnData.voeding + welzijnData.slaap + welzijnData.mentaal;
+    return Math.round(totaal / 4);
+  };
+
+  const getBalansStatus = () => {
+    const gemiddelde = getGemiddeldeScore();
+    if (gemiddelde >= 80) return { status: 'Uitstekend', kleur: 'text-green-600', emoji: '🌟' };
+    if (gemiddelde >= 70) return { status: 'Goed', kleur: 'text-blue-600', emoji: '👍' };
+    if (gemiddelde >= 60) return { status: 'Kan beter', kleur: 'text-orange-600', emoji: '⚡' };
+    return { status: 'Focus nodig', kleur: 'text-red-600', emoji: '🎯' };
+  };
+
+  const balansStatus = getBalansStatus();
 
   const WelzijnsKompas = () => (
     <div className="flex justify-center mb-8">
@@ -117,19 +141,6 @@ const MijnGezondheid = () => {
     </div>
   );
 
-  const getGemiddeldeScore = () => {
-    const totaal = welzijnData.beweging + welzijnData.voeding + welzijnData.slaap + welzijnData.mentaal;
-    return Math.round(totaal / 4);
-  };
-
-  const getBalansStatus = () => {
-    const gemiddelde = getGemiddeldeScore();
-    if (gemiddelde >= 80) return { status: 'Uitstekend', kleur: 'text-green-600', emoji: '🌟' };
-    if (gemiddelde >= 70) return { status: 'Goed', kleur: 'text-blue-600', emoji: '👍' };
-    if (gemiddelde >= 60) return { status: 'Kan beter', kleur: 'text-orange-600', emoji: '⚡' };
-    return { status: 'Focus nodig', kleur: 'text-red-600', emoji: '🎯' };
-  };
-
   const handleHartslagSave = () => {
     if (tempHartslag >= 30 && tempHartslag <= 220) {
       setHartslag(tempHartslag);
@@ -139,37 +150,38 @@ const MijnGezondheid = () => {
     }
   };
 
-  const balansStatus = getBalansStatus();
-
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-6">
         
-        {/* Header */}
+        {/* Header - CORRECTE LAYOUT */}
         <div className="mb-6 mt-20">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Mijn Gezondheid</h1>
-            <div className="flex-shrink-0">
-              <div className="inline-flex items-center text-gray-500 text-sm">
-                <span className="mr-2">🔒</span>
+          <div className="flex justify-between items-start mb-8">
+            
+            {/* Links: Titel + Privé label daaronder */}
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Mijn Gezondheid</h1>
+              <div className="flex items-center text-gray-400 text-sm">
+                <span className="mr-1">🔒</span>
                 <span>Privé gegevens</span>
               </div>
             </div>
+            
+            {/* Rechts: Score card op hoogte van titel */}
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-white/30 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{balansStatus.emoji}</span>
+                <div>
+                  <div className="text-lg font-bold text-slate-800">{getGemiddeldeScore()}%</div>
+                  <div className="text-xs text-slate-600">{balansStatus.status}</div>
+                </div>
+              </div>
+            </div>
+            
           </div>
         </div>
 
         <div className="max-w-4xl mx-auto space-y-6">
-          
-          {/* Algemene Score Card - subtiel bovenaan */}
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-white/30 max-w-md mx-auto">
-            <div className="flex items-center justify-center gap-3">
-              <span className="text-2xl">{balansStatus.emoji}</span>
-              <div className="text-center">
-                <div className="text-lg font-bold text-slate-800">{getGemiddeldeScore()}% - {balansStatus.status}</div>
-                <div className="text-xs text-slate-600">Algemene Welzijnsscore</div>
-              </div>
-            </div>
-          </div>
 
           {/* Welzijnskompas */}
           <WelzijnsKompas />
