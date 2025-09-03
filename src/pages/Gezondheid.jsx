@@ -17,161 +17,88 @@ const MijnGezondheid = () => {
     // Hier kun je functionaliteit toevoegen voor elk segment
   };
 
-  const WelzijnsKompas = () => (
-    <div className="flex justify-center mb-8">
-      <div className="relative">
-        {/* 3D Kompas Container */}
-        <div 
-          className="relative w-96 h-96 rounded-full"
-          style={{
-            background: 'linear-gradient(145deg, #e2e8f0, #cbd5e1)',
-            boxShadow: `
-              20px 20px 60px #94a3b8,
-              -20px -20px 60px #ffffff,
-              inset 0 0 0 1px rgba(255,255,255,0.1)
-            `,
-            transform: 'perspective(1000px) rotateX(10deg)',
-          }}
-        >
-          {/* Beweging segment - Rechtsboven */}
-          <div 
-            onClick={() => handleSegmentClick('Beweging')}
-            className="absolute inset-4 rounded-full cursor-pointer transition-transform hover:scale-105"
-            style={{
-              background: `conic-gradient(from -45deg, 
-                #60a5fa 0deg, 
-                #3b82f6 ${welzijnData.beweging * 0.9}deg, 
-                #e5e7eb ${welzijnData.beweging * 0.9}deg 90deg,
-                #4ade80 90deg,
-                #22c55e ${90 + welzijnData.voeding * 0.9}deg,
-                #e5e7eb ${90 + welzijnData.voeding * 0.9}deg 180deg,
-                #a78bfa 180deg,
-                #8b5cf6 ${180 + welzijnData.slaap * 0.9}deg,
-                #e5e7eb ${180 + welzijnData.slaap * 0.9}deg 270deg,
-                #fb923c 270deg,
-                #f97316 ${270 + welzijnData.mentaal * 0.9}deg,
-                #e5e7eb ${270 + welzijnData.mentaal * 0.9}deg 360deg)`,
-              mask: 'radial-gradient(transparent 120px, black 120px)',
-              WebkitMask: 'radial-gradient(transparent 120px, black 120px)',
-              boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.1)',
-            }}
-          />
-
-          {/* Segment Overlays voor klikgebieden */}
-          {/* Beweging - Rechtsboven */}
-          <div 
-            onClick={() => handleSegmentClick('Beweging')}
-            className="absolute top-4 right-4 w-44 h-44 cursor-pointer hover:bg-blue-500/10 rounded-full transition-colors"
-            style={{
-              clipPath: 'polygon(50% 50%, 100% 0%, 100% 100%)',
-              transform: 'rotate(-45deg)',
-            }}
-          />
-          
-          {/* Voeding - Rechtsonder */}
-          <div 
-            onClick={() => handleSegmentClick('Voeding')}
-            className="absolute bottom-4 right-4 w-44 h-44 cursor-pointer hover:bg-green-500/10 rounded-full transition-colors"
-            style={{
-              clipPath: 'polygon(50% 50%, 100% 0%, 100% 100%)',
-              transform: 'rotate(45deg)',
-            }}
-          />
-          
-          {/* Slaap - Linksonder */}
-          <div 
-            onClick={() => handleSegmentClick('Slaap')}
-            className="absolute bottom-4 left-4 w-44 h-44 cursor-pointer hover:bg-purple-500/10 rounded-full transition-colors"
-            style={{
-              clipPath: 'polygon(50% 50%, 100% 0%, 100% 100%)',
-              transform: 'rotate(135deg)',
-            }}
-          />
-          
-          {/* Mentaal - Linksboven */}
-          <div 
-            onClick={() => handleSegmentClick('Mentaal')}
-            className="absolute top-4 left-4 w-44 h-44 cursor-pointer hover:bg-orange-500/10 rounded-full transition-colors"
-            style={{
-              clipPath: 'polygon(50% 50%, 100% 0%, 100% 100%)',
-              transform: 'rotate(225deg)',
-            }}
-          />
-
-          {/* Labels met 3D-effect */}
-          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 text-center">
-            <div className="text-3xl mb-2 filter drop-shadow-lg">🏃‍♂️</div>
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-              Beweging
-            </div>
-            <div className="text-blue-600 font-bold text-xl mt-1 filter drop-shadow-md">{welzijnData.beweging}%</div>
-          </div>
-
-          <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 text-center">
-            <div className="text-3xl mb-2 filter drop-shadow-lg">🥗</div>
-            <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-              Voeding
-            </div>
-            <div className="text-green-600 font-bold text-xl mt-1 filter drop-shadow-md">{welzijnData.voeding}%</div>
-          </div>
-
-          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 text-center">
-            <div className="text-3xl mb-2 filter drop-shadow-lg">🌙</div>
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-              Slaap
-            </div>
-            <div className="text-purple-600 font-bold text-xl mt-1 filter drop-shadow-md">{welzijnData.slaap}%</div>
-          </div>
-
-          <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 text-center">
-            <div className="text-3xl mb-2 filter drop-shadow-lg">🧠</div>
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-              Mentaal
-            </div>
-            <div className="text-orange-600 font-bold text-xl mt-1 filter drop-shadow-md">{welzijnData.mentaal}%</div>
-          </div>
-
-          {/* Groot pulserend hart in het midden - 3x groter */}
-          <div 
-            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform hover:scale-110"
-            onClick={() => setShowHartslagModal(true)}
-            style={{
-              width: '180px',
-              height: '180px',
-              background: 'linear-gradient(145deg, #ef4444, #dc2626, #b91c1c)',
-              borderRadius: '50%',
-              boxShadow: `
-                0 20px 40px rgba(239, 68, 68, 0.4),
-                inset 0 4px 8px rgba(255,255,255,0.2),
-                inset 0 -4px 8px rgba(0,0,0,0.1)
-              `,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              animation: 'slowPulse 3s infinite ease-in-out',
-            }}
-          >
-            <div 
-              style={{
-                fontSize: '4rem',
-                marginBottom: '8px',
-                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))',
-              }}
+  const WelzijnsKompas = () => {
+    const segmenten = [
+      { naam: 'Beweging', waarde: welzijnData.beweging, kleur: '#60a5fa', rotatie: -45, positie: 'top-0 right-0' },
+      { naam: 'Mentaal', waarde: welzijnData.mentaal, kleur: '#fb923c', rotatie: -135, positie: 'top-0 left-0' },
+      { naam: 'Slaap', waarde: welzijnData.slaap, kleur: '#a78bfa', rotatie: 135, positie: 'bottom-0 left-0' },
+      { naam: 'Voeding', waarde: welzijnData.voeding, kleur: '#4ade80', rotatie: 45, positie: 'bottom-0 right-0' },
+    ];
+    
+    return (
+    <div className="flex justify-center items-center my-8">
+        <div className="relative w-[400px] h-[400px]">
+            {/* Grote 3D Hart in het midden */}
+            <div
+                onClick={() => setShowHartslagModal(true)}
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[180px] h-[180px] cursor-pointer group"
             >
-              ❤️
+                <div
+                    className="relative w-full h-full transition-transform duration-300 group-hover:scale-105"
+                    style={{
+                        filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.2))'
+                    }}
+                >
+                    <div
+                        className="absolute w-[90px] h-[135px] -top-[45px] left-1/2 -translate-x-1/2 bg-red-500 rounded-t-full"
+                        style={{
+                            transform: 'rotate(-45deg)',
+                            transformOrigin: 'bottom center',
+                            background: 'linear-gradient(135deg, #ef4444, #b91c1c)'
+                        }}
+                    ></div>
+                    <div
+                        className="absolute w-[90px] h-[135px] -top-[45px] left-1/2 -translate-x-1/2 bg-red-500 rounded-t-full"
+                        style={{
+                            transform: 'rotate(45deg)',
+                            transformOrigin: 'bottom center',
+                            background: 'linear-gradient(45deg, #b91c1c, #ef4444)'
+                        }}
+                    ></div>
+                </div>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10 pointer-events-none">
+                    <div className="font-bold text-5xl leading-none" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                        {hartslag}
+                    </div>
+                    <div className="text-lg font-medium opacity-90" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
+                        BPM
+                    </div>
+                </div>
             </div>
-            <div className="text-white font-bold text-3xl leading-none filter drop-shadow-md">
-              {hartslag}
-            </div>
-            <div className="text-white text-sm opacity-90 font-medium">
-              BPM
-            </div>
-          </div>
+
+            {/* Segmenten */}
+            {segmenten.map((seg, index) => (
+                <div
+                    key={index}
+                    className={`absolute w-[190px] h-[190px] ${seg.positie}`}
+                    style={{ transform: `rotate(${seg.rotatie}deg)` }}
+                >
+                    <div
+                        onClick={() => handleSegmentClick(seg.naam)}
+                        className="w-full h-full rounded-full cursor-pointer transition-transform hover:scale-105"
+                        style={{
+                            backgroundColor: seg.kleur,
+                            clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
+                            boxShadow: 'inset 5px 5px 15px rgba(255, 255, 255, 0.2), inset -5px -5px 15px rgba(0, 0, 0, 0.15)',
+                            transform: 'rotate(-45deg)' // Compensate for parent rotation
+                        }}
+                    >
+                         <div className="absolute inset-0 flex flex-col items-center justify-center text-white font-bold"
+                             style={{
+                                 transform: `rotate(${45 - seg.rotatie}deg)`, // Counter-rotate text
+                                 textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                             }}>
+                            <span>{seg.naam}</span>
+                            <span className="text-2xl">{seg.waarde}%</span>
+                        </div>
+                    </div>
+                </div>
+            ))}
         </div>
-      </div>
     </div>
-  );
+   );
+ };
+
 
   const handleHartslagSave = () => {
     if (tempHartslag >= 30 && tempHartslag <= 220) {
@@ -201,7 +128,6 @@ const MijnGezondheid = () => {
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-4">
         
-        {/* Header met extra top-margin voor de juiste hoogte - groeiplan stijl */}
         <div className="mb-8 mt-20">
           <div className="flex justify-between items-center mb-12">
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
@@ -216,10 +142,8 @@ const MijnGezondheid = () => {
         </div>
 
         <div className="max-w-4xl mx-auto space-y-8">
-          {/* Welzijnskompas */}
           <WelzijnsKompas />
 
-          {/* Status overzicht - groeiplan kaart stijl */}
           <div className="bg-white rounded-2xl shadow-md border-2 border-slate-200 p-8 max-w-2xl mx-auto">
             <div className="text-center mb-6">
               <div className="text-5xl mb-3 filter drop-shadow-lg">{balansStatus.emoji}</div>
@@ -231,32 +155,26 @@ const MijnGezondheid = () => {
               </p>
             </div>
 
-            {/* Detailed breakdown */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-blue-50 rounded-xl border-2 border-blue-100 shadow-sm">
-                <div className="text-2xl mb-2">🏃‍♂️</div>
                 <div className="text-xl font-bold text-blue-600">{welzijnData.beweging}%</div>
                 <div className="text-sm text-gray-600 font-medium">Beweging</div>
               </div>
               <div className="text-center p-4 bg-green-50 rounded-xl border-2 border-green-100 shadow-sm">
-                <div className="text-2xl mb-2">🥗</div>
                 <div className="text-xl font-bold text-green-600">{welzijnData.voeding}%</div>
                 <div className="text-sm text-gray-600 font-medium">Voeding</div>
               </div>
               <div className="text-center p-4 bg-purple-50 rounded-xl border-2 border-purple-100 shadow-sm">
-                <div className="text-2xl mb-2">🌙</div>
                 <div className="text-xl font-bold text-purple-600">{welzijnData.slaap}%</div>
                 <div className="text-sm text-gray-600 font-medium">Slaap</div>
               </div>
               <div className="text-center p-4 bg-orange-50 rounded-xl border-2 border-orange-100 shadow-sm">
-                <div className="text-2xl mb-2">🧠</div>
                 <div className="text-xl font-bold text-orange-600">{welzijnData.mentaal}%</div>
                 <div className="text-sm text-gray-600 font-medium">Mentaal</div>
               </div>
             </div>
           </div>
 
-          {/* Quick Actions - groeiplan kaart stijl */}
           <div className="bg-white rounded-2xl shadow-md border-2 border-slate-200 p-8 max-w-2xl mx-auto">
             <h3 className="text-xl font-bold text-slate-800 mb-6">Snelle Acties</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -289,7 +207,6 @@ const MijnGezondheid = () => {
         </div>
       </div>
 
-      {/* Hartslag Modal */}
       {showHartslagModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
@@ -329,25 +246,6 @@ const MijnGezondheid = () => {
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes slowPulse {
-          0%, 100% { 
-            transform: translate(-50%, -50%) scale(1); 
-            box-shadow: 
-              0 20px 40px rgba(239, 68, 68, 0.4),
-              inset 0 4px 8px rgba(255,255,255,0.2),
-              inset 0 -4px 8px rgba(0,0,0,0.1);
-          }
-          50% { 
-            transform: translate(-50%, -50%) scale(1.05); 
-            box-shadow: 
-              0 25px 50px rgba(239, 68, 68, 0.5),
-              inset 0 4px 8px rgba(255,255,255,0.3),
-              inset 0 -4px 8px rgba(0,0,0,0.1);
-          }
-        }
-      `}</style>
     </div>
   );
 };
