@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link, useOutletContext, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
@@ -15,6 +15,7 @@ const getTodayString = () => {
 
 const MijnGezondheid = () => {
   const { profile } = useOutletContext(); // Haal de ingelogde gebruiker op
+  const navigate = useNavigate();
 
   // State voor data uit Firestore
   const [welzijnDoelen, setWelzijnDoelen] = useState({ stappen: 10000, water: 2000, slaap: 8 });
@@ -25,9 +26,17 @@ const MijnGezondheid = () => {
   const [tempHartslag, setTempHartslag] = useState(72);
   const [showStappenModal, setShowStappenModal] = useState(false);
   const [tempStappen, setTempStappen] = useState(0);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Effect Hook om live data op te halen uit Firestore
   useEffect(() => {
+    // Info modal voor eerste bezoek
+    const hasVisited = localStorage.getItem('welzijn-visited');
+    if (!hasVisited) {
+      setShowInfoModal(true);
+      localStorage.setItem('welzijn-visited', 'true');
+    }
+
     if (!profile?.uid) return; // Wacht tot het profiel geladen is
 
     // 1. Listener voor het hoofddocument (bevat de doelen)
@@ -44,38 +53,39 @@ const MijnGezondheid = () => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setDagelijkseData(prev => ({...prev, ...data}));
-        // Zet de startwaarde voor de modals op basis van de data uit de database
         setTempHartslag(data.hartslag_rust || 72);
         setTempStappen(data.stappen || 0);
       } else {
-        // Als er nog geen document is voor vandaag, reset de waarden
         setDagelijkseData({ stappen: 0, hartslag_rust: 72, water_intake: 0, slaap_uren: 0 });
         setTempHartslag(72);
         setTempStappen(0);
       }
     });
 
-    // Cleanup functie die de listeners stopt als de component verdwijnt
     return () => {
       unsubscribeWelzijn();
       unsubscribeVandaag();
     };
   }, [profile?.uid]);
 
-  // Functie om op een segment te klikken
+  // Functie voor klikken op KOMPAS SEGMENT (opent MODAL)
   const handleSegmentClick = (segment) => {
     if (segment === 'Beweging') {
       setTempStappen(dagelijkseData.stappen || 0);
       setShowStappenModal(true);
     }
-    // Voeg hier logica toe voor andere segmenten (Voeding, Slaap, etc.)
+    // Voeg hier logica toe voor andere segment modals
+  };
+  
+  // Functie voor klikken op TEGEL (navigeert naar DETAILPAGINA)
+  const handleTileClick = (path) => {
+    navigate(path);
   };
 
-  // Herbruikbare functie om data op te slaan in het document van vandaag
+  // Herbruikbare functie om data op te slaan
   const saveDataToDayDoc = async (dataToSave) => {
     if (!profile?.uid) return;
     const todayDocRef = doc(db, 'welzijn', profile.uid, 'dagelijkse_data', getTodayString());
-    
     try {
       await setDoc(todayDocRef, dataToSave, { merge: true });
       toast.success('Gegevens opgeslagen!');
@@ -107,7 +117,7 @@ const MijnGezondheid = () => {
   // Bereken de percentages voor de UI op basis van de live data
   const welzijnScores = {
     beweging: welzijnDoelen.stappen > 0 ? Math.min(Math.round((dagelijkseData.stappen / welzijnDoelen.stappen) * 100), 100) : 0,
-    voeding: 75, // Placeholder - kan later worden berekend
+    voeding: 75, // Placeholder
     slaap: 68,   // Placeholder
     mentaal: 88, // Placeholder
   };
@@ -119,10 +129,10 @@ const MijnGezondheid = () => {
 
   const getBalansStatus = () => {
     const gemiddelde = getGemiddeldeScore();
-    if (gemiddelde >= 80) return { status: 'Uitstekend', kleur: 'text-green-600', emoji: '🌟' };
-    if (gemiddelde >= 70) return { status: 'Goed', kleur: 'text-blue-600', emoji: '👍' };
-    if (gemiddelde >= 60) return { status: 'Kan beter', kleur: 'text-orange-600', emoji: '⚡' };
-    return { status: 'Focus nodig', kleur: 'text-red-600', emoji: '🎯' };
+    if (gemiddelde >= 80) return { status: 'Uitstekend', emoji: '🌟' };
+    if (gemiddelde >= 70) return { status: 'Goed', emoji: '👍' };
+    if (gemiddelde >= 60) return { status: 'Kan beter', emoji: '⚡' };
+    return { status: 'Focus nodig', emoji: '🎯' };
   };
 
   const balansStatus = getBalansStatus();
@@ -151,23 +161,24 @@ const MijnGezondheid = () => {
             }}
           />
 
-          {/* Klikgebieden */}
+          {/* Klikgebieden voor modals */}
           <div onClick={() => handleSegmentClick('Beweging')} className="absolute top-4 right-4 cursor-pointer hover:bg-blue-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 100% 50%, 50% 0%)', borderRadius: '50%' }} />
           <div onClick={() => handleSegmentClick('Voeding')} className="absolute bottom-4 right-4 cursor-pointer hover:bg-green-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 100% 50%, 50% 100%)', borderRadius: '50%' }} />
           <div onClick={() => handleSegmentClick('Slaap')} className="absolute bottom-4 left-4 cursor-pointer hover:bg-purple-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 0% 50%, 50% 100%)', borderRadius: '50%' }} />
           <div onClick={() => handleSegmentClick('Mentaal')} className="absolute top-4 left-4 cursor-pointer hover:bg-orange-500/10 transition-colors" style={{ width: '176px', height: '176px', clipPath: 'polygon(50% 50%, 0% 50%, 50% 0%)', borderRadius: '50%' }} />
 
-          {/* Percentages */}
-          <div className="absolute pointer-events-none" style={{ top: '40px', left: '75%' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.beweging}%</span></div>
-          <div className="absolute pointer-events-none" style={{ top: '75%', right: '40px' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.voeding}%</span></div>
-          <div className="absolute pointer-events-none" style={{ bottom: '40px', left: '25%' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.slaap}%</span></div>
-          <div className="absolute pointer-events-none" style={{ top: '25%', left: '40px' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.mentaal}%</span></div>
-
-          {/* Labels */}
+          {/* Labels & Percentages */}
           <div className="absolute -top-4 left-1/2 transform -translate-x-1/2"><div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Beweging</div></div>
+          <div className="absolute pointer-events-none" style={{ top: '40px', left: '75%' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.beweging}%</span></div>
+          
           <div className="absolute -right-1 top-1/2 transform -translate-y-1/2"><div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Voeding</div></div>
+           <div className="absolute pointer-events-none" style={{ top: '75%', right: '40px' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.voeding}%</span></div>
+
           <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2"><div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Slaap</div></div>
+           <div className="absolute pointer-events-none" style={{ bottom: '40px', left: '25%' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.slaap}%</span></div>
+          
           <div className="absolute -left top-1/2 transform -translate-y-1/2"><div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Mentaal</div></div>
+           <div className="absolute pointer-events-none" style={{ top: '25%', left: '40px' }}><span className="text-white font-bold text-xl drop-shadow-lg">{welzijnScores.mentaal}%</span></div>
 
           {/* Hart in midden */}
           <div 
@@ -193,10 +204,7 @@ const MijnGezondheid = () => {
           <div className="flex justify-between items-start mb-8">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Mijn Gezondheid</h1>
-              <div className="flex items-center text-gray-400 text-sm">
-                <span className="mr-1">🔒</span>
-                <span>Privé gegevens</span>
-              </div>
+              <div className="flex items-center text-gray-400 text-sm"><span className="mr-1">🔒</span><span>Privé gegevens</span></div>
             </div>
             <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-white/30 flex-shrink-0">
               <div className="flex items-center gap-3">
@@ -212,52 +220,32 @@ const MijnGezondheid = () => {
 
         <div className="max-w-4xl mx-auto space-y-6">
           <WelzijnsKompas />
+
+          {/* 5 Thema Tiles voor NAVIGATIE */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 max-w-5xl mx-auto">
+            <div onClick={() => handleTileClick('/gezondheid/beweging')} className="bg-blue-50 rounded-xl p-4 border-2 border-blue-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+              <div className="text-center"><div className="text-2xl mb-2">🏃‍♂️</div><div className="text-lg font-bold text-blue-600">{welzijnScores.beweging}%</div><div className="text-sm text-gray-600 font-medium">Beweging</div></div>
+            </div>
+            <div onClick={() => handleTileClick('/gezondheid/voeding')} className="bg-green-50 rounded-xl p-4 border-2 border-green-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+              <div className="text-center"><div className="text-2xl mb-2">🥗</div><div className="text-lg font-bold text-green-600">{welzijnScores.voeding}%</div><div className="text-sm text-gray-600 font-medium">Voeding</div></div>
+            </div>
+            <div onClick={() => handleTileClick('/gezondheid/slaap')} className="bg-purple-50 rounded-xl p-4 border-2 border-purple-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+              <div className="text-center"><div className="text-2xl mb-2">🌙</div><div className="text-lg font-bold text-purple-600">{welzijnScores.slaap}%</div><div className="text-sm text-gray-600 font-medium">Slaap</div></div>
+            </div>
+            <div onClick={() => handleTileClick('/gezondheid/mentaal')} className="bg-orange-50 rounded-xl p-4 border-2 border-orange-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+              <div className="text-center"><div className="text-2xl mb-2">🧠</div><div className="text-lg font-bold text-orange-600">{welzijnScores.mentaal}%</div><div className="text-sm text-gray-600 font-medium">Mentaal</div></div>
+            </div>
+            <div onClick={() => setShowHartslagModal(true)} className="bg-red-50 rounded-xl p-4 border-2 border-red-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105 sm:col-span-1 col-span-2 sm:col-start-auto">
+              <div className="text-center"><div className="text-2xl mb-2">❤️</div><div className="text-lg font-bold text-red-600">{dagelijkseData.hartslag_rust || 'N/A'}</div><div className="text-sm text-gray-600 font-medium">BPM</div></div>
+            </div>
+          </div>
         </div>
       </div>
       
-      {/* Modals */}
-      {showHartslagModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <div className="text-center mb-6">
-              <div className="text-4xl mb-4">❤️</div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Hartslag Invoeren</h3>
-              <p className="text-gray-600">Voer je hartslag in rust in</p>
-            </div>
-            <div className="mb-6">
-              <input type="number" value={tempHartslag} onChange={(e) => setTempHartslag(parseInt(e.target.value, 10) || 0)} className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 focus:outline-none" min="30" max="220" />
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowHartslagModal(false)} className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">Annuleren</button>
-              <button onClick={handleHartslagSave} className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors">Opslaan</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showStappenModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <div className="text-center mb-6">
-              <div className="text-4xl mb-4">👟</div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Stappen Invoeren</h3>
-              <p className="text-gray-600">Voer je aantal stappen voor vandaag in</p>
-            </div>
-            <div className="mb-6">
-              <input type="number" value={tempStappen} onChange={(e) => setTempStappen(parseInt(e.target.value, 10) || 0)} className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" min="0" max="100000" />
-              <div className="text-center mt-4">
-                <Link to="/gezondheid/beweging" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
-                  Bekijk volledige bewegingsdetails →
-                </Link>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowStappenModal(false)} className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">Annuleren</button>
-              <button onClick={handleStappenSave} className="flex-1 py-3 px-4 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors">Opslaan</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modals (Hartslag, Stappen, Info) */}
+      {showInfoModal && ( <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"><div className="text-center mb-6"><div className="text-4xl mb-4">👆</div><h3 className="text-xl font-bold text-gray-800 mb-2">Welkom bij je Welzijnskompas!</h3><p className="text-gray-600">Klik op de gekleurde segmenten van het kompas voor snelle invoer, of gebruik de tegels eronder om naar de detailpagina's te gaan.</p></div><div className="text-center"><button onClick={() => setShowInfoModal(false)} className="px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors">Begrepen</button></div></div></div>)}
+      {showHartslagModal && ( <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"><div className="text-center mb-6"><div className="text-4xl mb-4">❤️</div><h3 className="text-xl font-bold text-gray-800 mb-2">Hartslag Invoeren</h3><p className="text-gray-600">Voer je hartslag in rust in</p></div><div className="mb-6"><input type="number" value={tempHartslag} onChange={(e) => setTempHartslag(parseInt(e.target.value, 10) || 0)} className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 focus:outline-none" min="30" max="220" /></div><div className="flex gap-3"><button onClick={() => setShowHartslagModal(false)} className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">Annuleren</button><button onClick={handleHartslagSave} className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors">Opslaan</button></div></div></div>)}
+      {showStappenModal && ( <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"><div className="text-center mb-6"><div className="text-4xl mb-4">👟</div><h3 className="text-xl font-bold text-gray-800 mb-2">Stappen Invoeren</h3><p className="text-gray-600">Voer je aantal stappen voor vandaag in</p></div><div className="mb-6"><input type="number" value={tempStappen} onChange={(e) => setTempStappen(parseInt(e.target.value, 10) || 0)} className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" min="0" max="100000" /><div className="text-center mt-4"><Link to="/gezondheid/beweging" className="text-sm text-purple-600 hover:text-purple-800 font-medium">Bekijk volledige bewegingsdetails →</Link></div></div><div className="flex gap-3"><button onClick={() => setShowStappenModal(false)} className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">Annuleren</button><button onClick={handleStappenSave} className="flex-1 py-3 px-4 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors">Opslaan</button></div></div></div>)}
 
       <style jsx>{` @keyframes slowPulse { 0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 20px 40px rgba(239, 68, 68, 0.4), inset 0 4px 8px rgba(255,255,255,0.2), inset 0 -4px 8px rgba(0,0,0,0.1); } 50% { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 25px 50px rgba(239, 68, 68, 0.5), inset 0 4px 8px rgba(255,255,255,0.3), inset 0 -4px 8px rgba(0,0,0,0.1); } } `}</style>
     </div>
