@@ -71,7 +71,7 @@ const DropdownItem = ({ to, children, onClick }) => (
   </li>
 );
 
-// Profile Menu Component (ongewijzigd)
+// Profile Menu Component
 const ProfileMenu = ({
   profile,
   school,
@@ -280,13 +280,13 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
             )}
 
-            {/* Data Dropdown voor leerkrachten en admins */}
+            {/* Reguliere data items voor leerkrachten en admins */}
             {isTeacherOrAdmin && (
-              <DropdownMenu title="Data" isActive={isDataDropdownActive}>
-                <DropdownItem to="/groepsbeheer">Groepsbeheer</DropdownItem>
-                <DropdownItem to="/scores">Scores</DropdownItem>
-                <DropdownItem to="/testbeheer">{testbeheerLinkText}</DropdownItem>
-              </DropdownMenu>
+              <>
+                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+                <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
+                <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
+              </>
             )}
 
             {/* Beheer Dropdown voor admins */}
