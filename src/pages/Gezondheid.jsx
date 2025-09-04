@@ -23,7 +23,7 @@ const moodOptions = [
 const MijnGezondheid = () => {
   const { profile } = useOutletContext(); // Haal de ingelogde gebruiker op
   const navigate = useNavigate();
-  
+  const todayString = getTodayString();
 // NIEUWE LOGICA: Bepaal welke gebruiker ID te gebruiken
 const effectiveUserId = profile?.id;
   console.log('DEBUG: Effective User ID:', effectiveUserId);
@@ -65,7 +65,7 @@ console.log('DEBUG: Profile structure:', profile);
     });
 
     // 2. Listener voor de data van VANDAAG
-    const todayString = getTodayString();
+    
     const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', todayString);
 
     const unsubscribeVandaag = onSnapshot(todayDocRef, (docSnap) => {
