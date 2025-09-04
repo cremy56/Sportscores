@@ -68,12 +68,15 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState(null);
 
+const [activeRole, setActiveRole] = useState(null);
+
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
         setProfile(null);
         setSchool(null);
+        setActiveRole(null); // Reset active role on logout
         setLoading(false);
       }
     });
@@ -96,7 +99,12 @@ useEffect(() => {
     const setupListener = () => {
       unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
         if (docSnap.exists()) {
-          setProfile(docSnap.data());
+          const profileData = { id: docSnap.id, ...docSnap.data() };
+          setProfile(profileData);
+          // DE FIX: Zet de activeRole initieel gelijk aan de rol van het profiel
+          if (!activeRole) { // Alleen instellen als het nog niet is ingesteld
+            setActiveRole(profileData.rol);
+          }
         }
       });
     };
@@ -193,24 +201,24 @@ useEffect(() => {
                         <Route path="/groeiplan" element={<Groeiplan />} />
                         <Route path="/groeiplan/schema" element={<SchemaDetail />} />
 
-                        {(profile?.rol === 'leerling' || profile?.rol === 'super-administrator') && (
+                        {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
                           <>
                             <Route path="/gezondheid" element={<Gezondheid />} />
                             <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
                           </>
 
                         )}
-                        {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
+                        {(activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
                           <Route path="/welzijnsmonitor" element={<Welzijnsmonitor />} />
                         )}
-                        {(profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
+                        {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
                           <>
                             <Route path="/gebruikersbeheer" element={<Gebruikersbeheer />} />
                             <Route path="/trainingsbeheer" element={<Trainingsbeheer />} /> 
                           </>
                         )}
                         {/* Route die ENKEL voor de super-admin is */}
-                        {profile?.rol === 'super-administrator' && (
+                        {activeRole === 'super-administrator' && (
                             <Route path="/schoolbeheer" element={<SchoolBeheer />} />
                         )}
                     </Route>
