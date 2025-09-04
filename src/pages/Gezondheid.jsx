@@ -12,7 +12,14 @@ const getTodayString = () => {
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
-
+// Definieer moodOptions buiten de component voor herbruikbaarheid
+const moodOptions = [
+  { mood: 'Zeer goed', emoji: '😄', color: 'bg-green-400' },
+  { mood: 'Goed', emoji: '🙂', color: 'bg-lime-400' },
+  { mood: 'Neutraal', emoji: '😐', color: 'bg-yellow-400' },
+  { mood: 'Minder goed', emoji: '😕', color: 'bg-orange-400' },
+  { mood: 'Slecht', emoji: '😞', color: 'bg-red-400' },
+];
 const MijnGezondheid = () => {
   const { profile } = useOutletContext(); // Haal de ingelogde gebruiker op
   const navigate = useNavigate();
@@ -32,6 +39,8 @@ console.log('DEBUG: Profile structure:', profile);
   const [showStappenModal, setShowStappenModal] = useState(false);
   const [tempStappen, setTempStappen] = useState(0);
   const [showInfoModal, setShowInfoModal] = useState(false);
+   const [showMentaalModal, setShowMentaalModal] = useState(false);
+  const [tempHumeur, setTempHumeur] = useState('Neutraal');
 
   // Effect Hook om live data op te halen uit Firestore
   useEffect(() => {
@@ -69,6 +78,7 @@ console.log('DEBUG: Profile structure:', profile);
         setDagelijkseData({ stappen: 0, hartslag_rust: 72, water_intake: 0, slaap_uren: 0 });
         setTempHartslag(72);
         setTempStappen(0);
+        setTempHumeur(data.humeur || 'Neutraal');
       }
     });
 
@@ -84,6 +94,10 @@ console.log('DEBUG: Profile structure:', profile);
     if (segment === 'Beweging') {
       setTempStappen(dagelijkseData.stappen || 0); // GEFIXED: gebruik dagelijkseData.stappen
       setShowStappenModal(true);
+    }
+    if (segment === 'Mentaal') { // <-- VOEG DEZE CONDITIE TOE
+      setTempHumeur(dagelijkseData.humeur || 'Neutraal');
+      setShowMentaalModal(true);
     }
   };
 
@@ -125,7 +139,10 @@ console.log('DEBUG: Profile structure:', profile);
       toast.error('Voer een geldig aantal stappen in (0-100.000)');
     }
   };
-
+const handleHumeurSave = (gekozenHumeur) => {
+    saveDataToDayDoc({ humeur: gekozenHumeur });
+    setShowMentaalModal(false);
+  };
   // Bereken de percentages voor de UI op basis van de live data
   const welzijnScores = {
     beweging: welzijnDoelen.stappen > 0 ? Math.min(Math.round((dagelijkseData.stappen / welzijnDoelen.stappen) * 100), 100) : 0,
@@ -330,6 +347,35 @@ console.log('DEBUG: Profile structure:', profile);
       {showInfoModal && ( <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"><div className="text-center mb-6"><div className="text-4xl mb-4">👆</div><h3 className="text-xl font-bold text-gray-800 mb-2">Welkom bij je Welzijnskompas!</h3><p className="text-gray-600">Klik op de gekleurde segmenten van het kompas voor snelle invoer, of gebruik de tegels eronder om naar de detailpagina's te gaan.</p></div><div className="text-center"><button onClick={() => setShowInfoModal(false)} className="px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors">Begrepen</button></div></div></div>)}
       {showHartslagModal && ( <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"><div className="text-center mb-6"><div className="text-4xl mb-4">❤️</div><h3 className="text-xl font-bold text-gray-800 mb-2">Hartslag Invoeren</h3><p className="text-gray-600">Voer je hartslag in rust in</p></div><div className="mb-6"><input type="number" value={tempHartslag} onChange={(e) => setTempHartslag(parseInt(e.target.value, 10) || 0)} className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 focus:outline-none" min="30" max="220" /></div><div className="flex gap-3"><button onClick={() => setShowHartslagModal(false)} className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">Annuleren</button><button onClick={handleHartslagSave} className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors">Opslaan</button></div></div></div>)}
       {showStappenModal && ( <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"><div className="text-center mb-6"><div className="text-4xl mb-4">👟</div><h3 className="text-xl font-bold text-gray-800 mb-2">Stappen Invoeren</h3><p className="text-gray-600">Voer je aantal stappen voor vandaag in</p></div><div className="mb-6"><input type="number" value={tempStappen} onChange={(e) => setTempStappen(parseInt(e.target.value, 10) || 0)} className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" min="0" max="100000" /><div className="text-center mt-4"><Link to="/gezondheid/beweging" className="text-sm text-purple-600 hover:text-purple-800 font-medium">Bekijk volledige bewegingsdetails →</Link></div></div><div className="flex gap-3"><button onClick={() => setShowStappenModal(false)} className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">Annuleren</button><button onClick={handleStappenSave} className="flex-1 py-3 px-4 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors">Opslaan</button></div></div></div>)}
+{showMentaalModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-4">🧠</div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Snelle Check-in</h3>
+              <p className="text-gray-600">Hoe voel je je vandaag?</p>
+            </div>
+            <div className="flex flex-col gap-3 mb-6">
+              {moodOptions.map(({ mood, emoji }) => (
+                <button
+                  key={mood}
+                  onClick={() => handleHumeurSave(mood)}
+                  className={`w-full text-left p-4 rounded-xl flex items-center gap-4 transition-transform hover:scale-105 border-2 ${tempHumeur === mood ? 'border-orange-500 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}
+                >
+                  <span className="text-3xl">{emoji}</span>
+                  <span className="font-semibold text-gray-800">{mood}</span>
+                </button>
+              ))}
+            </div>
+             <div className="flex gap-3">
+              <button onClick={() => setShowMentaalModal(false)} className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">Annuleren</button>
+               <Link to="/gezondheid/mentaal" className="flex-1 text-center py-3 px-4 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors">
+                 Details & Tools
+               </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
      <style>{`
         @keyframes slowPulse {
