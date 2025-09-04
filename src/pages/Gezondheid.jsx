@@ -28,7 +28,9 @@ const MijnGezondheid = () => {
 const effectiveUserId = profile?.id;
   console.log('DEBUG: Effective User ID:', effectiveUserId);
 console.log('DEBUG: Profile structure:', profile);
-
+const [loading, setLoading] = useState(true); // Start in laadstatus
+  const [error, setError] = useState(null);     
+  
   // State voor data uit Firestore
   const [welzijnDoelen, setWelzijnDoelen] = useState({ stappen: 10000, water: 2000, slaap: 8 });
   const [dagelijkseData, setDagelijkseData] = useState({ stappen: 0, hartslag_rust: 72, water_intake: 0, slaap_uren: 0 });
