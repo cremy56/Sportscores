@@ -49,9 +49,9 @@ const MijnGezondheid = () => {
       localStorage.setItem('welzijn-visited', 'true');
     }
 
-    if (!profile?.uid) return; // Wacht tot het profiel geladen is
+    if (!effectiveUserId) return; // Wacht tot het profiel geladen is
 
-    console.log('DEBUG: Setting up Firestore listeners for profile:', profile.uid);
+    console.log('DEBUG: Setting up Firestore listeners for profile:', effectiveUserId);
 
     // 1. Listener voor het hoofddocument (bevat de doelen)
     const welzijnDocRef = doc(db, 'welzijn', effectiveUserId);
@@ -83,7 +83,7 @@ const MijnGezondheid = () => {
       unsubscribeWelzijn();
       unsubscribeVandaag();
     };
-  }, [profile?.uid]);
+  }, [effectiveUserId]);
 
   // GEFIXED: handleSegmentClick functie
   const handleSegmentClick = (segment) => {
