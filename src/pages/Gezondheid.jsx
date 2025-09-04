@@ -19,13 +19,14 @@ const MijnGezondheid = () => {
   
 // NIEUWE LOGICA: Bepaal welke gebruiker ID te gebruiken
   const getEffectiveUserId = () => {
-    // Als je super-admin bent EN een leerling impersoneert
-    if (profile?.originalProfile?.rol === 'super-administrator' && profile?.rol === 'leerling') {
-      return profile?.uid; // Gebruik de geïmpersoneerde leerling UID
-    }
-    // Anders gebruik je eigen UID
-    return profile?.uid || profile?.originalProfile?.uid;
-  };
+  // Voor geïmpersoneerde leerling door super-admin
+  if (profile?.originalProfile?.rol === 'super-administrator' && profile?.rol === 'leerling') {
+    return profile?.uid;
+  }
+  
+  // Voor normale gebruikers - check beide mogelijke velden
+  return profile?.uid || profile?.id;
+};
   
   const effectiveUserId = getEffectiveUserId();
   console.log('DEBUG: Effective User ID:', effectiveUserId);
