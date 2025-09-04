@@ -186,7 +186,7 @@ useEffect(() => {
                 
                     {/* --- CORRECTIE HIER --- */}
                     {/* Combineer de twee Layout routes in één enkele route die de props én de onderliggende pagina's bevat. */}
-                    <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} />}>
+                    <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} activeRole={activeRole} setActiveRole={setActiveRole} />}>
                         <Route path="/" element={<AdValvas />} />
                         
                         <Route path="/highscores" element={<Highscores />} />
