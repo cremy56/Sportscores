@@ -17,6 +17,18 @@ const MijnGezondheid = () => {
   const { profile } = useOutletContext(); // Haal de ingelogde gebruiker op
   const navigate = useNavigate();
   
+// NIEUWE LOGICA: Bepaal welke gebruiker ID te gebruiken
+  const getEffectiveUserId = () => {
+    // Als je super-admin bent EN een leerling impersoneert
+    if (profile?.originalProfile?.rol === 'super-administrator' && profile?.rol === 'leerling') {
+      return profile?.uid; // Gebruik de geïmpersoneerde leerling UID
+    }
+    // Anders gebruik je eigen UID
+    return profile?.uid || profile?.originalProfile?.uid;
+  };
+  
+  const effectiveUserId = getEffectiveUserId();
+
   // State voor data uit Firestore
   const [welzijnDoelen, setWelzijnDoelen] = useState({ stappen: 10000, water: 2000, slaap: 8 });
   const [dagelijkseData, setDagelijkseData] = useState({ stappen: 0, hartslag_rust: 72, water_intake: 0, slaap_uren: 0 });
@@ -42,7 +54,7 @@ const MijnGezondheid = () => {
     console.log('DEBUG: Setting up Firestore listeners for profile:', profile.uid);
 
     // 1. Listener voor het hoofddocument (bevat de doelen)
-    const welzijnDocRef = doc(db, 'welzijn', profile.uid);
+    const welzijnDocRef = doc(db, 'welzijn', effectiveUserId);
     const unsubscribeWelzijn = onSnapshot(welzijnDocRef, (docSnap) => {
       console.log('DEBUG: Welzijn doc snapshot:', docSnap.exists() ? docSnap.data() : 'does not exist');
       if (docSnap.exists() && docSnap.data().doelen) {
@@ -52,7 +64,7 @@ const MijnGezondheid = () => {
 
     // 2. Listener voor de data van VANDAAG
     const todayString = getTodayString();
-    const todayDocRef = doc(db, 'welzijn', profile.uid, 'dagelijkse_data', todayString);
+    const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', todayString);
     const unsubscribeVandaag = onSnapshot(todayDocRef, (docSnap) => {
       console.log('DEBUG: Daily data snapshot for', todayString, ':', docSnap.exists() ? docSnap.data() : 'does not exist');
       if (docSnap.exists()) {
@@ -89,8 +101,9 @@ const MijnGezondheid = () => {
 
   // Herbruikbare functie om data op te slaan
   const saveDataToDayDoc = async (dataToSave) => {
-    if (!profile?.uid) return;
-    const todayDocRef = doc(db, 'welzijn', profile.uid, 'dagelijkse_data', getTodayString());
+    if (!effectiveUserId) return;
+   const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
+
     try {
       console.log('DEBUG: Saving to Firestore:', dataToSave);
       await setDoc(todayDocRef, dataToSave, { merge: true });
