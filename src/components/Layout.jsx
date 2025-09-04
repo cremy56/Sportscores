@@ -277,17 +277,18 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             
             {/* Welzijnsmonitor voor leerkrachten en admins */}
             {(activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
-              <>
+             
               <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
-<li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
-                <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
-              </>
+
 )}
 
             {/* ALLEEN Scores voor leerkrachten - AANGEPAST */}
             {activeRole === 'leerkracht' && (
+               <>
               <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
-              
+              <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+                <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
+              </>
             )}
 
             {/* Beheer Dropdown voor admins - UITGEBREID MET GROEPSBEHEER EN TESTBEHEER */}
