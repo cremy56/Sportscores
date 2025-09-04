@@ -40,7 +40,7 @@ console.log('DEBUG: Profile structure:', profile);
   const [tempStappen, setTempStappen] = useState(0);
   const [showInfoModal, setShowInfoModal] = useState(false);
    const [showMentaalModal, setShowMentaalModal] = useState(false);
-  const [tempHumeur, setTempHumeur] = useState('Neutraal');
+  const [selectedHumeur, setSelectedHumeur] = useState(null);
 
   // Effect Hook om live data op te halen uit Firestore
   useEffect(() => {
@@ -67,26 +67,31 @@ console.log('DEBUG: Profile structure:', profile);
     // 2. Listener voor de data van VANDAAG
     const todayString = getTodayString();
     const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', todayString);
+
     const unsubscribeVandaag = onSnapshot(todayDocRef, (docSnap) => {
-      console.log('DEBUG: Daily data snapshot for', todayString, ':', docSnap.exists() ? docSnap.data() : 'does not exist');
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setDagelijkseData(prev => ({...prev, ...data}));
+        setDagelijkseData(prev => ({ ...prev, ...data }));
         setTempHartslag(data.hartslag_rust || 72);
         setTempStappen(data.stappen || 0);
+        setSelectedHumeur(data.humeur || null); // Initialiseer de geselecteerde smiley met opgeslagen humeur
+        setError(null);
       } else {
-        setDagelijkseData({ stappen: 0, hartslag_rust: 72, water_intake: 0, slaap_uren: 0 });
-        setTempHartslag(72);
+        setDagelijkseData({}); // Geen data voor vandaag
+        setSelectedHumeur(null);
         setTempStappen(0);
-        setTempHumeur(data.humeur || 'Neutraal');
+        setTempHartslag(72);
+        console.log("No daily data for today!");
       }
+      setLoading(false);
+    }, (err) => {
+      console.error("Error fetching daily data:", err);
+      setError("Fout bij het laden van dagelijkse gegevens.");
+      setLoading(false);
     });
 
-    return () => {
-      unsubscribeWelzijn();
-      unsubscribeVandaag();
-    };
-  }, [effectiveUserId]);
+    return () => unsubscribeVandaag();
+  }, [effectiveUserId, todayString]);
 
   // GEFIXED: handleSegmentClick functie
   const handleSegmentClick = (segment) => {
@@ -95,8 +100,9 @@ console.log('DEBUG: Profile structure:', profile);
       setTempStappen(dagelijkseData.stappen || 0); // GEFIXED: gebruik dagelijkseData.stappen
       setShowStappenModal(true);
     }
-    if (segment === 'Mentaal') { // <-- VOEG DEZE CONDITIE TOE
-      setTempHumeur(dagelijkseData.humeur || 'Neutraal');
+   if (segment === 'Mentaal') {
+      // Initialiseer selectedHumeur met de laatst opgeslagen waarde of null
+      setSelectedHumeur(dagelijkseData.humeur || null);
       setShowMentaalModal(true);
     }
   };
@@ -107,17 +113,21 @@ console.log('DEBUG: Profile structure:', profile);
   };
 
   // Herbruikbare functie om data op te slaan
-  const saveDataToDayDoc = async (dataToSave) => {
-    if (!effectiveUserId) return;
-   const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
+  const saveDataToDayDoc = async (data) => {
+    if (!effectiveUserId) {
+      console.error("Geen actieve gebruiker om gegevens op te slaan.");
+      return;
+    }
+    const welzijnDocRef = doc(db, 'welzijn', effectiveUserId);
+    const todayDocRef = doc(welzijnDocRef, 'dagelijkse_data', todayString);
 
     try {
-      console.log('DEBUG: Saving to Firestore:', dataToSave);
-      await setDoc(todayDocRef, dataToSave, { merge: true });
-      toast.success('Gegevens opgeslagen!');
-    } catch (error) {
-      console.error("Fout bij opslaan van dagelijkse data:", error);
-      toast.error('Kon gegevens niet opslaan.');
+      // Gebruik setDoc met merge: true om bestaande velden te behouden en nieuwe toe te voegen/updaten
+      await setDoc(todayDocRef, data, { merge: true });
+      console.log("Document successfully written/updated!");
+    } catch (e) {
+      console.error("Error writing document: ", e);
+      setError("Fout bij het opslaan van gegevens.");
     }
   };
 
@@ -139,16 +149,34 @@ console.log('DEBUG: Profile structure:', profile);
       toast.error('Voer een geldig aantal stappen in (0-100.000)');
     }
   };
-const handleHumeurSave = (gekozenHumeur) => {
-    saveDataToDayDoc({ humeur: gekozenHumeur });
-    setShowMentaalModal(false);
+const handleHumeurSave = async () => {
+    if (selectedHumeur) {
+      await saveDataToDayDoc({ humeur: selectedHumeur });
+      setShowMentaalModal(false);
+    } else {
+      console.warn("Geen humeur geselecteerd.");
+    }
   };
+
+  // Functie om het humeur om te zetten naar een score van 0-100
+const getMentaalScore = (humeur) => {
+  if (!humeur) return 50; // Geef een neutrale score als er nog niets is ingevuld
+  switch (humeur) {
+    case 'Zeer goed': return 100;
+    case 'Goed': return 80;
+    case 'Neutraal': return 60;
+    case 'Minder goed': return 40;
+    case 'Slecht': return 20;
+    default: return 50;
+  }
+};
+
   // Bereken de percentages voor de UI op basis van de live data
   const welzijnScores = {
     beweging: welzijnDoelen.stappen > 0 ? Math.min(Math.round((dagelijkseData.stappen / welzijnDoelen.stappen) * 100), 100) : 0,
     voeding: 75, // Placeholder - kun je later vervangen door echte berekening
     slaap: 68,   // Placeholder - kun je later vervangen door echte berekening
-    mentaal: 88, // Placeholder - kun je later vervangen door echte berekening
+    mentaal: getMentaalScore(dagelijkseData.humeur),
   };
 
   const getGemiddeldeScore = () => {
@@ -352,26 +380,45 @@ const handleHumeurSave = (gekozenHumeur) => {
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
             <div className="text-center mb-6">
               <div className="text-4xl mb-4">🧠</div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Snelle Check-in</h3>
-              <p className="text-gray-600">Hoe voel je je vandaag?</p>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Hoe voel je je vandaag?</h3>
+              <p className="text-gray-600">Kies de smiley die het beste bij je past.</p>
             </div>
-            <div className="flex flex-col gap-3 mb-6">
+            
+            {/* Smileys in een horizontale rij */}
+            <div className="flex justify-around items-center gap-2 mb-8">
               {moodOptions.map(({ mood, emoji }) => (
                 <button
                   key={mood}
-                  onClick={() => handleHumeurSave(mood)}
-                  className={`w-full text-left p-4 rounded-xl flex items-center gap-4 transition-transform hover:scale-105 border-2 ${tempHumeur === mood ? 'border-orange-500 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}
+                  // STAP 1: Update alleen de state, niet meteen opslaan
+                  onClick={() => setSelectedHumeur(mood)}
+                  className={`text-5xl p-2 rounded-full transition-all duration-200 ease-in-out
+                              ${selectedHumeur === mood 
+                                ? 'bg-yellow-300 transform scale-125' // Gele kleur en groter als geselecteerd
+                                : 'filter grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:scale-110' // Grijs en kleiner als niet geselecteerd
+                              }`}
+                  aria-label={`Gemoedstoestand: ${mood}`}
                 >
-                  <span className="text-3xl">{emoji}</span>
-                  <span className="font-semibold text-gray-800">{mood}</span>
+                  {emoji}
                 </button>
               ))}
             </div>
-             <div className="flex gap-3">
-              <button onClick={() => setShowMentaalModal(false)} className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">Annuleren</button>
-               <Link to="/gezondheid/mentaal" className="flex-1 text-center py-3 px-4 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors">
-                 Details & Tools
-               </Link>
+
+             <div className="flex flex-col gap-3">
+               {/* STAP 2: Aparte knop om op te slaan */}
+               <button
+                onClick={handleHumeurSave}
+                disabled={!selectedHumeur} // Knop is inactief als er niets is gekozen
+                className={`w-full py-3 px-4 rounded-xl font-medium transition-colors ${
+                  selectedHumeur 
+                  ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                Opslaan
+              </button>
+              <button onClick={() => setShowMentaalModal(false)} className="w-full py-2 px-4 bg-transparent text-gray-600 rounded-xl font-medium hover:bg-gray-100 transition-colors">
+                Annuleren
+              </button>
             </div>
           </div>
         </div>
