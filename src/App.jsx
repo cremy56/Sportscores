@@ -202,7 +202,8 @@ useEffect(() => {
                         <Route path="/groeiplan" element={<Groeiplan />} />
                         <Route path="/groeiplan/schema" element={<SchemaDetail />} />
 
-                        {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
+                        {(activeRole === 'leerling' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
+
                           <>
                             <Route path="/gezondheid" element={<Gezondheid />} />
                             <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
