@@ -33,6 +33,7 @@ import Trainingsbeheer from './pages/Trainingsbeheer';
 import Gezondheid from './pages/Gezondheid';
 import Welzijnsmonitor from './pages/Welzijnsmonitor';
 import BewegingDetail from './pages/BewegingDetail';
+import MentaalDetail from './pages/MentaalDetail';
 
 
 function HandleAuthRedirect() {
