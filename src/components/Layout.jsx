@@ -278,10 +278,10 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             {/* Welzijnsmonitor voor leerkrachten en admins */}
             {(activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
                <>
-              <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
-
               <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
-              </>
+             <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
+
+             </>
 )}
 
             {/* ALLEEN Scores voor leerkrachten - AANGEPAST */}
@@ -297,8 +297,9 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
               <DropdownMenu title="Beheer" isActive={isAdminDropdownActive}>
                 <DropdownItem to="/groepsbeheer">Groepsbeheer</DropdownItem>
                 <DropdownItem to="/testbeheer">{testbeheerLinkText}</DropdownItem>
-                <DropdownItem to="/gebruikersbeheer">Gebruikersbeheer</DropdownItem>
                 <DropdownItem to="/trainingsbeheer">Trainingsbeheer</DropdownItem>
+                <DropdownItem to="/gebruikersbeheer">Gebruikersbeheer</DropdownItem>
+    
                 {activeRole === 'super-administrator' && (
                   <DropdownItem to="/schoolbeheer">Schoolbeheer</DropdownItem>
                 )}
