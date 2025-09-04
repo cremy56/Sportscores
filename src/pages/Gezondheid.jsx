@@ -18,14 +18,14 @@ const MijnGezondheid = () => {
   const navigate = useNavigate();
   
 // NIEUWE LOGICA: Bepaal welke gebruiker ID te gebruiken
-  const getEffectiveUserId = () => {
+const getEffectiveUserId = () => {
   // Voor geïmpersoneerde leerling door super-admin
   if (profile?.originalProfile?.rol === 'super-administrator' && profile?.rol === 'leerling') {
-    return profile?.uid;
+    return profile?.uid; // Voor impersonation
   }
   
-  // Voor normale gebruikers - check beide mogelijke velden
-  return profile?.uid || profile?.id;
+  // Voor normale gebruikers - gebruik altijd profile.id
+  return profile?.id;
 };
   
   const effectiveUserId = getEffectiveUserId();
