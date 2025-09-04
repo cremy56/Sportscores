@@ -18,17 +18,7 @@ const MijnGezondheid = () => {
   const navigate = useNavigate();
   
 // NIEUWE LOGICA: Bepaal welke gebruiker ID te gebruiken
-const getEffectiveUserId = () => {
-  // Voor geïmpersoneerde leerling door super-admin
-  if (profile?.originalProfile?.rol === 'super-administrator' && profile?.rol === 'leerling') {
-    return profile?.uid; // Voor impersonation
-  }
-  
-  // Voor normale gebruikers - gebruik altijd profile.id
-  return profile?.id;
-};
-  
-  const effectiveUserId = getEffectiveUserId();
+const effectiveUserId = profile?.id;
   console.log('DEBUG: Effective User ID:', effectiveUserId);
 console.log('DEBUG: Profile structure:', profile);
 
