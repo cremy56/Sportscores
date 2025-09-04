@@ -28,6 +28,8 @@ const MijnGezondheid = () => {
   };
   
   const effectiveUserId = getEffectiveUserId();
+  console.log('DEBUG: Effective User ID:', effectiveUserId);
+console.log('DEBUG: Profile structure:', profile);
 
   // State voor data uit Firestore
   const [welzijnDoelen, setWelzijnDoelen] = useState({ stappen: 10000, water: 2000, slaap: 8 });
