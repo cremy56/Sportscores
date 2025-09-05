@@ -81,11 +81,15 @@ const MentaalGrafiek = ({ data }) => {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
-        <CartesianGrid 
-          strokeDasharray="3 3" // Zorgt voor een stippellijneffect
-          vertical={false}       // Verbergt de verticale lijnen
-          stroke="#e5e7eb"       // Lichte grijze kleur voor de lijnen
-        />
+       {moodOptions.map(option => (
+          <ReferenceLine 
+            key={option.score}
+            y={option.score} 
+            yAxisId="left" 
+            stroke="#e5e7eb" 
+            strokeDasharray="3 3" 
+          />
+        ))}
         <XAxis dataKey="datum" tick={{ fontSize: 12 }} />
                {/* Y-as voor Stressniveau (1-5) */}
         <YAxis 
