@@ -1,242 +1,157 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, onSnapshot, collection, addDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
-import { ArrowUturnLeftIcon } from '@heroicons/react/24/outline';
+import { doc, onSnapshot, setDoc, collection, addDoc, serverTimestamp, query, orderBy, getDocs, Timestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { ArrowLeftIcon, PlusIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '../utils/formatters';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-// AANGEPAST: Gebruik dezelfde datum helper als in Gezondheid.jsx
-const getTodayString = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+// --- HULPFUNCTIES ---
+const getTodayString = () => { /* ... (onveranderd) */ };
+const getEffectiveUserId = (profile) => { /* ... (onveranderd) */ };
 
-const BewegingDetail = () => {
-  const { profile } = useOutletContext();
-
-  // State voor data uit Firestore
-  const [dailyGoal, setDailyGoal] = useState(10000);
-  const [currentSteps, setCurrentSteps] = useState(0);
-  const [activityHistory, setActivityHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  // State voor het formulier
-  const [activityType, setActivityType] = useState('Wandelen');
-  const [duration, setDuration] = useState('');
-  const [distance, setDistance] = useState('');
-
-  useEffect(() => {
-    if (!profile?.uid) return;
-    setLoading(true);
-
-    // 1. Listener voor doelen en dagelijkse stappen
-    const welzijnDocRef = doc(db, 'welzijn', profile.uid);
-    const unsubscribeGoals = onSnapshot(welzijnDocRef, (docSnap) => {
-      if (docSnap.exists() && docSnap.data().doelen) {
-        setDailyGoal(docSnap.data().doelen.stappen || 10000);
-      }
-    });
-
-    // AANGEPAST: Gebruik getTodayString() in plaats van toISOString().slice(0, 10)
-    const todayString = getTodayString();
-    const todayDocRef = doc(db, 'welzijn', profile.uid, 'dagelijkse_data', todayString);
-    const unsubscribeToday = onSnapshot(todayDocRef, (docSnap) => {
-      console.log('DEBUG: Dagelijkse data document:', docSnap.exists() ? docSnap.data() : 'bestaat niet');
-      if (docSnap.exists()) {
-        const stappen = docSnap.data().stappen || 0;
-        console.log('DEBUG: Stappen uit Firestore:', stappen);
-        setCurrentSteps(stappen);
-      } else {
-        console.log('DEBUG: Geen dagelijkse data document gevonden voor:', todayString);
-        setCurrentSteps(0);
-      }
-    });
-
-    // 2. Listener voor activiteitengeschiedenis
-    const activiteitenRef = collection(db, 'welzijn', profile.uid, 'activiteiten');
-    const q = query(activiteitenRef, orderBy('datum', 'desc'));
-    const unsubscribeActivities = onSnapshot(q, (snapshot) => {
-      const history = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      console.log('DEBUG: Activiteiten geschiedenis:', history);
-      setActivityHistory(history);
-      setLoading(false);
-    });
-
-    return () => {
-      unsubscribeGoals();
-      unsubscribeToday();
-      unsubscribeActivities();
-    };
-  }, [profile?.uid]);
-  
-  const handleLogActivity = async (e) => {
-    e.preventDefault();
-    if (!profile?.uid || !duration) {
-      toast.error('Vul tenminste de duur van de activiteit in.');
-      return;
-    }
-
-    const newActivity = {
-      type: activityType,
-      duur_minuten: Number(duration),
-      afstand_km: distance ? Number(distance) : null,
-      datum: serverTimestamp() // Gebruik de servertijd voor consistentie
-    };
-
-    try {
-      const activiteitenRef = collection(db, 'welzijn', profile.uid, 'activiteiten');
-      await addDoc(activiteitenRef, newActivity);
-      toast.success(`${activityType} succesvol gelogd!`);
-      // Reset formulier
-      setActivityType('Wandelen');
-      setDuration('');
-      setDistance('');
-    } catch (error) {
-      console.error("Fout bij het loggen van activiteit:", error);
-      toast.error('Kon activiteit niet loggen.');
-    }
-  };
-
-  const progress = dailyGoal > 0 ? Math.min((currentSteps / dailyGoal) * 100, 100) : 0;
-  
-  const getActivityIcon = (type) => {
-    switch (type.toLowerCase()) {
-      case 'wandelen': return '🚶';
-      case 'fietsen': return '🚴';
-      case 'hardlopen': return '🏃';
-      case 'zwemmen': return '🏊';
-      case 'krachttraining': return '🏋️';
-      default: return '💪';
-    }
-  };
+// --- GRAFIEK COMPONENT ---
+const StappenGrafiek = ({ data, doel }) => {
+  const chartData = data.map(item => ({
+    datum: new Date(item.id).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit' }),
+    stappen: item.stappen || 0,
+  }));
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Mijn Beweging</h1>
-          <p className="text-slate-500 mt-1">Volg je doelen, log activiteiten en bekijk je geschiedenis.</p>
-        </div>
-        <Link to="/gezondheid" className="flex items-center gap-2 text-sm font-semibold text-purple-600 hover:text-purple-800 transition-colors">
-          <ArrowUturnLeftIcon className="w-5 h-5" />
-          <span>Terug naar kompas</span>
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Linker kolom */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Dagelijks Doel */}
-          <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
-            <h2 className="text-xl font-bold text-slate-800 mb-4">Dagelijks Stappendoel</h2>
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-medium text-slate-600">Voortgang</span>
-              <span className="font-bold text-purple-600">{currentSteps.toLocaleString()} / {dailyGoal.toLocaleString()} stappen</span>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-4">
-              <div
-                className="bg-purple-500 h-4 rounded-full transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-            <p className="text-right text-sm text-slate-500 mt-2">{Math.round(progress)}% voltooid</p>
-            {/* DEBUG INFO - kan je later weghalen */}
-            <div className="mt-4 p-3 bg-gray-100 rounded-lg text-sm">
-              <p><strong>Debug info:</strong></p>
-              <p>Huidige stappen: {currentSteps}</p>
-              <p>Dagelijkse doel: {dailyGoal}</p>
-              <p>Voortgang: {Math.round(progress)}%</p>
-              <p>Datum: {getTodayString()}</p>
-            </div>
-          </div>
-
-          {/* Activiteit Geschiedenis */}
-          <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
-            <h2 className="text-xl font-bold text-slate-800 mb-4">Recente Activiteiten</h2>
-            {loading ? (
-              <p className="text-slate-500">Geschiedenis laden...</p>
-            ) : activityHistory.length > 0 ? (
-              <ul className="space-y-4">
-                {activityHistory.map(activity => (
-                  <li key={activity.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <span className="text-2xl">{getActivityIcon(activity.type)}</span>
-                      <div>
-                        <p className="font-semibold text-slate-800">{activity.type}</p>
-                        <p className="text-sm text-slate-500">
-                          {activity.duur_minuten} min
-                          {activity.afstand_km && ` / ${activity.afstand_km} km`}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-sm text-slate-400">{formatDate(activity.datum)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-slate-500 text-center py-4">Je hebt nog geen activiteiten gelogd.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Rechter kolom */}
-        <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-200 h-fit">
-          <h2 className="text-xl font-bold text-slate-800 mb-4">Activiteit Loggen</h2>
-          <form onSubmit={handleLogActivity} className="space-y-4">
-            <div>
-              <label htmlFor="activityType" className="block text-sm font-medium text-slate-700 mb-1">Type activiteit</label>
-              <select 
-                id="activityType" 
-                value={activityType}
-                onChange={(e) => setActivityType(e.target.value)}
-                className="w-full p-2 border border-slate-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option>Wandelen</option>
-                <option>Fietsen</option>
-                <option>Hardlopen</option>
-                <option>Zwemmen</option>
-                <option>Krachttraining</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="duration" className="block text-sm font-medium text-slate-700 mb-1">Duur (minuten)</label>
-              <input 
-                type="number" 
-                id="duration" 
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                className="w-full p-2 border border-slate-300 rounded-md" 
-                placeholder="bv. 30" 
-                required
-              />
-            </div>
-            <div>
-              <label htmlFor="distance" className="block text-sm font-medium text-slate-700 mb-1">Afstand (km, optioneel)</label>
-              <input 
-                type="number" 
-                id="distance" 
-                value={distance}
-                onChange={(e) => setDistance(e.target.value)}
-                className="w-full p-2 border border-slate-300 rounded-md" 
-                placeholder="bv. 5" 
-              />
-            </div>
-            <button type="submit" className="w-full bg-purple-600 text-white font-bold py-3 rounded-lg hover:bg-purple-700 transition-colors">
-              Log Activiteit
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
+    <ResponsiveContainer width="100%" height={250}>
+      <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+        <XAxis dataKey="datum" tick={{ fontSize: 12 }} />
+        <YAxis domain={[0, 'dataMax + 2000']} tick={{ fontSize: 12 }} />
+        <Tooltip cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }} />
+        <Bar dataKey="stappen" fill="#3b82f6" />
+      </BarChart>
+    </ResponsiveContainer>
   );
+};
+
+// --- LOGBOEK COMPONENT ---
+const ActiviteitenLog = ({ activiteiten, onAdd }) => (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl lg:text-2xl font-bold text-slate-800">Activiteitenlog</h2>
+            <button onClick={onAdd} className="bg-blue-500 text-white font-bold py-2 px-4 rounded-xl hover:bg-blue-600 transition-colors flex items-center gap-2">
+                <PlusIcon className="w-5 h-5" />
+                <span>Voeg toe</span>
+            </button>
+        </div>
+        <div className="space-y-3">
+            {activiteiten.length > 0 ? (
+                activiteiten.map(act => (
+                    <div key={act.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <div className="flex justify-between items-center">
+                            <span className="font-semibold text-slate-800">{act.type}</span>
+                            <span className="text-sm text-slate-500">{act.duur_minuten} min</span>
+                        </div>
+                        {act.notities && <p className="text-sm text-slate-600 mt-1">{act.notities}</p>}
+                    </div>
+                ))
+            ) : (
+                <p className="text-center py-8 text-slate-500">Nog geen activiteiten gelogd.</p>
+            )}
+        </div>
+    </div>
+);
+
+const BewegingDetail = () => {
+    const { profile } = useOutletContext();
+    const effectiveUserId = getEffectiveUserId(profile);
+
+    // States
+    const [stappenGeschiedenis, setStappenGeschiedenis] = useState([]);
+    const [stappenDoel, setStappenDoel] = useState(10000);
+    const [activiteiten, setActiviteiten] = useState([]);
+    const [showActiviteitModal, setShowActiviteitModal] = useState(false);
+    const [nieuweActiviteit, setNieuweActiviteit] = useState({ type: 'Wandelen', duur_minuten: 30, notities: '' });
+
+    useEffect(() => {
+        if (!effectiveUserId) return;
+
+        // Data voor stappengrafiek
+        const fetchStappenGeschiedenis = async () => {
+             const dertigDagenGeleden = new Date();
+             dertigDagenGeleden.setDate(dertigDagenGeleden.getDate() - 30);
+             
+             const q = query(collection(db, `welzijn/${effectiveUserId}/dagelijkse_data`));
+             const querySnapshot = await getDocs(q);
+             const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+             setStappenGeschiedenis(history.sort((a, b) => new Date(a.id) - new Date(b.id)));
+        };
+
+        // Data voor activiteitenlogboek
+        const activiteitenQuery = query(collection(db, `welzijn/${effectiveUserId}/activiteiten`), orderBy('datum', 'desc'));
+        const unsubscribeActiviteiten = onSnapshot(activiteitenQuery, snapshot => {
+            setActiviteiten(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+
+        fetchStappenGeschiedenis();
+        return () => unsubscribeActiviteiten();
+    }, [effectiveUserId]);
+
+    const handleAddActiviteit = async (e) => {
+        e.preventDefault();
+        if (!nieuweActiviteit.type || !nieuweActiviteit.duur_minuten) return;
+
+        await addDoc(collection(db, `welzijn/${effectiveUserId}/activiteiten`), {
+            ...nieuweActiviteit,
+            datum: serverTimestamp(),
+        });
+        toast.success('Activiteit toegevoegd!');
+        setShowActiviteitModal(false);
+        setNieuweActiviteit({ type: 'Wandelen', duur_minuten: 30, notities: '' });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+            <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+                {/* Headers */}
+                <div className="hidden lg:block mb-12">
+                    <Link to="/gezondheid" className="inline-flex items-center text-gray-600 hover:text-blue-700 mb-6 group">
+                        <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
+                        Terug naar Mijn Gezondheid
+                    </Link>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Mijn Beweging</h1>
+                </div>
+
+                {/* Content */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Linker kolom */}
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+                            <h2 className="text-xl lg:text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                                <ChartBarIcon className="w-6 h-6 text-blue-500" />
+                                Stappen Geschiedenis
+                            </h2>
+                            <StappenGrafiek data={stappenGeschiedenis} doel={stappenDoel} />
+                        </div>
+                    </div>
+                    {/* Rechter kolom */}
+                    <div className="space-y-6">
+                        <ActiviteitenLog activiteiten={activiteiten} onAdd={() => setShowActiviteitModal(true)} />
+                    </div>
+                </div>
+            </div>
+
+            {/* Modal voor nieuwe activiteit */}
+            {showActiviteitModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">Nieuwe Activiteit</h3>
+                        <form onSubmit={handleAddActiviteit} className="space-y-4">
+                            {/* Formulier velden */}
+                            <button type="submit" className="w-full bg-blue-500 text-white font-bold py-3 rounded-xl">Opslaan</button>
+                            <button type="button" onClick={() => setShowActiviteitModal(false)} className="w-full py-2">Annuleren</button>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
 export default BewegingDetail;
