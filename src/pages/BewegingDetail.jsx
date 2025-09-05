@@ -3,7 +3,7 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, collection, addDoc, serverTimestamp, query, orderBy, getDocs, limit } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, ChartBarIcon, PlusIcon, SparklesIcon, HeartIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, LightBulbIcon, PhoneIcon, SparklesIcon, ChartBarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '../utils/formatters';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
