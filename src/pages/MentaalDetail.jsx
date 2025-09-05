@@ -22,19 +22,40 @@ const getTodayString = () => {
 // --- NIEUWE COMPONENTEN VOOR MINDFULNESS OEFENINGEN ---
 
 // 1. Ademhalingsoefening met animatie
-const AdemhalingOefening = () => (
-  <div className="text-center p-4">
-    <p className="text-slate-600 mb-6">Focus op je ademhaling. Volg de cirkel.</p>
-    <div className="flex justify-center items-center h-48">
-      <div className="relative w-32 h-32">
-        <div className="absolute inset-0 bg-orange-400 rounded-full animate-ademhaling"></div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-white font-bold text-lg animate-ademhaling-tekst">Adem in</p>
+const AdemhalingOefening = () => {
+  const [ademhalingTekst, setAdemhalingTekst] = useState('Adem in');
+
+  useEffect(() => {
+    let interval;
+    const updateText = () => {
+      setAdemhalingTekst('Adem in');
+      setTimeout(() => setAdemhalingTekst('Houd vast'), 3200); // Na 3.2s
+      setTimeout(() => setAdemhalingTekst('Adem uit'), 4800); // Na 4.8s
+      // De totale animatie is 8s. We herstarten de cyclus hier
+    };
+
+    updateText(); // Start direct
+    interval = setInterval(updateText, 8000); // Herhaal elke 8 seconden (duur van de animatie)
+
+    return () => clearInterval(interval); // Ruim de interval op bij unmount
+  }, []);
+
+  return (
+    <div className="text-center p-4">
+      <p className="text-slate-600 mb-6">Focus op je ademhaling. Volg de cirkel.</p>
+      <div className="flex justify-center items-center h-48">
+        <div className="relative w-32 h-32">
+          {/* De CSS animatie van de cirkel blijft hetzelfde */}
+          <div className="absolute inset-0 bg-orange-400 rounded-full animate-ademhaling"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            {/* Tekst nu via state, geen ::before meer */}
+            <p className="text-white font-bold text-lg">{ademhalingTekst}</p>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // 2. 5 Zintuigen Check-in
 const VijfZintuigenOefening = () => (
@@ -254,14 +275,16 @@ const MentaalDetail = () => {
       {/* --- CSS VOOR DE ADEMHALINGSANIMATIE --- */}
       <style>{`
         @keyframes ademhaling {
-          0% { transform: scale(0.8); opacity: 0.8; }
-          50% { transform: scale(1); opacity: 1; }
-          100% { transform: scale(0.8); opacity: 0.8; }
+          0% { transform: scale(0.7); opacity: 0.7; } /* Start iets kleiner */
+          40% { transform: scale(1); opacity: 1; }  /* Adem in (tot 40% van 8s = 3.2s) */
+          60% { transform: scale(1); opacity: 1; }  /* Houd vast (tot 60% van 8s = 4.8s) */
+          100% { transform: scale(0.7); opacity: 0.7; } /* Adem uit (tot 100% van 8s = 8s) */
         }
         .animate-ademhaling {
           animation: ademhaling 8s infinite ease-in-out;
         }
 
+        /* VERWIJDER DEZE HELE BLOCK (animate-ademhaling-tekst)
         @keyframes ademhaling-tekst {
           0% { content: 'Adem in'; opacity: 1; }
           40% { opacity: 1; }
@@ -274,6 +297,7 @@ const MentaalDetail = () => {
           content: 'Adem in';
           animation: ademhaling-tekst 8s infinite ease-in-out;
         }
+        */
       `}</style>
     </div>
   );
