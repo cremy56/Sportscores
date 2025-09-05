@@ -217,6 +217,8 @@ const [gelogdeVoeding, setGelogdeVoeding] = useState([]);
 const [recenteNotities, setRecenteNotities] = useState([]);
 const [voedingsNotitie, setVoedingsNotitie] = useState('');
 const [uitgebreidMode, setUitgebreidMode] = useState(false);
+const [showVoedingModal, setShowVoedingModal] = useState(false);
+const [selectedCategorie, setSelectedCategorie] = useState('Alle');
 
   useEffect(() => {
     if (!effectiveUserId) return;
@@ -473,11 +475,11 @@ const handleAddVoeding = async (voedingsitem) => {
     </div>
     
     <button 
-      onClick={() => alert('Voedingsmiddel modal openen - komt in volgende stap')}
-      className="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition-colors"
-    >
-      + Voedingsmiddel toevoegen
-    </button>
+  onClick={() => setShowVoedingModal(true)}
+  className="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition-colors"
+>
+  + Voedingsmiddel toevoegen
+</button>
   </div>
 ) : (
   <SimpleMaaltijdLogger 
@@ -496,15 +498,63 @@ const handleAddVoeding = async (voedingsitem) => {
           </div>
         </div>
 
-        {/* Debug info */}
-        <div className="mt-8 text-center">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4 inline-block">
-            <div className="text-sm text-slate-600">
-              Effective User ID: {effectiveUserId || 'N/A'} • Vandaag: {getTodayString()}
-            </div>
-          </div>
+        
+      </div>
+      {/* Modal voor voedingsmiddel selectie */}
+{showVoedingModal && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl max-h-[80vh] overflow-y-auto">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-bold text-gray-800">Voedingsmiddel kiezen</h3>
+        <button onClick={() => setShowVoedingModal(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+      </div>
+      
+      {/* Categorie filter */}
+      <div className="mb-4">
+        <div className="flex flex-wrap gap-2">
+          {['Alle', 'Fruit', 'Groenten', 'Granen', 'Eiwitten', 'Zuivel', 'Snacks'].map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategorie(cat)}
+              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                selectedCategorie === cat 
+                  ? 'bg-green-500 text-white' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
       </div>
+      
+      {/* Voedingsmiddelen lijst */}
+      <div className="space-y-2 max-h-60 overflow-y-auto">
+        {voedingsmiddelen
+          .filter(item => selectedCategorie === 'Alle' || item.categorie === selectedCategorie)
+          .map(item => (
+          <button
+            key={item.naam}
+            onClick={() => {
+              handleAddVoeding(item);
+              setShowVoedingModal(false);
+            }}
+            className="w-full p-3 text-left hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{item.emoji}</span>
+              <div className="flex-1">
+                <div className="font-medium text-gray-800">{item.naam}</div>
+                <div className="text-xs text-gray-500">{item.voedingswaarde}</div>
+              </div>
+              <span className="text-xs bg-gray-100 px-2 py-1 rounded">{item.categorie}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };
