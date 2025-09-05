@@ -367,11 +367,61 @@ const VoedingDetail = () => {
                 onWaterUpdate={handleWaterUpdate} 
               />
               
-              {/* Maaltijden Logger */}
-              <MaaltijdLogger 
-                maaltijden={maaltijden} 
-                onAddMaaltijd={() => setShowMaaltijdModal(true)} 
-              />
+              {/* Maaltijden Logger - Keuze tussen simpel en uitgebreid */}
+              {uitgebreidMode ? (
+                <UitgebreideMaaltijdLogger 
+                  gelogdeVoeding={gelogdeVoeding}
+                  onAddVoeding={handleAddVoeding}
+                  onSwitchToSimple={() => setUitgebreidMode(false)}
+                />
+              ) : (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-slate-800">Vandaag gegeten</h2>
+                    <button 
+                      onClick={() => setUitgebreidMode(true)}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Uitgebreid loggen
+                    </button>
+                  </div>
+                  
+                  {/* Quick log knoppen */}
+                  <div className="grid grid-cols-2 gap-2 mb-6">
+                    {maaltijdOpties.map(optie => {
+                      const isLogged = maaltijden.some(m => m.type === optie.naam);
+                      return (
+                        <button
+                          key={optie.naam}
+                          onClick={() => handleQuickLog(optie.naam)}
+                          className={`p-3 rounded-xl border-2 transition-all ${
+                            isLogged 
+                              ? 'border-green-500 bg-green-50 text-green-700' 
+                              : 'border-slate-200 hover:border-green-300 text-slate-600'
+                          }`}
+                        >
+                          <div className="text-lg mb-1">{optie.emoji}</div>
+                          <div className="text-sm font-medium">{optie.naam}</div>
+                          {isLogged && <div className="text-xs text-green-600 mt-1">✓ Klaar</div>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Simpele voortgang */}
+                  <div className="text-center">
+                    <div className="text-sm text-slate-600 mb-2">
+                      {maaltijden.length} van 4 maaltijden gelogd
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2">
+                      <div 
+                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(maaltijden.length / 4) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {/* Voedingstips */}
               <VoedingsTips />
