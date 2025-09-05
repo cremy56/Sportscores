@@ -5,7 +5,7 @@ import { doc, onSnapshot, setDoc, collection, addDoc, serverTimestamp, query, or
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, ChartBarIcon, PlusIcon, SparklesIcon, LightBulbIcon, PhoneIcon, LinkIcon, HeartIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '../utils/formatters';
-import { BarChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend, ComposedChart, CartesianGrid } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts';
 
 
 
