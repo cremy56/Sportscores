@@ -254,16 +254,10 @@ const getMentaalScore = (humeur) => {
 {/* Klikgebieden voor modals - SIMPELE rechthoeken in de hoeken */}
 {/* Beweging segment - rechtsboven */}
 <div 
-  onClick={() => handleSegmentClick('Beweging')} 
-  className="absolute cursor-pointer hover:bg-blue-500/1 transition-colors" 
-  style={{ 
-    top: '20px', 
-    right: '90px', 
-    width: '220px', 
-    height: '60px',
-    zIndex: 10
-  }} 
-/>
+            onClick={() => handleSegmentClick('Beweging')} 
+            className="absolute cursor-pointer transition-colors duration-200 ease-in-out hover:bg-blue-300 hover:bg-opacity-20 rounded-full" // <-- AANPASSING HIER
+            style={{ top: '0', right: '0', width: '50%', height: '50%', transformOrigin: 'bottom left' }} // Pas de style aan om de kwartcirkel te omvatten
+          />
 
 {/* Voeding segment - rechtsonder */}
 <div 
