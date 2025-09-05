@@ -79,11 +79,9 @@ const MentaalGrafiek = ({ data }) => {
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+      <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
         <XAxis dataKey="datum" tick={{ fontSize: 12 }} />
-        {/* Y-as voor Humeur Score (0-100) */}
-        <YAxis yAxisId="left" domain={[0, 100]} tick={{ fontSize: 12, fill: '#f97316' }} label={{ value: 'Humeur Score', angle: -90, position: 'insideLeft', dx: -20, fill: '#f97316' }} />
-        {/* Y-as voor Stressniveau (1-5) */}
+               {/* Y-as voor Stressniveau (1-5) */}
         <YAxis 
             yAxisId="left" 
             domain={[0, 100]} 
