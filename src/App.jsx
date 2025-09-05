@@ -34,6 +34,7 @@ import Gezondheid from './pages/Gezondheid';
 import Welzijnsmonitor from './pages/Welzijnsmonitor';
 import BewegingDetail from './pages/BewegingDetail';
 import MentaalDetail from './pages/MentaalDetail';
+import VoedingDetail from './pages/VoedingDetail';
 
 
 function HandleAuthRedirect() {
