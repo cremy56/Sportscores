@@ -24,13 +24,14 @@ const MijnGezondheid = () => {
   const { profile } = useOutletContext(); // Haal de ingelogde gebruiker op
   const navigate = useNavigate();
   const todayString = getTodayString();
+
 // NIEUWE LOGICA: Bepaal welke gebruiker ID te gebruiken
 const effectiveUserId = profile?.id;
   console.log('DEBUG: Effective User ID:', effectiveUserId);
 console.log('DEBUG: Profile structure:', profile);
 const [loading, setLoading] = useState(true); // Start in laadstatus
   const [error, setError] = useState(null);     
-  
+
   // State voor data uit Firestore
   const [welzijnDoelen, setWelzijnDoelen] = useState({ stappen: 10000, water: 2000, slaap: 8 });
   const [dagelijkseData, setDagelijkseData] = useState({ stappen: 0, hartslag_rust: 72, water_intake: 0, slaap_uren: 0 });
@@ -162,22 +163,22 @@ const handleHumeurSave = async () => {
 
   // Functie om het humeur om te zetten naar een score van 0-100
 const getMentaalScore = (humeur) => {
-  if (!humeur) return 50; // Geef een neutrale score als er nog niets is ingevuld
+  if (!humeur) return 0; // <-- AANGEPAST VAN 50 NAAR 0
   switch (humeur) {
     case 'Zeer goed': return 100;
     case 'Goed': return 80;
     case 'Neutraal': return 60;
     case 'Minder goed': return 40;
     case 'Slecht': return 20;
-    default: return 50;
+    default: return 0; // Standaardwaarde ook naar 0
   }
 };
 
   // Bereken de percentages voor de UI op basis van de live data
   const welzijnScores = {
     beweging: welzijnDoelen.stappen > 0 ? Math.min(Math.round((dagelijkseData.stappen / welzijnDoelen.stappen) * 100), 100) : 0,
-    voeding: 75, // Placeholder - kun je later vervangen door echte berekening
-    slaap: 68,   // Placeholder - kun je later vervangen door echte berekening
+    voeding: 0, // Placeholder - kun je later vervangen door echte berekening
+    slaap: 0,   // Placeholder - kun je later vervangen door echte berekening
     mentaal: getMentaalScore(dagelijkseData.humeur),
   };
 

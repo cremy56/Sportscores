@@ -3,7 +3,7 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, collection, addDoc, serverTimestamp, query, orderBy, limit } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { ArrowUturnLeftIcon, LightBulbIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import { ArrowUturnLeftIcon, LightBulbIcon, PhoneIcon, BeakerIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '../utils/formatters';
 
 const moodOptions = [
@@ -14,11 +14,42 @@ const moodOptions = [
   { mood: 'Slecht', emoji: '😞', color: 'bg-red-400' },
 ];
 
-// Helper om de datum van vandaag in JJJJ-MM-DD formaat te krijgen
 const getTodayString = () => {
   const today = new Date();
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 };
+
+// --- NIEUWE COMPONENTEN VOOR MINDFULNESS OEFENINGEN ---
+
+// 1. Ademhalingsoefening met animatie
+const AdemhalingOefening = () => (
+  <div className="text-center p-4">
+    <p className="text-slate-600 mb-6">Focus op je ademhaling. Volg de cirkel.</p>
+    <div className="flex justify-center items-center h-48">
+      <div className="relative w-32 h-32">
+        <div className="absolute inset-0 bg-orange-400 rounded-full animate-ademhaling"></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <p className="text-white font-bold text-lg animate-ademhaling-tekst">Adem in</p>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// 2. 5 Zintuigen Check-in
+const VijfZintuigenOefening = () => (
+  <div className="p-4 space-y-3">
+      <p className="text-slate-600">Neem even de tijd om je omgeving waar te nemen. Benoem voor jezelf:</p>
+      <ul className="list-disc list-inside space-y-2 text-slate-700">
+        <li><span className="font-bold">5 dingen</span> die je kunt zien 👁️</li>
+        <li><span className="font-bold">4 dingen</span> die je kunt voelen 🖐️</li>
+        <li><span className="font-bold">3 dingen</span> die je kunt horen 👂</li>
+        <li><span className="font-bold">2 dingen</span> die je kunt ruiken 👃</li>
+        <li><span className="font-bold">1 ding</span> dat je kunt proeven 👅</li>
+      </ul>
+  </div>
+);
+
 
 const MentaalDetail = () => {
   const { profile } = useOutletContext();
@@ -26,11 +57,14 @@ const MentaalDetail = () => {
   const [stressNiveau, setStressNiveau] = useState(3);
   const [positieveNotitie, setPositieveNotitie] = useState('');
   const [recenteNotities, setRecenteNotities] = useState([]);
+  
+  // --- STATE VOOR DE MINDFULNESS OEFENINGEN ---
+  const [actieveOefening, setActieveOefening] = useState('ademhaling');
+
 
   useEffect(() => {
     if (!profile?.id) return;
 
-    // Listener voor de data van vandaag
     const todayDocRef = doc(db, 'welzijn', profile.id, 'dagelijkse_data', getTodayString());
     const unsubscribeVandaag = onSnapshot(todayDocRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -42,7 +76,6 @@ const MentaalDetail = () => {
       }
     });
 
-    // Listener voor recente positieve notities
     const notitiesQuery = query(
       collection(db, `welzijn/${profile.id}/mentale_notities`),
       orderBy('datum', 'desc'),
@@ -178,6 +211,34 @@ const MentaalDetail = () => {
                 </button>
             </div>
             
+            {/* --- NIEUWE SECTIE: SNELLE RESET --- */}
+            <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-200 h-fit">
+                <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <SparklesIcon className="w-6 h-6 text-orange-500"/>
+                    Snelle Reset
+                </h2>
+                {/* Tabs om te wisselen tussen oefeningen */}
+                <div className="flex border-b border-slate-200 mb-4">
+                    <button 
+                        onClick={() => setActieveOefening('ademhaling')}
+                        className={`py-2 px-4 text-sm font-semibold transition-colors ${actieveOefening === 'ademhaling' ? 'border-b-2 border-orange-500 text-orange-600' : 'text-slate-500 hover:text-orange-500'}`}
+                    >
+                        Ademhaling
+                    </button>
+                    <button 
+                        onClick={() => setActieveOefening('zintuigen')}
+                        className={`py-2 px-4 text-sm font-semibold transition-colors ${actieveOefening === 'zintuigen' ? 'border-b-2 border-orange-500 text-orange-600' : 'text-slate-500 hover:text-orange-500'}`}
+                    >
+                        5 Zintuigen
+                    </button>
+                </div>
+                {/* Toon de actieve oefening */}
+                <div>
+                    {actieveOefening === 'ademhaling' && <AdemhalingOefening />}
+                    {actieveOefening === 'zintuigen' && <VijfZintuigenOefening />}
+                </div>
+            </div>
+
              {/* Hulpbronnen */}
             <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-200 h-fit">
                 <h2 className="text-xl font-bold text-slate-800 mb-4">Hulp nodig?</h2>
@@ -185,11 +246,35 @@ const MentaalDetail = () => {
                 <ul className="space-y-3">
                     <li><a href="https://www.awel.be" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-orange-600 hover:underline"><PhoneIcon className="w-5 h-5"/> Awel luistert (bel 102)</a></li>
                     <li><a href="https://www.jac.be" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-orange-600 hover:underline"><LightBulbIcon className="w-5 h-5"/> JAC - Info & advies</a></li>
-                    {/* Voeg hier eventueel interne schoolcontacten toe */}
                 </ul>
             </div>
         </div>
       </div>
+      
+      {/* --- CSS VOOR DE ADEMHALINGSANIMATIE --- */}
+      <style>{`
+        @keyframes ademhaling {
+          0% { transform: scale(0.8); opacity: 0.8; }
+          50% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(0.8); opacity: 0.8; }
+        }
+        .animate-ademhaling {
+          animation: ademhaling 8s infinite ease-in-out;
+        }
+
+        @keyframes ademhaling-tekst {
+          0% { content: 'Adem in'; opacity: 1; }
+          40% { opacity: 1; }
+          50% { content: 'Houd vast'; opacity: 0; }
+          60% { content: 'Adem uit'; opacity: 1; }
+          90% { opacity: 1; }
+          100% { content: 'Adem in'; opacity: 0; }
+        }
+        .animate-ademhaling-tekst::before {
+          content: 'Adem in';
+          animation: ademhaling-tekst 8s infinite ease-in-out;
+        }
+      `}</style>
     </div>
   );
 };
