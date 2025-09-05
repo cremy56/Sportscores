@@ -27,7 +27,170 @@ const maaltijdOpties = [
   { naam: 'Tussendoortje', emoji: '🍎', tips: ['Fruit of noten', 'Geen geraffineerde suikers', 'Kleine porties'] }
 ];
 
-// --- VOEDINGSGROEPEN ---
+// --- VOEDINGSMIDDELEN DATABASE ---
+const voedingsmiddelen = [
+  // Fruit
+  { naam: 'Appel', categorie: 'Fruit', emoji: '🍎', voedingswaarde: 'Rijk aan vezels en vitamine C' },
+  { naam: 'Banaan', categorie: 'Fruit', emoji: '🍌', voedingswaarde: 'Goede bron van kalium en energie' },
+  { naam: 'Sinaasappel', categorie: 'Fruit', emoji: '🍊', voedingswaarde: 'Hoge vitamine C inhoud' },
+  { naam: 'Druiven', categorie: 'Fruit', emoji: '🍇', voedingswaarde: 'Antioxidanten en natuurlijke suikers' },
+  
+  // Groenten
+  { naam: 'Wortel', categorie: 'Groenten', emoji: '🥕', voedingswaarde: 'Rijk aan bètacaroteen' },
+  { naam: 'Broccoli', categorie: 'Groenten', emoji: '🥦', voedingswaarde: 'Hoge foliumzuur en vitamine K' },
+  { naam: 'Tomaat', categorie: 'Groenten', emoji: '🍅', voedingswaarde: 'Lycopeen en vitamine C' },
+  { naam: 'Komkommer', categorie: 'Groenten', emoji: '🥒', voedingswaarde: 'Veel water en weinig calorieën' },
+  
+  // Granen & Brood
+  { naam: 'Volkoren brood', categorie: 'Granen', emoji: '🍞', voedingswaarde: 'Vezels en B-vitamines' },
+  { naam: 'Havermout', categorie: 'Granen', emoji: '🥣', voedingswaarde: 'Langzame koolhydraten en vezels' },
+  { naam: 'Bruine rijst', categorie: 'Granen', emoji: '🍚', voedingswaarde: 'Volkorengraan met mineralen' },
+  
+  // Eiwitten
+  { naam: 'Kip', categorie: 'Eiwitten', emoji: '🍗', voedingswaarde: 'Magere eiwitbron' },
+  { naam: 'Vis', categorie: 'Eiwitten', emoji: '🐟', voedingswaarde: 'Omega-3 vetzuren en eiwit' },
+  { naam: 'Eieren', categorie: 'Eiwitten', emoji: '🥚', voedingswaarde: 'Compleet eiwit en choline' },
+  { naam: 'Bonen', categorie: 'Eiwitten', emoji: '🫘', voedingswaarde: 'Plantaardig eiwit en vezels' },
+  
+  // Zuivel
+  { naam: 'Melk', categorie: 'Zuivel', emoji: '🥛', voedingswaarde: 'Calcium en eiwit' },
+  { naam: 'Yoghurt', categorie: 'Zuivel', emoji: '🥄', voedingswaarde: 'Probiotica en calcium' },
+  { naam: 'Kaas', categorie: 'Zuivel', emoji: '🧀', voedingswaarde: 'Calcium en eiwit' },
+  
+  // Gezonde snacks
+  { naam: 'Noten', categorie: 'Snacks', emoji: '🥜', voedingswaarde: 'Gezonde vetten en eiwit' },
+  { naam: 'Donkere chocolade', categorie: 'Snacks', emoji: '🍫', voedingswaarde: 'Antioxidanten (in gematigde hoeveelheden)' }
+];
+
+// --- UITGEBREIDE MAALTIJD LOGGER ---
+const UitgebreideMaaltijdLogger = ({ gelogdeVoeding, onAddVoeding, onSwitchToSimple }) => {
+  const [selectedCategorie, setSelectedCategorie] = useState('Alle');
+  const [showVoedingModal, setShowVoedingModal] = useState(false);
+  
+  const categorieën = ['Alle', ...new Set(voedingsmiddelen.map(v => v.categorie))];
+  
+  const gefilterdVoeding = selectedCategorie === 'Alle' 
+    ? voedingsmiddelen 
+    : voedingsmiddelen.filter(v => v.categorie === selectedCategorie);
+    
+  const vandaagGegeten = gelogdeVoeding.filter(item => {
+    const vandaag = new Date().toDateString();
+    const itemDatum = item.datum?.toDate?.()?.toDateString();
+    return itemDatum === vandaag;
+  });
+  
+  const categorieScore = () => {
+    const categorieënVandaag = new Set(vandaagGegeten.map(item => 
+      voedingsmiddelen.find(v => v.naam === item.voedingsmiddel)?.categorie
+    ).filter(Boolean));
+    return Math.round((categorieënVandaag.size / 5) * 100); // 5 hoofdcategorieën
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold text-slate-800">Uitgebreid Voedingslog</h2>
+        <button 
+          onClick={onSwitchToSimple}
+          className="text-sm text-slate-500 hover:text-slate-700"
+        >
+          Terug naar simpel
+        </button>
+      </div>
+      
+      {/* Variatie score */}
+      <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
+        <div className="flex justify-between items-center mb-2">
+          <span className="font-semibold text-slate-800">Variatie Score</span>
+          <span className="text-lg font-bold text-green-600">{categorieScore()}%</span>
+        </div>
+        <div className="w-full bg-slate-200 rounded-full h-2">
+          <div 
+            className="bg-gradient-to-r from-green-400 to-blue-400 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${categorieScore()}%` }}
+          />
+        </div>
+        <p className="text-xs text-slate-600 mt-2">Probeer uit alle voedingsgroepen te eten!</p>
+      </div>
+      
+      {/* Vandaag gegeten overzicht */}
+      <div className="mb-4">
+        <h3 className="font-semibold text-slate-700 mb-2">Vandaag gegeten ({vandaagGegeten.length} items)</h3>
+        <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+          {vandaagGegeten.map((item, index) => {
+            const voedingsitem = voedingsmiddelen.find(v => v.naam === item.voedingsmiddel);
+            return (
+              <span key={index} className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded-lg text-xs">
+                {voedingsitem?.emoji} {item.voedingsmiddel}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+      
+      <button 
+        onClick={() => setShowVoedingModal(true)}
+        className="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition-colors"
+      >
+        + Voedingsmiddel toevoegen
+      </button>
+      
+      {/* Modal voor voedingsmiddel selectie */}
+      {showVoedingModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Voedingsmiddel kiezen</h3>
+              <button onClick={() => setShowVoedingModal(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+            
+            {/* Categorie filter */}
+            <div className="mb-4">
+              <div className="flex flex-wrap gap-2">
+                {categorieën.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategorie(cat)}
+                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                      selectedCategorie === cat 
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Voedingsmiddelen lijst */}
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {gefilterdVoeding.map(item => (
+                <button
+                  key={item.naam}
+                  onClick={() => {
+                    onAddVoeding(item);
+                    setShowVoedingModal(false);
+                  }}
+                  className="w-full p-3 text-left hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{item.emoji}</span>
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-800">{item.naam}</div>
+                      <div className="text-xs text-gray-500">{item.voedingswaarde}</div>
+                    </div>
+                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">{item.categorie}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 const voedingsGroepen = [
   { naam: 'Groenten & Fruit', kleur: 'bg-green-100 text-green-700', doel: '5 porties per dag' },
   { naam: 'Granen', kleur: 'bg-yellow-100 text-yellow-700', doel: 'Minimaal 3 volkoren' },
