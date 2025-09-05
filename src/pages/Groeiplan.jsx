@@ -13,9 +13,14 @@ import ConfirmModal from '../components/ConfirmModal';
 import { analyseerEvolutieData } from '../utils/analyseUtils';
 
 // Helper functie om evolutiedata op te halen (gekopieerd uit GroeiplanLeerling)
-const getStudentEvolutionData = async (studentId, profile) => {
+const getStudentEvolutionData = async (studentId, studentProfile) => {
     try {
-        const scoresQuery = query(collection(db, 'scores'), where('leerling_id', '==', studentId));
+       if (!studentId || !studentProfile?.email) return [];
+
+        // DE FIX: Zoek op zowel UID als e-mail
+        const identifiers = [studentId, studentProfile.email].filter(Boolean);
+        const scoresQuery = query(collection(db, 'scores'), where('leerling_id', 'in', identifiers));
+        
         const scoresSnapshot = await getDocs(scoresQuery);
         const scores = scoresSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
@@ -313,6 +318,8 @@ export default function Groeiplan() {
             setOptioneleSchemas([]);
 
             // 1. Haal ALLE actieve schema's op
+            const identifiers = [profileIdentifier, profileEmail].filter(Boolean);
+
             const actieveSchemasQuery = query(collection(db, 'leerling_schemas'), where('leerling_id', '==', profileIdentifier));
             const actieveSchemasSnapshot = await getDocs(actieveSchemasQuery);
             const actieveSchemasData = actieveSchemasSnapshot.docs.map(doc => ({...doc.data(), instanceId: doc.id }));
