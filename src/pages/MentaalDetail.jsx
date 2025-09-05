@@ -163,7 +163,7 @@ const MentaalDetail = () => {
         <div className="hidden lg:block mb-12">
           <Link to="/gezondheid" className="inline-flex items-center text-gray-600 hover:text-orange-700 mb-6 group">
             <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
-            Terug naar kompas
+            Terug naar Mijn Gezondheid
           </Link>
           <div className="flex justify-between items-center">
             <div>
