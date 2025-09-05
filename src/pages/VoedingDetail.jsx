@@ -435,11 +435,29 @@ const handleAddVoeding = async (voedingsitem) => {
               />
               
               {/* Simpele Maaltijden Logger */}
-              <SimpleMaaltijdLogger 
-                maaltijden={maaltijden} 
-                onQuickLog={handleQuickLog}
-                onSwitchToAdvanced={() => setUitgebreidMode(true)}  // Deze regel ontbreekt in je bestand
-                />
+             {/* Maaltijden Logger - Keuze tussen simpel en uitgebreid */}
+{uitgebreidMode ? (
+  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <div className="flex justify-between items-center mb-4">
+      <h2 className="text-xl font-bold text-slate-800">Uitgebreid Voedingslog</h2>
+      <button 
+        onClick={() => setUitgebreidMode(false)}
+        className="text-sm text-slate-500 hover:text-slate-700"
+      >
+        Terug naar simpel
+      </button>
+    </div>
+    <div className="text-center py-8 text-slate-500">
+      <p>Uitgebreide versie komt hier - in ontwikkeling</p>
+    </div>
+  </div>
+) : (
+  <SimpleMaaltijdLogger 
+    maaltijden={maaltijden} 
+    onQuickLog={handleQuickLog}
+    onSwitchToAdvanced={() => setUitgebreidMode(true)}
+  />
+)}
               
               {/* Voedingstips */}
               <VoedingsTips />
