@@ -48,7 +48,8 @@ const CustomYAxisTick = ({ x, y, payload }) => {
 
 const MentaalGrafiek = ({ data }) => {
   const chartData = data.map(item => ({
-    datum: new Date(item.id).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit' }),
+    datum: new Date(item.id).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+
     humeur: item.humeur,
     score: getMoodProps(item.humeur).score,
     stress: item.stress_niveau || null, // Voeg stressniveau toe
@@ -79,7 +80,7 @@ const MentaalGrafiek = ({ data }) => {
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+      <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
         <XAxis dataKey="datum" tick={{ fontSize: 12 }} />
                {/* Y-as voor Stressniveau (1-5) */}
         <YAxis 
@@ -90,7 +91,6 @@ const MentaalGrafiek = ({ data }) => {
             width={40}
             // --- VOEG DEZE REGELS TOE ---
             tickFormatter={() => ''} // Verbergt de standaard numerieke labels
-            axisLine={false}         // Verbergt de verticale Y-as lijn
             tickLine={false}         // Verbergt de kleine streepjes naast de labels
             />
         
