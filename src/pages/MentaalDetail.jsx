@@ -5,7 +5,7 @@ import { doc, onSnapshot, setDoc, collection, addDoc, serverTimestamp, query, or
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, ChartBarIcon, PlusIcon, SparklesIcon, LightBulbIcon, PhoneIcon, LinkIcon, HeartIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '../utils/formatters';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend, ComposedChart } from 'recharts';
 
 
 
@@ -23,29 +23,39 @@ const getEffectiveUserId = (profile) => {
 };
 
 const moodOptions = [
-  { mood: 'Zeer goed', emoji: '😄', color: 'bg-green-400' },
-  { mood: 'Goed', emoji: '🙂', color: 'bg-lime-400' },
-  { mood: 'Neutraal', emoji: '😐', color: 'bg-yellow-400' },
-  { mood: 'Minder goed', emoji: '😕', color: 'bg-orange-400' },
-  { mood: 'Slecht', emoji: '😞', color: 'bg-red-400' },
+  { mood: 'Zeer goed', emoji: '😄', score: 100, color: '#4ade80' },    // Was 'bg-green-400'
+  { mood: 'Goed', emoji: '🙂', score: 80, color: '#a3e635' },      // Was 'bg-lime-400'
+  { mood: 'Neutraal', emoji: '😐', score: 60, color: '#facc15' },    // Was 'bg-yellow-400'
+  { mood: 'Minder goed', emoji: '😕', score: 40, color: '#fb923c' },    // Was 'bg-orange-400'
+  { mood: 'Slecht', emoji: '😞', score: 20, color: '#f87171' },      // Was 'bg-red-400'
 ];
 const getMoodProps = (mood) => moodOptions.find(m => m.mood === mood) || { score: 0, color: '#9ca3af' };
 
-// --- GRAFIEK COMPONENT ---
-const HumeurGrafiek = ({ data }) => {
+const MentaalGrafiek = ({ data }) => {
   const chartData = data.map(item => ({
-    // Formatteer datum naar 'DD/MM' voor de x-as
     datum: new Date(item.id).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit' }),
     humeur: item.humeur,
     score: getMoodProps(item.humeur).score,
+    stress: item.stress_niveau || null, // Voeg stressniveau toe
   }));
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
+      const humeurData = payload.find(p => p.dataKey === 'score');
+      const stressData = payload.find(p => p.dataKey === 'stress');
       return (
-        <div className="bg-white p-2 border border-slate-200 rounded-lg shadow-sm">
-          <p className="font-bold">{label}</p>
-          <p className="text-sm text-orange-600">{`Humeur: ${payload[0].payload.humeur}`}</p>
+        <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-sm">
+          <p className="font-bold mb-2">{label}</p>
+          {humeurData && humeurData.value && (
+            <p className="text-sm" style={{ color: humeurData.fill }}>
+              {`Humeur: ${humeurData.payload.humeur}`}
+            </p>
+          )}
+          {stressData && stressData.value && (
+            <p className="text-sm" style={{ color: stressData.stroke }}>
+              {`Stressniveau: ${stressData.value}`}
+            </p>
+          )}
         </div>
       );
     }
@@ -53,17 +63,27 @@ const HumeurGrafiek = ({ data }) => {
   };
 
   return (
-    <ResponsiveContainer width="100%" height={250}>
-      <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+    <ResponsiveContainer width="100%" height={300}>
+      <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
         <XAxis dataKey="datum" tick={{ fontSize: 12 }} />
-        <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
-        <Bar dataKey="score">
+        {/* Y-as voor Humeur Score (0-100) */}
+        <YAxis yAxisId="left" domain={[0, 100]} tick={{ fontSize: 12, fill: '#f97316' }} label={{ value: 'Humeur Score', angle: -90, position: 'insideLeft', fill: '#f97316' }} />
+        {/* Y-as voor Stressniveau (1-5) */}
+        <YAxis yAxisId="right" orientation="right" domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 12, fill: '#3b82f6' }} label={{ value: 'Stressniveau', angle: 90, position: 'insideRight', fill: '#3b82f6' }}/>
+        
+        <Tooltip content={<CustomTooltip />} />
+        <Legend />
+        
+        {/* Staven voor Humeur */}
+        <Bar dataKey="score" name="Humeur" yAxisId="left" barSize={20}>
           {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={getMoodProps(entry.humeur).color} />
+            <Cell key={`cell-${index}`} fill={getMoodProps(entry.humeur).color || '#e2e8f0'} />
           ))}
         </Bar>
-      </BarChart>
+
+        {/* Lijn voor Stressniveau */}
+        <Line type="monotone" dataKey="stress" name="Stress" yAxisId="right" stroke="#3b82f6" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 8 }} />
+      </ComposedChart>
     </ResponsiveContainer>
   );
 };
@@ -117,8 +137,8 @@ const VijfZintuigenOefening = () => (
 const MentaalDetail = () => {
   const { profile } = useOutletContext();
   const effectiveUserId = getEffectiveUserId(profile);
-  const [dagelijkseData, setDagelijkseData] = useState({});
-  const [humeurGeschiedenis, setHumeurGeschiedenis] = useState([]); // Nieuwe state voor grafiek
+  const [mentaleGeschiedenis, setMentaleGeschiedenis] = useState([]); // Hernoemd voor duidelijkheid
+
   const [stressNiveau, setStressNiveau] = useState(3);
   const [positieveNotitie, setPositieveNotitie] = useState('');
   const [recenteNotities, setRecenteNotities] = useState([]);
@@ -147,23 +167,19 @@ const MentaalDetail = () => {
       setRecenteNotities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
-  // NIEUW: Data ophalen voor de humeur grafiek (laatste 30 dagen)
-    const fetchHumeurGeschiedenis = async () => {
-      const dertigDagenGeleden = new Date();
-      dertigDagenGeleden.setDate(dertigDagenGeleden.getDate() - 30);
-      const startTimestamp = Timestamp.fromDate(dertigDagenGeleden);
-
-      const q = query(
-        collection(db, `welzijn/${effectiveUserId}/dagelijkse_data`),
-        where('humeur', '!=', null) // Alleen dagen met een humeur-log
-      );
-
+  // STAP 1: Pas de data-ophaling aan om alle data te verzamelen
+    const fetchMentaleGeschiedenis = async () => {
+      const q = query(collection(db, `welzijn/${effectiveUserId}/dagelijkse_data`));
       const querySnapshot = await getDocs(q);
-      const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setHumeurGeschiedenis(history.sort((a, b) => new Date(a.id) - new Date(b.id)));
+      const history = querySnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        // Filter om alleen dagen met humeur of stress te tonen
+        .filter(item => item.humeur || item.stress_niveau);
+        
+      setMentaleGeschiedenis(history.sort((a, b) => new Date(a.id) - new Date(b.id)));
     };
 
-    fetchHumeurGeschiedenis();
+    fetchMentaleGeschiedenis();
 
     return () => {
       unsubscribeVandaag();
@@ -246,14 +262,15 @@ const MentaalDetail = () => {
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
                 <h2 className="text-xl lg:text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                   <ChartBarIcon className="w-6 h-6 text-orange-500" />
-                  Humeur Geschiedenis
+                  Mentale Geschiedenis
                 </h2>
-                {humeurGeschiedenis.length > 0 ? (
-                  <HumeurGrafiek data={humeurGeschiedenis} />
+                {mentaleGeschiedenis.length > 0 ? (
+                  <MentaalGrafiek data={mentaleGeschiedenis} />
                 ) : (
                   <div className="text-center py-8 text-slate-500">Nog geen data beschikbaar voor de grafiek.</div>
                 )}
               </div>
+
 
 
               {/* Positieve Focus */}
