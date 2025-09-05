@@ -85,12 +85,16 @@ const MentaalGrafiek = ({ data }) => {
         <YAxis yAxisId="left" domain={[0, 100]} tick={{ fontSize: 12, fill: '#f97316' }} label={{ value: 'Humeur Score', angle: -90, position: 'insideLeft', dx: -20, fill: '#f97316' }} />
         {/* Y-as voor Stressniveau (1-5) */}
         <YAxis 
-          yAxisId="left" 
-          domain={[0, 100]} 
-          ticks={[20, 40, 60, 80, 100]} // Forceer de labels op de scores van de moods
-          tick={<CustomYAxisTick />} 
-          width={40}
-        />
+            yAxisId="left" 
+            domain={[0, 100]} 
+            ticks={[20, 40, 60, 80, 100]}
+            tick={<CustomYAxisTick />} 
+            width={40}
+            // --- VOEG DEZE REGELS TOE ---
+            tickFormatter={() => ''} // Verbergt de standaard numerieke labels
+            axisLine={false}         // Verbergt de verticale Y-as lijn
+            tickLine={false}         // Verbergt de kleine streepjes naast de labels
+            />
         
         <YAxis yAxisId="right" orientation="right" domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 12, fill: '#3b82f6' }} label={{ value: 'Stressniveau', angle: 90, position: 'insideRight', fill: '#3b82f6' }}/>
         
