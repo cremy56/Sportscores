@@ -256,7 +256,7 @@ const getMentaalScore = (humeur) => {
 <div 
             onClick={() => handleSegmentClick('Beweging')} 
             className="absolute cursor-pointer transition-colors duration-200 ease-in-out hover:bg-blue-300 hover:bg-opacity-20 rounded-full" // <-- AANPASSING HIER
-            style={{ top: '0', right: '20%', width: '55%', height: '20%', transformOrigin: 'bottom left' }} // Pas de style aan om de kwartcirkel te omvatten
+            style={{ top: '10%', right: '20%', width: '55%', height: '20%', transformOrigin: 'bottom left' }} // Pas de style aan om de kwartcirkel te omvatten
           />
 
 {/* Voeding segment - rechtsonder */}
