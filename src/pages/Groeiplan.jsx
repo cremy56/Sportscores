@@ -8,8 +8,6 @@ import toast from 'react-hot-toast';
 import FocusPuntKaart from '../components/groeiplan/FocusPuntKaart';
 import StudentSearch from '../components/StudentSearch';
 import ConfirmModal from '../components/ConfirmModal';
-
-// Import de analyse functie
 import { analyseerEvolutieData } from '../utils/analyseUtils';
 
 // Helper functie om evolutiedata op te halen (gekopieerd uit GroeiplanLeerling)
@@ -305,7 +303,7 @@ export default function Groeiplan() {
         }
 
 
-    const fetchData = async () => {
+   const fetchData = async () => {
             setLoading(true);
             const profileIdentifier = currentProfile.id;
             const profileEmail = currentProfile.email;
