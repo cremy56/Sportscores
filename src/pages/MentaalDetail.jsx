@@ -5,7 +5,7 @@ import { doc, onSnapshot, setDoc, collection, addDoc, serverTimestamp, query, or
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, ChartBarIcon, PlusIcon, SparklesIcon, LightBulbIcon, PhoneIcon, LinkIcon, HeartIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '../utils/formatters';
-import { BarChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend, ComposedChart } from 'recharts';
+import { BarChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend, ComposedChart, CartesianGrid } from 'recharts';
 
 
 
@@ -81,6 +81,11 @@ const MentaalGrafiek = ({ data }) => {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
+        <CartesianGrid 
+          strokeDasharray="3 3" // Zorgt voor een stippellijneffect
+          vertical={false}       // Verbergt de verticale lijnen
+          stroke="#e5e7eb"       // Lichte grijze kleur voor de lijnen
+        />
         <XAxis dataKey="datum" tick={{ fontSize: 12 }} />
                {/* Y-as voor Stressniveau (1-5) */}
         <YAxis 
