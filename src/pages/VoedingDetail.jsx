@@ -436,6 +436,7 @@ const handleAddVoeding = async (voedingsitem) => {
               
               {/* Simpele Maaltijden Logger */}
              {/* Maaltijden Logger - Keuze tussen simpel en uitgebreid */}
+{/* Maaltijden Logger - Keuze tussen simpel en uitgebreid */}
 {uitgebreidMode ? (
   <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
     <div className="flex justify-between items-center mb-4">
@@ -447,9 +448,36 @@ const handleAddVoeding = async (voedingsitem) => {
         Terug naar simpel
       </button>
     </div>
-    <div className="text-center py-8 text-slate-500">
-      <p>Uitgebreide versie komt hier - in ontwikkeling</p>
+    
+    {/* Variatie score */}
+    <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
+      <div className="flex justify-between items-center mb-2">
+        <span className="font-semibold text-slate-800">Variatie Score</span>
+        <span className="text-lg font-bold text-green-600">0%</span>
+      </div>
+      <div className="w-full bg-slate-200 rounded-full h-2">
+        <div 
+          className="bg-gradient-to-r from-green-400 to-blue-400 h-2 rounded-full transition-all duration-300"
+          style={{ width: '0%' }}
+        />
+      </div>
+      <p className="text-xs text-slate-600 mt-2">Probeer uit alle voedingsgroepen te eten!</p>
     </div>
+    
+    {/* Vandaag gegeten overzicht */}
+    <div className="mb-4">
+      <h3 className="font-semibold text-slate-700 mb-2">Vandaag gegeten (0 items)</h3>
+      <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+        <span className="text-sm text-slate-500">Nog geen voedingsmiddelen toegevoegd</span>
+      </div>
+    </div>
+    
+    <button 
+      onClick={() => alert('Voedingsmiddel modal openen - komt in volgende stap')}
+      className="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition-colors"
+    >
+      + Voedingsmiddel toevoegen
+    </button>
   </div>
 ) : (
   <SimpleMaaltijdLogger 
