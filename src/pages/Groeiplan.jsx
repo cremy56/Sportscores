@@ -312,7 +312,7 @@ export default function Groeiplan() {
         const fetchData = async () => {
             setLoading(true);
             const profileIdentifier = currentProfile.id;
-
+            const profileEmail = currentProfile.email;
             // Reset states
             setVerplichteFocusPunten([]);
             setOptioneleSchemas([]);
