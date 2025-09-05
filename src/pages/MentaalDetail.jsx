@@ -165,7 +165,7 @@ const MentaalDetail = () => {
   const { profile } = useOutletContext();
   const effectiveUserId = getEffectiveUserId(profile);
   const [mentaleGeschiedenis, setMentaleGeschiedenis] = useState([]); // Hernoemd voor duidelijkheid
-
+  const [dagelijkseData, setDagelijkseData] = useState({});
   const [stressNiveau, setStressNiveau] = useState(3);
   const [positieveNotitie, setPositieveNotitie] = useState('');
   const [recenteNotities, setRecenteNotities] = useState([]);
