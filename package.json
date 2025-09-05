@@ -26,6 +26,7 @@
     "react-hot-toast": "^2.5.2",
     "react-modal": "^3.16.3",
     "react-router-dom": "^6.23.1",
+    "recharts": "^3.1.2",
     "three": "^0.179.1"
   },
   "devDependencies": {

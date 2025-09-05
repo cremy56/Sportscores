@@ -3,13 +3,23 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, collection, addDoc, serverTimestamp, query, orderBy, getDocs, Timestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, PlusIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, LightBulbIcon, PhoneIcon, SparklesIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '../utils/formatters';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 // --- HULPFUNCTIES ---
-const getTodayString = () => { /* ... (onveranderd) */ };
-const getEffectiveUserId = (profile) => { /* ... (onveranderd) */ };
+const getTodayString = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+};
+
+// Helper functie voor effectieve gebruiker ID (zelfde logica als Gezondheid.jsx)
+const getEffectiveUserId = (profile) => {
+  if (profile?.originalProfile?.rol === 'super-administrator' && profile?.rol === 'leerling') {
+    return profile?.uid;
+  }
+  return profile?.uid || profile?.id;
+};
 
 // --- GRAFIEK COMPONENT ---
 const StappenGrafiek = ({ data, doel }) => {
