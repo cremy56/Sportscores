@@ -208,6 +208,7 @@ useEffect(() => {
                             <Route path="/gezondheid" element={<Gezondheid />} />
                             <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
                             <Route path="/gezondheid/mentaal" element={<MentaalDetail />} /> 
+                            <Route path="/gezondheid/voeding" element={<VoedingDetail />} />
                           </>
 
                         )}
