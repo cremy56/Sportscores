@@ -305,58 +305,62 @@ export default function Groeiplan() {
         }
 
 
-        const fetchData = async () => {
+   const fetchData = async () => {
             setLoading(true);
             const profileIdentifier = currentProfile.id;
             const profileEmail = currentProfile.email;
-         const identifiers = [profileIdentifier, profileEmail].filter(Boolean);
+            const identifiers = [profileIdentifier, profileEmail].filter(Boolean);
 
-            // 1. Haal ALLE actieve schema's op
-           // 1. Haal ALLE actieve schema's van de leerling op
-        const actieveSchemasQuery = query(collection(db, 'leerling_schemas'), where('leerling_id', 'in', identifiers));
-        const actieveSchemasSnapshot = await getDocs(actieveSchemasQuery);
-        
-        const verplichteSchemaIds = [];
-        const optioneleSchemaIds = [];
-
-        // 2. Verdeel de schema's op basis van het 'type' veld
-        actieveSchemasSnapshot.docs.forEach(doc => {
-            const data = doc.data();
-            if (data.type === 'optioneel') {
-                optioneleSchemaIds.push(data.schema_id);
-            } else { // Behandel alles zonder type of met type 'verplicht' als verplicht
-                verplichteSchemaIds.push(data.schema_id);
+            if (identifiers.length === 0) {
+                setLoading(false); return;
             }
-        });
 
-        // 3. Haal de details op van de verplichte schema's
-        if (verplichteSchemaIds.length > 0) {
-            // (Hier komt je logica om de bijbehorende testen te vinden, die is al correct)
+            // --- DE GECORRIGEERDE LOGICA ---
+
+            // 1. Haal de testresultaten op en analyseer ze voor zwakke punten
             const evolutionData = await getStudentEvolutionData(profileIdentifier, currentProfile);
             const zwakkeTesten = analyseerEvolutieData(evolutionData);
+            
+            // 2. Zoek de bijbehorende verplichte trainingsschema's
             const verplichteFocusPuntenData = [];
             for (const zwakkeTest of zwakkeTesten) {
-                // ... (deze logica blijft hetzelfde)
+                const schemaQuery = query(collection(db, 'trainingsschemas'), where('gekoppelde_test_id', '==', zwakkeTest.test_id));
+                const schemaSnapshot = await getDocs(schemaQuery);
+                
+                if (!schemaSnapshot.empty) {
+                    const schemaDoc = schemaSnapshot.docs[0];
+                    const schemaData = { id: schemaDoc.id, ...schemaDoc.data() };
+                    verplichteFocusPuntenData.push({
+                        test: { ...zwakkeTest, test_naam: zwakkeTest.naam },
+                        schema: schemaData
+                    });
+                }
             }
             setVerplichteFocusPunten(verplichteFocusPuntenData);
-        } else {
-            setVerplichteFocusPunten([]);
-        }
 
-        // 4. Haal de details op van de optionele schema's
-        if (optioneleSchemaIds.length > 0) {
-            const schemasQuery = query(collection(db, 'trainingsschemas'), where('__name__', 'in', optioneleSchemaIds));
-            const schemasSnapshot = await getDocs(schemasQuery);
-            setOptioneleSchemas(schemasSnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-        } else {
-            setOptioneleSchemas([]);
-        }
+            // 3. Haal de zelfgekozen (optionele) schema's op
+            const optioneleSchemasQuery = query(
+                collection(db, 'leerling_schemas'), 
+                where('leerling_id', 'in', identifiers),
+                where('type', '==', 'optioneel')
+            );
+            const optioneleSnapshot = await getDocs(optioneleSchemasQuery);
+            const optioneleSchemaIds = optioneleSnapshot.docs.map(doc => doc.data().schema_id);
 
-        setLoading(false);
-    };
+            if (optioneleSchemaIds.length > 0) {
+                const schemasQuery = query(collection(db, 'trainingsschemas'), where('__name__', 'in', optioneleSchemaIds));
+                const schemasSnapshot = await getDocs(schemasQuery);
+                setOptioneleSchemas(schemasSnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+            } else {
+                setOptioneleSchemas([]);
+            }
 
-    fetchData();
-}, [currentProfile]);
+            setLoading(false);
+        };
+
+        fetchData();
+    }, [currentProfile, isTeacherOrAdmin, selectedStudent]);
+
     
     const handleSelectTrainingPlan = async (plan) => {
         const profileIdentifier = currentProfile.id;
