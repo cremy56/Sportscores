@@ -35,7 +35,39 @@ const voedingsGroepen = [
   { naam: 'Zuivel', kleur: 'bg-blue-100 text-blue-700', doel: '2-3 porties per dag' },
   { naam: 'Water', kleur: 'bg-cyan-100 text-cyan-700', doel: '1.5-2 liter per dag' }
 ];
-
+const voedingsmiddelen = [
+  // Fruit
+  { naam: 'Appel', categorie: 'Fruit', emoji: '🍎', voedingswaarde: 'Rijk aan vezels en vitamine C' },
+  { naam: 'Banaan', categorie: 'Fruit', emoji: '🍌', voedingswaarde: 'Goede bron van kalium en energie' },
+  { naam: 'Sinaasappel', categorie: 'Fruit', emoji: '🍊', voedingswaarde: 'Hoge vitamine C inhoud' },
+  { naam: 'Druiven', categorie: 'Fruit', emoji: '🍇', voedingswaarde: 'Antioxidanten en natuurlijke suikers' },
+  
+  // Groenten
+  { naam: 'Wortel', categorie: 'Groenten', emoji: '🥕', voedingswaarde: 'Rijk aan bètacaroteen' },
+  { naam: 'Broccoli', categorie: 'Groenten', emoji: '🥦', voedingswaarde: 'Hoge foliumzuur en vitamine K' },
+  { naam: 'Tomaat', categorie: 'Groenten', emoji: '🍅', voedingswaarde: 'Lycopeen en vitamine C' },
+  { naam: 'Komkommer', categorie: 'Groenten', emoji: '🥒', voedingswaarde: 'Veel water en weinig calorieën' },
+  
+  // Granen & Brood
+  { naam: 'Volkoren brood', categorie: 'Granen', emoji: '🍞', voedingswaarde: 'Vezels en B-vitamines' },
+  { naam: 'Havermout', categorie: 'Granen', emoji: '🥣', voedingswaarde: 'Langzame koolhydraten en vezels' },
+  { naam: 'Bruine rijst', categorie: 'Granen', emoji: '🍚', voedingswaarde: 'Volkorengraan met mineralen' },
+  
+  // Eiwitten
+  { naam: 'Kip', categorie: 'Eiwitten', emoji: '🍗', voedingswaarde: 'Magere eiwitbron' },
+  { naam: 'Vis', categorie: 'Eiwitten', emoji: '🐟', voedingswaarde: 'Omega-3 vetzuren en eiwit' },
+  { naam: 'Eieren', categorie: 'Eiwitten', emoji: '🥚', voedingswaarde: 'Compleet eiwit en choline' },
+  { naam: 'Bonen', categorie: 'Eiwitten', emoji: '🫘', voedingswaarde: 'Plantaardig eiwit en vezels' },
+  
+  // Zuivel
+  { naam: 'Melk', categorie: 'Zuivel', emoji: '🥛', voedingswaarde: 'Calcium en eiwit' },
+  { naam: 'Yoghurt', categorie: 'Zuivel', emoji: '🥄', voedingswaarde: 'Probiotica en calcium' },
+  { naam: 'Kaas', categorie: 'Zuivel', emoji: '🧀', voedingswaarde: 'Calcium en eiwit' },
+  
+  // Gezonde snacks
+  { naam: 'Noten', categorie: 'Snacks', emoji: '🥜', voedingswaarde: 'Gezonde vetten en eiwit' },
+  { naam: 'Donkere chocolade', categorie: 'Snacks', emoji: '🍫', voedingswaarde: 'Antioxidanten (in gematigde hoeveelheden)' }
+];
 // --- WATERTRACKER COMPONENT ---
 const WaterTracker = ({ waterIntake, onWaterUpdate }) => {
   const doelWater = 2000; // ml
@@ -84,11 +116,19 @@ const WaterTracker = ({ waterIntake, onWaterUpdate }) => {
 };
 
 // --- SIMPELE MAALTIJD LOGGER COMPONENT ---
-const SimpleMaaltijdLogger = ({ maaltijden, onQuickLog }) => (
+const SimpleMaaltijdLogger = ({ maaltijden, onQuickLog, onSwitchToAdvanced }) => (
   <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-    <h2 className="text-xl font-bold text-slate-800 mb-4">Vandaag gegeten</h2>
+    <div className="flex justify-between items-center mb-4">
+      <h2 className="text-xl font-bold text-slate-800">Vandaag gegeten</h2>
+      <button 
+        onClick={onSwitchToAdvanced}
+        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+      >
+        Uitgebreid loggen
+      </button>
+    </div>
     
-    {/* Quick log knoppen */}
+    {/* Rest van je component blijft hetzelfde */}
     <div className="grid grid-cols-2 gap-2 mb-6">
       {maaltijdOpties.map(optie => {
         const isLogged = maaltijden.some(m => m.type === optie.naam);
@@ -110,7 +150,6 @@ const SimpleMaaltijdLogger = ({ maaltijden, onQuickLog }) => (
       })}
     </div>
     
-    {/* Simpele voortgang */}
     <div className="text-center">
       <div className="text-sm text-slate-600 mb-2">
         {maaltijden.length} van 4 maaltijden gelogd
@@ -173,9 +212,11 @@ const VoedingDetail = () => {
   
   // State variabelen
   const [dagelijkseData, setDagelijkseData] = useState({});
-  const [maaltijden, setMaaltijden] = useState([]);
-  const [recenteNotities, setRecenteNotities] = useState([]);
-  const [voedingsNotitie, setVoedingsNotitie] = useState('');
+const [maaltijden, setMaaltijden] = useState([]);
+const [gelogdeVoeding, setGelogdeVoeding] = useState([]);
+const [recenteNotities, setRecenteNotities] = useState([]);
+const [voedingsNotitie, setVoedingsNotitie] = useState('');
+const [uitgebreidMode, setUitgebreidMode] = useState(false);
 
   useEffect(() => {
     if (!effectiveUserId) return;
@@ -256,7 +297,22 @@ const VoedingDetail = () => {
       console.error(error);
     }
   };
+const handleAddVoeding = async (voedingsitem) => {
+  if (!effectiveUserId) return;
 
+  try {
+    await addDoc(collection(db, `welzijn/${effectiveUserId}/voeding_logs`), {
+      voedingsmiddel: voedingsitem.naam,
+      categorie: voedingsitem.categorie,
+      voedingswaarde: voedingsitem.voedingswaarde,
+      datum: serverTimestamp(),
+    });
+    toast.success(`${voedingsitem.naam} toegevoegd!`);
+  } catch (error) {
+    toast.error('Kon voedingsmiddel niet toevoegen.');
+    console.error(error);
+  }
+};
   const handleNotitieSave = async (e) => {
     e.preventDefault();
     if (!effectiveUserId || !voedingsNotitie.trim()) return;
@@ -382,8 +438,8 @@ const VoedingDetail = () => {
               <SimpleMaaltijdLogger 
                 maaltijden={maaltijden} 
                 onQuickLog={handleQuickLog}
-                onSwitchToAdvanced={() => setUitgebreidMode(true)}
-              />
+                onSwitchToAdvanced={() => setUitgebreidMode(true)}  // Deze regel ontbreekt in je bestand
+                />
               
               {/* Voedingstips */}
               <VoedingsTips />
