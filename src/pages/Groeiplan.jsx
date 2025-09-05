@@ -305,7 +305,7 @@ export default function Groeiplan() {
         }
 
 
-   const fetchData = async () => {
+    const fetchData = async () => {
             setLoading(true);
             const profileIdentifier = currentProfile.id;
             const profileEmail = currentProfile.email;
@@ -317,12 +317,20 @@ export default function Groeiplan() {
 
             // --- DE GECORRIGEERDE LOGICA ---
 
-            // 1. Haal de testresultaten op en analyseer ze voor zwakke punten
+            // Stap 1: Haal ALLE actieve schema-instanties van de leerling op
+            const actieveSchemasQuery = query(collection(db, 'leerling_schemas'), where('leerling_id', 'in', identifiers));
+            const actieveSchemasSnapshot = await getDocs(actieveSchemasQuery);
+            const actieveSchemaMap = new Map();
+            actieveSchemasSnapshot.docs.forEach(doc => {
+                const data = doc.data();
+                actieveSchemaMap.set(data.schema_id, data.type || 'verplicht');
+            });
+
+            // Stap 2: Bepaal verplichte focuspunten op basis van testresultaten
             const evolutionData = await getStudentEvolutionData(profileIdentifier, currentProfile);
             const zwakkeTesten = analyseerEvolutieData(evolutionData);
-            
-            // 2. Zoek de bijbehorende verplichte trainingsschema's
             const verplichteFocusPuntenData = [];
+            
             for (const zwakkeTest of zwakkeTesten) {
                 const schemaQuery = query(collection(db, 'trainingsschemas'), where('gekoppelde_test_id', '==', zwakkeTest.test_id));
                 const schemaSnapshot = await getDocs(schemaQuery);
@@ -330,22 +338,23 @@ export default function Groeiplan() {
                 if (!schemaSnapshot.empty) {
                     const schemaDoc = schemaSnapshot.docs[0];
                     const schemaData = { id: schemaDoc.id, ...schemaDoc.data() };
+                    
                     verplichteFocusPuntenData.push({
                         test: { ...zwakkeTest, test_naam: zwakkeTest.naam },
-                        schema: schemaData
+                        schema: schemaData,
+                        isActief: actieveSchemaMap.has(schemaData.id) // <-- CHECK OF HET AL ACTIEF IS
                     });
                 }
             }
             setVerplichteFocusPunten(verplichteFocusPuntenData);
 
-            // 3. Haal de zelfgekozen (optionele) schema's op
-            const optioneleSchemasQuery = query(
-                collection(db, 'leerling_schemas'), 
-                where('leerling_id', 'in', identifiers),
-                where('type', '==', 'optioneel')
-            );
-            const optioneleSnapshot = await getDocs(optioneleSchemasQuery);
-            const optioneleSchemaIds = optioneleSnapshot.docs.map(doc => doc.data().schema_id);
+            // Stap 3: Bepaal optionele schema's
+            const optioneleSchemaIds = [];
+            for (const [schemaId, type] of actieveSchemaMap.entries()) {
+                if (type === 'optioneel') {
+                    optioneleSchemaIds.push(schemaId);
+                }
+            }
 
             if (optioneleSchemaIds.length > 0) {
                 const schemasQuery = query(collection(db, 'trainingsschemas'), where('__name__', 'in', optioneleSchemaIds));
@@ -458,6 +467,7 @@ export default function Groeiplan() {
                                                 test={focusPunt.test} 
                                                 schema={focusPunt.schema} 
                                                 student={currentProfile} 
+                                                isActief={focusPunt.isActief}
                                             />
                                         ))
                                     ) : (
