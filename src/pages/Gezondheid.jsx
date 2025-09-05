@@ -44,6 +44,8 @@ const [loading, setLoading] = useState(true); // Start in laadstatus
   const [showInfoModal, setShowInfoModal] = useState(false);
    const [showMentaalModal, setShowMentaalModal] = useState(false);
   const [selectedHumeur, setSelectedHumeur] = useState(null);
+  const [showWaterModal, setShowWaterModal] = useState(false);
+const [tempWater, setTempWater] = useState(0);
 
   // Effect Hook om live data op te halen uit Firestore
   useEffect(() => {
@@ -78,12 +80,14 @@ const [loading, setLoading] = useState(true); // Start in laadstatus
         setTempHartslag(data.hartslag_rust || 72);
         setTempStappen(data.stappen || 0);
         setSelectedHumeur(data.humeur || null); // Initialiseer de geselecteerde smiley met opgeslagen humeur
+        setTempWater(data.water_intake || 0);
         setError(null);
       } else {
         setDagelijkseData({}); // Geen data voor vandaag
         setSelectedHumeur(null);
         setTempStappen(0);
         setTempHartslag(72);
+        setTempWater(0);
         console.log("No daily data for today!");
       }
       setLoading(false);
@@ -108,6 +112,10 @@ const [loading, setLoading] = useState(true); // Start in laadstatus
       setSelectedHumeur(dagelijkseData.humeur || null);
       setShowMentaalModal(true);
     }
+    if (segment === 'Voeding') {
+    setTempWater(dagelijkseData.water_intake || 0);
+    setShowWaterModal(true);
+  }
   };
 
   // Functie voor klikken op TEGEL (navigeert naar DETAILPAGINA)
@@ -160,7 +168,14 @@ const handleHumeurSave = async () => {
       console.warn("Geen humeur geselecteerd.");
     }
   };
-
+const handleWaterSave = () => {
+  if (tempWater >= 0 && tempWater <= 5000) {
+    saveDataToDayDoc({ water_intake: tempWater });
+    setShowWaterModal(false);
+  } else {
+    toast.error('Voer een geldige hoeveelheid water in (0-5000ml)');
+  }
+};
   // Functie om het humeur om te zetten naar een score van 0-100
 const getMentaalScore = (humeur) => {
   if (!humeur) return 0; // <-- AANGEPAST VAN 50 NAAR 0
@@ -177,7 +192,7 @@ const getMentaalScore = (humeur) => {
   // Bereken de percentages voor de UI op basis van de live data
   const welzijnScores = {
     beweging: welzijnDoelen.stappen > 0 ? Math.min(Math.round((dagelijkseData.stappen / welzijnDoelen.stappen) * 100), 100) : 0,
-    voeding: 0, // Placeholder - kun je later vervangen door echte berekening
+    voeding: welzijnDoelen.water > 0 ? Math.min(Math.round((dagelijkseData.water_intake / welzijnDoelen.water) * 100), 100) : 0, 
     slaap: 0,   // Placeholder - kun je later vervangen door echte berekening
     mentaal: getMentaalScore(dagelijkseData.humeur),
   };
@@ -426,7 +441,72 @@ const getMentaalScore = (humeur) => {
           </div>
         </div>
       )}
-
+{showWaterModal && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <div className="text-center mb-6">
+        <div className="text-4xl mb-4">💧</div>
+        <h3 className="text-xl font-bold text-gray-800 mb-2">Water Toevoegen</h3>
+        <p className="text-gray-600">Hoeveel water heb je gedronken?</p>
+      </div>
+      
+      <div className="mb-6">
+        <input 
+          type="number" 
+          value={tempWater} 
+          onChange={(e) => setTempWater(parseInt(e.target.value, 10) || 0)} 
+          className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none" 
+          min="0" 
+          max="5000" 
+          placeholder="ml"
+        />
+        
+        {/* Snelle toevoeg knoppen */}
+        <div className="grid grid-cols-3 gap-2 mt-4">
+          <button 
+            onClick={() => setTempWater(tempWater + 250)} 
+            className="bg-green-100 text-green-700 py-2 px-3 rounded-lg font-medium hover:bg-green-200 transition-colors text-sm"
+          >
+            +250ml
+          </button>
+          <button 
+            onClick={() => setTempWater(tempWater + 500)} 
+            className="bg-green-100 text-green-700 py-2 px-3 rounded-lg font-medium hover:bg-green-200 transition-colors text-sm"
+          >
+            +500ml
+          </button>
+          <button 
+            onClick={() => setTempWater(tempWater + 750)} 
+            className="bg-green-100 text-green-700 py-2 px-3 rounded-lg font-medium hover:bg-green-200 transition-colors text-sm"
+          >
+            +750ml
+          </button>
+        </div>
+        
+        <div className="text-center mt-4">
+          <Link to="/gezondheid/voeding" className="text-sm text-green-600 hover:text-green-800 font-medium">
+            Bekijk volledige voedingsdetails →
+          </Link>
+        </div>
+      </div>
+      
+      <div className="flex gap-3">
+        <button 
+          onClick={() => setShowWaterModal(false)} 
+          className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+        >
+          Annuleren
+        </button>
+        <button 
+          onClick={handleWaterSave} 
+          className="flex-1 py-3 px-4 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-colors"
+        >
+          Opslaan
+        </button>
+      </div>
+    </div>
+  </div>
+)}
      <style>{`
         @keyframes slowPulse {
           0%, 100% { 
