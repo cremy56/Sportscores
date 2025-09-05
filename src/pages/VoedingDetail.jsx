@@ -3,7 +3,7 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, collection, addDoc, serverTimestamp, query, orderBy, limit } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, LightBulbIcon, PhoneIcon, SparklesIcon, ChartBarIcon, PlusIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, SparklesIcon, LinkIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '../utils/formatters';
 
 // --- HULPFUNCTIES ---
@@ -27,170 +27,7 @@ const maaltijdOpties = [
   { naam: 'Tussendoortje', emoji: '🍎', tips: ['Fruit of noten', 'Geen geraffineerde suikers', 'Kleine porties'] }
 ];
 
-// --- VOEDINGSMIDDELEN DATABASE ---
-const voedingsmiddelen = [
-  // Fruit
-  { naam: 'Appel', categorie: 'Fruit', emoji: '🍎', voedingswaarde: 'Rijk aan vezels en vitamine C' },
-  { naam: 'Banaan', categorie: 'Fruit', emoji: '🍌', voedingswaarde: 'Goede bron van kalium en energie' },
-  { naam: 'Sinaasappel', categorie: 'Fruit', emoji: '🍊', voedingswaarde: 'Hoge vitamine C inhoud' },
-  { naam: 'Druiven', categorie: 'Fruit', emoji: '🍇', voedingswaarde: 'Antioxidanten en natuurlijke suikers' },
-  
-  // Groenten
-  { naam: 'Wortel', categorie: 'Groenten', emoji: '🥕', voedingswaarde: 'Rijk aan bètacaroteen' },
-  { naam: 'Broccoli', categorie: 'Groenten', emoji: '🥦', voedingswaarde: 'Hoge foliumzuur en vitamine K' },
-  { naam: 'Tomaat', categorie: 'Groenten', emoji: '🍅', voedingswaarde: 'Lycopeen en vitamine C' },
-  { naam: 'Komkommer', categorie: 'Groenten', emoji: '🥒', voedingswaarde: 'Veel water en weinig calorieën' },
-  
-  // Granen & Brood
-  { naam: 'Volkoren brood', categorie: 'Granen', emoji: '🍞', voedingswaarde: 'Vezels en B-vitamines' },
-  { naam: 'Havermout', categorie: 'Granen', emoji: '🥣', voedingswaarde: 'Langzame koolhydraten en vezels' },
-  { naam: 'Bruine rijst', categorie: 'Granen', emoji: '🍚', voedingswaarde: 'Volkorengraan met mineralen' },
-  
-  // Eiwitten
-  { naam: 'Kip', categorie: 'Eiwitten', emoji: '🍗', voedingswaarde: 'Magere eiwitbron' },
-  { naam: 'Vis', categorie: 'Eiwitten', emoji: '🐟', voedingswaarde: 'Omega-3 vetzuren en eiwit' },
-  { naam: 'Eieren', categorie: 'Eiwitten', emoji: '🥚', voedingswaarde: 'Compleet eiwit en choline' },
-  { naam: 'Bonen', categorie: 'Eiwitten', emoji: '🫘', voedingswaarde: 'Plantaardig eiwit en vezels' },
-  
-  // Zuivel
-  { naam: 'Melk', categorie: 'Zuivel', emoji: '🥛', voedingswaarde: 'Calcium en eiwit' },
-  { naam: 'Yoghurt', categorie: 'Zuivel', emoji: '🥄', voedingswaarde: 'Probiotica en calcium' },
-  { naam: 'Kaas', categorie: 'Zuivel', emoji: '🧀', voedingswaarde: 'Calcium en eiwit' },
-  
-  // Gezonde snacks
-  { naam: 'Noten', categorie: 'Snacks', emoji: '🥜', voedingswaarde: 'Gezonde vetten en eiwit' },
-  { naam: 'Donkere chocolade', categorie: 'Snacks', emoji: '🍫', voedingswaarde: 'Antioxidanten (in gematigde hoeveelheden)' }
-];
-
-// --- UITGEBREIDE MAALTIJD LOGGER ---
-const UitgebreideMaaltijdLogger = ({ gelogdeVoeding, onAddVoeding, onSwitchToSimple }) => {
-  const [selectedCategorie, setSelectedCategorie] = useState('Alle');
-  const [showVoedingModal, setShowVoedingModal] = useState(false);
-  
-  const categorieën = ['Alle', ...new Set(voedingsmiddelen.map(v => v.categorie))];
-  
-  const gefilterdVoeding = selectedCategorie === 'Alle' 
-    ? voedingsmiddelen 
-    : voedingsmiddelen.filter(v => v.categorie === selectedCategorie);
-    
-  const vandaagGegeten = gelogdeVoeding.filter(item => {
-    const vandaag = new Date().toDateString();
-    const itemDatum = item.datum?.toDate?.()?.toDateString();
-    return itemDatum === vandaag;
-  });
-  
-  const categorieScore = () => {
-    const categorieënVandaag = new Set(vandaagGegeten.map(item => 
-      voedingsmiddelen.find(v => v.naam === item.voedingsmiddel)?.categorie
-    ).filter(Boolean));
-    return Math.round((categorieënVandaag.size / 5) * 100); // 5 hoofdcategorieën
-  };
-
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-slate-800">Uitgebreid Voedingslog</h2>
-        <button 
-          onClick={onSwitchToSimple}
-          className="text-sm text-slate-500 hover:text-slate-700"
-        >
-          Terug naar simpel
-        </button>
-      </div>
-      
-      {/* Variatie score */}
-      <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
-        <div className="flex justify-between items-center mb-2">
-          <span className="font-semibold text-slate-800">Variatie Score</span>
-          <span className="text-lg font-bold text-green-600">{categorieScore()}%</span>
-        </div>
-        <div className="w-full bg-slate-200 rounded-full h-2">
-          <div 
-            className="bg-gradient-to-r from-green-400 to-blue-400 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${categorieScore()}%` }}
-          />
-        </div>
-        <p className="text-xs text-slate-600 mt-2">Probeer uit alle voedingsgroepen te eten!</p>
-      </div>
-      
-      {/* Vandaag gegeten overzicht */}
-      <div className="mb-4">
-        <h3 className="font-semibold text-slate-700 mb-2">Vandaag gegeten ({vandaagGegeten.length} items)</h3>
-        <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-          {vandaagGegeten.map((item, index) => {
-            const voedingsitem = voedingsmiddelen.find(v => v.naam === item.voedingsmiddel);
-            return (
-              <span key={index} className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded-lg text-xs">
-                {voedingsitem?.emoji} {item.voedingsmiddel}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-      
-      <button 
-        onClick={() => setShowVoedingModal(true)}
-        className="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition-colors"
-      >
-        + Voedingsmiddel toevoegen
-      </button>
-      
-      {/* Modal voor voedingsmiddel selectie */}
-      {showVoedingModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">Voedingsmiddel kiezen</h3>
-              <button onClick={() => setShowVoedingModal(false)} className="text-gray-500 hover:text-gray-700">✕</button>
-            </div>
-            
-            {/* Categorie filter */}
-            <div className="mb-4">
-              <div className="flex flex-wrap gap-2">
-                {categorieën.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategorie(cat)}
-                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                      selectedCategorie === cat 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            {/* Voedingsmiddelen lijst */}
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {gefilterdVoeding.map(item => (
-                <button
-                  key={item.naam}
-                  onClick={() => {
-                    onAddVoeding(item);
-                    setShowVoedingModal(false);
-                  }}
-                  className="w-full p-3 text-left hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{item.emoji}</span>
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-800">{item.naam}</div>
-                      <div className="text-xs text-gray-500">{item.voedingswaarde}</div>
-                    </div>
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">{item.categorie}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+// --- VOEDINGSGROEPEN ---
 const voedingsGroepen = [
   { naam: 'Groenten & Fruit', kleur: 'bg-green-100 text-green-700', doel: '5 porties per dag' },
   { naam: 'Granen', kleur: 'bg-yellow-100 text-yellow-700', doel: 'Minimaal 3 volkoren' },
@@ -246,36 +83,44 @@ const WaterTracker = ({ waterIntake, onWaterUpdate }) => {
   );
 };
 
-// --- MAALTIJD LOGGER COMPONENT ---
-const MaaltijdLogger = ({ maaltijden, onAddMaaltijd }) => (
+// --- SIMPELE MAALTIJD LOGGER COMPONENT ---
+const SimpleMaaltijdLogger = ({ maaltijden, onQuickLog }) => (
   <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-    <div className="flex justify-between items-center mb-6">
-      <h2 className="text-xl font-bold text-slate-800">Maaltijdenlogboek</h2>
-      <button onClick={onAddMaaltijd} className="bg-green-500 text-white font-bold py-2 px-4 rounded-xl hover:bg-green-600 transition-colors flex items-center gap-2 text-sm">
-        <PlusIcon className="w-5 h-5" />
-        <span>Voeg toe</span>
-      </button>
+    <h2 className="text-xl font-bold text-slate-800 mb-4">Vandaag gegeten</h2>
+    
+    {/* Quick log knoppen */}
+    <div className="grid grid-cols-2 gap-2 mb-6">
+      {maaltijdOpties.map(optie => {
+        const isLogged = maaltijden.some(m => m.type === optie.naam);
+        return (
+          <button
+            key={optie.naam}
+            onClick={() => onQuickLog(optie.naam)}
+            className={`p-3 rounded-xl border-2 transition-all ${
+              isLogged 
+                ? 'border-green-500 bg-green-50 text-green-700' 
+                : 'border-slate-200 hover:border-green-300 text-slate-600'
+            }`}
+          >
+            <div className="text-lg mb-1">{optie.emoji}</div>
+            <div className="text-sm font-medium">{optie.naam}</div>
+            {isLogged && <div className="text-xs text-green-600 mt-1">✓ Klaar</div>}
+          </button>
+        );
+      })}
     </div>
     
-    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-      {maaltijden.length > 0 ? (
-        maaltijden.map(maaltijd => (
-          <div key={maaltijd.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{maaltijdOpties.find(m => m.naam === maaltijd.type)?.emoji}</span>
-                <div>
-                  <span className="font-semibold text-slate-800">{maaltijd.type}</span>
-                  {maaltijd.beschrijving && <p className="text-sm text-slate-600">{maaltijd.beschrijving}</p>}
-                </div>
-              </div>
-              <span className="text-xs text-slate-500">{formatDate(maaltijd.datum)}</span>
-            </div>
-          </div>
-        ))
-      ) : (
-        <p className="text-center py-8 text-slate-500">Nog geen maaltijden gelogd vandaag.</p>
-      )}
+    {/* Simpele voortgang */}
+    <div className="text-center">
+      <div className="text-sm text-slate-600 mb-2">
+        {maaltijden.length} van 4 maaltijden gelogd
+      </div>
+      <div className="w-full bg-slate-200 rounded-full h-2">
+        <div 
+          className="bg-green-500 h-2 rounded-full transition-all duration-300"
+          style={{ width: `${(maaltijden.length / 4) * 100}%` }}
+        />
+      </div>
     </div>
   </div>
 );
@@ -326,12 +171,11 @@ const VoedingDetail = () => {
   const { profile } = useOutletContext();
   const effectiveUserId = getEffectiveUserId(profile);
   
+  // State variabelen
   const [dagelijkseData, setDagelijkseData] = useState({});
   const [maaltijden, setMaaltijden] = useState([]);
   const [recenteNotities, setRecenteNotities] = useState([]);
   const [voedingsNotitie, setVoedingsNotitie] = useState('');
-  const [showMaaltijdModal, setShowMaaltijdModal] = useState(false);
-  const [nieuweMaaltijd, setNieuweMaaltijd] = useState({ type: 'Ontbijt', beschrijving: '' });
 
   useEffect(() => {
     if (!effectiveUserId) return;
@@ -391,20 +235,24 @@ const VoedingDetail = () => {
     }
   };
 
-  const handleAddMaaltijd = async (e) => {
-    e.preventDefault();
-    if (!effectiveUserId || !nieuweMaaltijd.beschrijving.trim()) return;
+  const handleQuickLog = async (maaltijdType) => {
+    if (!effectiveUserId) return;
+
+    // Check of deze maaltijd al bestaat vandaag
+    const bestaandeMaaltijd = maaltijden.find(m => m.type === maaltijdType);
+    if (bestaandeMaaltijd) {
+      toast.success(`${maaltijdType} al gelogd!`);
+      return;
+    }
 
     try {
       await addDoc(collection(db, `welzijn/${effectiveUserId}/maaltijden`), {
-        ...nieuweMaaltijd,
+        type: maaltijdType,
         datum: serverTimestamp(),
       });
-      toast.success('Maaltijd toegevoegd!');
-      setShowMaaltijdModal(false);
-      setNieuweMaaltijd({ type: 'Ontbijt', beschrijving: '' });
+      toast.success(`${maaltijdType} gelogd!`);
     } catch (error) {
-      toast.error('Kon maaltijd niet toevoegen.');
+      toast.error('Kon maaltijd niet loggen.');
       console.error(error);
     }
   };
@@ -530,61 +378,11 @@ const VoedingDetail = () => {
                 onWaterUpdate={handleWaterUpdate} 
               />
               
-              {/* Maaltijden Logger - Keuze tussen simpel en uitgebreid */}
-              {uitgebreidMode ? (
-                <UitgebreideMaaltijdLogger 
-                  gelogdeVoeding={gelogdeVoeding}
-                  onAddVoeding={handleAddVoeding}
-                  onSwitchToSimple={() => setUitgebreidMode(false)}
-                />
-              ) : (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-800">Vandaag gegeten</h2>
-                    <button 
-                      onClick={() => setUitgebreidMode(true)}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      Uitgebreid loggen
-                    </button>
-                  </div>
-                  
-                  {/* Quick log knoppen */}
-                  <div className="grid grid-cols-2 gap-2 mb-6">
-                    {maaltijdOpties.map(optie => {
-                      const isLogged = maaltijden.some(m => m.type === optie.naam);
-                      return (
-                        <button
-                          key={optie.naam}
-                          onClick={() => handleQuickLog(optie.naam)}
-                          className={`p-3 rounded-xl border-2 transition-all ${
-                            isLogged 
-                              ? 'border-green-500 bg-green-50 text-green-700' 
-                              : 'border-slate-200 hover:border-green-300 text-slate-600'
-                          }`}
-                        >
-                          <div className="text-lg mb-1">{optie.emoji}</div>
-                          <div className="text-sm font-medium">{optie.naam}</div>
-                          {isLogged && <div className="text-xs text-green-600 mt-1">✓ Klaar</div>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Simpele voortgang */}
-                  <div className="text-center">
-                    <div className="text-sm text-slate-600 mb-2">
-                      {maaltijden.length} van 4 maaltijden gelogd
-                    </div>
-                    <div className="w-full bg-slate-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(maaltijden.length / 4) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Simpele Maaltijden Logger */}
+              <SimpleMaaltijdLogger 
+                maaltijden={maaltijden} 
+                onQuickLog={handleQuickLog} 
+              />
               
               {/* Voedingstips */}
               <VoedingsTips />
@@ -604,70 +402,6 @@ const VoedingDetail = () => {
           </div>
         </div>
       </div>
-      
-      {/* Modal voor nieuwe maaltijd */}
-      {showMaaltijdModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <div className="text-center mb-6">
-              <div className="text-4xl mb-4">🍽️</div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Nieuwe Maaltijd</h3>
-              <p className="text-gray-600">Voeg toe wat je gegeten hebt</p>
-            </div>
-            
-            <form onSubmit={handleAddMaaltijd} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Type Maaltijd</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {maaltijdOpties.map(option => (
-                    <button
-                      key={option.naam}
-                      type="button"
-                      onClick={() => setNieuweMaaltijd({...nieuweMaaltijd, type: option.naam})}
-                      className={`p-3 rounded-xl border-2 transition-colors ${
-                        nieuweMaaltijd.type === option.naam 
-                          ? 'border-green-500 bg-green-50 text-green-700' 
-                          : 'border-slate-200 hover:border-green-300'
-                      }`}
-                    >
-                      <div className="text-lg mb-1">{option.emoji}</div>
-                      <div className="text-sm font-medium">{option.naam}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Beschrijving</label>
-                <textarea
-                  rows="3"
-                  value={nieuweMaaltijd.beschrijving}
-                  onChange={(e) => setNieuweMaaltijd({...nieuweMaaltijd, beschrijving: e.target.value})}
-                  className="w-full p-3 border border-slate-200 rounded-xl focus:ring-green-500 focus:border-green-500"
-                  placeholder="bv. Havermout met banaan en noten, groene thee"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button 
-                  type="button" 
-                  onClick={() => setShowMaaltijdModal(false)} 
-                  className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Annuleren
-                </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 py-3 px-4 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-colors"
-                >
-                  Opslaan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
