@@ -381,7 +381,8 @@ const VoedingDetail = () => {
               {/* Simpele Maaltijden Logger */}
               <SimpleMaaltijdLogger 
                 maaltijden={maaltijden} 
-                onQuickLog={handleQuickLog} 
+                onQuickLog={handleQuickLog}
+                onSwitchToAdvanced={() => setUitgebreidMode(true)}
               />
               
               {/* Voedingstips */}
