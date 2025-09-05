@@ -5,14 +5,9 @@ import { doc, onSnapshot, setDoc, collection, addDoc, serverTimestamp, query, or
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, LightBulbIcon, PhoneIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '../utils/formatters';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-const moodOptions = [
-  { mood: 'Zeer goed', emoji: '😄', color: 'bg-green-400' },
-  { mood: 'Goed', emoji: '🙂', color: 'bg-lime-400' },
-  { mood: 'Neutraal', emoji: '😐', color: 'bg-yellow-400' },
-  { mood: 'Minder goed', emoji: '😕', color: 'bg-orange-400' },
-  { mood: 'Slecht', emoji: '😞', color: 'bg-red-400' },
-];
+
 
 const getTodayString = () => {
   const today = new Date();
@@ -25,6 +20,52 @@ const getEffectiveUserId = (profile) => {
     return profile?.uid;
   }
   return profile?.uid || profile?.id;
+};
+
+const moodOptions = [
+  { mood: 'Zeer goed', emoji: '😄', color: 'bg-green-400' },
+  { mood: 'Goed', emoji: '🙂', color: 'bg-lime-400' },
+  { mood: 'Neutraal', emoji: '😐', color: 'bg-yellow-400' },
+  { mood: 'Minder goed', emoji: '😕', color: 'bg-orange-400' },
+  { mood: 'Slecht', emoji: '😞', color: 'bg-red-400' },
+];
+const getMoodProps = (mood) => moodOptions.find(m => m.mood === mood) || { score: 0, color: '#9ca3af' };
+
+// --- GRAFIEK COMPONENT ---
+const HumeurGrafiek = ({ data }) => {
+  const chartData = data.map(item => ({
+    // Formatteer datum naar 'DD/MM' voor de x-as
+    datum: new Date(item.id).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit' }),
+    humeur: item.humeur,
+    score: getMoodProps(item.humeur).score,
+  }));
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-2 border border-slate-200 rounded-lg shadow-sm">
+          <p className="font-bold">{label}</p>
+          <p className="text-sm text-orange-600">{`Humeur: ${payload[0].payload.humeur}`}</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+        <XAxis dataKey="datum" tick={{ fontSize: 12 }} />
+        <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
+        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
+        <Bar dataKey="score">
+          {chartData.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={getMoodProps(entry.humeur).color} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
 };
 
 // Ademhalingsoefening component
@@ -77,6 +118,7 @@ const MentaalDetail = () => {
   const { profile } = useOutletContext();
   const effectiveUserId = getEffectiveUserId(profile);
   const [dagelijkseData, setDagelijkseData] = useState({});
+  const [humeurGeschiedenis, setHumeurGeschiedenis] = useState([]); // Nieuwe state voor grafiek
   const [stressNiveau, setStressNiveau] = useState(3);
   const [positieveNotitie, setPositieveNotitie] = useState('');
   const [recenteNotities, setRecenteNotities] = useState([]);
@@ -105,12 +147,32 @@ const MentaalDetail = () => {
       setRecenteNotities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
+  // NIEUW: Data ophalen voor de humeur grafiek (laatste 30 dagen)
+    const fetchHumeurGeschiedenis = async () => {
+      const dertigDagenGeleden = new Date();
+      dertigDagenGeleden.setDate(dertigDagenGeleden.getDate() - 30);
+      const startTimestamp = Timestamp.fromDate(dertigDagenGeleden);
+
+      const q = query(
+        collection(db, `welzijn/${effectiveUserId}/dagelijkse_data`),
+        where('humeur', '!=', null) // Alleen dagen met een humeur-log
+      );
+
+      const querySnapshot = await getDocs(q);
+      const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setHumeurGeschiedenis(history.sort((a, b) => new Date(a.id) - new Date(b.id)));
+    };
+
+    fetchHumeurGeschiedenis();
+
     return () => {
       unsubscribeVandaag();
       unsubscribeNotities();
     };
   }, [effectiveUserId]);
 
+
+  
   const handleStressSave = async () => {
     if (!effectiveUserId) return;
     const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
@@ -180,27 +242,19 @@ const MentaalDetail = () => {
             {/* Linker kolom - 2/3 breedte */}
             <div className="lg:col-span-2 space-y-6">
               
-              {/* Humeur Vandaag */}
+              {/* NIEUW: Humeur Geschiedenis ipv Humeur Vandaag */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
-                <h2 className="text-xl lg:text-2xl font-bold text-slate-800 mb-6">Humeur Vandaag</h2>
-                {dagelijkseData.humeur ? (
-                  <div className="flex items-center gap-4 p-6 bg-orange-50 border border-orange-200 rounded-xl">
-                    <span className="text-5xl">{moodOptions.find(m => m.mood === dagelijkseData.humeur)?.emoji}</span>
-                    <div>
-                      <p className="text-slate-600">Je hebt vandaag ingecheckt als:</p>
-                      <p className="text-xl font-bold text-slate-800">{dagelijkseData.humeur}</p>
-                    </div>
-                  </div>
+                <h2 className="text-xl lg:text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                  <ChartBarIcon className="w-6 h-6 text-orange-500" />
+                  Humeur Geschiedenis
+                </h2>
+                {humeurGeschiedenis.length > 0 ? (
+                  <HumeurGrafiek data={humeurGeschiedenis} />
                 ) : (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-2xl">😐</span>
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">Nog geen humeur gelogd</h3>
-                    <p className="text-slate-500">Klik op het kompas op de vorige pagina om in te checken!</p>
-                  </div>
+                  <div className="text-center py-8 text-slate-500">Nog geen data beschikbaar voor de grafiek.</div>
                 )}
               </div>
+
 
               {/* Positieve Focus */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
