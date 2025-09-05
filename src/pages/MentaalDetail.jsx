@@ -30,6 +30,21 @@ const moodOptions = [
   { mood: 'Slecht', emoji: '😞', score: 20, color: '#f87171' },      // Was 'bg-red-400'
 ];
 const getMoodProps = (mood) => moodOptions.find(m => m.mood === mood) || { score: 0, color: '#9ca3af' };
+const CustomYAxisTick = ({ x, y, payload }) => {
+  const { value } = payload;
+  const option = moodOptions.find(opt => opt.score === value);
+
+  if (option) {
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={-10} y={0} dy={4} textAnchor="end" fill="#666" fontSize={16}>
+          {option.emoji}
+        </text>
+      </g>
+    );
+  }
+  return null;
+};
 
 const MentaalGrafiek = ({ data }) => {
   const chartData = data.map(item => ({
@@ -67,8 +82,16 @@ const MentaalGrafiek = ({ data }) => {
       <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
         <XAxis dataKey="datum" tick={{ fontSize: 12 }} />
         {/* Y-as voor Humeur Score (0-100) */}
-        <YAxis yAxisId="left" domain={[0, 100]} tick={{ fontSize: 12, fill: '#f97316' }} label={{ value: 'Humeur Score', angle: -90, position: 'insideLeft', fill: '#f97316' }} />
+        <YAxis yAxisId="left" domain={[0, 100]} tick={{ fontSize: 12, fill: '#f97316' }} label={{ value: 'Humeur Score', angle: -90, position: 'insideLeft', dx: -20, fill: '#f97316' }} />
         {/* Y-as voor Stressniveau (1-5) */}
+        <YAxis 
+          yAxisId="left" 
+          domain={[0, 100]} 
+          ticks={[20, 40, 60, 80, 100]} // Forceer de labels op de scores van de moods
+          tick={<CustomYAxisTick />} 
+          width={40}
+        />
+        
         <YAxis yAxisId="right" orientation="right" domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 12, fill: '#3b82f6' }} label={{ value: 'Stressniveau', angle: 90, position: 'insideRight', fill: '#3b82f6' }}/>
         
         <Tooltip content={<CustomTooltip />} />
