@@ -12,7 +12,7 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
     const { profile } = useOutletContext();
     
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator';
-    const studentIdentifier = student?.id || student?.email;
+    const studentIdentifier = student?.email;
 
     // Foutpreventie als er geen studentinformatie is
     if (!studentIdentifier) {
