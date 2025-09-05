@@ -240,7 +240,7 @@ const getMentaalScore = (humeur) => {
 {/* Beweging segment - rechtsboven */}
 <div 
   onClick={() => handleSegmentClick('Beweging')} 
-  className="absolute cursor-pointer hover:bg-blue-500/10 transition-colors" 
+  className="absolute cursor-pointer hover:bg-blue-500/1 transition-colors" 
   style={{ 
     top: '20px', 
     right: '90px', 
@@ -253,7 +253,7 @@ const getMentaalScore = (humeur) => {
 {/* Voeding segment - rechtsonder */}
 <div 
   onClick={() => handleSegmentClick('Voeding')} 
-  className="absolute cursor-pointer hover:bg-green-500/10 transition-colors" 
+  className="absolute cursor-pointer hover:bg-green-500/1 transition-colors" 
   style={{ 
     bottom: '90px', 
     right: '26px', 
@@ -266,7 +266,7 @@ const getMentaalScore = (humeur) => {
 {/* Slaap segment - linksonder */}
 <div 
   onClick={() => handleSegmentClick('Slaap')} 
-  className="absolute cursor-pointer hover:bg-purple-500/10 transition-colors" 
+  className="absolute cursor-pointer hover:bg-purple-500/1 transition-colors" 
   style={{ 
     bottom: '16px', 
     left: '100px', 
@@ -279,7 +279,7 @@ const getMentaalScore = (humeur) => {
 {/* Mentaal segment - linksboven */}
 <div 
   onClick={() => handleSegmentClick('Mentaal')} 
-  className="absolute cursor-pointer hover:bg-orange-500/10 transition-colors" 
+  className="absolute cursor-pointer hover:bg-orange-500/1 transition-colors" 
   style={{ 
     top: '80px', 
     left: '16px', 
