@@ -63,12 +63,15 @@ const voedingsmiddelen = [
   
   // Granen & Brood
   { naam: 'Volkoren brood', categorie: 'Granen', emoji: '🍞', voedingswaarde: 'Vezels en B-vitamines' },
+  { naam: 'Wit brood', categorie: 'Granen', emoji: '🍞', voedingswaarde: 'Snelle energie' },
   { naam: 'Havermout', categorie: 'Granen', emoji: '🥣', voedingswaarde: 'Langzame koolhydraten en vezels' },
   { naam: 'Bruine rijst', categorie: 'Granen', emoji: '🍚', voedingswaarde: 'Volkorengraan met mineralen' },
+  { naam: 'Witte rijst', categorie: 'Granen', emoji: '🍚', voedingswaarde: 'Snelle energie' },
   { naam: 'Quinoa', categorie: 'Granen', emoji: '🌾', voedingswaarde: 'Compleet eiwit en vezels' },
   { naam: 'Volkoren pasta', categorie: 'Granen', emoji: '🍝', voedingswaarde: 'Complexe koolhydraten' },
+  { naam: 'Witte pasta', categorie: 'Granen', emoji: '🍝', voedingswaarde: 'Snelle energie' },
   { naam: 'Muesli', categorie: 'Granen', emoji: '🥣', voedingswaarde: 'Vezels en langzame energie' },
-  { naam: 'Volkoren crackers', categorie: 'Granen', emoji: '🍞', voedingswaarde: 'Vezels en B-vitamines' },
+  { naam: 'Cornflakes', categorie: 'Granen', emoji: '🥣', voedingswaarde: 'Snelle energie' },
   
   // Eiwitten
   { naam: 'Kip', categorie: 'Eiwitten', emoji: '🍗', voedingswaarde: 'Magere eiwitbron' },
@@ -79,7 +82,8 @@ const voedingsmiddelen = [
   { naam: 'Kikkererwten', categorie: 'Eiwitten', emoji: '🫛', voedingswaarde: 'Eiwit en vezels' },
   { naam: 'Tofu', categorie: 'Eiwitten', emoji: '🧈', voedingswaarde: 'Plantaardig eiwit en calcium' },
   { naam: 'Zalm', categorie: 'Eiwitten', emoji: '🐟', voedingswaarde: 'Omega-3 en hoogwaardig eiwit' },
-  { naam: 'Tonijn', categorie: 'Eiwitten', emoji: '🐟', voedingswaarde: 'Mager eiwit en B-vitamines' },
+  { naam: 'Hamburger', categorie: 'Eiwitten', emoji: '🍔', voedingswaarde: 'Eiwit en energie' },
+  { naam: 'Worst', categorie: 'Eiwitten', emoji: '🌭', voedingswaarde: 'Eiwit en vet' },
   
   // Zuivel
   { naam: 'Melk', categorie: 'Zuivel', emoji: '🥛', voedingswaarde: 'Calcium en eiwit' },
@@ -87,22 +91,35 @@ const voedingsmiddelen = [
   { naam: 'Kaas', categorie: 'Zuivel', emoji: '🧀', voedingswaarde: 'Calcium en eiwit' },
   { naam: 'Griekse yoghurt', categorie: 'Zuivel', emoji: '🥄', voedingswaarde: 'Hoog eiwit en probiotica' },
   { naam: 'Kwark', categorie: 'Zuivel', emoji: '🥛', voedingswaarde: 'Zeer hoog eiwit, laag vet' },
-  { naam: 'Karnemelk', categorie: 'Zuivel', emoji: '🥛', voedingswaarde: 'Probiotica en calcium' },
+  { naam: 'IJs', categorie: 'Zuivel', emoji: '🍦', voedingswaarde: 'Calcium en snelle energie' },
   
-  // Gezonde snacks & vetten
+  // Snacks & treats
   { naam: 'Noten', categorie: 'Snacks', emoji: '🥜', voedingswaarde: 'Gezonde vetten en eiwit' },
   { naam: 'Amandelen', categorie: 'Snacks', emoji: '🌰', voedingswaarde: 'Vitamine E en magnesium' },
   { naam: 'Walnoten', categorie: 'Snacks', emoji: '🌰', voedingswaarde: 'Omega-3 vetzuren' },
   { naam: 'Avocado', categorie: 'Snacks', emoji: '🥑', voedingswaarde: 'Gezonde vetten en vezels' },
-  { naam: 'Donkere chocolade', categorie: 'Snacks', emoji: '🍫', voedingswaarde: 'Antioxidanten (matig gebruik)' },
-  { naam: 'Hummus', categorie: 'Snacks', emoji: '🫒', voedingswaarde: 'Plantaardig eiwit en vezels' },
-  { naam: 'Olijven', categorie: 'Snacks', emoji: '🫒', voedingswaarde: 'Gezonde vetten' },
+  { naam: 'Chips', categorie: 'Snacks', emoji: '🥨', voedingswaarde: 'Zout en energie' },
+  { naam: 'Koekjes', categorie: 'Snacks', emoji: '🍪', voedingswaarde: 'Snelle energie' },
+  { naam: 'Chocoladereep', categorie: 'Snacks', emoji: '🍫', voedingswaarde: 'Snelle energie' },
+  { naam: 'Snoep', categorie: 'Snacks', emoji: '🍬', voedingswaarde: 'Snelle energie' },
+  { naam: 'Popcorn', categorie: 'Snacks', emoji: '🍿', voedingswaarde: 'Vezels en energie' },
+  { naam: 'Friet', categorie: 'Snacks', emoji: '🍟', voedingswaarde: 'Koolhydraten en vet' },
+  { naam: 'Donuts', categorie: 'Snacks', emoji: '🍩', voedingswaarde: 'Snelle energie' },
+  
+  // Maaltijden
+  { naam: 'Pizza', categorie: 'Maaltijden', emoji: '🍕', voedingswaarde: 'Koolhydraten, eiwitten en vet' },
+  { naam: 'Sandwich', categorie: 'Maaltijden', emoji: '🥪', voedingswaarde: 'Variatie aan voedingsstoffen' },
+  { naam: 'Salade', categorie: 'Maaltijden', emoji: '🥗', voedingswaarde: 'Vitamines en vezels' },
+  { naam: 'Soep', categorie: 'Maaltijden', emoji: '🍲', voedingswaarde: 'Variatie aan voedingsstoffen' },
   
   // Dranken
   { naam: 'Water', categorie: 'Dranken', emoji: '💧', voedingswaarde: 'Essentieel voor hydratatie' },
   { naam: 'Groene thee', categorie: 'Dranken', emoji: '🍵', voedingswaarde: 'Antioxidanten en cafeïne' },
   { naam: 'Koffie', categorie: 'Dranken', emoji: '☕', voedingswaarde: 'Antioxidanten en cafeïne' },
-  { naam: 'Verse jus', categorie: 'Dranken', emoji: '🧃', voedingswaarde: 'Vitamines (matig gebruik)' }
+  { naam: 'Verse jus', categorie: 'Dranken', emoji: '🧃', voedingswaarde: 'Vitamines en snelle energie' },
+  { naam: 'Frisdrank', categorie: 'Dranken', emoji: '🥤', voedingswaarde: 'Snelle energie' },
+  { naam: 'Energiedrank', categorie: 'Dranken', emoji: '⚡', voedingswaarde: 'Cafeïne en snelle energie' },
+  { naam: 'Sportdrank', categorie: 'Dranken', emoji: '🧃', voedingswaarde: 'Elektrolyten en energie' }
 ];
 // --- WATERTRACKER COMPONENT ---
 const WaterTracker = ({ waterIntake, onWaterUpdate }) => {
@@ -388,10 +405,11 @@ const getVandaagGegeten = () => {
 
 const getCategorieScore = () => {
   const vandaagGegeten = getVandaagGegeten();
-  const categorieënVandaag = new Set(vandaagGegeten.map(item => 
+  const gevariëerdeCategorieën = new Set(vandaagGegeten.map(item => 
     voedingsmiddelen.find(v => v.naam === item.voedingsmiddel)?.categorie
-  ).filter(Boolean));
-  return Math.round((categorieënVandaag.size / 7) * 100); // 7 hoofdcategorieën
+  ).filter(cat => ['Fruit', 'Groenten', 'Granen', 'Eiwitten', 'Zuivel'].includes(cat)));
+  
+  return Math.round((gevariëerdeCategorieën.size / 5) * 100);
 };
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
@@ -524,7 +542,7 @@ const getCategorieScore = () => {
           style={{ width: `${getCategorieScore()}%` }}
         />
       </div>
-      <p className="text-xs text-slate-600 mt-2">Probeer uit alle voedingsgroepen te eten!</p>
+      <p className="text-xs text-slate-600 mt-2">Probeer uit verschillende voedingsgroepen te eten voor meer variatie!</p>
     </div>
     
     {/* Vandaag gegeten overzicht */}
@@ -586,7 +604,7 @@ const getCategorieScore = () => {
       {/* Categorie filter */}
       <div className="mb-4">
         <div className="flex flex-wrap gap-2">
-          {['Alle', 'Fruit', 'Groenten', 'Granen', 'Eiwitten', 'Zuivel', 'Snacks', 'Dranken'].map(cat => (
+          {['Alle', 'Fruit', 'Groenten', 'Granen', 'Eiwitten', 'Zuivel', 'Snacks', 'Maaltijden', 'Dranken'].map(cat => (
             <button
               key={cat}
               onClick={() => setSelectedCategorie(cat)}
