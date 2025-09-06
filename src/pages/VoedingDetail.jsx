@@ -256,51 +256,61 @@ const [uitgebreidMode, setUitgebreidMode] = useState(false);
 const [showVoedingModal, setShowVoedingModal] = useState(false);
 const [selectedCategorie, setSelectedCategorie] = useState('Alle');
 
-  useEffect(() => {
-    if (!effectiveUserId) return;
+ useEffect(() => {
+  if (!effectiveUserId) return;
 
-    // Luister naar dagelijkse data (inclusief water)
-    const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
-    const unsubscribeVandaag = onSnapshot(todayDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setDagelijkseData(docSnap.data());
-      }
-    });
+  // Luister naar dagelijkse data (inclusief water)
+  const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
+  const unsubscribeVandaag = onSnapshot(todayDocRef, (docSnap) => {
+    if (docSnap.exists()) {
+      setDagelijkseData(docSnap.data());
+    }
+  });
 
-    // Luister naar maaltijden van vandaag
-    const maaltijdenQuery = query(
-      collection(db, `welzijn/${effectiveUserId}/maaltijden`),
-      orderBy('datum', 'desc'),
-      limit(10)
-    );
-    const unsubscribeMaaltijden = onSnapshot(maaltijdenQuery, (snapshot) => {
-      const today = getTodayString();
-      const vandaagMaaltijden = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(maaltijd => {
-          // Filter alleen maaltijden van vandaag
-          const maaltijdDatum = maaltijd.datum?.toDate?.().toISOString().split('T')[0];
-          return maaltijdDatum === today;
-        });
-      setMaaltijden(vandaagMaaltijden);
-    });
+  // Luister naar maaltijden van vandaag
+  const maaltijdenQuery = query(
+    collection(db, `welzijn/${effectiveUserId}/maaltijden`),
+    orderBy('datum', 'desc'),
+    limit(10)
+  );
+  const unsubscribeMaaltijden = onSnapshot(maaltijdenQuery, (snapshot) => {
+    const today = getTodayString();
+    const vandaagMaaltijden = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(maaltijd => {
+        const maaltijdDatum = maaltijd.datum?.toDate?.().toISOString().split('T')[0];
+        return maaltijdDatum === today;
+      });
+    setMaaltijden(vandaagMaaltijden);
+  });
 
-    // Luister naar voedingsnotities
-    const notitiesQuery = query(
-      collection(db, `welzijn/${effectiveUserId}/voeding_notities`),
-      orderBy('datum', 'desc'),
-      limit(3)
-    );
-    const unsubscribeNotities = onSnapshot(notitiesQuery, (snapshot) => {
-      setRecenteNotities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+  // Luister naar uitgebreide voeding logs
+  const voedingQuery = query(
+    collection(db, `welzijn/${effectiveUserId}/voeding_logs`),
+    orderBy('datum', 'desc'),
+    limit(50)
+  );
+  const unsubscribeVoeding = onSnapshot(voedingQuery, (snapshot) => {
+    setGelogdeVoeding(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  });
 
-    return () => {
-      unsubscribeVandaag();
-      unsubscribeMaaltijden();
-      unsubscribeNotities();
-    };
-  }, [effectiveUserId]);
+  // Luister naar voedingsnotities
+  const notitiesQuery = query(
+    collection(db, `welzijn/${effectiveUserId}/voeding_notities`),
+    orderBy('datum', 'desc'),
+    limit(3)
+  );
+  const unsubscribeNotities = onSnapshot(notitiesQuery, (snapshot) => {
+    setRecenteNotities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  });
+
+  return () => {
+    unsubscribeVandaag();
+    unsubscribeMaaltijden();
+    unsubscribeVoeding();
+    unsubscribeNotities();
+  };
+}, [effectiveUserId]); // uitgebreidMode weggehaald uit dependencies
 
   const handleWaterUpdate = async (nieuweWaterIntake) => {
     if (!effectiveUserId) return;
@@ -367,7 +377,22 @@ const handleAddVoeding = async (voedingsitem) => {
       console.error(error);
     }
   };
+// Helper functies voor uitgebreide modus
+const getVandaagGegeten = () => {
+  const vandaag = new Date().toDateString();
+  return gelogdeVoeding.filter(item => {
+    const itemDatum = item.datum?.toDate?.()?.toDateString();
+    return itemDatum === vandaag;
+  });
+};
 
+const getCategorieScore = () => {
+  const vandaagGegeten = getVandaagGegeten();
+  const categorieënVandaag = new Set(vandaagGegeten.map(item => 
+    voedingsmiddelen.find(v => v.naam === item.voedingsmiddel)?.categorie
+  ).filter(Boolean));
+  return Math.round((categorieënVandaag.size / 7) * 100); // 7 hoofdcategorieën
+};
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
@@ -491,12 +516,12 @@ const handleAddVoeding = async (voedingsitem) => {
     <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
       <div className="flex justify-between items-center mb-2">
         <span className="font-semibold text-slate-800">Variatie Score</span>
-        <span className="text-lg font-bold text-green-600">0%</span>
+        <span className="text-lg font-bold text-green-600">{getCategorieScore()}%</span>
       </div>
       <div className="w-full bg-slate-200 rounded-full h-2">
         <div 
           className="bg-gradient-to-r from-green-400 to-blue-400 h-2 rounded-full transition-all duration-300"
-          style={{ width: '0%' }}
+          style={{ width: `${getCategorieScore()}%` }}
         />
       </div>
       <p className="text-xs text-slate-600 mt-2">Probeer uit alle voedingsgroepen te eten!</p>
@@ -504,18 +529,31 @@ const handleAddVoeding = async (voedingsitem) => {
     
     {/* Vandaag gegeten overzicht */}
     <div className="mb-4">
-      <h3 className="font-semibold text-slate-700 mb-2">Vandaag gegeten (0 items)</h3>
+      <h3 className="font-semibold text-slate-700 mb-2">
+        Vandaag gegeten ({getVandaagGegeten().length} items)
+      </h3>
       <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-        <span className="text-sm text-slate-500">Nog geen voedingsmiddelen toegevoegd</span>
+        {getVandaagGegeten().length > 0 ? (
+          getVandaagGegeten().map((item, index) => {
+            const voedingsitem = voedingsmiddelen.find(v => v.naam === item.voedingsmiddel);
+            return (
+              <span key={index} className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded-lg text-xs">
+                {voedingsitem?.emoji} {item.voedingsmiddel}
+              </span>
+            );
+          })
+        ) : (
+          <span className="text-sm text-slate-500">Nog geen voedingsmiddelen toegevoegd</span>
+        )}
       </div>
     </div>
     
     <button 
-  onClick={() => setShowVoedingModal(true)}
-  className="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition-colors"
->
-  + Voedingsmiddel toevoegen
-</button>
+      onClick={() => setShowVoedingModal(true)}
+      className="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition-colors"
+    >
+      + Voedingsmiddel toevoegen
+    </button>
   </div>
 ) : (
   <SimpleMaaltijdLogger 
