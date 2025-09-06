@@ -47,7 +47,8 @@ const [loading, setLoading] = useState(true); // Start in laadstatus
   const [showWaterModal, setShowWaterModal] = useState(false);
 const [tempWater, setTempWater] = useState(0);
 const [showSlaapModal, setShowSlaapModal] = useState(false);
-const [tempBedtijd, setTempBedtijd] = useState('');
+const [tempSlaapUren, setTempSlaapUren] = useState('');
+const [tempKwaliteit, setTempKwaliteit] = useState(0);
 
   // Effect Hook om live data op te halen uit Firestore
   useEffect(() => {
@@ -120,9 +121,10 @@ const [tempBedtijd, setTempBedtijd] = useState('');
     setTempWater(dagelijkseData.water_intake || 0);
     setShowWaterModal(true);
   }
-  if (segment === 'Slaap') {
-  // Open modal om snel bedtijd in te stellen
-  setShowSlaapModal(true);
+ if (segment === 'Slaap') {
+  setTempSlaapUren(dagelijkseData.slaap_uren || '');
+  setTempKwaliteit(dagelijkseData.slaap_kwaliteit || 0);
+  setShowSlaapModal(true); // Niet showSlaapModal
 }
   };
 
@@ -185,12 +187,23 @@ const handleWaterSave = () => {
   }
 };
 const handleSlaapSave = () => {
-  if (tempBedtijd) {
-    saveDataToDayDoc({ bedtijd: tempBedtijd });
+  if (tempSlaapUren && tempKwaliteit > 0) {
+    // Update lokale state direct
+    setDagelijkseData(prev => ({ 
+      ...prev, 
+      slaap_uren: parseFloat(tempSlaapUren),
+      slaap_kwaliteit: tempKwaliteit 
+    }));
+    
+    // Sla op in database
+    saveDataToDayDoc({ 
+      slaap_uren: parseFloat(tempSlaapUren),
+      slaap_kwaliteit: tempKwaliteit 
+    });
     setShowSlaapModal(false);
-    toast.success('Bedtijd opgeslagen!');
+    toast.success('Slaapdata opgeslagen!');
   } else {
-    toast.error('Voer een geldige bedtijd in');
+    toast.error('Voer zowel uren als kwaliteit in');
   }
 };
   // Functie om het humeur om te zetten naar een score van 0-100
@@ -207,12 +220,22 @@ const getMentaalScore = (humeur) => {
 };
 const getSlaapScore = () => {
   if (!dagelijkseData.slaap_uren) return 0;
-  const uren = dagelijkseData.slaap_uren;
-  if (uren >= 8 && uren <= 10) return 100;
-  if (uren >= 7 && uren < 8) return 80;
-  if (uren >= 6 && uren < 7) return 60;
-  if (uren >= 5 && uren < 6) return 40;
-  return 20;
+  
+  const uren = parseFloat(dagelijkseData.slaap_uren);
+  const kwaliteit = dagelijkseData.slaap_kwaliteit || 3;
+  
+  // Basis score op uren (0-80)
+  let urenScore = 0;
+  if (uren >= 8 && uren <= 10) urenScore = 80;
+  else if (uren >= 7 && uren < 8) urenScore = 70;
+  else if (uren >= 6 && uren < 7) urenScore = 50;
+  else if (uren >= 5 && uren < 6) urenScore = 30;
+  else urenScore = 10;
+  
+  // Kwaliteitsbonus (0-20)
+  const kwaliteitsBonus = (kwaliteit - 1) * 5; // 1 ster = 0, 5 sterren = 20
+  
+  return Math.min(urenScore + kwaliteitsBonus, 100);
 };
   // Bereken de percentages voor de UI op basis van de live data
 const welzijnScores = {
@@ -477,24 +500,48 @@ const welzijnScores = {
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
       <div className="text-center mb-6">
-        <div className="text-4xl mb-4">🌙</div>
-        <h3 className="text-xl font-bold text-gray-800 mb-2">Bedtijd Instellen</h3>
-        <p className="text-gray-600">Hoe laat ga je meestal naar bed?</p>
+        <div className="text-4xl mb-4">💤</div>
+        <h3 className="text-xl font-bold text-gray-800 mb-2">Hoe sliep je vannacht?</h3>
+        <p className="text-gray-600">Aantal uren en kwaliteit</p>
       </div>
       
-      <div className="mb-6">
-        <input 
-          type="time" 
-          value={tempBedtijd} 
-          onChange={(e) => setTempBedtijd(e.target.value)} 
-          className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
-        />
-        
-        <div className="text-center mt-4">
-          <Link to="/gezondheid/slaap" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
-            Bekijk volledige slaapdetails →
-          </Link>
+      <div className="space-y-4 mb-6">
+        <div>
+          <label className="block text-slate-600 mb-2">Aantal uur geslapen</label>
+          <input 
+            type="number" 
+            step="0.5"
+            min="0"
+            max="12"
+            value={tempSlaapUren} 
+            onChange={(e) => setTempSlaapUren(e.target.value)} 
+            className="w-full text-center text-2xl font-bold p-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+            placeholder="8.5"
+          />
         </div>
+        
+        <div>
+          <label className="block text-slate-600 mb-2">Kwaliteit</label>
+          <div className="flex justify-center gap-1">
+            {[1, 2, 3, 4, 5].map(ster => (
+              <button
+                key={ster}
+                onClick={() => setTempKwaliteit(ster)}
+                className={`text-3xl transition-all ${
+                  ster <= tempKwaliteit ? 'text-yellow-400' : 'text-gray-300'
+                } hover:text-yellow-400`}
+              >
+                ★
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      
+      <div className="text-center mt-4 mb-6">
+        <Link to="/gezondheid/slaap" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
+          Bekijk volledige slaapdetails →
+        </Link>
       </div>
       
       <div className="flex gap-3">
