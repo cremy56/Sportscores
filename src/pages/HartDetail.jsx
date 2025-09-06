@@ -398,8 +398,6 @@ const HartDetail = () => {
         setShowEditForm(false);
       }
     });
-// Voeg deze component toe aan je HartDetail.jsx file, ergens tussen de andere component definities:
-
 
     // Luister naar hartslagnotities
     const notitiesQuery = query(
@@ -654,7 +652,7 @@ const HartDetail = () => {
                 )}
               </div>
 
-             /* Hartslaggeschiedenis grafiek */
+            {/* Hartslaggeschiedenis grafiek */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
                 <h2 className="text-xl lg:text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                   <ChartBarIcon className="w-6 h-6 text-red-500" />
@@ -693,7 +691,7 @@ const HartDetail = () => {
                 )}
               </div>
 
-              /* Hartslag journaal */
+              {/* Hartslag journaal */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
                 <h2 className="text-xl lg:text-2xl font-bold text-slate-800 mb-6">Hartslag Journaal</h2>
                 <form onSubmit={handleNotitieSave} className="space-y-4">
@@ -734,7 +732,7 @@ const HartDetail = () => {
               </div>
             </div>
 
-            /* Rechter kolom - 1/3 breedte */
+            {/* Rechter kolom - 1/3 breedte */}
             <div className="space-y-6">
               
               /* Conditie Test */
