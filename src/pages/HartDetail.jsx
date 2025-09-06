@@ -257,41 +257,6 @@ const HartslagBronnen = () => (
     </div>
   </div>
 );
-
-const HartDetail = () => {
-  const { profile } = useOutletContext();
-  const effectiveUserId = getEffectiveUserId(profile);
-  
-  // State variabelen
-  const [dagelijkseData, setDagelijkseData] = useState({});
-  const [hartslagGeschiedenis, setHartslagGeschiedenis] = useState([]);
-  const [recenteNotities, setRecenteNotities] = useState([]);
-  const [hartslagNotitie, setHartslagNotitie] = useState('');
-  const [showEditForm, setShowEditForm] = useState(false);
-  
-  // Hartslag tracking state
-  const [rustpols, setRustpols] = useState('');
-  const [maxHartslag, setMaxHartslag] = useState('');
-  const [activiteit, setActiviteit] = useState('');
-  const [conditieScore, setConditieScore] = useState(0);
-
-  useEffect(() => {
-    if (!effectiveUserId) return;
-
-    // Luister naar dagelijkse data
-    const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
-    const unsubscribeVandaag = onSnapshot(todayDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setDagelijkseData(data);
-        setRustpols(data.hartslag_rust || '');
-        setMaxHartslag(data.hartslag_max || '');
-        setActiviteit(data.hartslag_activiteit || '');
-        setShowEditForm(false);
-      }
-    });
-// Voeg deze component toe aan je HartDetail.jsx file, ergens tussen de andere component definities:
-
 const HartslagFactoren = () => (
   <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
     <h2 className="text-xl font-bold text-slate-800 mb-4">Wat beïnvloedt je hartslag?</h2>
@@ -354,6 +319,41 @@ const HartslagFactoren = () => (
     </div>
   </div>
 );
+const HartDetail = () => {
+  const { profile } = useOutletContext();
+  const effectiveUserId = getEffectiveUserId(profile);
+  
+  // State variabelen
+  const [dagelijkseData, setDagelijkseData] = useState({});
+  const [hartslagGeschiedenis, setHartslagGeschiedenis] = useState([]);
+  const [recenteNotities, setRecenteNotities] = useState([]);
+  const [hartslagNotitie, setHartslagNotitie] = useState('');
+  const [showEditForm, setShowEditForm] = useState(false);
+  
+  // Hartslag tracking state
+  const [rustpols, setRustpols] = useState('');
+  const [maxHartslag, setMaxHartslag] = useState('');
+  const [activiteit, setActiviteit] = useState('');
+  const [conditieScore, setConditieScore] = useState(0);
+
+  useEffect(() => {
+    if (!effectiveUserId) return;
+
+    // Luister naar dagelijkse data
+    const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
+    const unsubscribeVandaag = onSnapshot(todayDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setDagelijkseData(data);
+        setRustpols(data.hartslag_rust || '');
+        setMaxHartslag(data.hartslag_max || '');
+        setActiviteit(data.hartslag_activiteit || '');
+        setShowEditForm(false);
+      }
+    });
+// Voeg deze component toe aan je HartDetail.jsx file, ergens tussen de andere component definities:
+
+
     // Luister naar hartslagnotities
     const notitiesQuery = query(
       collection(db, `welzijn/${effectiveUserId}/hartslag_notities`),
