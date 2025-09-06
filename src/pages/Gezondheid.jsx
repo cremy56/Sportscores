@@ -615,20 +615,15 @@ const getHartslagScore = () => {
                 }}
               >
                 <span
-                  className={`text-4xl transition-all duration-200 ${
-                    sterWaarde <= (tempKwaliteit || 0) 
-                      ? 'text-yellow-400' 
-                      : 'text-gray-300'
-                  } hover:text-yellow-300`}
+                  className={`text-4xl transition-all duration-200`}
                   style={{ 
-                    filter: sterWaarde <= (tempKwaliteit || 0) 
-                      ? 'drop-shadow(0 0 8px rgba(255, 193, 7, 0.6))' 
-                      : 'none',
+                    color: sterWaarde <= (tempKwaliteit || 0) ? '#fbbf24' : '#d1d5db',
+                    filter: sterWaarde <= (tempKwaliteit || 0) ? 'brightness(1.2) drop-shadow(0 0 8px rgba(251, 191, 36, 0.6))' : 'brightness(0.7)',
                     display: 'block',
                     lineHeight: 1
                   }}
                 >
-                  ⭐
+                  {sterWaarde <= (tempKwaliteit || 0) ? '★' : '☆'}
                 </span>
               </button>
             ))}
