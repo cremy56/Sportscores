@@ -374,45 +374,62 @@ const SlaapDetail = () => {
                   </div>
                 )}
 
-                {/* Slaap invoer formulier */}
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    
-                    {/* Aantal uur slaap */}
-                    <div>
-                      <label className="block text-slate-600 mb-2 font-medium">Hoeveel uur heb je geslapen?</label>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        max="12"
-                        value={slaapUren}
-                        onChange={(e) => setSlaapUren(e.target.value)}
-                        className="w-full p-4 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500 text-lg"
-                        placeholder="8.5"
-                      />
-                      <div className="text-xs text-slate-500 mt-1">Gebruik halve uren (7.5, 8.5, etc.)</div>
+                {/* Slaap invoer formulier - alleen tonen als er geen data is OF als gebruiker wil bewerken */}
+                {(!dagelijkseData.slaap_uren || showEditForm) && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {/* Aantal uur slaap */}
+                      <div>
+                        <label className="block text-slate-600 mb-2 font-medium">Hoeveel uur heb je geslapen?</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max="12"
+                          value={slaapUren}
+                          onChange={(e) => setSlaapUren(e.target.value)}
+                          className="w-full p-4 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500 text-lg"
+                          placeholder="8.5"
+                        />
+                        <div className="text-xs text-slate-500 mt-1">Gebruik halve uren (7.5, 8.5, etc.)</div>
+                      </div>
+
+                      {/* Slaapkwaliteit */}
+                      <div>
+                        <label className="block text-slate-600 mb-2 font-medium">Hoe was je slaapkwaliteit?</label>
+                        <SlaapKwaliteitTracker 
+                          kwaliteit={slaapKwaliteit} 
+                          onKwaliteitChange={setSlaapKwaliteit} 
+                        />
+                      </div>
                     </div>
 
-                    {/* Slaapkwaliteit */}
-                    <div>
-                      <label className="block text-slate-600 mb-2 font-medium">Hoe was je slaapkwaliteit?</label>
-                      <SlaapKwaliteitTracker 
-                        kwaliteit={slaapKwaliteit} 
-                        onKwaliteitChange={setSlaapKwaliteit} 
-                      />
+                    {/* Opslaan knop */}
+                    <div className="flex gap-3">
+                      {/* Als we aan het bewerken zijn, toon annuleren knop */}
+                      {showEditForm && (
+                        <button 
+                          onClick={() => {
+                            setShowEditForm(false);
+                            setSlaapUren(dagelijkseData.slaap_uren || '');
+                            setSlaapKwaliteit(dagelijkseData.slaap_kwaliteit || 0);
+                          }}
+                          className="flex-1 py-4 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all duration-200"
+                        >
+                          Annuleren
+                        </button>
+                      )}
+                      <button 
+                        onClick={handleSlaapSave}
+                        disabled={!slaapUren}
+                        className="flex-1 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold py-4 rounded-xl hover:from-purple-700 hover:to-purple-600 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      >
+                        Slaapdata Opslaan
+                      </button>
                     </div>
                   </div>
-
-                  {/* Opslaan knop */}
-                  <button 
-                    onClick={handleSlaapSave}
-                    disabled={!slaapUren}
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold py-4 rounded-xl hover:from-purple-700 hover:to-purple-600 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                  >
-                    Slaapdata Opslaan
-                  </button>
-                </div>
+                )}
               </div>
 
               {/* Slaaphygiene Checklist */}
