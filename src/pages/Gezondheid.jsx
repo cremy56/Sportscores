@@ -46,6 +46,8 @@ const [loading, setLoading] = useState(true); // Start in laadstatus
   const [selectedHumeur, setSelectedHumeur] = useState(null);
   const [showWaterModal, setShowWaterModal] = useState(false);
 const [tempWater, setTempWater] = useState(0);
+const [showSlaapModal, setShowSlaapModal] = useState(false);
+const [tempBedtijd, setTempBedtijd] = useState('');
 
   // Effect Hook om live data op te halen uit Firestore
   useEffect(() => {
@@ -81,6 +83,7 @@ const [tempWater, setTempWater] = useState(0);
         setTempStappen(data.stappen || 0);
         setSelectedHumeur(data.humeur || null); // Initialiseer de geselecteerde smiley met opgeslagen humeur
         setTempWater(data.water_intake || 0);
+        setTempBedtijd(data.bedtijd || '');
         setError(null);
       } else {
         setDagelijkseData({}); // Geen data voor vandaag
@@ -88,6 +91,7 @@ const [tempWater, setTempWater] = useState(0);
         setTempStappen(0);
         setTempHartslag(72);
         setTempWater(0);
+        setTempBedtijd('');
         console.log("No daily data for today!");
       }
       setLoading(false);
@@ -116,6 +120,10 @@ const [tempWater, setTempWater] = useState(0);
     setTempWater(dagelijkseData.water_intake || 0);
     setShowWaterModal(true);
   }
+  if (segment === 'Slaap') {
+  // Open modal om snel bedtijd in te stellen
+  setShowSlaapModal(true);
+}
   };
 
   // Functie voor klikken op TEGEL (navigeert naar DETAILPAGINA)
@@ -176,6 +184,15 @@ const handleWaterSave = () => {
     toast.error('Voer een geldige hoeveelheid water in (0-5000ml)');
   }
 };
+const handleSlaapSave = () => {
+  if (tempBedtijd) {
+    saveDataToDayDoc({ bedtijd: tempBedtijd });
+    setShowSlaapModal(false);
+    toast.success('Bedtijd opgeslagen!');
+  } else {
+    toast.error('Voer een geldige bedtijd in');
+  }
+};
   // Functie om het humeur om te zetten naar een score van 0-100
 const getMentaalScore = (humeur) => {
   if (!humeur) return 0; // <-- AANGEPAST VAN 50 NAAR 0
@@ -188,7 +205,15 @@ const getMentaalScore = (humeur) => {
     default: return 0; // Standaardwaarde ook naar 0
   }
 };
-
+const getSlaapScore = () => {
+  if (!dagelijkseData.slaap_uren) return 0;
+  const uren = dagelijkseData.slaap_uren;
+  if (uren >= 8 && uren <= 10) return 100;
+  if (uren >= 7 && uren < 8) return 80;
+  if (uren >= 6 && uren < 7) return 60;
+  if (uren >= 5 && uren < 6) return 40;
+  return 20;
+};
   // Bereken de percentages voor de UI op basis van de live data
 const welzijnScores = {
   beweging: (welzijnDoelen.stappen && dagelijkseData.stappen !== undefined) 
@@ -201,6 +226,7 @@ const welzijnScores = {
     ? Math.min(Math.round((dagelijkseData.slaap_uren / welzijnDoelen.slaap) * 100), 100) 
     : 0,
   mentaal: getMentaalScore(dagelijkseData.humeur),
+  slaap: getSlaapScore(),
 };
 
   const getGemiddeldeScore = () => {
@@ -447,6 +473,48 @@ const welzijnScores = {
           </div>
         </div>
       )}
+      {showSlaapModal && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <div className="text-center mb-6">
+        <div className="text-4xl mb-4">🌙</div>
+        <h3 className="text-xl font-bold text-gray-800 mb-2">Bedtijd Instellen</h3>
+        <p className="text-gray-600">Hoe laat ga je meestal naar bed?</p>
+      </div>
+      
+      <div className="mb-6">
+        <input 
+          type="time" 
+          value={tempBedtijd} 
+          onChange={(e) => setTempBedtijd(e.target.value)} 
+          className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+        />
+        
+        <div className="text-center mt-4">
+          <Link to="/gezondheid/slaap" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
+            Bekijk volledige slaapdetails →
+          </Link>
+        </div>
+      </div>
+      
+      <div className="flex gap-3">
+        <button 
+          onClick={() => setShowSlaapModal(false)} 
+          className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+        >
+          Annuleren
+        </button>
+        <button 
+          onClick={handleSlaapSave} 
+          className="flex-1 py-3 px-4 bg-purple-500 text-white rounded-xl font-medium hover:bg-purple-600 transition-colors"
+        >
+          Opslaan
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 {showWaterModal && (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">

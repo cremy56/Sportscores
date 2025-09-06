@@ -35,7 +35,7 @@ import Welzijnsmonitor from './pages/Welzijnsmonitor';
 import BewegingDetail from './pages/BewegingDetail';
 import MentaalDetail from './pages/MentaalDetail';
 import VoedingDetail from './pages/VoedingDetail';
-
+import SlaapDetail from './pages/SlaapDetail';
 
 function HandleAuthRedirect() {
     const navigate = useNavigate();
@@ -210,6 +210,7 @@ useEffect(() => {
                             <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
                             <Route path="/gezondheid/mentaal" element={<MentaalDetail />} /> 
                             <Route path="/gezondheid/voeding" element={<VoedingDetail />} />
+                            <Route path="/gezondheid/slaap" element={<SlaapDetail />} />
                           </>
 
                         )}
