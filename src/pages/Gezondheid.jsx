@@ -226,6 +226,19 @@ const MijnGezondheid = () => {
       default: return 0; // Standaardwaarde ook naar 0
     }
   };
+const getHartslagScore = () => {
+  if (!dagelijkseData.hartslag_rust) return 0;
+  
+  const hartslag = dagelijkseData.hartslag_rust;
+  // Optimale curve voor tieners: beste score rond 60-80 BPM
+  if (hartslag >= 60 && hartslag <= 80) return 100;
+  if (hartslag >= 50 && hartslag < 60) return 85;
+  if (hartslag > 80 && hartslag <= 100) return 80;
+  if (hartslag > 100 && hartslag <= 110) return 60;
+  if (hartslag >= 40 && hartslag < 50) return 70;
+  if (hartslag > 110 && hartslag <= 120) return 40;
+  return 20; // Zeer hoog of zeer laag
+};
 
   const getSlaapScore = () => {
     if (!dagelijkseData.slaap_uren) return 0;
@@ -257,12 +270,13 @@ const MijnGezondheid = () => {
       : 0,
     slaap: getSlaapScore(),
     mentaal: getMentaalScore(dagelijkseData.humeur),
+    hart: getHartslagScore(),
   };
 
-  const getGemiddeldeScore = () => {
-    const totaal = welzijnScores.beweging + welzijnScores.voeding + welzijnScores.slaap + welzijnScores.mentaal;
-    return Math.round(totaal / 4);
-  };
+ const getGemiddeldeScore = () => {
+  const totaal = welzijnScores.beweging + welzijnScores.voeding + welzijnScores.slaap + welzijnScores.mentaal + welzijnScores.hart;
+  return Math.round(totaal / 5); // Delen door 5 in plaats van 4
+};
 
   const getBalansStatus = () => {
     const gemiddelde = getGemiddeldeScore();
@@ -421,24 +435,28 @@ const MijnGezondheid = () => {
         <div className="max-w-4xl mx-auto space-y-6">
           <WelzijnsKompas />
 
-          {/* 5 Thema Tiles voor NAVIGATIE */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 max-w-5xl mx-auto">
-            <div onClick={() => handleTileClick('/gezondheid/beweging')} className="bg-blue-50 rounded-xl p-4 border-2 border-blue-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
-              <div className="text-center"><div className="text-2xl mb-2">🏃‍♂️</div><div className="text-lg font-bold text-blue-600">{welzijnScores.beweging}%</div><div className="text-sm text-gray-600 font-medium">Beweging</div></div>
+         {/* 5 Thema Tiles voor NAVIGATIE */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 max-w-5xl mx-auto">
+              <div onClick={() => handleTileClick('/gezondheid/beweging')} className="bg-blue-50 rounded-xl p-4 border-2 border-blue-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+                <div className="text-center"><div className="text-2xl mb-2">🏃‍♂️</div><div className="text-lg font-bold text-blue-600">{welzijnScores.beweging}%</div><div className="text-sm text-gray-600 font-medium">Beweging</div></div>
+              </div>
+              <div onClick={() => handleTileClick('/gezondheid/voeding')} className="bg-green-50 rounded-xl p-4 border-2 border-green-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+                <div className="text-center"><div className="text-2xl mb-2">🥗</div><div className="text-lg font-bold text-green-600">{welzijnScores.voeding}%</div><div className="text-sm text-gray-600 font-medium">Voeding</div></div>
+              </div>
+              <div onClick={() => handleTileClick('/gezondheid/slaap')} className="bg-purple-50 rounded-xl p-4 border-2 border-purple-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+                <div className="text-center"><div className="text-2xl mb-2">🌙</div><div className="text-lg font-bold text-purple-600">{welzijnScores.slaap}%</div><div className="text-sm text-gray-600 font-medium">Slaap</div></div>
+              </div>
+              <div onClick={() => handleTileClick('/gezondheid/mentaal')} className="bg-orange-50 rounded-xl p-4 border-2 border-orange-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+                <div className="text-center"><div className="text-2xl mb-2">🧠</div><div className="text-lg font-bold text-orange-600">{welzijnScores.mentaal}%</div><div className="text-sm text-gray-600 font-medium">Mentaal</div></div>
+              </div>
+              <div onClick={() => handleTileClick('/gezondheid/hart')} className="bg-red-50 rounded-xl p-4 border-2 border-red-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105 sm:col-span-1 col-span-2 sm:col-start-auto">
+                <div className="text-center">
+                  <div className="text-2xl mb-2">❤️</div>
+                  <div className="text-lg font-bold text-red-600">{welzijnScores.hart}%</div>
+                  <div className="text-sm text-gray-600 font-medium">Hart</div>
+                </div>
+              </div>
             </div>
-            <div onClick={() => handleTileClick('/gezondheid/voeding')} className="bg-green-50 rounded-xl p-4 border-2 border-green-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
-              <div className="text-center"><div className="text-2xl mb-2">🥗</div><div className="text-lg font-bold text-green-600">{welzijnScores.voeding}%</div><div className="text-sm text-gray-600 font-medium">Voeding</div></div>
-            </div>
-            <div onClick={() => handleTileClick('/gezondheid/slaap')} className="bg-purple-50 rounded-xl p-4 border-2 border-purple-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
-              <div className="text-center"><div className="text-2xl mb-2">🌙</div><div className="text-lg font-bold text-purple-600">{welzijnScores.slaap}%</div><div className="text-sm text-gray-600 font-medium">Slaap</div></div>
-            </div>
-            <div onClick={() => handleTileClick('/gezondheid/mentaal')} className="bg-orange-50 rounded-xl p-4 border-2 border-orange-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
-              <div className="text-center"><div className="text-2xl mb-2">🧠</div><div className="text-lg font-bold text-orange-600">{welzijnScores.mentaal}%</div><div className="text-sm text-gray-600 font-medium">Mentaal</div></div>
-            </div>
-            <div onClick={() => setShowHartslagModal(true)} className="bg-red-50 rounded-xl p-4 border-2 border-red-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105 sm:col-span-1 col-span-2 sm:col-start-auto">
-              <div className="text-center"><div className="text-2xl mb-2">❤️</div><div className="text-lg font-bold text-red-600">{dagelijkseData.hartslag_rust || 'N/A'}</div><div className="text-sm text-gray-600 font-medium">BPM</div></div>
-            </div>
-          </div>
         </div>
       </div>
       
@@ -467,8 +485,15 @@ const MijnGezondheid = () => {
               <p className="text-gray-600">Voer je hartslag in rust in</p>
             </div>
             <div className="mb-6">
-              <input type="number" value={tempHartslag} onChange={(e) => setTempHartslag(parseInt(e.target.value, 10) || 0)} className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 focus:outline-none" min="30" max="220" />
-            </div>
+             <input 
+                type="number" 
+                value={tempHartslag} 
+                onChange={(e) => setTempHartslag(parseInt(e.target.value, 10) || 0)} 
+                className="w-full text-center text-2xl font-bold p-4 border-2 border-gray-200 rounded-xl focus:border-red-500 focus:outline-none" 
+                min="30" 
+                max="220"
+                placeholder="Rustpols in BPM"
+              />            </div>
             <div className="flex gap-3">
               <button onClick={() => setShowHartslagModal(false)} className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">Annuleren</button>
               <button onClick={handleHartslagSave} className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors">Opslaan</button>
