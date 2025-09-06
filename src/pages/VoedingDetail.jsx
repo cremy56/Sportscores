@@ -29,11 +29,106 @@ const maaltijdOpties = [
 
 // --- VOEDINGSGROEPEN ---
 const voedingsGroepen = [
-  { naam: 'Groenten & Fruit', kleur: 'bg-green-100 text-green-700', doel: '5 porties per dag' },
-  { naam: 'Granen', kleur: 'bg-yellow-100 text-yellow-700', doel: 'Minimaal 3 volkoren' },
-  { naam: 'Eiwitten', kleur: 'bg-red-100 text-red-700', doel: '2-3 porties per dag' },
-  { naam: 'Zuivel', kleur: 'bg-blue-100 text-blue-700', doel: '2-3 porties per dag' },
-  { naam: 'Water', kleur: 'bg-cyan-100 text-cyan-700', doel: '1.5-2 liter per dag' }
+  { 
+    naam: 'Groenten & Fruit', 
+    kleur: 'bg-green-100 text-green-700', 
+    doel: '5 porties per dag',
+    info: {
+      beschrijving: 'Groenten en fruit zijn essentieel voor een gezond voedingspatroon.',
+      voordelen: [
+        'Rijk aan vitamines en mineralen',
+        'Veel vezels voor goede spijsvertering', 
+        'Antioxidanten beschermen je cellen',
+        'Laag in calorieën, hoog in voedingswaarde'
+      ],
+      tips: [
+        'Varieer in kleuren voor verschillende vitamines',
+        'Verse, diepvries en ingeblikt fruit/groenten tellen allemaal',
+        'Een handvol noten of een stuk fruit als tussendoortje'
+      ],
+      voorbeelden: ['Appels', 'Wortels', 'Spinazie', 'Bessen', 'Paprika']
+    }
+  },
+  { 
+    naam: 'Granen', 
+    kleur: 'bg-yellow-100 text-yellow-700', 
+    doel: 'Minimaal 3 volkoren',
+    info: {
+      beschrijving: 'Granen geven je lichaam energie en belangrijke voedingsstoffen.',
+      voordelen: [
+        'Langdurige energie voor je dag',
+        'B-vitamines voor je zenuwstelsel',
+        'Vezels houden je langer vol',
+        'IJzer voor zuurstoftransport'
+      ],
+      tips: [
+        'Kies volkoren varianten wanneer mogelijk',
+        'Combineer met eiwitten voor volledige maaltijden',
+        'Havermout is een uitstekende start van de dag'
+      ],
+      voorbeelden: ['Volkoren brood', 'Bruine rijst', 'Havermout', 'Quinoa', 'Volkoren pasta']
+    }
+  },
+  { 
+    naam: 'Eiwitten', 
+    kleur: 'bg-red-100 text-red-700', 
+    doel: '2-3 porties per dag',
+    info: {
+      beschrijving: 'Eiwitten zijn de bouwstenen van je lichaam en essentieel voor groei.',
+      voordelen: [
+        'Bouw en herstel van spieren',
+        'Productie van hormonen en enzymen',
+        'Sterk immuunsysteem',
+        'Gevoel van verzadiging'
+      ],
+      tips: [
+        'Wissel tussen dierlijke en plantaardige eiwitten',
+        'Combineer verschillende plantaardige eiwitten',
+        'Vis bevat gezonde omega-3 vetzuren'
+      ],
+      voorbeelden: ['Kip', 'Vis', 'Eieren', 'Bonen', 'Noten', 'Tofu']
+    }
+  },
+  { 
+    naam: 'Zuivel', 
+    kleur: 'bg-blue-100 text-blue-700', 
+    doel: '2-3 porties per dag',
+    info: {
+      beschrijving: 'Zuivel levert calcium en hoogwaardig eiwit voor sterke botten en tanden.',
+      voordelen: [
+        'Calcium voor sterke botten en tanden',
+        'Hoogwaardig eiwit',
+        'Vitamine B12 en riboflavine',
+        'Probiotica in yoghurt voor darmen'
+      ],
+      tips: [
+        'Kies voor ongezoete varianten',
+        'Yoghurt met levende culturen is extra gezond',
+        'Alternatieven zoals amandelmelk kunnen ook'
+      ],
+      voorbeelden: ['Melk', 'Yoghurt', 'Kaas', 'Kwark', 'Karnemelk']
+    }
+  },
+  { 
+    naam: 'Water', 
+    kleur: 'bg-cyan-100 text-cyan-700', 
+    doel: '1.5-2 liter per dag',
+    info: {
+      beschrijving: 'Water is essentieel voor alle processen in je lichaam.',
+      voordelen: [
+        'Regelt je lichaamstemperatuur',
+        'Transporteert voedingsstoffen',
+        'Helpt bij afvalstoffen verwijderen',
+        'Houdt je huid gezond'
+      ],
+      tips: [
+        'Drink regelmatig kleine slokjes',
+        'Water met een schijfje citroen voor smaak',
+        'Let op je urine kleur als indicator'
+      ],
+      voorbeelden: ['Kraanwater', 'Bronwater', 'Water met fruit', 'Kruidenthee']
+    }
+  }
 ];
 // --- VOEDINGSMIDDELEN DATABASE ---
 const voedingsmiddelen = [
@@ -272,6 +367,8 @@ const [voedingsNotitie, setVoedingsNotitie] = useState('');
 const [uitgebreidMode, setUitgebreidMode] = useState(false);
 const [showVoedingModal, setShowVoedingModal] = useState(false);
 const [selectedCategorie, setSelectedCategorie] = useState('Alle');
+const [showGroepModal, setShowGroepModal] = useState(false);
+const [selectedGroep, setSelectedGroep] = useState(null);
 
  useEffect(() => {
   if (!effectiveUserId) return;
@@ -450,20 +547,28 @@ const getCategorieScore = () => {
             {/* Linker kolom - 2/3 breedte */}
             <div className="lg:col-span-2 space-y-6">
               
-              {/* Voedingsgroepen Overzicht */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
-                <h2 className="text-xl lg:text-2xl font-bold text-slate-800 mb-6">Voedingsgroepen</h2>
-                <p className="text-slate-600 mb-6">Probeer dagelijks uit elke groep te eten voor een gevarieerd voedingspatroon.</p>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {voedingsGroepen.map(groep => (
-                    <div key={groep.naam} className={`p-4 rounded-xl border-2 ${groep.kleur.replace('100', '200')} ${groep.kleur}`}>
-                      <h3 className="font-bold mb-2">{groep.naam}</h3>
-                      <p className="text-sm opacity-80">{groep.doel}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+             {/* Voedingsgroepen Overzicht */}
+<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+  <h2 className="text-xl lg:text-2xl font-bold text-slate-800 mb-6">Voedingsgroepen</h2>
+  <p className="text-slate-600 mb-6">Probeer dagelijks uit elke groep te eten voor een gevarieerd voedingspatroon. Klik op een groep voor meer info.</p>
+  
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {voedingsGroepen.map(groep => (
+      <button
+        key={groep.naam}
+        onClick={() => {
+          setSelectedGroep(groep);
+          setShowGroepModal(true);
+        }}
+        className={`p-4 rounded-xl border-2 ${groep.kleur.replace('100', '200')} ${groep.kleur} hover:scale-105 transition-transform cursor-pointer`}
+      >
+        <h3 className="font-bold mb-2">{groep.naam}</h3>
+        <p className="text-sm opacity-80">{groep.doel}</p>
+        <p className="text-xs mt-2 opacity-60">Klik voor meer info</p>
+      </button>
+    ))}
+  </div>
+</div>
 
               {/* Voedingsreflectie */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
@@ -644,6 +749,60 @@ const getCategorieScore = () => {
           </button>
         ))}
       </div>
+    </div>
+  </div>
+)}
+{/* Modal voor voedingsgroep informatie */}
+{showGroepModal && selectedGroep && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl max-h-[80vh] overflow-y-auto">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className={`text-2xl font-bold ${selectedGroep.kleur}`}>{selectedGroep.naam}</h3>
+        <button onClick={() => setShowGroepModal(false)} className="text-gray-500 hover:text-gray-700 text-xl">✕</button>
+      </div>
+      
+      <div className={`p-4 rounded-xl ${selectedGroep.kleur.replace('text-', 'bg-').replace('-700', '-50')} border ${selectedGroep.kleur.replace('text-', 'border-').replace('-700', '-200')} mb-4`}>
+        <p className="font-semibold mb-2">Doel: {selectedGroep.doel}</p>
+        <p className="text-sm">{selectedGroep.info.beschrijving}</p>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <h4 className="font-bold text-slate-800 mb-2">Waarom belangrijk?</h4>
+          <ul className="list-disc list-inside space-y-1 text-sm text-slate-600">
+            {selectedGroep.info.voordelen.map((voordeel, index) => (
+              <li key={index}>{voordeel}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-800 mb-2">Praktische tips</h4>
+          <ul className="list-disc list-inside space-y-1 text-sm text-slate-600">
+            {selectedGroep.info.tips.map((tip, index) => (
+              <li key={index}>{tip}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-800 mb-2">Voorbeelden</h4>
+          <div className="flex flex-wrap gap-2">
+            {selectedGroep.info.voorbeelden.map((voorbeeld, index) => (
+              <span key={index} className="bg-slate-100 text-slate-700 px-2 py-1 rounded-lg text-xs">
+                {voorbeeld}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <button 
+        onClick={() => setShowGroepModal(false)}
+        className="w-full mt-6 bg-slate-100 text-slate-700 font-medium py-3 rounded-xl hover:bg-slate-200 transition-colors"
+      >
+        Sluiten
+      </button>
     </div>
   </div>
 )}
