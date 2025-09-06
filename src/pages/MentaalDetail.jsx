@@ -449,14 +449,7 @@ const MentaalDetail = () => {
           </div>
         </div>
 
-        {/* Debug info */}
-        <div className="mt-8 text-center">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4 inline-block">
-            <div className="text-sm text-slate-600">
-              Effective User ID: {effectiveUserId || 'N/A'} • Vandaag: {getTodayString()}
-            </div>
-          </div>
-        </div>
+       
       </div>
       
       {/* CSS voor ademhalingsanimatie */}

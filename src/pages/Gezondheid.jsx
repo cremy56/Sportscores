@@ -85,6 +85,8 @@ const [tempKwaliteit, setTempKwaliteit] = useState(0);
         setSelectedHumeur(data.humeur || null); // Initialiseer de geselecteerde smiley met opgeslagen humeur
         setTempWater(data.water_intake || 0);
         setTempBedtijd(data.bedtijd || '');
+        setTempSlaapUren(data.slaap_uren || '');
+setTempKwaliteit(data.slaap_kwaliteit || 0);
         setError(null);
       } else {
         setDagelijkseData({}); // Geen data voor vandaag
@@ -93,6 +95,8 @@ const [tempKwaliteit, setTempKwaliteit] = useState(0);
         setTempHartslag(72);
         setTempWater(0);
         setTempBedtijd('');
+        setTempSlaapUren('');
+setTempKwaliteit(0);
         console.log("No daily data for today!");
       }
       setLoading(false);
@@ -245,11 +249,9 @@ const welzijnScores = {
   voeding: (welzijnDoelen.water && dagelijkseData.water_intake !== undefined) 
     ? Math.min(Math.round((dagelijkseData.water_intake / welzijnDoelen.water) * 100), 100) 
     : 0,
-  slaap: (welzijnDoelen.slaap && dagelijkseData.slaap_uren !== undefined) 
-    ? Math.min(Math.round((dagelijkseData.slaap_uren / welzijnDoelen.slaap) * 100), 100) 
-    : 0,
+ slaap: getSlaapScore(),
   mentaal: getMentaalScore(dagelijkseData.humeur),
-  slaap: getSlaapScore(),
+  
 };
 
   const getGemiddeldeScore = () => {

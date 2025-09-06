@@ -49,16 +49,22 @@ const slaapHygieneItems = [
 const SlaapKwaliteitTracker = ({ kwaliteit, onKwaliteitChange }) => (
   <div className="mb-4">
     <label className="block text-slate-600 mb-2">Hoe voelde je slaap vannacht?</label>
-    <div className="flex justify-center gap-2">
+    <div className="flex justify-center gap-1">
       {[1, 2, 3, 4, 5].map(ster => (
         <button
           key={ster}
           onClick={() => onKwaliteitChange(ster)}
-          className={`text-3xl transition-all ${
-            ster <= kwaliteit ? 'text-yellow-400' : 'text-gray-300'
-          } hover:text-yellow-400`}
+          className={`text-4xl transition-all duration-200 hover:scale-110 ${
+            ster <= kwaliteit 
+              ? 'text-yellow-400 drop-shadow-lg' 
+              : 'text-gray-300 hover:text-yellow-300'
+          }`}
+          style={{
+            filter: ster <= kwaliteit ? 'brightness(1.2)' : 'brightness(0.7)',
+            textShadow: ster <= kwaliteit ? '0 0 8px rgba(251, 191, 36, 0.5)' : 'none'
+          }}
         >
-          ⭐
+          ★
         </button>
       ))}
     </div>
@@ -344,50 +350,128 @@ const SlaapDetail = () => {
                   Slaaptracker
                 </h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <div>
-                    <label className="block text-slate-600 mb-2">Bedtijd gisteren</label>
-                    <input
-                      type="time"
-                      value={bedtijd}
-                      onChange={(e) => setBedtijd(e.target.value)}
-                      className="w-full p-3 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-2">Opstaan vanmorgen</label>
-                    <input
-                      type="time"
-                      value={opstaan}
-                      onChange={(e) => setOpstaan(e.target.value)}
-                      className="w-full p-3 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
-                    />
-                  </div>
-                </div>
-
-                {slaapUren > 0 && (
-                  <div className="text-center mb-6 p-4 bg-purple-50 rounded-xl border border-purple-200">
-                    <div className="text-3xl font-bold text-purple-600">{slaapUren}u</div>
-                    <div className="text-sm text-purple-700">totale slaaptijd</div>
-                    <div className="text-xs text-purple-600 mt-1">
-                      {slaapUren >= 8 ? 'Uitstekend! 🌟' : 
-                       slaapUren >= 7 ? 'Goed 👍' : 
-                       slaapUren >= 6 ? 'Kan beter 💤' : 'Te weinig ⚠️'}
+                {/* Al ingevoerde data via snelle actie */}
+                {dagelijkseData.slaap_uren ? (
+                  <div className="mb-6 p-4 bg-purple-50 rounded-xl border border-purple-200">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-purple-600 mb-1">{dagelijkseData.slaap_uren}u</div>
+                      <div className="text-sm text-purple-700 mb-3">Al ingevoerd via snelle actie</div>
+                      
+                      {/* Toon kwaliteit sterren */}
+                      {dagelijkseData.slaap_kwaliteit && (
+                        <div className="flex justify-center gap-1 mb-3">
+                          {[1, 2, 3, 4, 5].map(ster => (
+                            <span key={ster} className={`text-lg ${ster <= (dagelijkseData.slaap_kwaliteit || 0) ? 'text-yellow-400' : 'text-gray-300'}`}>
+                              ★
+                            </span>
+                          ))}
+                          <span className="text-sm text-purple-600 ml-2">({dagelijkseData.slaap_kwaliteit}/5)</span>
+                        </div>
+                      )}
+                      
+                      <div className="text-xs text-purple-600 mt-1">
+                        {dagelijkseData.slaap_uren >= 8 ? 'Uitstekend! 🌟' : 
+                         dagelijkseData.slaap_uren >= 7 ? 'Goed 👍' : 
+                         dagelijkseData.slaap_uren >= 6 ? 'Kan beter 💤' : 'Te weinig ⚠️'}
+                      </div>
                     </div>
+                    
+                    <button 
+                      onClick={() => setShowEditSlaap(!showEditSlaap)}
+                      className="w-full mt-4 text-sm text-purple-600 hover:text-purple-800 font-medium"
+                    >
+                      {showEditSlaap ? 'Verberg uitgebreide opties' : 'Aanpassen of meer details toevoegen'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <p className="text-blue-700 text-sm text-center">
+                      Nog geen slaapdata voor vandaag. Vul hieronder in of gebruik de snelle actie op het hoofdscherm.
+                    </p>
                   </div>
                 )}
 
-                <SlaapKwaliteitTracker 
-                  kwaliteit={slaapKwaliteit} 
-                  onKwaliteitChange={setSlaapKwaliteit} 
-                />
+                {/* Uitgebreide tracking (toon als er nog geen data is, of als gebruiker wil bewerken) */}
+                <div className={dagelijkseData.slaap_uren && !showEditSlaap ? 'hidden' : ''}>
+                  
+                  {/* Directe uren invoer (alternatief voor bedtijd/opstaan) */}
+                  {!dagelijkseData.slaap_uren && (
+                    <div className="mb-6">
+                      <h3 className="font-semibold text-slate-700 mb-4">Snelle invoer</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-slate-600 mb-2">Aantal uur geslapen</label>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            max="12"
+                            value={slaapUren}
+                            onChange={(e) => setSlaapUren(e.target.value)}
+                            className="w-full p-3 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
+                            placeholder="8.5"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-600 mb-2">Kwaliteit</label>
+                          <SlaapKwaliteitTracker 
+                            kwaliteit={slaapKwaliteit} 
+                            onKwaliteitChange={setSlaapKwaliteit} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-                <button 
-                  onClick={handleSlaapSave}
-                  className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition-all duration-200 transform hover:scale-[1.02]"
-                >
-                  Slaapdata Opslaan
-                </button>
+                  {/* Gedetailleerde bedtijd/opstaan tracking */}
+                  <div className="mb-6">
+                    <h3 className="font-semibold text-slate-700 mb-4">
+                      {dagelijkseData.slaap_uren ? 'Precieze tijden (optioneel)' : 'Of vul precieze tijden in'}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-slate-600 mb-2">Bedtijd gisteren</label>
+                        <input
+                          type="time"
+                          value={bedtijd}
+                          onChange={(e) => setBedtijd(e.target.value)}
+                          className="w-full p-3 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-600 mb-2">Opstaan vanmorgen</label>
+                        <input
+                          type="time"
+                          value={opstaan}
+                          onChange={(e) => setOpstaan(e.target.value)}
+                          className="w-full p-3 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
+                        />
+                      </div>
+                    </div>
+                    
+                    {berekendeSlaapUren > 0 && (bedtijd && opstaan) && (
+                      <div className="text-center mt-4 p-3 bg-purple-50 rounded-xl border border-purple-200">
+                        <div className="text-2xl font-bold text-purple-600">{berekendeSlaapUren}u</div>
+                        <div className="text-sm text-purple-700">berekend uit tijden</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Kwaliteitsrating (alleen als nog niet ingevuld) */}
+                  {!dagelijkseData.slaap_kwaliteit && (
+                    <SlaapKwaliteitTracker 
+                      kwaliteit={slaapKwaliteit} 
+                      onKwaliteitChange={setSlaapKwaliteit} 
+                    />
+                  )}
+
+                  <button 
+                    onClick={handleSlaapSave}
+                    className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition-all duration-200 transform hover:scale-[1.02]"
+                  >
+                    Slaapdata Opslaan
+                  </button>
+                </div>
               </div>
 
               {/* Slaaphygiene Checklist */}
@@ -479,14 +563,7 @@ const SlaapDetail = () => {
           </div>
         </div>
 
-        {/* Debug info */}
-        <div className="mt-8 text-center">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4 inline-block">
-            <div className="text-sm text-slate-600">
-              Effective User ID: {effectiveUserId || 'N/A'} • Vandaag: {getTodayString()}
-            </div>
-          </div>
-        </div>
+       
       </div>
     </div>
   );
