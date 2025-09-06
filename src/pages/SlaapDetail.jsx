@@ -3,7 +3,7 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc, collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, SparklesIcon, LinkIcon, MoonIcon, SunIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, SparklesIcon, LinkIcon, MoonIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '../utils/formatters';
 
 // --- HULPFUNCTIES ---
@@ -183,12 +183,13 @@ const SlaapDetail = () => {
   const { profile } = useOutletContext();
   const effectiveUserId = getEffectiveUserId(profile);
   
-  // State variabelen
+  // State variabelen - ALLE BENODIGDE VARIABELEN GEDECLAREERD
   const [dagelijkseData, setDagelijkseData] = useState({});
   const [slaapGeschiedenis, setSlaapGeschiedenis] = useState([]);
   const [recenteNotities, setRecenteNotities] = useState([]);
   const [slaapNotitie, setSlaapNotitie] = useState('');
   const [actieveTip, setActieveTip] = useState(null);
+  const [showEditForm, setShowEditForm] = useState(false); // TOEGEVOEGD
   
   // Vereenvoudigde slaaptracking state - alleen uren en kwaliteit
   const [slaapUren, setSlaapUren] = useState('');
@@ -207,6 +208,8 @@ const SlaapDetail = () => {
         setSlaapUren(data.slaap_uren || '');
         setSlaapKwaliteit(data.slaap_kwaliteit || 0);
         setHygieneChecklist(data.slaap_hygiene || {});
+        // Reset edit form when data exists
+        setShowEditForm(false);
       }
     });
 
@@ -256,6 +259,7 @@ const SlaapDetail = () => {
         datum: getTodayString()
       }, { merge: true });
       toast.success('Slaapdata opgeslagen!');
+      setShowEditForm(false); // Hide form after saving
     } catch (error) {
       toast.error('Kon slaapdata niet opslaan.');
       console.error(error);
@@ -331,7 +335,7 @@ const SlaapDetail = () => {
                 </h2>
                 
                 {/* Al ingevoerde data tonen */}
-                {dagelijkseData.slaap_uren ? (
+                {dagelijkseData.slaap_uren && !showEditForm ? (
                   <div className="mb-6 p-6 bg-purple-50 rounded-xl border border-purple-200">
                     <div className="text-center">
                       <div className="text-4xl font-bold text-purple-600 mb-2">{dagelijkseData.slaap_uren}u</div>
@@ -357,10 +361,7 @@ const SlaapDetail = () => {
                     </div>
                     
                     <button 
-                      onClick={() => {
-                        setSlaapUren(dagelijkseData.slaap_uren || '');
-                        setSlaapKwaliteit(dagelijkseData.slaap_kwaliteit || 0);
-                      }}
+                      onClick={() => setShowEditForm(true)}
                       className="w-full mt-4 text-sm text-purple-600 hover:text-purple-800 font-medium border border-purple-200 rounded-lg py-2 hover:bg-purple-50 transition-colors"
                     >
                       Aanpassen
