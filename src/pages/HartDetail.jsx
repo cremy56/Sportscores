@@ -39,7 +39,54 @@ const getHartslagAdvies = (hartslag) => {
   if (hartslag <= 150) return { status: 'Verhoogd', emoji: '🟠', advies: 'Ben je net actief geweest of gestrest?' };
   return { status: 'Erg hoog', emoji: '🔴', advies: 'Dit is hoog voor rustpols. Rust even uit.' };
 };
+// Voeg deze functie toe na getHartslagAdvies en voor de HARTSLAG GRAFIEK sectie:
 
+// --- HARTSLAG FEEDBACK SYSTEEM ---
+const getHartslagVariatieAdvies = (huidigeHartslag, geschiedenisData) => {
+  if (!huidigeHartslag || geschiedenisData.length < 2) return null;
+  
+  const recenteMetingen = geschiedenisData.slice(-7).filter(d => d.hartslag_rust);
+  if (recenteMetingen.length < 2) return null;
+  
+  const gemiddelde = recenteMetingen.reduce((sum, d) => sum + d.hartslag_rust, 0) / recenteMetingen.length;
+  const verschil = huidigeHartslag - gemiddelde;
+  const absVerschil = Math.abs(verschil);
+  
+  if (absVerschil <= 5) return {
+    type: 'stabiel',
+    message: 'Je hartslag is stabiel. Dit is een goed teken!',
+    emoji: '💚',
+    advies: 'Consistent patroon wijst op een gezond autonoom zenuwstelsel.'
+  };
+  
+  if (verschil > 5 && verschil <= 15) return {
+    type: 'verhoogd',
+    message: `Je hartslag is ${Math.round(verschil)} BPM hoger dan gemiddeld`,
+    emoji: '🟡',
+    advies: 'Mogelijke oorzaken: stress, slechte slaap, cafeïne, ziekte of recent sporten.'
+  };
+  
+  if (verschil > 15) return {
+    type: 'sterk_verhoogd',
+    message: `Je hartslag is ${Math.round(verschil)} BPM veel hoger dan normaal`,
+    emoji: '🔴',
+    advies: 'Dit kan wijzen op stress, infectie, of overtraining. Rust uit en let goed op je lichaam.'
+  };
+  
+  if (verschil < -5 && verschil >= -10) return {
+    type: 'verlaagd',
+    message: `Je hartslag is ${Math.round(Math.abs(verschil))} BPM lager dan gemiddeld`,
+    emoji: '💙',
+    advies: 'Dit kan betekenen dat je conditie verbetert of dat je goed uitgerust bent!'
+  };
+  
+  if (verschil < -10) return {
+    type: 'sterk_verlaagd',
+    message: `Je hartslag is ${Math.round(Math.abs(verschil))} BPM veel lager`,
+    emoji: '🟣',
+    advies: 'Mogelijk verbeterde conditie, maar bij grote veranderingen: check met huisarts.'
+  };
+};
 // --- HARTSLAG GRAFIEK ---
 const HartslagGrafiek = ({ data }) => {
   const chartData = data.map(item => ({
@@ -444,6 +491,8 @@ const HartDetail = () => {
 
   const hartslagAdvies = rustpols ? getHartslagAdvies(parseInt(rustpols)) : null;
 
+
+  
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
