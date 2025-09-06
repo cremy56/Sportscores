@@ -433,16 +433,7 @@ const welzijnScores = {
             </div>
           </div>
 
-          {/* DEBUG INFO - kan je later verwijderen */}
-          <div className="max-w-2xl mx-auto bg-gray-100 p-4 rounded-lg text-sm">
-            <p><strong>Debug Info:</strong></p>
-            <p>Profile UID: {profile?.uid || 'N/A'}</p>
-            <p>Datum: {getTodayString()}</p>
-            <p>Stappen: {dagelijkseData.stappen}</p>
-            <p>Hartslag: {dagelijkseData.hartslag_rust}</p>
-            <p>Doel stappen: {welzijnDoelen.stappen}</p>
-            <p>Beweging %: {welzijnScores.beweging}%</p>
-          </div>
+    
         </div>
       </div>
       

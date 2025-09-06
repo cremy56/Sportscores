@@ -206,11 +206,13 @@ const SlaapDetail = () => {
   const [recenteNotities, setRecenteNotities] = useState([]);
   const [slaapNotitie, setSlaapNotitie] = useState('');
   const [actieveTip, setActieveTip] = useState(null);
+  const [showEditSlaap, setShowEditSlaap] = useState(false);
   
   // Slaaptracking state
   const [bedtijd, setBedtijd] = useState('');
   const [opstaan, setOpstaan] = useState('');
   const [slaapKwaliteit, setSlaapKwaliteit] = useState(0);
+  const [slaapUren, setSlaapUren] = useState('');
   const [hygieneChecklist, setHygieneChecklist] = useState({});
 
   useEffect(() => {
@@ -225,6 +227,7 @@ const SlaapDetail = () => {
         setBedtijd(data.bedtijd || '');
         setOpstaan(data.opstaan || '');
         setSlaapKwaliteit(data.slaap_kwaliteit || 0);
+        setSlaapUren(data.slaap_uren || '');
         setHygieneChecklist(data.slaap_hygiene || {});
       }
     });
@@ -260,25 +263,26 @@ const SlaapDetail = () => {
   }, [effectiveUserId]);
 
   const handleSlaapSave = async () => {
-    if (!effectiveUserId) return;
-    
-    const slaapUren = calculateSleepHours(bedtijd, opstaan);
-    const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
-    
-    try {
-      await setDoc(todayDocRef, { 
-        bedtijd,
-        opstaan,
-        slaap_uren: slaapUren,
-        slaap_kwaliteit: slaapKwaliteit,
-        slaap_hygiene: hygieneChecklist
-      }, { merge: true });
-      toast.success('Slaapdata opgeslagen!');
-    } catch (error) {
-      toast.error('Kon slaapdata niet opslaan.');
-      console.error(error);
-    }
-  };
+  if (!effectiveUserId) return;
+  
+  // Gebruik directe input of berekende uren
+  const finalSlaapUren = slaapUren || calculateSleepHours(bedtijd, opstaan);
+  const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
+  
+  try {
+    await setDoc(todayDocRef, { 
+      bedtijd,
+      opstaan,
+      slaap_uren: finalSlaapUren,
+      slaap_kwaliteit: slaapKwaliteit,
+      slaap_hygiene: hygieneChecklist
+    }, { merge: true });
+    toast.success('Slaapdata opgeslagen!');
+  } catch (error) {
+    toast.error('Kon slaapdata niet opslaan.');
+    console.error(error);
+  }
+};
 
   const handleHygieneChange = (id, checked) => {
     const newChecklist = { ...hygieneChecklist, [id]: checked };
@@ -302,7 +306,7 @@ const SlaapDetail = () => {
     }
   };
 
-  const slaapUren = calculateSleepHours(bedtijd, opstaan);
+  
 
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
@@ -449,12 +453,12 @@ const SlaapDetail = () => {
                       </div>
                     </div>
                     
-                    {berekendeSlaapUren > 0 && (bedtijd && opstaan) && (
-                      <div className="text-center mt-4 p-3 bg-purple-50 rounded-xl border border-purple-200">
-                        <div className="text-2xl font-bold text-purple-600">{berekendeSlaapUren}u</div>
-                        <div className="text-sm text-purple-700">berekend uit tijden</div>
-                      </div>
-                    )}
+                    {slaapUren > 0 && (bedtijd && opstaan) && (
+                        <div className="text-center mt-4 p-3 bg-purple-50 rounded-xl border border-purple-200">
+                            <div className="text-2xl font-bold text-purple-600">{calculateSleepHours(bedtijd, opstaan)}u</div>
+                            <div className="text-sm text-purple-700">berekend uit tijden</div>
+                        </div>
+                        )}
                   </div>
 
                   {/* Kwaliteitsrating (alleen als nog niet ingevuld) */}
