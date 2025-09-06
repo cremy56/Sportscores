@@ -735,13 +735,13 @@ const HartDetail = () => {
             {/* Rechter kolom - 1/3 breedte */}
             <div className="space-y-6">
               
-              /* Conditie Test */
+              {/* Conditie Test */}
               <ConditieTest onComplete={handleConditieTest} />
               
-              /* Factoren die hartslag beïnvloeden */
+              {/* Factoren die hartslag beïnvloeden */}
               <HartslagFactoren />
               
-              /* Hartslag Zones */
+              {/* Hartslag Zones*/}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                 <h2 className="text-xl font-bold text-slate-800 mb-4">Trainingszones</h2>
                 <p className="text-sm text-slate-600 mb-4">Voor 16-jarigen (past zich aan per leeftijd):</p>
@@ -761,10 +761,10 @@ const HartDetail = () => {
                 </div>
               </div>
               
-              /* Educatie */
+              {/* Educatie */}
               <HartslagEducatie />
               
-              /* Bronnen */
+              {/* Bronnen */}
               <HartslagBronnen />
             </div>
           </div>
