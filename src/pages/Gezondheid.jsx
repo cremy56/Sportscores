@@ -126,10 +126,14 @@ const MijnGezondheid = () => {
       setShowWaterModal(true);
     }
     if (segment === 'Slaap') {
-      setTempSlaapUren(dagelijkseData.slaap_uren || '');
-      setTempKwaliteit(dagelijkseData.slaap_kwaliteit || 0);
-      setShowSlaapModal(true);
-    }
+  setTempSlaapUren(String(dagelijkseData.slaap_uren || ''));
+  setTempKwaliteit(Number(dagelijkseData.slaap_kwaliteit) || 0); // Zorg dat dit een nummer is
+  console.log('Slaap modal openen, waarden:', { 
+    uren: dagelijkseData.slaap_uren, 
+    kwaliteit: dagelijkseData.slaap_kwaliteit 
+  });
+  setShowSlaapModal(true);
+}
   };
 
   // Functie voor klikken op TEGEL (navigeert naar DETAILPAGINA)
@@ -571,18 +575,21 @@ const getHartslagScore = () => {
         </div>
       )}
 
-     {showSlaapModal && (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+{showSlaapModal && (
+  <div 
+    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+    style={{ zIndex: 9999 }} // Verhoog z-index
+  >
+    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl relative" style={{ zIndex: 10000 }}>
       <div className="text-center mb-6">
         <div className="text-4xl mb-4">😴</div>
         <h3 className="text-xl font-bold text-gray-800 mb-2">Hoe sliep je vannacht?</h3>
         <p className="text-gray-600">Aantal uren en kwaliteit</p>
       </div>
       
-      <div className="space-y-4 mb-6">
+      <div className="space-y-6 mb-6">
         <div>
-          <label className="block text-slate-600 mb-2">Aantal uur geslapen</label>
+          <label className="block text-slate-600 mb-2 font-medium">Aantal uur geslapen</label>
           <input 
             type="number" 
             step="0.5"
@@ -596,27 +603,87 @@ const getHartslagScore = () => {
         </div>
         
         <div>
-          <label className="block text-slate-600 mb-2">Kwaliteit</label>
-          <div className="flex justify-center gap-1">
-            {[1, 2, 3, 4, 5].map(ster => (
-              <button
-                key={ster}
-                type="button"
-                onClick={() => {
-                  console.log('Ster geklikt:', ster); // Debug log
-                  setTempKwaliteit(Number(ster));
+          <label className="block text-slate-600 mb-3 font-medium">Slaapkwaliteit</label>
+          
+          {/* Debug info */}
+          <div className="text-xs text-gray-400 mb-2 text-center">
+            Debug: tempKwaliteit = {String(tempKwaliteit)} (type: {typeof tempKwaliteit})
+          </div>
+          
+          {/* Sterren met betere spacing en grotere klikgebieden */}
+          <div className="flex justify-center gap-3 mb-4">
+            {[1, 2, 3, 4, 5].map(sterWaarde => (
+              <div
+                key={sterWaarde}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Ster geklikt:', sterWaarde, 'Huidige waarde:', tempKwaliteit);
+                  setTempKwaliteit(sterWaarde);
                 }}
-                className={`text-3xl transition-all hover:scale-110 ${
-                  ster <= Number(tempKwaliteit) ? 'text-yellow-400' : 'text-gray-300'
-                } hover:text-yellow-400`}
-                style={{ cursor: 'pointer' }}
+                onMouseDown={(e) => {
+                  console.log('MouseDown op ster:', sterWaarde);
+                }}
+                className="cursor-pointer select-none"
+                style={{ 
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                  MozUserSelect: 'none',
+                  msUserSelect: 'none',
+                  zIndex: 10001
+                }}
               >
-                ⭐
-              </button>
+                <div
+                  className={`text-4xl transition-all duration-200 hover:scale-125 active:scale-110 ${
+                    sterWaarde <= (tempKwaliteit || 0) 
+                      ? 'text-yellow-400 drop-shadow-lg' 
+                      : 'text-gray-300'
+                  }`}
+                  style={{ 
+                    filter: sterWaarde <= (tempKwaliteit || 0) ? 'drop-shadow(0 0 8px rgba(255, 193, 7, 0.6))' : 'none',
+                    padding: '8px',
+                    minWidth: '48px',
+                    minHeight: '48px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  ⭐
+                </div>
+              </div>
             ))}
           </div>
-          <div className="text-center mt-2 text-sm text-gray-500">
-            Geselecteerd: {tempKwaliteit || 0} ster{Number(tempKwaliteit) !== 1 ? 'ren' : ''}
+          
+          {/* Alternative buttons voor als de sterren niet werken */}
+          <div className="text-center mb-4">
+            <p className="text-xs text-gray-500 mb-2">Of gebruik deze knoppen:</p>
+            <div className="flex justify-center gap-2">
+              {[1, 2, 3, 4, 5].map(waarde => (
+                <button
+                  key={`btn-${waarde}`}
+                  type="button"
+                  onClick={() => {
+                    console.log('Button ster geklikt:', waarde);
+                    setTempKwaliteit(waarde);
+                  }}
+                  className={`w-8 h-8 rounded-full text-sm font-bold transition-colors ${
+                    waarde <= (tempKwaliteit || 0)
+                      ? 'bg-yellow-400 text-white'
+                      : 'bg-gray-200 text-gray-600'
+                  } hover:bg-yellow-300`}
+                >
+                  {waarde}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="text-center text-sm">
+            <span className="text-purple-600 font-medium">
+              Geselecteerd: {tempKwaliteit || 0} van 5 sterren
+            </span>
           </div>
         </div>
       </div>
@@ -629,13 +696,21 @@ const getHartslagScore = () => {
       
       <div className="flex gap-3">
         <button 
-          onClick={() => setShowSlaapModal(false)} 
+          type="button"
+          onClick={() => {
+            console.log('Slaap modal sluiten');
+            setShowSlaapModal(false);
+          }} 
           className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
         >
           Annuleren
         </button>
         <button 
-          onClick={handleSlaapSave} 
+          type="button"
+          onClick={() => {
+            console.log('Slaap opslaan, waarden:', { tempSlaapUren, tempKwaliteit });
+            handleSlaapSave();
+          }} 
           className="flex-1 py-3 px-4 bg-purple-500 text-white rounded-xl font-medium hover:bg-purple-600 transition-colors"
         >
           Opslaan
