@@ -19,23 +19,6 @@ const getEffectiveUserId = (profile) => {
   return profile?.uid || profile?.id;
 };
 
-const calculateSleepHours = (bedtime, wakeup) => {
-  if (!bedtime || !wakeup) return 0;
-  
-  const [bedHour, bedMin] = bedtime.split(':').map(Number);
-  const [wakeHour, wakeMin] = wakeup.split(':').map(Number);
-  
-  let bedMinutes = bedHour * 60 + bedMin;
-  let wakeMinutes = wakeHour * 60 + wakeMin;
-  
-  // Als wakker worden voor bedtijd is, is het de volgende dag
-  if (wakeMinutes <= bedMinutes) {
-    wakeMinutes += 24 * 60;
-  }
-  
-  return Math.round((wakeMinutes - bedMinutes) / 60 * 10) / 10;
-};
-
 // --- SLAAPHYGIENE CHECKLIST ---
 const slaapHygieneItems = [
   { id: 'screens', tekst: 'Schermen uit 1 uur voor bedtijd', emoji: '📱' },
@@ -64,7 +47,7 @@ const SlaapKwaliteitTracker = ({ kwaliteit, onKwaliteitChange }) => (
             textShadow: ster <= kwaliteit ? '0 0 8px rgba(251, 191, 36, 0.5)' : 'none'
           }}
         >
-          ★
+          ⭐
         </button>
       ))}
     </div>
@@ -206,13 +189,10 @@ const SlaapDetail = () => {
   const [recenteNotities, setRecenteNotities] = useState([]);
   const [slaapNotitie, setSlaapNotitie] = useState('');
   const [actieveTip, setActieveTip] = useState(null);
-  const [showEditSlaap, setShowEditSlaap] = useState(false);
   
-  // Slaaptracking state
-  const [bedtijd, setBedtijd] = useState('');
-  const [opstaan, setOpstaan] = useState('');
-  const [slaapKwaliteit, setSlaapKwaliteit] = useState(0);
+  // Vereenvoudigde slaaptracking state - alleen uren en kwaliteit
   const [slaapUren, setSlaapUren] = useState('');
+  const [slaapKwaliteit, setSlaapKwaliteit] = useState(0);
   const [hygieneChecklist, setHygieneChecklist] = useState({});
 
   useEffect(() => {
@@ -224,10 +204,8 @@ const SlaapDetail = () => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setDagelijkseData(data);
-        setBedtijd(data.bedtijd || '');
-        setOpstaan(data.opstaan || '');
-        setSlaapKwaliteit(data.slaap_kwaliteit || 0);
         setSlaapUren(data.slaap_uren || '');
+        setSlaapKwaliteit(data.slaap_kwaliteit || 0);
         setHygieneChecklist(data.slaap_hygiene || {});
       }
     });
@@ -248,7 +226,7 @@ const SlaapDetail = () => {
       const querySnapshot = await getDocs(q);
       const history = querySnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(day => day.bedtijd && day.opstaan)
+        .filter(day => day.slaap_uren)
         .sort((a, b) => new Date(a.id) - new Date(b.id))
         .slice(-7); // Laatste 7 dagen
       setSlaapGeschiedenis(history);
@@ -263,26 +241,26 @@ const SlaapDetail = () => {
   }, [effectiveUserId]);
 
   const handleSlaapSave = async () => {
-  if (!effectiveUserId) return;
-  
-  // Gebruik directe input of berekende uren
-  const finalSlaapUren = slaapUren || calculateSleepHours(bedtijd, opstaan);
-  const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
-  
-  try {
-    await setDoc(todayDocRef, { 
-      bedtijd,
-      opstaan,
-      slaap_uren: finalSlaapUren,
-      slaap_kwaliteit: slaapKwaliteit,
-      slaap_hygiene: hygieneChecklist
-    }, { merge: true });
-    toast.success('Slaapdata opgeslagen!');
-  } catch (error) {
-    toast.error('Kon slaapdata niet opslaan.');
-    console.error(error);
-  }
-};
+    if (!effectiveUserId || !slaapUren) {
+      toast.error('Vul het aantal uur slaap in.');
+      return;
+    }
+    
+    const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
+    
+    try {
+      await setDoc(todayDocRef, { 
+        slaap_uren: parseFloat(slaapUren),
+        slaap_kwaliteit: slaapKwaliteit,
+        slaap_hygiene: hygieneChecklist,
+        datum: getTodayString()
+      }, { merge: true });
+      toast.success('Slaapdata opgeslagen!');
+    } catch (error) {
+      toast.error('Kon slaapdata niet opslaan.');
+      console.error(error);
+    }
+  };
 
   const handleHygieneChange = (id, checked) => {
     const newChecklist = { ...hygieneChecklist, [id]: checked };
@@ -305,8 +283,6 @@ const SlaapDetail = () => {
       console.error(error);
     }
   };
-
-  
 
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
@@ -347,33 +323,33 @@ const SlaapDetail = () => {
             {/* Linker kolom - 2/3 breedte */}
             <div className="lg:col-span-2 space-y-6">
               
-              {/* Slaaptracker */}
+              {/* Slaaptracker - Vereenvoudigd */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
                 <h2 className="text-xl lg:text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                   <MoonIcon className="w-6 h-6 text-purple-500" />
                   Slaaptracker
                 </h2>
                 
-                {/* Al ingevoerde data via snelle actie */}
+                {/* Al ingevoerde data tonen */}
                 {dagelijkseData.slaap_uren ? (
-                  <div className="mb-6 p-4 bg-purple-50 rounded-xl border border-purple-200">
+                  <div className="mb-6 p-6 bg-purple-50 rounded-xl border border-purple-200">
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-purple-600 mb-1">{dagelijkseData.slaap_uren}u</div>
-                      <div className="text-sm text-purple-700 mb-3">Al ingevoerd via snelle actie</div>
+                      <div className="text-4xl font-bold text-purple-600 mb-2">{dagelijkseData.slaap_uren}u</div>
+                      <div className="text-sm text-purple-700 mb-4">Vandaag ingevoerd</div>
                       
                       {/* Toon kwaliteit sterren */}
                       {dagelijkseData.slaap_kwaliteit && (
-                        <div className="flex justify-center gap-1 mb-3">
+                        <div className="flex justify-center gap-1 mb-4">
                           {[1, 2, 3, 4, 5].map(ster => (
-                            <span key={ster} className={`text-lg ${ster <= (dagelijkseData.slaap_kwaliteit || 0) ? 'text-yellow-400' : 'text-gray-300'}`}>
-                              ★
+                            <span key={ster} className={`text-2xl ${ster <= (dagelijkseData.slaap_kwaliteit || 0) ? 'text-yellow-400' : 'text-gray-300'}`}>
+                              ⭐
                             </span>
                           ))}
                           <span className="text-sm text-purple-600 ml-2">({dagelijkseData.slaap_kwaliteit}/5)</span>
                         </div>
                       )}
                       
-                      <div className="text-xs text-purple-600 mt-1">
+                      <div className="text-sm font-medium text-purple-600 mt-2">
                         {dagelijkseData.slaap_uren >= 8 ? 'Uitstekend! 🌟' : 
                          dagelijkseData.slaap_uren >= 7 ? 'Goed 👍' : 
                          dagelijkseData.slaap_uren >= 6 ? 'Kan beter 💤' : 'Te weinig ⚠️'}
@@ -381,97 +357,58 @@ const SlaapDetail = () => {
                     </div>
                     
                     <button 
-                      onClick={() => setShowEditSlaap(!showEditSlaap)}
-                      className="w-full mt-4 text-sm text-purple-600 hover:text-purple-800 font-medium"
+                      onClick={() => {
+                        setSlaapUren(dagelijkseData.slaap_uren || '');
+                        setSlaapKwaliteit(dagelijkseData.slaap_kwaliteit || 0);
+                      }}
+                      className="w-full mt-4 text-sm text-purple-600 hover:text-purple-800 font-medium border border-purple-200 rounded-lg py-2 hover:bg-purple-50 transition-colors"
                     >
-                      {showEditSlaap ? 'Verberg uitgebreide opties' : 'Aanpassen of meer details toevoegen'}
+                      Aanpassen
                     </button>
                   </div>
                 ) : (
-                  <div className="mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
                     <p className="text-blue-700 text-sm text-center">
-                      Nog geen slaapdata voor vandaag. Vul hieronder in of gebruik de snelle actie op het hoofdscherm.
+                      Nog geen slaapdata voor vandaag. Vul hieronder in!
                     </p>
                   </div>
                 )}
 
-                {/* Uitgebreide tracking (toon als er nog geen data is, of als gebruiker wil bewerken) */}
-                <div className={dagelijkseData.slaap_uren && !showEditSlaap ? 'hidden' : ''}>
-                  
-                  {/* Directe uren invoer (alternatief voor bedtijd/opstaan) */}
-                  {!dagelijkseData.slaap_uren && (
-                    <div className="mb-6">
-                      <h3 className="font-semibold text-slate-700 mb-4">Snelle invoer</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-slate-600 mb-2">Aantal uur geslapen</label>
-                          <input
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            max="12"
-                            value={slaapUren}
-                            onChange={(e) => setSlaapUren(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
-                            placeholder="8.5"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-slate-600 mb-2">Kwaliteit</label>
-                          <SlaapKwaliteitTracker 
-                            kwaliteit={slaapKwaliteit} 
-                            onKwaliteitChange={setSlaapKwaliteit} 
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Gedetailleerde bedtijd/opstaan tracking */}
-                  <div className="mb-6">
-                    <h3 className="font-semibold text-slate-700 mb-4">
-                      {dagelijkseData.slaap_uren ? 'Precieze tijden (optioneel)' : 'Of vul precieze tijden in'}
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-slate-600 mb-2">Bedtijd gisteren</label>
-                        <input
-                          type="time"
-                          value={bedtijd}
-                          onChange={(e) => setBedtijd(e.target.value)}
-                          className="w-full p-3 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-slate-600 mb-2">Opstaan vanmorgen</label>
-                        <input
-                          type="time"
-                          value={opstaan}
-                          onChange={(e) => setOpstaan(e.target.value)}
-                          className="w-full p-3 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
-                        />
-                      </div>
-                    </div>
+                {/* Slaap invoer formulier */}
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     
-                    {slaapUren > 0 && (bedtijd && opstaan) && (
-                        <div className="text-center mt-4 p-3 bg-purple-50 rounded-xl border border-purple-200">
-                            <div className="text-2xl font-bold text-purple-600">{calculateSleepHours(bedtijd, opstaan)}u</div>
-                            <div className="text-sm text-purple-700">berekend uit tijden</div>
-                        </div>
-                        )}
+                    {/* Aantal uur slaap */}
+                    <div>
+                      <label className="block text-slate-600 mb-2 font-medium">Hoeveel uur heb je geslapen?</label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        max="12"
+                        value={slaapUren}
+                        onChange={(e) => setSlaapUren(e.target.value)}
+                        className="w-full p-4 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500 text-lg"
+                        placeholder="8.5"
+                      />
+                      <div className="text-xs text-slate-500 mt-1">Gebruik halve uren (7.5, 8.5, etc.)</div>
+                    </div>
+
+                    {/* Slaapkwaliteit */}
+                    <div>
+                      <label className="block text-slate-600 mb-2 font-medium">Hoe was je slaapkwaliteit?</label>
+                      <SlaapKwaliteitTracker 
+                        kwaliteit={slaapKwaliteit} 
+                        onKwaliteitChange={setSlaapKwaliteit} 
+                      />
+                    </div>
                   </div>
 
-                  {/* Kwaliteitsrating (alleen als nog niet ingevuld) */}
-                  {!dagelijkseData.slaap_kwaliteit && (
-                    <SlaapKwaliteitTracker 
-                      kwaliteit={slaapKwaliteit} 
-                      onKwaliteitChange={setSlaapKwaliteit} 
-                    />
-                  )}
-
+                  {/* Opslaan knop */}
                   <button 
                     onClick={handleSlaapSave}
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold py-3 rounded-xl hover:from-purple-700 hover:to-purple-600 transition-all duration-200 transform hover:scale-[1.02]"
+                    disabled={!slaapUren}
+                    className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold py-4 rounded-xl hover:from-purple-700 hover:to-purple-600 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     Slaapdata Opslaan
                   </button>
@@ -485,26 +422,26 @@ const SlaapDetail = () => {
                 
                 <div className="space-y-4">
                   {slaapHygieneItems.map(item => (
-                    <label key={item.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                    <label key={item.id} className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
                       <input
                         type="checkbox"
                         checked={hygieneChecklist[item.id] || false}
                         onChange={(e) => handleHygieneChange(item.id, e.target.checked)}
                         className="w-5 h-5 text-purple-600 border-slate-300 rounded focus:ring-purple-500"
                       />
-                      <span className="text-xl">{item.emoji}</span>
-                      <span className="text-slate-700">{item.tekst}</span>
+                      <span className="text-2xl">{item.emoji}</span>
+                      <span className="text-slate-700 font-medium">{item.tekst}</span>
                     </label>
                   ))}
                 </div>
 
                 <div className="mt-6 text-center">
-                  <div className="text-sm text-slate-600">
+                  <div className="text-sm text-slate-600 mb-2">
                     {Object.values(hygieneChecklist).filter(Boolean).length} van {slaapHygieneItems.length} afgevinkt
                   </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2 mt-2">
+                  <div className="w-full bg-slate-200 rounded-full h-3">
                     <div 
-                      className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                      className="bg-purple-500 h-3 rounded-full transition-all duration-300"
                       style={{ width: `${(Object.values(hygieneChecklist).filter(Boolean).length / slaapHygieneItems.length) * 100}%` }}
                     />
                   </div>
@@ -516,15 +453,15 @@ const SlaapDetail = () => {
                 <h2 className="text-xl lg:text-2xl font-bold text-slate-800 mb-6">Slaapjournal</h2>
                 <form onSubmit={handleNotitieSave} className="space-y-4">
                   <div>
-                    <label htmlFor="slaap-note" className="block text-slate-600 mb-2">
+                    <label htmlFor="slaap-note" className="block text-slate-600 mb-2 font-medium">
                       Hoe sliep je? Wat viel op?
                     </label>
                     <textarea 
                       id="slaap-note"
-                      rows="3"
+                      rows="4"
                       value={slaapNotitie}
                       onChange={(e) => setSlaapNotitie(e.target.value)}
-                      className="w-full p-3 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
+                      className="w-full p-4 border border-slate-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
                       placeholder="bv. Moeilijk ingeslapen door stress, wel diep geslapen..."
                     />
                   </div>
@@ -541,7 +478,7 @@ const SlaapDetail = () => {
                     <h3 className="font-semibold text-slate-700 mb-3">Recente notities:</h3>
                     <div className="space-y-3">
                       {recenteNotities.map(note => (
-                        <div key={note.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <div key={note.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                           <div className="text-xs text-slate-500 mb-1">{formatDate(note.datum)}</div>
                           <div className="text-sm text-slate-700">{note.tekst}</div>
                         </div>
@@ -566,8 +503,6 @@ const SlaapDetail = () => {
             </div>
           </div>
         </div>
-
-       
       </div>
     </div>
   );
