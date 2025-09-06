@@ -35,38 +35,74 @@ const voedingsGroepen = [
   { naam: 'Zuivel', kleur: 'bg-blue-100 text-blue-700', doel: '2-3 porties per dag' },
   { naam: 'Water', kleur: 'bg-cyan-100 text-cyan-700', doel: '1.5-2 liter per dag' }
 ];
+// --- VOEDINGSMIDDELEN DATABASE ---
 const voedingsmiddelen = [
   // Fruit
   { naam: 'Appel', categorie: 'Fruit', emoji: '🍎', voedingswaarde: 'Rijk aan vezels en vitamine C' },
   { naam: 'Banaan', categorie: 'Fruit', emoji: '🍌', voedingswaarde: 'Goede bron van kalium en energie' },
   { naam: 'Sinaasappel', categorie: 'Fruit', emoji: '🍊', voedingswaarde: 'Hoge vitamine C inhoud' },
   { naam: 'Druiven', categorie: 'Fruit', emoji: '🍇', voedingswaarde: 'Antioxidanten en natuurlijke suikers' },
+  { naam: 'Aardbei', categorie: 'Fruit', emoji: '🍓', voedingswaarde: 'Vitamine C en foliumzuur' },
+  { naam: 'Kiwi', categorie: 'Fruit', emoji: '🥝', voedingswaarde: 'Zeer rijk aan vitamine C' },
+  { naam: 'Ananas', categorie: 'Fruit', emoji: '🍍', voedingswaarde: 'Bromelaine enzym en vitamine C' },
+  { naam: 'Mango', categorie: 'Fruit', emoji: '🥭', voedingswaarde: 'Vitamine A en C' },
+  { naam: 'Peer', categorie: 'Fruit', emoji: '🍐', voedingswaarde: 'Vezels en kalium' },
+  { naam: 'Perzik', categorie: 'Fruit', emoji: '🍑', voedingswaarde: 'Vitamine A en C' },
   
   // Groenten
   { naam: 'Wortel', categorie: 'Groenten', emoji: '🥕', voedingswaarde: 'Rijk aan bètacaroteen' },
   { naam: 'Broccoli', categorie: 'Groenten', emoji: '🥦', voedingswaarde: 'Hoge foliumzuur en vitamine K' },
   { naam: 'Tomaat', categorie: 'Groenten', emoji: '🍅', voedingswaarde: 'Lycopeen en vitamine C' },
   { naam: 'Komkommer', categorie: 'Groenten', emoji: '🥒', voedingswaarde: 'Veel water en weinig calorieën' },
+  { naam: 'Paprika', categorie: 'Groenten', emoji: '🫑', voedingswaarde: 'Vitamine C en antioxidanten' },
+  { naam: 'Spinazie', categorie: 'Groenten', emoji: '🥬', voedingswaarde: 'IJzer en foliumzuur' },
+  { naam: 'Sla', categorie: 'Groenten', emoji: '🥗', voedingswaarde: 'Laag in calorieën, hoog in water' },
+  { naam: 'Ui', categorie: 'Groenten', emoji: '🧅', voedingswaarde: 'Prebiotica en flavonoïden' },
+  { naam: 'Courgette', categorie: 'Groenten', emoji: '🥒', voedingswaarde: 'Laag in calorieën, veel vitamines' },
+  { naam: 'Bloemkool', categorie: 'Groenten', emoji: '🥦', voedingswaarde: 'Vitamine C en vezels' },
   
   // Granen & Brood
   { naam: 'Volkoren brood', categorie: 'Granen', emoji: '🍞', voedingswaarde: 'Vezels en B-vitamines' },
   { naam: 'Havermout', categorie: 'Granen', emoji: '🥣', voedingswaarde: 'Langzame koolhydraten en vezels' },
   { naam: 'Bruine rijst', categorie: 'Granen', emoji: '🍚', voedingswaarde: 'Volkorengraan met mineralen' },
+  { naam: 'Quinoa', categorie: 'Granen', emoji: '🌾', voedingswaarde: 'Compleet eiwit en vezels' },
+  { naam: 'Volkoren pasta', categorie: 'Granen', emoji: '🍝', voedingswaarde: 'Complexe koolhydraten' },
+  { naam: 'Muesli', categorie: 'Granen', emoji: '🥣', voedingswaarde: 'Vezels en langzame energie' },
+  { naam: 'Volkoren crackers', categorie: 'Granen', emoji: '🍞', voedingswaarde: 'Vezels en B-vitamines' },
   
   // Eiwitten
   { naam: 'Kip', categorie: 'Eiwitten', emoji: '🍗', voedingswaarde: 'Magere eiwitbron' },
   { naam: 'Vis', categorie: 'Eiwitten', emoji: '🐟', voedingswaarde: 'Omega-3 vetzuren en eiwit' },
   { naam: 'Eieren', categorie: 'Eiwitten', emoji: '🥚', voedingswaarde: 'Compleet eiwit en choline' },
   { naam: 'Bonen', categorie: 'Eiwitten', emoji: '🫘', voedingswaarde: 'Plantaardig eiwit en vezels' },
+  { naam: 'Linzen', categorie: 'Eiwitten', emoji: '🌱', voedingswaarde: 'Plantaardig eiwit en ijzer' },
+  { naam: 'Kikkererwten', categorie: 'Eiwitten', emoji: '🫛', voedingswaarde: 'Eiwit en vezels' },
+  { naam: 'Tofu', categorie: 'Eiwitten', emoji: '🧈', voedingswaarde: 'Plantaardig eiwit en calcium' },
+  { naam: 'Zalm', categorie: 'Eiwitten', emoji: '🐟', voedingswaarde: 'Omega-3 en hoogwaardig eiwit' },
+  { naam: 'Tonijn', categorie: 'Eiwitten', emoji: '🐟', voedingswaarde: 'Mager eiwit en B-vitamines' },
   
   // Zuivel
   { naam: 'Melk', categorie: 'Zuivel', emoji: '🥛', voedingswaarde: 'Calcium en eiwit' },
   { naam: 'Yoghurt', categorie: 'Zuivel', emoji: '🥄', voedingswaarde: 'Probiotica en calcium' },
   { naam: 'Kaas', categorie: 'Zuivel', emoji: '🧀', voedingswaarde: 'Calcium en eiwit' },
+  { naam: 'Griekse yoghurt', categorie: 'Zuivel', emoji: '🥄', voedingswaarde: 'Hoog eiwit en probiotica' },
+  { naam: 'Kwark', categorie: 'Zuivel', emoji: '🥛', voedingswaarde: 'Zeer hoog eiwit, laag vet' },
+  { naam: 'Karnemelk', categorie: 'Zuivel', emoji: '🥛', voedingswaarde: 'Probiotica en calcium' },
   
-  // Gezonde snacks
+  // Gezonde snacks & vetten
   { naam: 'Noten', categorie: 'Snacks', emoji: '🥜', voedingswaarde: 'Gezonde vetten en eiwit' },
-  { naam: 'Donkere chocolade', categorie: 'Snacks', emoji: '🍫', voedingswaarde: 'Antioxidanten (in gematigde hoeveelheden)' }
+  { naam: 'Amandelen', categorie: 'Snacks', emoji: '🌰', voedingswaarde: 'Vitamine E en magnesium' },
+  { naam: 'Walnoten', categorie: 'Snacks', emoji: '🌰', voedingswaarde: 'Omega-3 vetzuren' },
+  { naam: 'Avocado', categorie: 'Snacks', emoji: '🥑', voedingswaarde: 'Gezonde vetten en vezels' },
+  { naam: 'Donkere chocolade', categorie: 'Snacks', emoji: '🍫', voedingswaarde: 'Antioxidanten (matig gebruik)' },
+  { naam: 'Hummus', categorie: 'Snacks', emoji: '🫒', voedingswaarde: 'Plantaardig eiwit en vezels' },
+  { naam: 'Olijven', categorie: 'Snacks', emoji: '🫒', voedingswaarde: 'Gezonde vetten' },
+  
+  // Dranken
+  { naam: 'Water', categorie: 'Dranken', emoji: '💧', voedingswaarde: 'Essentieel voor hydratatie' },
+  { naam: 'Groene thee', categorie: 'Dranken', emoji: '🍵', voedingswaarde: 'Antioxidanten en cafeïne' },
+  { naam: 'Koffie', categorie: 'Dranken', emoji: '☕', voedingswaarde: 'Antioxidanten en cafeïne' },
+  { naam: 'Verse jus', categorie: 'Dranken', emoji: '🧃', voedingswaarde: 'Vitamines (matig gebruik)' }
 ];
 // --- WATERTRACKER COMPONENT ---
 const WaterTracker = ({ waterIntake, onWaterUpdate }) => {
@@ -512,7 +548,7 @@ const handleAddVoeding = async (voedingsitem) => {
       {/* Categorie filter */}
       <div className="mb-4">
         <div className="flex flex-wrap gap-2">
-          {['Alle', 'Fruit', 'Groenten', 'Granen', 'Eiwitten', 'Zuivel', 'Snacks'].map(cat => (
+          {['Alle', 'Fruit', 'Groenten', 'Granen', 'Eiwitten', 'Zuivel', 'Snacks', 'Dranken'].map(cat => (
             <button
               key={cat}
               onClick={() => setSelectedCategorie(cat)}
