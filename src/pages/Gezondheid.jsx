@@ -190,12 +190,18 @@ const getMentaalScore = (humeur) => {
 };
 
   // Bereken de percentages voor de UI op basis van de live data
-  const welzijnScores = {
-    beweging: welzijnDoelen.stappen > 0 ? Math.min(Math.round((dagelijkseData.stappen / welzijnDoelen.stappen) * 100), 100) : 0,
-    voeding: welzijnDoelen.water > 0 ? Math.min(Math.round((dagelijkseData.water_intake / welzijnDoelen.water) * 100), 100) : 0, 
-    slaap: 0,   // Placeholder - kun je later vervangen door echte berekening
-    mentaal: getMentaalScore(dagelijkseData.humeur),
-  };
+const welzijnScores = {
+  beweging: (welzijnDoelen.stappen && dagelijkseData.stappen !== undefined) 
+    ? Math.min(Math.round((dagelijkseData.stappen / welzijnDoelen.stappen) * 100), 100) 
+    : 0,
+  voeding: (welzijnDoelen.water && dagelijkseData.water_intake !== undefined) 
+    ? Math.min(Math.round((dagelijkseData.water_intake / welzijnDoelen.water) * 100), 100) 
+    : 0,
+  slaap: (welzijnDoelen.slaap && dagelijkseData.slaap_uren !== undefined) 
+    ? Math.min(Math.round((dagelijkseData.slaap_uren / welzijnDoelen.slaap) * 100), 100) 
+    : 0,
+  mentaal: getMentaalScore(dagelijkseData.humeur),
+};
 
   const getGemiddeldeScore = () => {
     const totaal = welzijnScores.beweging + welzijnScores.voeding + welzijnScores.slaap + welzijnScores.mentaal;
