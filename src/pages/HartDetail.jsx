@@ -290,7 +290,70 @@ const HartDetail = () => {
         setShowEditForm(false);
       }
     });
+// Voeg deze component toe aan je HartDetail.jsx file, ergens tussen de andere component definities:
 
+const HartslagFactoren = () => (
+  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <h2 className="text-xl font-bold text-slate-800 mb-4">Wat beïnvloedt je hartslag?</h2>
+    <div className="space-y-4 text-sm">
+      <div className="p-4 bg-red-50 rounded-xl border border-red-200">
+        <h3 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
+          <span>😰</span> Stress & Emoties
+        </h3>
+        <p className="text-red-700 mb-2">Angst, spanning of emotionele stress verhogen je hartslag door adrenaline vrijgifte.</p>
+        <p className="text-xs text-red-600">Wetenschap: Sympathisch zenuwstelsel wordt geactiveerd bij stress.</p>
+      </div>
+      
+      <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
+        <h3 className="font-semibold text-purple-800 mb-2 flex items-center gap-2">
+          <span>💤</span> Slaapkwaliteit
+        </h3>
+        <p className="text-purple-700 mb-2">Slechte slaap verhoogt je rustpols de volgende dag met 2-7 BPM.</p>
+        <p className="text-xs text-purple-600">Wetenschap: Slaaptekort verstoort hart-ritme variabiliteit (HRV).</p>
+      </div>
+      
+      <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
+        <h3 className="font-semibold text-orange-800 mb-2 flex items-center gap-2">
+          <span>☕</span> Cafeïne
+        </h3>
+        <p className="text-orange-700 mb-2">1 kopje koffie kan hartslag 3-11 BPM verhogen voor 2-5 uur.</p>
+        <p className="text-xs text-orange-600">Wetenschap: Cafeïne blokkeert adenosine receptoren en verhoogt catecholamine.</p>
+      </div>
+      
+      <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+        <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+          <span>🏃</span> Recente Activiteit
+        </h3>
+        <p className="text-blue-700 mb-2">Na intensieve training kan rustpols 12-24u verhoogd blijven.</p>
+        <p className="text-xs text-blue-600">Wetenschap: Herstel van autonoom zenuwstelsel na sympathische activatie.</p>
+      </div>
+      
+      <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+        <h3 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
+          <span>🤒</span> Ziekte & Koorts
+        </h3>
+        <p className="text-green-700 mb-2">Elke graad koorts verhoogt hartslag met ~10 BPM.</p>
+        <p className="text-xs text-green-600">Wetenschap: Immuunrespons en verhoogd metabolisme beïnvloeden hartritme.</p>
+      </div>
+      
+      <div className="p-4 bg-cyan-50 rounded-xl border border-cyan-200">
+        <h3 className="font-semibold text-cyan-800 mb-2 flex items-center gap-2">
+          <span>🌡️</span> Temperatuur & Hydratatie
+        </h3>
+        <p className="text-cyan-700 mb-2">Hitte en dehydratatie verhogen hartslag om lichaam te koelen.</p>
+        <p className="text-xs text-cyan-600">Wetenschap: Thermoregulatie vereist cardiovasculaire aanpassingen.</p>
+      </div>
+      
+      <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200">
+        <h3 className="font-semibold text-indigo-800 mb-2 flex items-center gap-2">
+          <span>📱</span> Schermtijd & Blauw Licht
+        </h3>
+        <p className="text-indigo-700 mb-2">Excessieve schermtijd kan chronische stress en hogere rustpols veroorzaken.</p>
+        <p className="text-xs text-indigo-600">Wetenschap: Blauw licht verstoort circadiane ritme en stresshormonen.</p>
+      </div>
+    </div>
+  </div>
+);
     // Luister naar hartslagnotities
     const notitiesQuery = query(
       collection(db, `welzijn/${effectiveUserId}/hartslag_notities`),
