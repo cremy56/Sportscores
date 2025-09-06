@@ -571,71 +571,79 @@ const getHartslagScore = () => {
         </div>
       )}
 
-      {showSlaapModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <div className="text-center mb-6">
-              <div className="text-4xl mb-4">💤</div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Hoe sliep je vannacht?</h3>
-              <p className="text-gray-600">Aantal uren en kwaliteit</p>
-            </div>
-            
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-slate-600 mb-2">Aantal uur geslapen</label>
-                <input 
-                  type="number" 
-                  step="0.5"
-                  min="0"
-                  max="12"
-                  value={tempSlaapUren} 
-                  onChange={(e) => setTempSlaapUren(e.target.value)} 
-                  className="w-full text-center text-2xl font-bold p-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
-                  placeholder="8.5"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-slate-600 mb-2">Kwaliteit</label>
-                <div className="flex justify-center gap-1">
-                  {[1, 2, 3, 4, 5].map(ster => (
-                    <button
-                      key={ster}
-                      onClick={() => setTempKwaliteit(ster)}
-                      className={`text-3xl transition-all ${
-                        ster <= tempKwaliteit ? 'text-yellow-400' : 'text-gray-300'
-                      } hover:text-yellow-400`}
-                    >
-                      ⭐
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            
-            <div className="text-center mt-4 mb-6">
-              <Link to="/gezondheid/slaap" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
-                Bekijk volledige slaapdetails →
-              </Link>
-            </div>
-            
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setShowSlaapModal(false)} 
-                className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+     {showSlaapModal && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <div className="text-center mb-6">
+        <div className="text-4xl mb-4">😴</div>
+        <h3 className="text-xl font-bold text-gray-800 mb-2">Hoe sliep je vannacht?</h3>
+        <p className="text-gray-600">Aantal uren en kwaliteit</p>
+      </div>
+      
+      <div className="space-y-4 mb-6">
+        <div>
+          <label className="block text-slate-600 mb-2">Aantal uur geslapen</label>
+          <input 
+            type="number" 
+            step="0.5"
+            min="0"
+            max="12"
+            value={tempSlaapUren} 
+            onChange={(e) => setTempSlaapUren(e.target.value)} 
+            className="w-full text-center text-2xl font-bold p-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+            placeholder="8.5"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-slate-600 mb-2">Kwaliteit</label>
+          <div className="flex justify-center gap-1">
+            {[1, 2, 3, 4, 5].map(ster => (
+              <button
+                key={ster}
+                type="button"
+                onClick={() => {
+                  console.log('Ster geklikt:', ster); // Debug log
+                  setTempKwaliteit(Number(ster));
+                }}
+                className={`text-3xl transition-all hover:scale-110 ${
+                  ster <= Number(tempKwaliteit) ? 'text-yellow-400' : 'text-gray-300'
+                } hover:text-yellow-400`}
+                style={{ cursor: 'pointer' }}
               >
-                Annuleren
+                ⭐
               </button>
-              <button 
-                onClick={handleSlaapSave} 
-                className="flex-1 py-3 px-4 bg-purple-500 text-white rounded-xl font-medium hover:bg-purple-600 transition-colors"
-              >
-                Opslaan
-              </button>
-            </div>
+            ))}
+          </div>
+          <div className="text-center mt-2 text-sm text-gray-500">
+            Geselecteerd: {tempKwaliteit || 0} ster{Number(tempKwaliteit) !== 1 ? 'ren' : ''}
           </div>
         </div>
-      )}
+      </div>
+      
+      <div className="text-center mt-4 mb-6">
+        <Link to="/gezondheid/slaap" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
+          Bekijk volledige slaapdetails →
+        </Link>
+      </div>
+      
+      <div className="flex gap-3">
+        <button 
+          onClick={() => setShowSlaapModal(false)} 
+          className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+        >
+          Annuleren
+        </button>
+        <button 
+          onClick={handleSlaapSave} 
+          className="flex-1 py-3 px-4 bg-purple-500 text-white rounded-xl font-medium hover:bg-purple-600 transition-colors"
+        >
+          Opslaan
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {showWaterModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
