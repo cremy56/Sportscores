@@ -122,45 +122,77 @@ export default function SchemaDetail() {
     }, []);
 
     // ALLE FUNCTIE DEFINITIES
-    const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
-        if (!schemaData) return;
-        const schemaId = `${schemaData.userId}_${schemaData.schemaTemplateId}`;
-        if (!actiefSchema || !isCurrentUser) return;
+   const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
+    if (!schemaData) return;
+    const schemaId = `${schemaData.userId}_${schemaData.schemaTemplateId}`;
+    if (!actiefSchema || !isCurrentUser) return;
 
-        try {
-            const taakId = `week${weekNummer}_taak${taakIndex}`;
-            const updatedVoltooide = {
-                ...actiefSchema.voltooide_taken,
-                [taakId]: {
-                    voltooid_op: ervaringData.datum,
-                    ervaring: ervaringData.ervaring,
-                    ingevuld_door: profile.naam || profile.email
+    try {
+        const taakId = `week${weekNummer}_taak${taakIndex}`;
+        
+        // 1. Creëer een *voorlopige* nieuwe staat van voltooide taken
+        const updatedVoltooide = {
+            ...actiefSchema.voltooide_taken,
+            [taakId]: {
+                voltooid_op: ervaringData.datum,
+                ervaring: ervaringData.ervaring,
+                ingevuld_door: profile.naam || profile.email
+            }
+        };
+
+        // 2. Update de database
+        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
+        await updateDoc(actiefSchemaRef, {
+            voltooide_taken: updatedVoltooide
+        });
+
+        // 3. Update de lokale state
+        setActiefSchema(prev => ({
+            ...prev,
+            voltooide_taken: updatedVoltooide
+        }));
+
+        // --- NIEUWE LOGICA VOOR CONDITIONELE MELDING ---
+        
+        // 4. Zoek de data van de huidige week om het totaal aantal taken te weten
+        const weekData = schemaDetails.weken.find(w => w.week_nummer === weekNummer);
+        const totaalAantalTakenInWeek = weekData?.taken.length || 0;
+
+        // 5. Tel hoeveel taken in *deze* week nu voltooid zijn
+        let voltooideTakenInWeek = 0;
+        if (weekData) {
+            weekData.taken.forEach((_, index) => {
+                const huidigeTaakId = `week${weekNummer}_taak${index}`;
+                if (updatedVoltooide[huidigeTaakId]) {
+                    voltooideTakenInWeek++;
                 }
-            };
-
-            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-            await updateDoc(actiefSchemaRef, {
-                voltooide_taken: updatedVoltooide
             });
-
-            setActiefSchema(prev => ({
-                ...prev,
-                voltooide_taken: updatedVoltooide
-            }));
-
-            toast.success("Taak ingevuld! Je leerkracht kan nu de hele week valideren.", {
+        }
+        
+        // 6. Controleer of alle taken van de week nu voltooid zijn
+        if (totaalAantalTakenInWeek > 0 && voltooideTakenInWeek === totaalAantalTakenInWeek) {
+            // JA, dit was de laatste taak: toon de "hele week" melding
+            toast.success("Goed gedaan! Alle taken van de week zijn ingevuld.", {
                 duration: 4000,
                 style: {
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     color: 'white',
                     fontWeight: 'bold'
-                }
+                },
+                icon: '🎉',
             });
-        } catch (error) {
-            console.error("Fout bij voltooien taak:", error);
-            toast.error("Kon de taak niet markeren als voltooid.");
+        } else {
+            // NEE, er zijn nog openstaande taken: toon een simpele melding
+            toast.success("Taak opgeslagen. Goed bezig!", {
+                duration: 2500,
+            });
         }
-    };
+
+    } catch (error) {
+        console.error("Fout bij voltooien taak:", error);
+        toast.error("Kon de taak niet markeren als voltooid.");
+    }
+};
 
     let validatieQueue = Promise.resolve();
     let isProcessingValidation = false;

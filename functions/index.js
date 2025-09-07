@@ -443,3 +443,213 @@ exports.checkDataConsistency = onCall(async (request) => {
     throw new Error('Consistency check failed');
   }
 });
+// ==============================================
+// TRAINING VALIDATION XP SYSTEM
+// ==============================================
+
+// Cloud Function die triggert wanneer een leerling_schema document wordt geüpdatet
+exports.onTrainingWeekValidated = onDocumentUpdated('leerling_schemas/{schemaId}', async (event) => {
+  const change = event.data;
+  const schemaId = event.params.schemaId;
+  
+  const beforeData = change.before.data();
+  const afterData = change.after.data();
+  
+  console.log('Training schema updated:', schemaId);
+  
+  try {
+    // Check alle weken in gevalideerde_weken om te zien welke nieuw gevalideerd zijn
+    const beforeValidatedWeeks = beforeData.gevalideerde_weken || {};
+    const afterValidatedWeeks = afterData.gevalideerde_weken || {};
+    
+    let newlyValidatedWeeks = [];
+    
+    // Zoek naar nieuw gevalideerde weken
+    for (const [weekKey, weekData] of Object.entries(afterValidatedWeeks)) {
+      const wasValidatedBefore = beforeValidatedWeeks[weekKey]?.gevalideerd || false;
+      const isValidatedNow = weekData.gevalideerd || false;
+      
+      // Als deze week nu gevalideerd is maar dat voorheen niet was
+      if (!wasValidatedBefore && isValidatedNow) {
+        newlyValidatedWeeks.push({
+          weekKey,
+          weekData,
+          trainingsXP: weekData.trainingsXP || 0
+        });
+        
+        console.log(`Newly validated week: ${weekKey} with ${weekData.trainingsXP} XP`);
+      }
+    }
+    
+    // Als er nieuw gevalideerde weken zijn, ken XP toe
+    if (newlyValidatedWeeks.length > 0) {
+      await awardTrainingXP(afterData.leerling_id, newlyValidatedWeeks, schemaId);
+    } else {
+      console.log('No newly validated weeks found');
+    }
+    
+  } catch (error) {
+    console.error('Error processing training validation:', error);
+    throw error;
+  }
+});
+
+// Functie om XP toe te kennen aan een leerling
+async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
+  console.log(`Awarding training XP to: ${leerlingEmail}`);
+  const db = getFirestore();
+  
+  try {
+    // Zoek de user op basis van email
+    const usersRef = db.collection('users');
+    const userQuery = await usersRef.where('email', '==', leerlingEmail).get();
+    
+    if (userQuery.empty) {
+      console.error(`User not found with email: ${leerlingEmail}`);
+      return;
+    }
+    
+    const userDoc = userQuery.docs[0];
+    const userData = userDoc.data();
+    
+    // Check of dit een leerling is
+    if (userData.rol !== 'leerling') {
+      console.error(`User ${leerlingEmail} is not a student, skipping XP award`);
+      return;
+    }
+    
+    // Bereken totaal XP voor alle gevalideerde weken
+    let totalXP = 0;
+    const weekDetails = [];
+    
+    validatedWeeks.forEach(week => {
+      const weekXP = week.trainingsXP || 0;
+      totalXP += weekXP;
+      weekDetails.push({
+        week: week.weekKey,
+        xp: weekXP
+      });
+    });
+    
+    if (totalXP <= 0) {
+      console.log('No XP to award (total XP is 0)');
+      return;
+    }
+    
+    // Update user document met nieuwe XP en Sparks
+    const currentXP = userData.xp || 0;
+    const currentSparks = userData.sparks || 0;
+    const newXP = currentXP + totalXP;
+    const newSparks = Math.floor(newXP / 100); // 100 XP = 1 Spark
+    
+    await userDoc.ref.update({
+      xp: newXP,
+      sparks: newSparks
+    });
+    
+    console.log(`Successfully awarded ${totalXP} XP to ${userData.naam || leerlingEmail}`);
+    console.log(`New totals: ${newXP} XP, ${newSparks} Sparks`);
+    
+    // Log de transactie voor audit trail
+    await logXPTransaction(db, {
+      user_id: userDoc.id,
+      user_email: leerlingEmail,
+      transaction_type: 'earn',
+      reward_type: 'xp',
+      amount: totalXP,
+      reason: 'training_validation',
+      source_id: schemaId,
+      balance_after: { xp: newXP, sparks: newSparks },
+      metadata: {
+        schema_id: schemaId,
+        validated_weeks: weekDetails
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error awarding training XP:', error);
+    throw error;
+  }
+}
+
+// Functie om XP transacties te loggen
+async function logXPTransaction(db, transactionData) {
+  try {
+    await db.collection('xp_transactions').add({
+      ...transactionData,
+      created_at: FieldValue.serverTimestamp()
+    });
+    
+    console.log('XP transaction logged successfully');
+  } catch (error) {
+    console.error('Error logging XP transaction:', error);
+    // Don't throw here - we don't want transaction logging to fail the main operation
+  }
+}
+
+// Handmatige XP toekenning functie (voor testing en admin gebruik)
+exports.manualAwardTrainingXP = onCall(async (request) => {
+  const db = getFirestore();
+  
+  // Check of gebruiker admin is
+  if (!request.auth) {
+    throw new Error('Authentication required');
+  }
+  
+  const userDoc = await db.collection('users').doc(request.auth.uid).get();
+  if (!userDoc.exists || !['administrator', 'super-administrator'].includes(userDoc.data().rol)) {
+    throw new Error('Only administrators can manually award XP');
+  }
+  
+  const { userEmail, xpAmount, reason } = request.data;
+  
+  if (!userEmail || !xpAmount || xpAmount <= 0) {
+    throw new Error('Valid userEmail and positive xpAmount required');
+  }
+  
+  try {
+    const usersRef = db.collection('users');
+    const userQuery = await usersRef.where('email', '==', userEmail).get();
+    
+    if (userQuery.empty) {
+      throw new Error('User not found');
+    }
+    
+    const targetUserDoc = userQuery.docs[0];
+    const targetUserData = targetUserDoc.data();
+    const currentXP = targetUserData.xp || 0;
+    const currentSparks = targetUserData.sparks || 0;
+    const newXP = currentXP + xpAmount;
+    const newSparks = Math.floor(newXP / 100);
+    
+    await targetUserDoc.ref.update({
+      xp: newXP,
+      sparks: newSparks
+    });
+    
+    await logXPTransaction(db, {
+      user_id: targetUserDoc.id,
+      user_email: userEmail,
+      transaction_type: 'earn',
+      reward_type: 'xp',
+      amount: xpAmount,
+      reason: reason || 'manual_award',
+      source_id: 'manual',
+      balance_after: { xp: newXP, sparks: newSparks },
+      metadata: {
+        awarded_by: request.auth.uid,
+        manual: true
+      }
+    });
+    
+    return {
+      success: true,
+      message: `Awarded ${xpAmount} XP to ${targetUserData.naam || userEmail}`,
+      newTotals: { xp: newXP, sparks: newSparks }
+    };
+    
+  } catch (error) {
+    console.error('Error in manual XP award:', error);
+    throw new Error('Failed to award XP: ' + error.message);
+  }
+});
