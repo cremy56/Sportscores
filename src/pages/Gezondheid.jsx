@@ -165,6 +165,12 @@ const testXPFunction = async () => {
       console.error("Geen actieve gebruiker om gegevens op te slaan.");
       return;
     }
+    // DEBUG INFO
+  console.log('=== SAVE DEBUG ===');
+  console.log('EffectiveUserId:', effectiveUserId);
+  console.log('TodayString:', todayString);
+  console.log('Full path:', `welzijn/${effectiveUserId}/dagelijkse_data/${todayString}`);
+  console.log('Data being saved:', data);
     const welzijnDocRef = doc(db, 'welzijn', effectiveUserId);
     const todayDocRef = doc(welzijnDocRef, 'dagelijkse_data', todayString);
 
