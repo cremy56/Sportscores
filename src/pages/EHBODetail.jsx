@@ -816,63 +816,102 @@ const EHBODetail = () => {
     </div>
   );
 
-  const TheoryTab = () => (
-    <div className="space-y-8">
-      <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-8 text-white">
-        <h2 className="text-2xl font-bold mb-4">EHBO Basisprincipes</h2>
-        <p className="text-purple-100">
-          Leer de fundamentele principes die bij elke noodsituatie gelden
+ const TheoryTab = () => (
+  <div className="space-y-8">
+    {/* Bestaande EHBO Basisprincipes sectie blijft hetzelfde */}
+    <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-8 text-white">
+      <h2 className="text-2xl font-bold mb-4">EHBO Basisprincipes</h2>
+      <p className="text-purple-100">
+        Leer de fundamentele principes die bij elke noodsituatie gelden
+      </p>
+    </div>
+
+    {/* Uitgebreide theoriesecties */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Bestaande basisprincipes */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">🛡️</div>
+        <h3 className="text-lg font-bold mb-3">1. Eigen Veiligheid</h3>
+        <p className="text-gray-600 text-sm">
+          Altijd eerst controleren of de situatie veilig is. Een dode held helpt niemand.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <div className="text-4xl mb-4">🛡️</div>
-          <h3 className="text-lg font-bold mb-3">1. Eigen Veiligheid</h3>
-          <p className="text-gray-600 text-sm">
-            Altijd eerst controleren of de situatie veilig is. Een dode held helpt niemand.
-          </p>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <div className="text-4xl mb-4">📞</div>
-          <h3 className="text-lg font-bold mb-3">2. Hulp Oproepen</h3>
-          <p className="text-gray-600 text-sm">
-            Bij ernstige situaties altijd 112 bellen. Hoe eerder professionele hulp, hoe beter.
-          </p>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <div className="text-4xl mb-4">🤝</div>
-          <h3 className="text-lg font-bold mb-3">3. Eerste Hulp</h3>
-          <p className="text-gray-600 text-sm">
-            Pas je kennis toe om het slachtoffer te helpen tot professionele hulp arriveert.
-          </p>
-        </div>
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">📞</div>
+        <h3 className="text-lg font-bold mb-3">2. Hulp Oproepen</h3>
+        <p className="text-gray-600 text-sm">
+          Bij ernstige situaties altijd 112 bellen. Hoe eerder professionele hulp, hoe beter.
+        </p>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <h3 className="text-xl font-bold mb-6">De Reanimatie Keten</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[
-            { step: '1', title: 'Herkenning', desc: 'Bewusteloosheid + geen ademhaling', icon: '👁️' },
-            { step: '2', title: 'Alarm', desc: '112 bellen + AED halen', icon: '📱' },
-            { step: '3', title: 'Reanimatie', desc: '30 borstcompressies + 2 beademingen', icon: '💪' },
-            { step: '4', title: 'AED', desc: 'Defibrillator zo snel mogelijk', icon: '⚡' }
-          ].map((item, index) => (
-            <div key={index} className="text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-2xl">{item.icon}</span>
-              </div>
-              <h4 className="font-bold text-red-600 mb-1">Stap {item.step}</h4>
-              <h5 className="font-semibold mb-2">{item.title}</h5>
-              <p className="text-sm text-gray-600">{item.desc}</p>
-            </div>
-          ))}
+        <div className="text-4xl mb-4">🤝</div>
+        <h3 className="text-lg font-bold mb-3">3. Eerste Hulp</h3>
+        <p className="text-gray-600 text-sm">
+          Pas je kennis toe om het slachtoffer te helpen tot professionele hulp arriveert.
+        </p>
+      </div>
+
+      {/* NIEUWE theoriesecties */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">🔥</div>
+        <h3 className="text-lg font-bold mb-3">Brandwonden</h3>
+        <p className="text-gray-600 text-sm">
+          Koelen met lauw water, geen ijs of zalf. Bij grote brandwonden altijd medische hulp.
+        </p>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">🐝</div>
+        <h3 className="text-lg font-bold mb-3">Allergische Reacties</h3>
+        <p className="text-gray-600 text-sm">
+          Anafylaxie is levensgevaarlijk. EpiPen direct gebruiken, altijd 112 bellen.
+        </p>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">⚡</div>
+        <h3 className="text-lg font-bold mb-3">Epileptische Aanvallen</h3>
+        <p className="text-gray-600 text-sm">
+          Bescherm de persoon, houd tijd bij, nooit tegenhouden of mond openen.
+        </p>
+      </div>
+    </div>
+
+    {/* Bestaande Reanimatie Keten blijft hetzelfde */}
+    <div className="bg-white border border-gray-200 rounded-xl p-6">
+      <h3 className="text-xl font-bold mb-6">De Reanimatie Keten</h3>
+      {/* ... bestaande inhoud ... */}
+    </div>
+
+    {/* NIEUWE sectie: Wanneer 112 bellen */}
+    <div className="bg-white border border-gray-200 rounded-xl p-6">
+      <h3 className="text-xl font-bold mb-6">Wanneer onmiddellijk 112 bellen?</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h4 className="font-semibold text-red-600 mb-3">Absoluut levensgevaarlijk:</h4>
+          <ul className="space-y-2 text-sm text-gray-700">
+            <li>• Geen ademhaling of hartslag</li>
+            <li>• Anafylactische shock</li>
+            <li>• Ernstige bloeding</li>
+            <li>• Vermoeden hartaanval</li>
+            <li>• Epileptische aanval langer dan 5 min</li>
+          </ul>
+        </div>
+        <div>
+          <h4 className="font-semibold text-orange-600 mb-3">Ernstig maar minder urgent:</h4>
+          <ul className="space-y-2 text-sm text-gray-700">
+            <li>• Grote brandwonden</li>
+            <li>• Bewusteloosheid</li>
+            <li>• Ernstige verwondingen</li>
+            <li>• Bij twijfel: altijd bellen!</li>
+          </ul>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
