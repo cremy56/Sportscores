@@ -172,7 +172,7 @@ export default function SchemaDetail() {
         // 6. Controleer of alle taken van de week nu voltooid zijn
         if (totaalAantalTakenInWeek > 0 && voltooideTakenInWeek === totaalAantalTakenInWeek) {
             // JA, dit was de laatste taak: toon de "hele week" melding
-            toast.success("Goed gedaan! Alle taken van de week zijn ingevuld.", {
+            toast.success("Goed gedaan! Alle taken van de week zijn uitgevoerd. Je leerkracht zal je trainingen valideren na je bewijs van trainingen", {
                 duration: 4000,
                 style: {
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
