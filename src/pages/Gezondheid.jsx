@@ -437,6 +437,19 @@ const getHartslagScore = () => {
         </div>
 
         <div className="max-w-4xl mx-auto space-y-6">
+          {/* Voeg dit toe na de header, voor <WelzijnsKompas /> */}
+{!dagelijkseData.humeur && (
+  <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 rounded-xl mb-6 animate-pulse">
+    <div className="flex items-center gap-3">
+      <div className="text-2xl">🧭</div>
+      <div className="flex-1">
+        <h3 className="font-bold text-lg">Start je dag met het Kompas!</h3>
+        <p className="text-sm opacity-90">Check in met jezelf - klik op het oranje "Mentaal" segment om je humeur in te vullen</p>
+      </div>
+      <div className="text-3xl animate-bounce">👆</div>
+    </div>
+  </div>
+)}
           <WelzijnsKompas />
 
 
