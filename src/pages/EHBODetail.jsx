@@ -6,6 +6,8 @@ const EHBODetail = () => {
   const { profile } = useOutletContext();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeScenario, setActiveScenario] = useState(null);
+  const [accessibilityMode, setAccessibilityMode] = useState(false);
+
   const [userProgress, setUserProgress] = useState({
     completedScenarios: [],
     certificates: [],
@@ -412,29 +414,31 @@ const EHBODetail = () => {
   const progressPercentage = (completedCount / totalScenarios) * 100;
 
   // Timer effect
-  useEffect(() => {
+useEffect(() => {
     let interval;
-    if (timeRemaining > 0 && activeScenario && !showResults) {
+    // ALLEEN timer starten als accessibility mode UIT staat
+    if (timeRemaining > 0 && activeScenario && !showResults && !accessibilityMode) {
       interval = setInterval(() => {
         setTimeRemaining(prev => prev - 1);
       }, 1000);
-    } else if (timeRemaining === 0 && activeScenario) {
-      // Time's up
+    } else if (timeRemaining === 0 && activeScenario && !accessibilityMode) {
       handleTimeUp();
     }
     return () => clearInterval(interval);
-  }, [timeRemaining, activeScenario, showResults]);
+  }, [timeRemaining, activeScenario, showResults, accessibilityMode]);
+
 
   const handleTimeUp = () => {
     setShowResults(true);
   };
 
-  const startScenario = (scenario) => {
+    const startScenario = (scenario) => {
     setActiveScenario(scenario);
     setCurrentStep(0);
     setScenarioResults({});
     setShowResults(false);
-    setTimeRemaining(scenario.steps[0].timeLimit);
+    // Tijd alleen instellen als accessibility mode uit staat
+    setTimeRemaining(accessibilityMode ? null : scenario.steps[0].timeLimit);
   };
 
   const handleAnswer = (selectedOption, step) => {
@@ -443,18 +447,19 @@ const EHBODetail = () => {
       [step.id]: {
         selected: selectedOption,
         correct: selectedOption.correct,
-        timeUsed: step.timeLimit - timeRemaining
+        // Bij accessibility mode geen tijd bijhouden
+        timeUsed: accessibilityMode ? 0 : (step.timeLimit - timeRemaining)
       }
     };
     setScenarioResults(newResults);
     
-    // Show immediate feedback
+   // Show immediate feedback
     setTimeout(() => {
       if (currentStep < activeScenario.steps.length - 1) {
         setCurrentStep(currentStep + 1);
-        setTimeRemaining(activeScenario.steps[currentStep + 1].timeLimit);
+        // Tijd alleen instellen als accessibility mode uit staat
+        setTimeRemaining(accessibilityMode ? null : activeScenario.steps[currentStep + 1].timeLimit);
       } else {
-        // Scenario completed
         completeScenario(newResults);
       }
     }, 2000);
@@ -485,9 +490,29 @@ const EHBODetail = () => {
     setShowResults(false);
     setTimeRemaining(null);
   };
-
+// Header met toegankelijkheidsopties
+  const AccessibilityControls = () => (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+      <h3 className="font-semibold text-blue-800 mb-3">Toegankelijkheidsopties</h3>
+      <label className="flex items-center gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={accessibilityMode}
+          onChange={(e) => setAccessibilityMode(e.target.checked)}
+          className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
+        />
+        <div>
+          <span className="font-medium text-blue-700">Tijdsdruk uitschakelen</span>
+          <p className="text-sm text-blue-600">
+            Voor leerlingen met dyslexie of leesmoeilijkheden. Neemt alle tijdslimieten weg.
+          </p>
+        </div>
+      </label>
+    </div>
+  );
   const Dashboard = () => (
     <div className="space-y-8">
+        <AccessibilityControls />
       {/* Progress Overview - Compacter en subtieler */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
         <div className="flex items-center justify-between mb-4">
@@ -613,10 +638,18 @@ const EHBODetail = () => {
                 </div>
               </div>
               
-              {timeRemaining && (
+              {/* TIMER ALLEEN TONEN ALS ACCESSIBILITY MODE UIT STAAT */}
+              {timeRemaining && !accessibilityMode && (
                 <div className="flex items-center gap-2 bg-white/20 rounded-lg px-3 py-1">
                   <ClockIcon className="w-4 h-4" />
                   <span className="font-mono">{timeRemaining}s</span>
+                </div>
+              )}
+
+              {/* ALTERNATIEVE INDICATOR BIJ ACCESSIBILITY MODE */}
+              {accessibilityMode && (
+                <div className="flex items-center gap-2 bg-white/20 rounded-lg px-3 py-1">
+                  <span className="text-sm">Geen tijdsdruk</span>
                 </div>
               )}
             </div>
@@ -716,14 +749,16 @@ const EHBODetail = () => {
             return (
               <div key={step.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span>Vraag {index + 1}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">{result?.timeUsed}s</span>
-                  {result?.correct ? (
-                    <CheckIcon className="w-5 h-5 text-green-600" />
-                  ) : (
-                    <XMarkIcon className="w-5 h-5 text-red-600" />
-                  )}
-                </div>
+               <div className="flex items-center gap-2">
+                    {!accessibilityMode && (
+                        <span className="text-sm text-gray-600">{result?.timeUsed}s</span>
+                    )}
+                    {result?.correct ? (
+                        <CheckIcon className="w-5 h-5 text-green-600" />
+                    ) : (
+                        <XMarkIcon className="w-5 h-5 text-red-600" />
+                    )}
+                    </div>
               </div>
             );
           })}
