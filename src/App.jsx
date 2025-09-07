@@ -16,10 +16,11 @@ import WachtwoordWijzigen from './pages/WachtwoordWijzigen';
 import SchoolBeheer from './pages/SchoolBeheer';
 
 // Pagina Imports
-import AdValvas from './pages/adValvas'; // AANGEPAST: Correcte import
+import AdValvas from './pages/adValvas';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
 import Groeiplan from './pages/Groeiplan';
+import Rewards from './pages/Rewards'; // NIEUW: Rewards pagina
 import Gebruikersbeheer from './pages/Gebruikersbeheer';
 import Groepsbeheer from './pages/Groepsbeheer';
 import GroupDetail from './pages/GroupDetail';
@@ -64,15 +65,13 @@ function HandleAuthRedirect() {
     return <div>Bezig met inloggen...</div>;
 }
 
-
 function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [school, setSchool] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState(null);
-
-const [activeRole, setActiveRole] = useState(null);
+  const [activeRole, setActiveRole] = useState(null);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
@@ -80,7 +79,7 @@ const [activeRole, setActiveRole] = useState(null);
       if (!currentUser) {
         setProfile(null);
         setSchool(null);
-        setActiveRole(null); // Reset active role on logout
+        setActiveRole(null);
         setLoading(false);
       }
     });
@@ -91,7 +90,7 @@ const [activeRole, setActiveRole] = useState(null);
     setupNetworkMonitoring();
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
     if (!user) {
       setLoading(false);
       return;
@@ -105,8 +104,9 @@ useEffect(() => {
         if (docSnap.exists()) {
           const profileData = { id: docSnap.id, ...docSnap.data() };
           setProfile(profileData);
-          // DE FIX: Zet de activeRole initieel gelijk aan de rol van het profiel
-          if (!activeRole) { // Alleen instellen als het nog niet is ingesteld
+          
+          // Zet de activeRole initieel gelijk aan de rol van het profiel
+          if (!activeRole) {
             setActiveRole(profileData.rol);
           }
         }
@@ -123,7 +123,17 @@ useEffect(() => {
             const initialProfileData = {
               ...allowedUserSnap.data(),
               email: user.email,
-              onboarding_complete: false
+              onboarding_complete: false,
+              // NIEUW: Initiële rewards data
+              xp: 0,
+              sparks: 0,
+              streak_days: 0,
+              weekly_stats: {
+                kompas: 0,
+                trainingen: 0,
+                perfectWeek: false
+              },
+              personal_records_count: 0
             };
             await setDoc(profileRef, initialProfileData);
           } else {
@@ -143,8 +153,7 @@ useEffect(() => {
         unsubscribeProfile();
       }
     };
-  }, [user]);
-
+  }, [user, activeRole]);
 
   useEffect(() => {
     if (profile?.school_id) {
@@ -187,14 +196,12 @@ useEffect(() => {
                 <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
 
                <Route element={<ProtectedRoute profile={profile} school={school} />}>
-                
-                    {/* --- CORRECTIE HIER --- */}
-                    {/* Combineer de twee Layout routes in één enkele route die de props én de onderliggende pagina's bevat. */}
                     <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} activeRole={activeRole} setActiveRole={setActiveRole} />}>
                         <Route path="/" element={<AdValvas />} />
-                        
                         <Route path="/highscores" element={<Highscores />} />
                         <Route path="/evolutie" element={<Evolutie />} />
+                        <Route path="/groeiplan" element={<Groeiplan />} />
+                        <Route path="/rewards" element={<Rewards />} /> {/* Rewards beschikbaar voor alle rollen, maar component checkt zelf */}
                         <Route path="/groepsbeheer" element={<Groepsbeheer />} />
                         <Route path="/groep/:groepId" element={<GroupDetail />} />
                         <Route path="/scores" element={<ScoresOverzicht />} />
@@ -202,11 +209,9 @@ useEffect(() => {
                         <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
                         <Route path="/testbeheer" element={<Testbeheer />} />
                         <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
-                        <Route path="/groeiplan" element={<Groeiplan />} />
                         <Route path="/groeiplan/schema" element={<SchemaDetail />} />
 
                         {(activeRole === 'leerling' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
-
                           <>
                             <Route path="/gezondheid" element={<Gezondheid />} />
                             <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
@@ -216,18 +221,19 @@ useEffect(() => {
                             <Route path="/gezondheid/hart" element={<HartDetail />} />
                              <Route path="/gezondheid/EHBO" element={<EHBODetail />} />
                           </>
-
                         )}
+                        
                         {(activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
                           <Route path="/welzijnsmonitor" element={<Welzijnsmonitor />} />
                         )}
+                        
                         {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
                           <>
                             <Route path="/gebruikersbeheer" element={<Gebruikersbeheer />} />
                             <Route path="/trainingsbeheer" element={<Trainingsbeheer />} /> 
                           </>
                         )}
-                        {/* Route die ENKEL voor de super-admin is */}
+                        
                         {activeRole === 'super-administrator' && (
                             <Route path="/schoolbeheer" element={<SchoolBeheer />} />
                         )}

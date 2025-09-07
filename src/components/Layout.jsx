@@ -5,10 +5,66 @@ import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { Toaster } from 'react-hot-toast';
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { UserCircleIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { UserCircleIcon, ChevronDownIcon, Zap, Star, TrendingUp } from '@heroicons/react/24/outline';
 import { Bars3Icon } from '@heroicons/react/24/solid';
 import logoSrc from '../assets/logo.png';
 import StudentSearch from './StudentSearch';
+
+// Rewards Display Component voor in de menubalk
+const RewardsDisplay = ({ profile }) => {
+  // Mock data - vervang later met echte data uit Firestore
+  const xp = profile?.xp || 0;
+  const sparks = profile?.sparks || 0;
+  const streak = profile?.streak_days || 0;
+
+  return (
+    <div className="hidden md:flex items-center space-x-4 mr-4">
+      {/* XP */}
+      <div className="flex items-center space-x-1 bg-purple-50 px-3 py-1 rounded-full">
+        <Star className="w-4 h-4 text-purple-600" />
+        <span className="text-sm font-semibold text-purple-700">{xp}</span>
+        <span className="text-xs text-purple-500">XP</span>
+      </div>
+      
+      {/* Sparks */}
+      <div className="flex items-center space-x-1 bg-yellow-50 px-3 py-1 rounded-full">
+        <Zap className="w-4 h-4 text-yellow-600" />
+        <span className="text-sm font-semibold text-yellow-700">{sparks}</span>
+      </div>
+      
+      {/* Streak */}
+      <div className="flex items-center space-x-1 bg-green-50 px-3 py-1 rounded-full">
+        <TrendingUp className="w-4 h-4 text-green-600" />
+        <span className="text-sm font-semibold text-green-700">{streak}</span>
+        <span className="text-xs text-green-500">dagen</span>
+      </div>
+    </div>
+  );
+};
+
+// Mobile Rewards Display
+const MobileRewardsDisplay = ({ profile }) => {
+  const xp = profile?.xp || 0;
+  const sparks = profile?.sparks || 0;
+  const streak = profile?.streak_days || 0;
+
+  return (
+    <div className="md:hidden flex items-center space-x-2 px-2">
+      <div className="flex items-center space-x-1">
+        <Star className="w-3 h-3 text-purple-600" />
+        <span className="text-xs font-semibold text-purple-700">{xp}</span>
+      </div>
+      <div className="flex items-center space-x-1">
+        <Zap className="w-3 h-3 text-yellow-600" />
+        <span className="text-xs font-semibold text-yellow-700">{sparks}</span>
+      </div>
+      <div className="flex items-center space-x-1">
+        <TrendingUp className="w-3 h-3 text-green-600" />
+        <span className="text-xs font-semibold text-green-700">{streak}</span>
+      </div>
+    </div>
+  );
+};
 
 // Dropdown Component
 const DropdownMenu = ({ title, children, isActive = false }) => {
@@ -219,7 +275,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
   const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
   
-  // Check if any admin routes are active for dropdown highlighting - AANGEPAST
+  // Check if any admin routes are active for dropdown highlighting
   const isAdminDropdownActive = ['/groepsbeheer', '/testbeheer', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'].includes(location.pathname);
   
   const routeTitles = {
@@ -236,6 +292,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     '/trainingsbeheer': 'Trainingsbeheer',
     '/schoolbeheer': 'Schoolbeheer',
     '/wachtwoord-wijzigen': 'Wachtwoord wijzigen',
+    '/rewards': 'Rewards',
   };
 
   const currentTitle = routeTitles[location.pathname] || '';
@@ -263,12 +320,15 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             />
           </div>
 
-          {/* MIDDEN (Desktop): Navigatie-items - AANGEPAST */}
+          {/* MIDDEN (Desktop): Navigatie-items */}
           <ul className="hidden md:flex items-center space-x-6 flex-grow justify-center">
             <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
             <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
+            
+            {/* Rewards pagina voor alle rollen */}
+            <li><NavLink to="/rewards" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Rewards</NavLink></li>
             
             {/* Gezondheid voor leerlingen en super-admin */}
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
@@ -280,19 +340,18 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
                <>
               <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
              <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
-
              </>
-)}
+            )}
 
-            {/* ALLEEN Scores voor leerkrachten - AANGEPAST */}
+            {/* ALLEEN Scores voor leerkrachten */}
             {activeRole === 'leerkracht' && (
                <>
-                           <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+               <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
                 <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
               </>
             )}
 
-            {/* Beheer Dropdown voor admins - UITGEBREID MET GROEPSBEHEER EN TESTBEHEER */}
+            {/* Beheer Dropdown voor admins */}
             {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
               <DropdownMenu title="Beheer" isActive={isAdminDropdownActive}>
                 <DropdownItem to="/groepsbeheer">Groepsbeheer</DropdownItem>
@@ -307,13 +366,15 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             )}
           </ul>
 
-          {/* MIDDEN (Mobiel): Gecentreerde paginatitel */}
-          <div className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+          {/* MIDDEN (Mobiel): Gecentreerde paginatitel + Mobile Rewards */}
+          <div className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
             <h1 className="text-lg font-semibold text-gray-800 whitespace-nowrap">{currentTitle}</h1>
+            <MobileRewardsDisplay profile={simulatedProfile} />
           </div>
 
-          {/* RECHTERKANT: Profielmenu */}
-          <div className="flex justify-end flex-shrink-0 relative z-20">
+          {/* RECHTERKANT: Rewards Display + Profielmenu */}
+          <div className="flex items-center justify-end flex-shrink-0 relative z-20">
+            <RewardsDisplay profile={simulatedProfile} />
             <div ref={menuButtonRef}>
               <button
                 onClick={toggleMenu}
@@ -325,7 +386,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             </div>
           </div>
           
-          {/* Mobiel Menu - AANGEPAST */}
+          {/* Mobiel Menu */}
           <ul
             className={`mobile-menu bg-white text-black md:hidden absolute top-full left-0 right-0 border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
             ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}
@@ -336,6 +397,11 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
+            
+            {/* Rewards alleen voor leerlingen */}
+            {activeRole === 'leerling' && (
+              <li><NavLink to="/rewards" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Rewards</NavLink></li>
+            )}
             
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
