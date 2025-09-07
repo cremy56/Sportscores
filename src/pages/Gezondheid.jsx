@@ -418,7 +418,7 @@ const getHartslagScore = () => {
       <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-6">
         
        {/* Header */}
-<div className="mb-6 mt-20">
+<div className="mb-4 mt-20">
   <div className="flex justify-between items-start mb-8">
     <div>
       <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Mijn Gezondheid</h1>
