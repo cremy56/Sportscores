@@ -439,35 +439,39 @@ const getHartslagScore = () => {
         <div className="max-w-4xl mx-auto space-y-6">
           <WelzijnsKompas />
 
-         {/* 5 Thema Tiles voor NAVIGATIE */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 max-w-5xl mx-auto">
-              <div onClick={() => handleTileClick('/gezondheid/beweging')} className="bg-blue-50 rounded-xl p-4 border-2 border-blue-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
-                <div className="text-center"><div className="text-2xl mb-2">🏃‍♂️</div><div className="text-lg font-bold text-blue-600">{welzijnScores.beweging}%</div><div className="text-sm text-gray-600 font-medium">Beweging</div></div>
-              </div>
-              <div onClick={() => handleTileClick('/gezondheid/voeding')} className="bg-green-50 rounded-xl p-4 border-2 border-green-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
-                <div className="text-center"><div className="text-2xl mb-2">🥗</div><div className="text-lg font-bold text-green-600">{welzijnScores.voeding}%</div><div className="text-sm text-gray-600 font-medium">Voeding</div></div>
-              </div>
-              <div onClick={() => handleTileClick('/gezondheid/slaap')} className="bg-purple-50 rounded-xl p-4 border-2 border-purple-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
-                <div className="text-center"><div className="text-2xl mb-2">🌙</div><div className="text-lg font-bold text-purple-600">{welzijnScores.slaap}%</div><div className="text-sm text-gray-600 font-medium">Slaap</div></div>
-              </div>
-              <div onClick={() => handleTileClick('/gezondheid/mentaal')} className="bg-orange-50 rounded-xl p-4 border-2 border-orange-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
-                <div className="text-center"><div className="text-2xl mb-2">🧠</div><div className="text-lg font-bold text-orange-600">{welzijnScores.mentaal}%</div><div className="text-sm text-gray-600 font-medium">Mentaal</div></div>
-              </div>
-              <div onClick={() => handleTileClick('/gezondheid/hart')} className="bg-red-50 rounded-xl p-4 border-2 border-red-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105 sm:col-span-1 col-span-2 sm:col-start-auto">
-                <div className="text-center">
-                  <div className="text-2xl mb-2">❤️</div>
-                  <div className="text-lg font-bold text-red-600">{welzijnScores.hart}%</div>
-                  <div className="text-sm text-gray-600 font-medium">Hart</div>
-                </div>
-              </div>
-              <div onClick={() => handleTileClick('/gezondheid/ehbo')} className="bg-emerald-50 rounded-xl p-4 border-2 border-emerald-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
-              <div className="text-center">
-                <div className="text-2xl mb-2">🚑</div>
-                <div className="text-lg font-bold text-emerald-600">EHBO</div>
-                <div className="text-sm text-gray-600 font-medium">Veiligheid</div>
-              </div>
-            </div>
-            </div>
+        // Voeg deze code toe aan je Gezondheid.jsx component
+
+// In de 5 Thema Tiles sectie, vervang de huidige grid met:
+{/* 6 Thema Tiles voor NAVIGATIE */}
+<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 max-w-7xl mx-auto">
+  <div onClick={() => handleTileClick('/gezondheid/beweging')} className="bg-blue-50 rounded-xl p-4 border-2 border-blue-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+    <div className="text-center"><div className="text-2xl mb-2">🏃‍♂️</div><div className="text-lg font-bold text-blue-600">{welzijnScores.beweging}%</div><div className="text-sm text-gray-600 font-medium">Beweging</div></div>
+  </div>
+  <div onClick={() => handleTileClick('/gezondheid/voeding')} className="bg-green-50 rounded-xl p-4 border-2 border-green-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+    <div className="text-center"><div className="text-2xl mb-2">🥗</div><div className="text-lg font-bold text-green-600">{welzijnScores.voeding}%</div><div className="text-sm text-gray-600 font-medium">Voeding</div></div>
+  </div>
+  <div onClick={() => handleTileClick('/gezondheid/slaap')} className="bg-purple-50 rounded-xl p-4 border-2 border-purple-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+    <div className="text-center"><div className="text-2xl mb-2">🌙</div><div className="text-lg font-bold text-purple-600">{welzijnScores.slaap}%</div><div className="text-sm text-gray-600 font-medium">Slaap</div></div>
+  </div>
+  <div onClick={() => handleTileClick('/gezondheid/mentaal')} className="bg-orange-50 rounded-xl p-4 border-2 border-orange-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+    <div className="text-center"><div className="text-2xl mb-2">🧠</div><div className="text-lg font-bold text-orange-600">{welzijnScores.mentaal}%</div><div className="text-sm text-gray-600 font-medium">Mentaal</div></div>
+  </div>
+  <div onClick={() => handleTileClick('/gezondheid/hart')} className="bg-red-50 rounded-xl p-4 border-2 border-red-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+    <div className="text-center">
+      <div className="text-2xl mb-2">❤️</div>
+      <div className="text-lg font-bold text-red-600">{welzijnScores.hart}%</div>
+      <div className="text-sm text-gray-600 font-medium">Hart</div>
+    </div>
+  </div>
+  {/* NIEUWE EHBO TEGEL */}
+  <div onClick={() => handleTileClick('/gezondheid/ehbo')} className="bg-emerald-50 rounded-xl p-4 border-2 border-emerald-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+    <div className="text-center">
+      <div className="text-2xl mb-2">🚑</div>
+      <div className="text-lg font-bold text-emerald-600">EHBO</div>
+      <div className="text-sm text-gray-600 font-medium">Veiligheid</div>
+    </div>
+  </div>
+</div>
         </div>
       </div>
       
