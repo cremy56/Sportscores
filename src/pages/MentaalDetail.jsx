@@ -663,7 +663,7 @@ const MentaalDetail = () => {
                         ))}
                       </div>
                     </div>
-                  )}
+                     )}
                 </div>
               
               {/* Rechter kolom - 1/3 breedte */}
