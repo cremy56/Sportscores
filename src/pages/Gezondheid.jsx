@@ -434,12 +434,7 @@ const getHartslagScore = () => {
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-6">
-        <button 
-  onClick={testXPFunction}
-  className="bg-blue-500 text-white px-4 py-2 rounded"
->
-  Test XP Function
-</button>
+       
        {/* Header */}
 <div className="mb-4 mt-20">
   <div className="flex justify-between items-start mb-8">
@@ -461,7 +456,12 @@ const getHartslagScore = () => {
         </div>
       </div>
     )}
-    
+     <button 
+  onClick={testXPFunction}
+  className="bg-blue-500 text-white px-4 py-2 rounded"
+>
+  Test XP Function
+</button>
     <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-white/30 flex-shrink-0">
       <div className="flex items-center gap-3">
         <span className="text-2xl">{balansStatus.emoji}</span>
