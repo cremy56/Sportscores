@@ -438,8 +438,9 @@ const MentaalDetail = () => {
       const q = query(collection(db, `welzijn/${effectiveUserId}/dagelijkse_data`));
       const querySnapshot = await getDocs(q);
       const history = querySnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(item => item.humeur || item.stress_niveau);
+  .map(doc => ({ id: doc.id, ...doc.data() }))
+  .filter(item => item.humeur || item.stress_niveau || item.mood_dimensies);
+
         
       setMentaleGeschiedenis(history.sort((a, b) => new Date(a.id) - new Date(b.id)));
     };
