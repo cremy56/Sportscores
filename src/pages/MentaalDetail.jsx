@@ -171,14 +171,17 @@ const CustomYAxisTick = ({ x, y, payload }) => {
 };
 
 const MentaalGrafiek = ({ data }) => {
-  const chartData = data.map(item => ({
+  const chartData = data.map(item => {
+  console.log('Item data:', item); // Debug log
+  return {
     datum: new Date(item.id).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: '2-digit' }),
     humeur: item.humeur,
     score: getMoodProps(item.humeur).score,
     stress: item.stress_niveau || null,
     energie: item.mood_dimensies?.energie || null,
     motivatie: item.mood_dimensies?.motivatie || null,
-  }));
+  };
+});
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
