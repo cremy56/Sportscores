@@ -784,7 +784,7 @@ const MentaalDetail = () => {
                         <span className="text-2xl">{dimensie.emoji}</span>
                         <span className="font-medium text-slate-700">{dimensie.label}</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                     <div className="flex items-center gap-2">
                         <input 
                           type="range" 
                           min="1" 
@@ -794,7 +794,16 @@ const MentaalDetail = () => {
                             ...prev,
                             [dimensie.id]: Number(e.target.value)
                           }))}
-                          className="w-24 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                          className="mood-slider w-24"
+                          style={{
+                            WebkitAppearance: 'none',
+                            appearance: 'none',
+                            background: '#e2e8f0',
+                            height: '8px',
+                            borderRadius: '4px',
+                            outline: 'none',
+                            cursor: 'pointer'
+                          }}
                         />
                         <span className="text-lg font-bold text-orange-500 w-6 text-center">
                           {moodDimensieWaarden[dimensie.id] || 3}
@@ -1174,9 +1183,9 @@ const MentaalDetail = () => {
           border: none;
         }
 
-        .mood-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
+       .mood-slider::-webkit-slider-thumb {
+          -webkit-appearance: none !important;
+          appearance: none !important;
           height: 20px;
           width: 20px;
           border-radius: 50%;
@@ -1184,7 +1193,17 @@ const MentaalDetail = () => {
           border: 2px solid #fff;
           box-shadow: 0 2px 6px rgba(0,0,0,0.2);
           cursor: pointer;
-          transition: all 0.2s ease;
+        }
+
+        .mood-slider::-moz-range-thumb {
+          height: 20px;
+          width: 20px;
+          border-radius: 50%;
+          background: #f97316;
+          border: 2px solid #fff;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+          cursor: pointer;
+          border: none;
         }
 
         .mood-slider::-webkit-slider-thumb:hover {
@@ -1197,18 +1216,6 @@ const MentaalDetail = () => {
           height: 8px;
           border-radius: 4px;
           border: none;
-        }
-
-        .mood-slider::-moz-range-thumb {
-          height: 20px;
-          width: 20px;
-          border-radius: 50%;
-          background: #f97316;
-          border: 2px solid #fff;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-          cursor: pointer;
-          border: none;
-          transition: all 0.2s ease;
         }
 
         .mood-slider::-moz-range-thumb:hover {
