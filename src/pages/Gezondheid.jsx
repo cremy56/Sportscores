@@ -3,6 +3,7 @@ import { Link, useOutletContext, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Helper om de datum van vandaag in JJJJ-MM-DD formaat te krijgen
 const getTodayString = () => {
@@ -135,6 +136,23 @@ const MijnGezondheid = () => {
   setShowSlaapModal(true);
 }
   };
+
+
+
+const testXPFunction = async () => {
+  const functions = getFunctions();
+  const test = httpsCallable(functions, 'testWelzijnXP');
+  
+  try {
+    const result = await test({ userId: profile?.id });
+    console.log('XP Test result:', result.data);
+    alert(`Test geslaagd! ${result.data.message}`);
+  } catch (error) {
+    console.error('XP Test error:', error);
+    alert(`Test gefaald: ${error.message}`);
+  }
+};
+
 
   // Functie voor klikken op TEGEL (navigeert naar DETAILPAGINA)
   const handleTileClick = (path) => {
@@ -416,7 +434,12 @@ const getHartslagScore = () => {
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-6">
-        
+        <button 
+  onClick={testXPFunction}
+  className="bg-blue-500 text-white px-4 py-2 rounded"
+>
+  Test XP Function
+</button>
        {/* Header */}
 <div className="mb-4 mt-20">
   <div className="flex justify-between items-start mb-8">

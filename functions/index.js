@@ -653,3 +653,321 @@ exports.manualAwardTrainingXP = onCall(async (request) => {
     throw new Error('Failed to award XP: ' + error.message);
   }
 });
+// Voeg deze functie toe aan je index.js, na de training validation code
+
+// ==============================================
+// WELZIJN KOMPAS XP SYSTEM
+// ==============================================
+
+// Cloud Function die triggert wanneer welzijn dagelijkse data wordt geüpdatet
+exports.onWelzijnKompasUpdated = onDocumentUpdated('welzijn/{userId}/dagelijkse_data/{dateString}', async (event) => {
+  const change = event.data;
+  const userId = event.params.userId;
+  const dateString = event.params.dateString;
+  
+  const beforeData = change.before.data() || {};
+  const afterData = change.after.data() || {};
+  
+  console.log(`Welzijn data updated for user ${userId} on ${dateString}`);
+  
+  try {
+    // Check welke segmenten nieuw zijn ingevuld
+    const newlyCompletedSegments = [];
+    
+    // Beweging segment (stappen > 0)
+    const hadStappen = (beforeData.stappen || 0) > 0;
+    const hasStappen = (afterData.stappen || 0) > 0;
+    if (!hadStappen && hasStappen) {
+      newlyCompletedSegments.push('beweging');
+    }
+    
+    // Voeding segment (water > 0)
+    const hadWater = (beforeData.water_intake || 0) > 0;
+    const hasWater = (afterData.water_intake || 0) > 0;
+    if (!hadWater && hasWater) {
+      newlyCompletedSegments.push('voeding');
+    }
+    
+    // Slaap segment (slaap_uren > 0)
+    const hadSlaap = (beforeData.slaap_uren || 0) > 0;
+    const hasSlaap = (afterData.slaap_uren || 0) > 0;
+    if (!hadSlaap && hasSlaap) {
+      newlyCompletedSegments.push('slaap');
+    }
+    
+    // Mentaal segment (humeur ingevuld)
+    const hadHumeur = beforeData.humeur ? true : false;
+    const hasHumeur = afterData.humeur ? true : false;
+    if (!hadHumeur && hasHumeur) {
+      newlyCompletedSegments.push('mentaal');
+    }
+    
+    // Hart segment (hartslag_rust > 0)
+    const hadHartslag = (beforeData.hartslag_rust || 0) > 0;
+    const hasHartslag = (afterData.hartslag_rust || 0) > 0;
+    if (!hadHartslag && hasHartslag) {
+      newlyCompletedSegments.push('hart');
+    }
+    
+    console.log(`Newly completed segments:`, newlyCompletedSegments);
+    
+    // Ken XP toe voor elk nieuw ingevuld segment
+    if (newlyCompletedSegments.length > 0) {
+      await awardWelzijnXP(userId, newlyCompletedSegments, dateString, afterData);
+    }
+    
+    // Check voor volledig kompas bonus
+    await checkKompasCompletionBonus(userId, afterData, dateString);
+    
+  } catch (error) {
+    console.error('Error processing welzijn kompas update:', error);
+    throw error;
+  }
+});
+
+// Functie om XP toe te kennen voor welzijn segmenten
+async function awardWelzijnXP(userId, completedSegments, dateString, dayData) {
+  console.log(`Awarding welzijn XP to user: ${userId}`);
+  const db = getFirestore();
+  
+  try {
+    // Zoek de user
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+      console.error(`User not found: ${userId}`);
+      return;
+    }
+    
+    const userData = userDoc.data();
+    
+    // Check of dit een leerling is
+    if (userData.rol !== 'leerling') {
+      console.error(`User ${userId} is not a student, skipping XP award`);
+      return;
+    }
+    
+    // Bereken XP per segment
+    const xpPerSegment = 4; // 4 XP per segment = 20 XP voor volledig kompas
+    const totalXP = completedSegments.length * xpPerSegment;
+    
+    // Update user XP en Sparks
+    const currentXP = userData.xp || 0;
+    const currentSparks = userData.sparks || 0;
+    const newXP = currentXP + totalXP;
+    const newSparks = Math.floor(newXP / 100);
+    
+    // Update weekly stats
+    const weeklyStats = userData.weekly_stats || {};
+    const updatedWeeklyStats = {
+      ...weeklyStats,
+      kompas: (weeklyStats.kompas || 0) + completedSegments.length
+    };
+    
+    await userRef.update({
+      xp: newXP,
+      sparks: newSparks,
+      weekly_stats: updatedWeeklyStats,
+      last_activity: FieldValue.serverTimestamp()
+    });
+    
+    console.log(`Awarded ${totalXP} XP for ${completedSegments.length} segments to ${userData.naam || userId}`);
+    console.log(`New totals: ${newXP} XP, ${newSparks} Sparks`);
+    
+    // Log transactie
+    await logXPTransaction(db, {
+      user_id: userId,
+      user_email: userData.email,
+      transaction_type: 'earn',
+      reward_type: 'xp',
+      amount: totalXP,
+      reason: 'welzijn_segment_completion',
+      source_id: `welzijn_${dateString}`,
+      balance_after: { xp: newXP, sparks: newSparks },
+      metadata: {
+        date: dateString,
+        completed_segments: completedSegments,
+        xp_per_segment: xpPerSegment
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error awarding welzijn XP:', error);
+    throw error;
+  }
+}
+
+// Check voor volledig kompas bonus (extra XP als alle segmenten ingevuld zijn)
+async function checkKompasCompletionBonus(userId, dayData, dateString) {
+  const db = getFirestore();
+  
+  try {
+    // Check of alle 5 segmenten ingevuld zijn
+    const hasStappen = (dayData.stappen || 0) > 0;
+    const hasWater = (dayData.water_intake || 0) > 0;
+    const hasSlaap = (dayData.slaap_uren || 0) > 0;
+    const hasHumeur = dayData.humeur ? true : false;
+    const hasHartslag = (dayData.hartslag_rust || 0) > 0;
+    
+    const isKompasComplete = hasStappen && hasWater && hasSlaap && hasHumeur && hasHartslag;
+    
+    if (isKompasComplete) {
+      console.log(`Complete kompas detected for ${userId} on ${dateString}`);
+      
+      // Check of bonus al is toegekend (via een completion_bonus veld)
+      if (!dayData.completion_bonus_awarded) {
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+        
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          const bonusXP = 16; // 16 XP bonus = totaal 20 XP voor volledig kompas
+          
+          const currentXP = userData.xp || 0;
+          const newXP = currentXP + bonusXP;
+          const newSparks = Math.floor(newXP / 100);
+          
+          await userRef.update({
+            xp: newXP,
+            sparks: newSparks
+          });
+          
+          // Mark bonus als toegekend in dagelijkse data
+          const dayRef = db.collection('welzijn').doc(userId).collection('dagelijkse_data').doc(dateString);
+          await dayRef.update({
+            completion_bonus_awarded: true,
+            completion_bonus_xp: bonusXP
+          });
+          
+          console.log(`Awarded ${bonusXP} completion bonus to ${userData.naam || userId}`);
+          
+          // Log transactie
+          await logXPTransaction(db, {
+            user_id: userId,
+            user_email: userData.email,
+            transaction_type: 'earn',
+            reward_type: 'xp',
+            amount: bonusXP,
+            reason: 'welzijn_kompas_complete',
+            source_id: `kompas_complete_${dateString}`,
+            balance_after: { xp: newXP, sparks: newSparks },
+            metadata: {
+              date: dateString,
+              all_segments_completed: true
+            }
+          });
+          
+          // Update streak
+          await updateWelzijnStreak(userId, dateString);
+        }
+      }
+    }
+    
+  } catch (error) {
+    console.error('Error checking kompas completion bonus:', error);
+  }
+}
+
+// Update welzijn streak (voor toekomstige streak beloningen)
+async function updateWelzijnStreak(userId, dateString) {
+  const db = getFirestore();
+  
+  try {
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      const currentStreak = userData.streak_days || 0;
+      
+      // Simpele streak update - check later voor gaten in data
+      await userRef.update({
+        streak_days: currentStreak + 1,
+        last_activity: FieldValue.serverTimestamp()
+      });
+      
+      console.log(`Updated streak for ${userId}: ${currentStreak + 1} days`);
+    }
+    
+  } catch (error) {
+    console.error('Error updating welzijn streak:', error);
+  }
+}
+
+// Handmatige welzijn XP functie (voor testing)
+exports.manualAwardWelzijnXP = onCall(async (request) => {
+  const db = getFirestore();
+  
+  // Check admin rechten
+  if (!request.auth) {
+    throw new Error('Authentication required');
+  }
+  
+  const adminDoc = await db.collection('users').doc(request.auth.uid).get();
+  if (!adminDoc.exists || !['administrator', 'super-administrator'].includes(adminDoc.data().rol)) {
+    throw new Error('Only administrators can manually award welzijn XP');
+  }
+  
+  const { userId, segments, dateString } = request.data;
+  
+  if (!userId || !segments || !Array.isArray(segments)) {
+    throw new Error('Valid userId and segments array required');
+  }
+  
+  try {
+    // Simuleer welzijn data voor testing
+    const mockDayData = {
+      stappen: segments.includes('beweging') ? 5000 : 0,
+      water_intake: segments.includes('voeding') ? 1500 : 0,
+      slaap_uren: segments.includes('slaap') ? 8 : 0,
+      humeur: segments.includes('mentaal') ? 'Goed' : null,
+      hartslag_rust: segments.includes('hart') ? 70 : 0
+    };
+    
+    await awardWelzijnXP(userId, segments, dateString || getTodayString(), mockDayData);
+    
+    return {
+      success: true,
+      message: `Awarded welzijn XP for segments: ${segments.join(', ')}`,
+      segments: segments
+    };
+    
+  } catch (error) {
+    console.error('Error in manual welzijn XP award:', error);
+    throw new Error('Failed to award welzijn XP: ' + error.message);
+  }
+});
+
+// Helper functie voor vandaag string
+function getTodayString() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+exports.testWelzijnXP = onCall(async (request) => {
+  const { userId } = request.data;
+  console.log('Test functie voor userId:', userId);
+  
+  const db = getFirestore();
+  const userDoc = await db.collection('users').doc(userId).get();
+  
+  if (!userDoc.exists) {
+    return { error: 'User not found', userId };
+  }
+  
+  const userData = userDoc.data();
+  const currentXP = userData.xp || 0;
+  
+  await userDoc.ref.update({
+    xp: currentXP + 10
+  });
+  
+  return { 
+    success: true, 
+    message: `Added 10 XP to ${userData.naam}`,
+    newXP: currentXP + 10
+  };
+});
