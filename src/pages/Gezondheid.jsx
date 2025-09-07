@@ -139,19 +139,6 @@ const MijnGezondheid = () => {
 
 
 
-const testXPFunction = async () => {
-  const functions = getFunctions();
-  const test = httpsCallable(functions, 'testWelzijnXP');
-  
-  try {
-    const result = await test({ userId: profile?.id });
-    console.log('XP Test result:', result.data);
-    alert(`Test geslaagd! ${result.data.message}`);
-  } catch (error) {
-    console.error('XP Test error:', error);
-    alert(`Test gefaald: ${error.message}`);
-  }
-};
 
 
   // Functie voor klikken op TEGEL (navigeert naar DETAILPAGINA)
@@ -462,12 +449,7 @@ const getHartslagScore = () => {
         </div>
       </div>
     )}
-     <button 
-  onClick={testXPFunction}
-  className="bg-blue-500 text-white px-4 py-2 rounded"
->
-  Test XP Function
-</button>
+     
     <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-white/30 flex-shrink-0">
       <div className="flex items-center gap-3">
         <span className="text-2xl">{balansStatus.emoji}</span>

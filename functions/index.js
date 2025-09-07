@@ -668,18 +668,23 @@ exports.onWelzijnKompasUpdated = onDocumentUpdated('welzijn/{userId}/dagelijkse_
   const beforeData = change.before.data() || {};
   const afterData = change.after.data() || {};
   
-  console.log(`Welzijn data updated for user ${userId} on ${dateString}`);
+  console.log(`=== WELZIJN TRIGGER FIRED ===`);
+  console.log(`UserId: ${userId}`);
+  console.log(`DateString: ${dateString}`);
+  console.log(`Before data:`, JSON.stringify(beforeData));
+  console.log(`After data:`, JSON.stringify(afterData));
   
-  try {
-    // Check welke segmenten nieuw zijn ingevuld
-    const newlyCompletedSegments = [];
-    
-    // Beweging segment (stappen > 0)
-    const hadStappen = (beforeData.stappen || 0) > 0;
-    const hasStappen = (afterData.stappen || 0) > 0;
-    if (!hadStappen && hasStappen) {
-      newlyCompletedSegments.push('beweging');
-    }
+  // Check welke segmenten nieuw zijn ingevuld
+  const newlyCompletedSegments = [];
+  
+  // Beweging segment (stappen > 0)
+  const hadStappen = (beforeData.stappen || 0) > 0;
+  const hasStappen = (afterData.stappen || 0) > 0;
+  console.log(`Stappen: had=${hadStappen}, has=${hasStappen}, before=${beforeData.stappen}, after=${afterData.stappen}`);
+  if (!hadStappen && hasStappen) {
+    newlyCompletedSegments.push('beweging');
+    console.log('Added beweging segment');
+  }
     
     // Voeding segment (water > 0)
     const hadWater = (beforeData.water_intake || 0) > 0;
@@ -709,19 +714,13 @@ exports.onWelzijnKompasUpdated = onDocumentUpdated('welzijn/{userId}/dagelijkse_
       newlyCompletedSegments.push('hart');
     }
     
-    console.log(`Newly completed segments:`, newlyCompletedSegments);
-    
-    // Ken XP toe voor elk nieuw ingevuld segment
-    if (newlyCompletedSegments.length > 0) {
-      await awardWelzijnXP(userId, newlyCompletedSegments, dateString, afterData);
-    }
-    
-    // Check voor volledig kompas bonus
-    await checkKompasCompletionBonus(userId, afterData, dateString);
-    
-  } catch (error) {
-    console.error('Error processing welzijn kompas update:', error);
-    throw error;
+   console.log(`Newly completed segments:`, newlyCompletedSegments);
+  
+  if (newlyCompletedSegments.length > 0) {
+    console.log('Awarding XP for segments:', newlyCompletedSegments);
+    await awardWelzijnXP(userId, newlyCompletedSegments, dateString, afterData);
+  } else {
+    console.log('No newly completed segments detected');
   }
 });
 
