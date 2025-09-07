@@ -37,6 +37,7 @@ import MentaalDetail from './pages/MentaalDetail';
 import VoedingDetail from './pages/VoedingDetail';
 import SlaapDetail from './pages/SlaapDetail';
 import HartDetail from './pages/HartDetail';
+import EHBODetail from './pages/EHBODetail';
 
 function HandleAuthRedirect() {
     const navigate = useNavigate();
@@ -213,6 +214,7 @@ useEffect(() => {
                             <Route path="/gezondheid/voeding" element={<VoedingDetail />} />
                             <Route path="/gezondheid/slaap" element={<SlaapDetail />} />
                             <Route path="/gezondheid/hart" element={<HartDetail />} />
+                             <Route path="/gezondheid/EHBO" element={<EHBODetail />} />
                           </>
 
                         )}

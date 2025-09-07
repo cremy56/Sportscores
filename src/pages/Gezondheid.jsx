@@ -460,6 +460,13 @@ const getHartslagScore = () => {
                   <div className="text-sm text-gray-600 font-medium">Hart</div>
                 </div>
               </div>
+              <div onClick={() => handleTileClick('/gezondheid/ehbo')} className="bg-emerald-50 rounded-xl p-4 border-2 border-emerald-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+              <div className="text-center">
+                <div className="text-2xl mb-2">🚑</div>
+                <div className="text-lg font-bold text-emerald-600">EHBO</div>
+                <div className="text-sm text-gray-600 font-medium">Veiligheid</div>
+              </div>
+            </div>
             </div>
         </div>
       </div>
