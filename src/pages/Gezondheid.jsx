@@ -417,39 +417,43 @@ const getHartslagScore = () => {
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-6">
         
-        {/* Header */}
-        <div className="mb-6 mt-20">
-          <div className="flex justify-between items-start mb-8">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Mijn Gezondheid</h1>
-              <div className="flex items-center text-gray-400 text-sm"><span className="mr-1">🔒</span><span>Privé gegevens</span></div>
-            </div>
-            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-white/30 flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{balansStatus.emoji}</span>
-                <div>
-                  <div className="text-lg font-bold text-slate-800">{getGemiddeldeScore()}%</div>
-                  <div className="text-xs text-slate-600">{balansStatus.status}</div>
-                </div>
-              </div>
+       {/* Header */}
+<div className="mb-6 mt-20">
+  <div className="flex justify-between items-start mb-8">
+    <div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Mijn Gezondheid</h1>
+      <div className="flex items-center text-gray-400 text-sm"><span className="mr-1">🔒</span><span>Privé gegevens</span></div>
+    </div>
+    
+    {/* Banner tussen titel en score - alleen tonen als geen humeur data */}
+    {!dagelijkseData.humeur && (
+      <div className="flex-1 max-w-md mx-8">
+        <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 rounded-xl animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">🧭</div>
+            <div className="flex-1">
+              <h3 className="font-bold text-lg">Start je dag met het Kompas!</h3>
+              <p className="text-sm opacity-90">Klik op 1 van de delen van onderstaande figuur</p>
             </div>
           </div>
         </div>
-
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Voeg dit toe na de header, voor <WelzijnsKompas /> */}
-{!dagelijkseData.humeur && (
-  <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 rounded-xl mb-6 animate-pulse">
-    <div className="flex items-center gap-3">
-      <div className="text-2xl">🧭</div>
-      <div className="flex-1">
-        <h3 className="font-bold text-lg">Start je dag met het Kompas!</h3>
-        <p className="text-sm opacity-90">Check in met jezelf - klik op het oranje "Mentaal" segment om je humeur in te vullen</p>
       </div>
-      <div className="text-3xl animate-bounce">👆</div>
+    )}
+    
+    <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-white/30 flex-shrink-0">
+      <div className="flex items-center gap-3">
+        <span className="text-2xl">{balansStatus.emoji}</span>
+        <div>
+          <div className="text-lg font-bold text-slate-800">{getGemiddeldeScore()}%</div>
+          <div className="text-xs text-slate-600">{balansStatus.status}</div>
+        </div>
+      </div>
     </div>
   </div>
-)}
+</div>
+
+        <div className="max-w-4xl mx-auto space-y-6">
+          
           <WelzijnsKompas />
 
 
