@@ -1157,6 +1157,66 @@ const MentaalDetail = () => {
         }
         
         /* Custom range slider styling voor mood dimensies */
+        .mood-slider {
+          -webkit-appearance: none;
+          appearance: none;
+          background: linear-gradient(to right, #e2e8f0 0%, #e2e8f0 100%);
+          cursor: pointer;
+          height: 8px;
+          border-radius: 4px;
+          outline: none;
+        }
+
+        .mood-slider::-webkit-slider-track {
+          background: #e2e8f0;
+          height: 8px;
+          border-radius: 4px;
+          border: none;
+        }
+
+        .mood-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 20px;
+          width: 20px;
+          border-radius: 50%;
+          background: #f97316;
+          border: 2px solid #fff;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .mood-slider::-webkit-slider-thumb:hover {
+          background: #ea580c;
+          transform: scale(1.1);
+        }
+
+        .mood-slider::-moz-range-track {
+          background: #e2e8f0;
+          height: 8px;
+          border-radius: 4px;
+          border: none;
+        }
+
+        .mood-slider::-moz-range-thumb {
+          height: 20px;
+          width: 20px;
+          border-radius: 50%;
+          background: #f97316;
+          border: 2px solid #fff;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+          cursor: pointer;
+          border: none;
+          transition: all 0.2s ease;
+        }
+
+        .mood-slider::-moz-range-thumb:hover {
+          background: #ea580c;
+          transform: scale(1.1);
+        }
+        
+        /* General range slider styling */
         input[type="range"] {
           -webkit-appearance: none;
           appearance: none;
@@ -1182,6 +1242,25 @@ const MentaalDetail = () => {
           border: 2px solid #fff;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-track {
+          background: #e2e8f0;
+          height: 6px;
+          border-radius: 3px;
+          border: none;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+          height: 18px;
+          width: 18px;
+          border-radius: 50%;
+          background: #f97316;
+          border: 2px solid #fff;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          cursor: pointer;
+          border: none;
+        }
         }
 
         input[type="range"]::-moz-range-track {
