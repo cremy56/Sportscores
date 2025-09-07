@@ -7,71 +7,11 @@ import { Toaster } from 'react-hot-toast';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { UserCircleIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { Zap, Star, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // Voeg deze toe
 import { Bars3Icon } from '@heroicons/react/24/solid';
 import logoSrc from '../assets/logo.png';
 import StudentSearch from './StudentSearch';
 
-// Rewards Display Component voor in de menubalk
-const RewardsDisplay = ({ profile, activeRole }) => {
-  // Toon alleen voor leerlingen
-  if (activeRole !== 'leerling') return null;
-  
-  // Mock data - vervang later met echte data uit Firestore
-  const xp = profile?.xp || 0;
-  const sparks = profile?.sparks || 0;
-  const streak = profile?.streak_days || 0;
-
-  return (
-    <div className="hidden md:flex items-center space-x-4 mr-4">
-      {/* XP */}
-      <div className="flex items-center space-x-1 bg-purple-50 px-3 py-1 rounded-full">
-        <Star className="w-4 h-4 text-purple-600" />
-        <span className="text-sm font-semibold text-purple-700">{xp}</span>
-        <span className="text-xs text-purple-500">XP</span>
-      </div>
-      
-      {/* Sparks */}
-      <div className="flex items-center space-x-1 bg-yellow-50 px-3 py-1 rounded-full">
-        <Zap className="w-4 h-4 text-yellow-600" />
-        <span className="text-sm font-semibold text-yellow-700">{sparks}</span>
-      </div>
-      
-      {/* Streak */}
-      <div className="flex items-center space-x-1 bg-green-50 px-3 py-1 rounded-full">
-        <TrendingUp className="w-4 h-4 text-green-600" />
-        <span className="text-sm font-semibold text-green-700">{streak}</span>
-        <span className="text-xs text-green-500">dagen</span>
-      </div>
-    </div>
-  );
-};
-
-// Mobile Rewards Display
-const MobileRewardsDisplay = ({ profile, activeRole }) => {
-  // Toon alleen voor leerlingen
-  if (activeRole !== 'leerling') return null;
-  
-  const xp = profile?.xp || 0;
-  const sparks = profile?.sparks || 0;
-  const streak = profile?.streak_days || 0;
-
-  return (
-    <div className="md:hidden flex items-center space-x-2 px-2">
-      <div className="flex items-center space-x-1">
-        <Star className="w-3 h-3 text-purple-600" />
-        <span className="text-xs font-semibold text-purple-700">{xp}</span>
-      </div>
-      <div className="flex items-center space-x-1">
-        <Zap className="w-3 h-3 text-yellow-600" />
-        <span className="text-xs font-semibold text-yellow-700">{sparks}</span>
-      </div>
-      <div className="flex items-center space-x-1">
-        <TrendingUp className="w-3 h-3 text-green-600" />
-        <span className="text-xs font-semibold text-green-700">{streak}</span>
-      </div>
-    </div>
-  );
-};
 
 // Dropdown Component
 const DropdownMenu = ({ title, children, isActive = false }) => {
@@ -227,6 +167,83 @@ const ProfileMenu = ({
     </div>
   );
 };
+const ClickableRewardsDisplay = ({ profile, activeRole }) => {
+  const navigate = useNavigate();
+  
+  if (activeRole !== 'leerling') return null;
+
+  const xp = profile?.xp || 0;
+  const sparks = profile?.sparks || 0;
+  const streak = profile?.streak_days || 0;
+
+  const handleClick = () => {
+    navigate('/rewards');
+  };
+  return (
+    <div className="hidden md:flex items-center mr-3">
+      <button
+        onClick={handleClick}
+        className="bg-gradient-to-r from-purple-50 to-yellow-50 hover:from-purple-100 hover:to-yellow-100 px-3 py-1.5 rounded-full border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:shadow-md cursor-pointer"
+        title="Klik om naar Rewards te gaan"
+      >
+        <div className="flex items-center space-x-2 text-xs">
+          <div className="flex items-center space-x-1">
+            <Star className="w-3 h-3 text-purple-600" />
+            <span className="font-semibold text-purple-700">{xp}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <Zap className="w-3 h-3 text-yellow-600" />
+            <span className="font-semibold text-yellow-700">{sparks}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <TrendingUp className="w-3 h-3 text-green-600" />
+            <span className="font-semibold text-green-700">{streak}</span>
+          </div>
+        </div>
+      </button>
+    </div>
+  );
+};
+// Mobiele versie - ook klikbaar
+const MobileClickableRewardsDisplay = ({ profile, activeRole }) => {
+  const navigate = useNavigate();
+  
+  if (activeRole !== 'leerling') return null;
+
+  const xp = profile?.xp || 0;
+  const sparks = profile?.sparks || 0;
+  const streak = profile?.streak_days || 0;
+
+  const handleClick = () => {
+    navigate('/rewards');
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      className="md:hidden mt-1 px-2 py-1 bg-gradient-to-r from-purple-50 to-yellow-50 rounded-full border border-gray-200 hover:border-gray-300 transition-all"
+      title="Bekijk je rewards"
+    >
+      <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-0.5">
+          <Star className="w-2.5 h-2.5 text-purple-600" />
+          <span className="text-[10px] font-semibold text-purple-700">{xp}</span>
+        </div>
+        <span className="text-gray-300 text-[8px]">•</span>
+        <div className="flex items-center space-x-0.5">
+          <Zap className="w-2.5 h-2.5 text-yellow-600" />
+          <span className="text-[10px] font-semibold text-yellow-700">{sparks}</span>
+        </div>
+        <span className="text-gray-300 text-[8px]">•</span>
+        <div className="flex items-center space-x-0.5">
+          <TrendingUp className="w-2.5 h-2.5 text-green-600" />
+          <span className="text-[10px] font-semibold text-green-700">{streak}</span>
+        </div>
+      </div>
+    </button>
+  );
+};
+
 
 export default function Layout({ profile, school, selectedStudent, setSelectedStudent, activeRole, setActiveRole }) {
 
@@ -334,10 +351,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
             
-           {/* Rewards alleen voor leerlingen */}
-            {activeRole === 'leerling' && (
-              <li><NavLink to="/rewards" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Rewards</NavLink></li>
-            )}
+           
             {/* Gezondheid voor leerlingen en super-admin */}
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
@@ -377,12 +391,12 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
           {/* MIDDEN (Mobiel): Gecentreerde paginatitel + Mobile Rewards */}
           <div className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
             <h1 className="text-lg font-semibold text-gray-800 whitespace-nowrap">{currentTitle}</h1>
-            <MobileRewardsDisplay profile={simulatedProfile} activeRole={activeRole} />
+            <MobileClickableRewardsDisplay profile={simulatedProfile} activeRole={activeRole} />
           </div>
 
           {/* RECHTERKANT: Rewards Display + Profielmenu */}
           <div className="flex items-center justify-end flex-shrink-0 relative z-20">
-            <RewardsDisplay profile={simulatedProfile} activeRole={activeRole} />
+            <ClickableRewardsDisplay profile={simulatedProfile} activeRole={activeRole} />
             <div ref={menuButtonRef}>
               <button
                 onClick={toggleMenu}
@@ -406,11 +420,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
             
-            {/* Rewards alleen voor leerlingen */}
-            {activeRole === 'leerling' && (
-              <li><NavLink to="/rewards" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Rewards</NavLink></li>
-            )}
-            
+          
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
             )}
