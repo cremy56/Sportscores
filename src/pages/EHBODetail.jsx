@@ -299,38 +299,38 @@ const EHBODetail = () => {
 
   const Dashboard = () => (
     <div className="space-y-8">
-      {/* Progress Overview */}
-      <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-8 text-white">
-        <div className="flex items-center justify-between mb-6">
+      {/* Progress Overview - Compacter en subtieler */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-bold mb-2">Je EHBO Vooruitgang</h2>
-            <p className="text-emerald-100">Leer levensreddende vaardigheden door interactieve scenario's</p>
+            <h2 className="text-xl font-bold text-slate-800 mb-1">EHBO Voortgang</h2>
+            <p className="text-slate-600 text-sm">Leer levensreddende vaardigheden</p>
           </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold">{completedCount}/{totalScenarios}</div>
-            <div className="text-sm text-emerald-200">Scenario's voltooid</div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-slate-800">{completedCount}/{totalScenarios}</div>
+            <div className="text-xs text-slate-500">scenario's voltooid</div>
           </div>
         </div>
         
-        <div className="w-full bg-emerald-400 rounded-full h-4 mb-4">
+        <div className="w-full bg-slate-200 rounded-full h-2 mb-4">
           <div 
-            className="bg-white rounded-full h-4 transition-all duration-1000"
+            className="bg-emerald-500 rounded-full h-2 transition-all duration-1000"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
         
-        <div className="grid grid-cols-3 gap-4 mt-6">
+        <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold">{userProgress.totalScore}</div>
-            <div className="text-sm text-emerald-200">Totale Score</div>
+            <div className="text-lg font-bold text-slate-700">{userProgress.totalScore}</div>
+            <div className="text-xs text-slate-500">Totale Score</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold">{userProgress.streak}</div>
-            <div className="text-sm text-emerald-200">Streak</div>
+            <div className="text-lg font-bold text-slate-700">{userProgress.streak}</div>
+            <div className="text-xs text-slate-500">Streak</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold">{userProgress.certificates.length}</div>
-            <div className="text-sm text-emerald-200">Certificaten</div>
+            <div className="text-lg font-bold text-slate-700">{userProgress.certificates.length}</div>
+            <div className="text-xs text-slate-500">Certificaten</div>
           </div>
         </div>
       </div>
@@ -406,9 +406,8 @@ const EHBODetail = () => {
                 onClick={() => setActiveTab('dashboard')}
                 className="bg-white/20 hover:bg-white/30 rounded-lg p-2 transition-colors"
               >
-                <span style={{ fontSize: '24px' }}>✗</span>
-              </button>  <XMarkIcon className="w-6 h-6" />
-              
+                <XMarkIcon className="w-6 h-6" />
+              </button>
             </div>
             
             <div className="flex items-center justify-between">
