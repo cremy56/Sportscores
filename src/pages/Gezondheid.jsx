@@ -428,15 +428,14 @@ const getHartslagScore = () => {
     {/* Banner tussen titel en score - alleen tonen als geen humeur data */}
     {!dagelijkseData.humeur && (
       <div className="flex-1 max-w-md mx-8">
-        
+        <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 rounded-xl animate-pulse">
           <div className="flex items-center gap-3">
             <div className="text-2xl">🧭</div>
             <div className="flex-1">
-          
-              <p className="text-sm opacity-90">Klik op 1 van de delen op onderstaande figuur</p>
+              <h3 className="font-bold text-lg">Start je dag met een klik op het Kompas!</h3>
             </div>
           </div>
-        
+        </div>
       </div>
     )}
     
