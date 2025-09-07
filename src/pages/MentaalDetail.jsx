@@ -658,8 +658,462 @@ const MentaalDetail = () => {
                     </div>
                   )}
                 </div>
+                  {/* Rechter kolom - 1/3 breedte */}
+              <div className="space-y-6">
+                
+                {/* Stress Niveau */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                  <h2 className="text-xl font-bold text-slate-800 mb-4">Stressniveau</h2>
+                  <p className="text-slate-600 mb-4 text-sm">Hoeveel stress ervaar je op dit moment?</p>
+                  <div className="text-center text-4xl font-bold text-orange-500 mb-4">{stressNiveau}</div>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="5" 
+                    value={stressNiveau}
+                    onChange={(e) => setStressNiveau(Number(e.target.value))}
+                    className="w-full h-2 bg-orange-100 rounded-lg appearance-none cursor-pointer slider-orange"
+                  />
+                  <div className="flex justify-between text-xs text-slate-500 px-1 mt-2">
+                    <span>Weinig</span>
+                    <span>Veel</span>
+                  </div>
+                  <button 
+                    onClick={handleStressSave} 
+                    className="w-full mt-6 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold py-3 rounded-xl hover:from-orange-700 hover:to-orange-600 transition-all duration-200"
+                  >
+                    Log Stressniveau
+                  </button>
+                </div>
+                
+                {/* Snelle Reset */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                  <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <SparklesIcon className="w-6 h-6 text-orange-500"/>
+                    Snelle Reset
+                  </h2>
+                  
+                  {/* Tabs */}
+                  <div className="flex border-b border-slate-200 mb-4">
+                    <button 
+                      onClick={() => setActieveOefening('ademhaling')}
+                      className={`py-2 px-4 text-sm font-semibold transition-colors ${
+                        actieveOefening === 'ademhaling' 
+                          ? 'border-b-2 border-orange-500 text-orange-600' 
+                          : 'text-slate-500 hover:text-orange-500'
+                      }`}
+                    >
+                      Ademhaling
+                    </button>
+                    <button 
+                      onClick={() => setActieveOefening('zintuigen')}
+                      className={`py-2 px-4 text-sm font-semibold transition-colors ${
+                        actieveOefening === 'zintuigen' 
+                          ? 'border-b-2 border-orange-500 text-orange-600' 
+                          : 'text-slate-500 hover:text-orange-500'
+                      }`}
+                    >
+                      5 Zintuigen
+                    </button>
+                  </div>
+                  
+                  {/* Oefening content */}
+                  <div>
+                    {actieveOefening === 'ademhaling' && <AdemhalingOefening />}
+                    {actieveOefening === 'zintuigen' && <VijfZintuigenOefening />}
+                  </div>
+                </div>
 
+                {/* Hulpbronnen */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                  <h2 className="text-xl font-bold text-slate-800 mb-4">Hulp nodig?</h2>
+                  <p className="text-sm text-slate-600 mb-4">Praten helpt. Hier zijn enkele betrouwbare bronnen:</p>
+                  <div className="space-y-3">
+                    <a 
+                      href="https://www.awel.be" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl text-orange-600 hover:bg-orange-100 transition-colors"
+                    >
+                      <PhoneIcon className="w-5 h-5 flex-shrink-0"/>
+                      <div>
+                        <div className="font-semibold">Awel luistert</div>
+                        <div className="text-sm">Bel 102</div>
+                      </div>
+                    </a>
+                    <a 
+                      href="https://www.jac.be" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl text-orange-600 hover:bg-orange-100 transition-colors"
+                    >
+                      <LightBulbIcon className="w-5 h-5 flex-shrink-0"/>
+                      <div>
+                        <div className="font-semibold">JAC</div>
+                        <div className="text-sm">Info & advies</div>
+                      </div>
+                    </a>
+                  </div>
+                </div>
+              </div>
              </div>
+            </div>
+          )}
+          {/* Uitgebreide Tracking Tab */}
+          {actieveTab === 'tracking' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* Mood Dimensies */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 className="text-xl font-bold text-slate-800 mb-6">Uitgebreide Mood Tracking</h2>
+                <p className="text-slate-600 mb-6 text-sm">Evalueer verschillende aspecten van je mentale staat vandaag (1 = laag, 5 = hoog):</p>
+                
+                <div className="space-y-4">
+                  {moodDimensies.map(dimensie => (
+                    <div key={dimensie.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{dimensie.emoji}</span>
+                        <span className="font-medium text-slate-700">{dimensie.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="range" 
+                          min="1" 
+                          max="5" 
+                          value={moodDimensieWaarden[dimensie.id] || 3}
+                          onChange={(e) => setMoodDimensieWaarden(prev => ({
+                            ...prev,
+                            [dimensie.id]: Number(e.target.value)
+                          }))}
+                          className="w-24 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <span className="text-lg font-bold text-orange-500 w-6 text-center">
+                          {moodDimensieWaarden[dimensie.id] || 3}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <button 
+                  onClick={handleMoodDimensieSave} 
+                  className="w-full mt-6 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold py-3 rounded-xl hover:from-orange-700 hover:to-orange-600 transition-all duration-200"
+                >
+                  Bewaar Mood Tracking
+                </button>
+              </div>
+
+              {/* Radar Chart */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 className="text-xl font-bold text-slate-800 mb-6">Je Mentale Balans</h2>
+                <MoodRadarChart data={moodDimensieWaarden} />
+                <p className="text-sm text-slate-600 mt-4 text-center">
+                  Deze radar toont je huidige balans tussen verschillende aspecten van je mentale welzijn.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Welzijn Check Tab */}
+          {actieveTab === 'screening' && (
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-slate-800 mb-4">Welzijn Check</h2>
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <p className="text-sm text-blue-800">
+                      <strong>Let op:</strong> Dit is geen medische diagnose, maar een hulpmiddel om je welzijn te monitoren. 
+                      Bij zorgen over je mentale gezondheid, praat altijd met een vertrouwenspersoon of professional.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {screeningVragen.map(vraag => (
+                    <div key={vraag.id} className="border border-slate-200 rounded-xl p-6">
+                      <div className="mb-4">
+                        <h3 className="font-semibold text-slate-800 mb-2">{vraag.vraag}</h3>
+                        <p className="text-sm text-slate-600">{vraag.beschrijving}</p>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {screeningOpties.map(optie => (
+                          <button
+                            key={optie.waarde}
+                            onClick={() => setScreeningAntwoorden(prev => ({
+                              ...prev,
+                              [vraag.id]: optie.waarde
+                            }))}
+                            className={`p-3 text-sm font-medium rounded-xl border-2 transition-all ${
+                              screeningAntwoorden[vraag.id] === optie.waarde
+                                ? 'border-orange-500 bg-orange-50 text-orange-700'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-orange-300'
+                            }`}
+                          >
+                            {optie.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8">
+                  <button 
+                    onClick={handleScreeningSave} 
+                    className="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold py-4 rounded-xl hover:from-orange-700 hover:to-orange-600 transition-all duration-200"
+                  >
+                    Bewaar Welzijn Check
+                  </button>
+                </div>
+
+                {/* Resultaten */}
+                {Object.keys(screeningAntwoorden).length > 0 && (
+                  <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {['depressie', 'angst'].map(categorie => {
+                      const score = getScreeningScore(categorie);
+                      const interpretatie = getScreeningInterpretatie(score, categorie);
+                      
+                      return (
+                        <div key={categorie} className={`p-6 rounded-xl border-2 ${interpretatie.achtergrond}`}>
+                          <h3 className="font-bold text-lg mb-2 capitalize">{categorie} Screening</h3>
+                          <div className={`text-2xl font-bold mb-2 ${interpretatie.kleur}`}>
+                            Score: {score}/6
+                          </div>
+                          <div className={`font-semibold mb-3 ${interpretatie.kleur}`}>
+                            {interpretatie.niveau}
+                          </div>
+                          <p className="text-sm text-slate-700">
+                            {interpretatie.advies}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Sociale Vaardigheden Tab */}
+          {actieveTab === 'vaardigheden' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {relationeleVaardigheden.map(vaardigheid => (
+                <div key={vaardigheid.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                  <h3 className="text-xl font-bold text-slate-800 mb-3">{vaardigheid.titel}</h3>
+                  <p className="text-slate-600 mb-4">{vaardigheid.beschrijving}</p>
+                  
+                  <button
+                    onClick={() => setActieveRelationeleVaardigheid(
+                      actieveRelationeleVaardigheid === vaardigheid.id ? null : vaardigheid.id
+                    )}
+                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold py-3 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 mb-4"
+                  >
+                    {actieveRelationeleVaardigheid === vaardigheid.id ? 'Verberg Oefeningen' : 'Toon Oefeningen'}
+                  </button>
+
+                  {actieveRelationeleVaardigheid === vaardigheid.id && (
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-slate-700">Praktische oefeningen:</h4>
+                      <ul className="space-y-2">
+                        {vaardigheid.oefeningen.map((oefening, index) => (
+                          <li key={index} className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
+                            <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white text-xs font-bold rounded-full flex items-center justify-center mt-0.5">
+                              {index + 1}
+                            </span>
+                            <span className="text-sm text-slate-700">{oefening}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Stress Management Tab */}
+          {actieveTab === 'stress' && (
+            <div className="space-y-6">
+              
+              {/* Geavanceerde Ontspanningsoefeningen */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4">Ademhalingstechnieken</h3>
+                  <div className="space-y-4">
+                    <button 
+                      onClick={() => setActieveOefening('ademhaling')}
+                      className={`w-full p-3 rounded-xl border-2 font-medium transition-all ${
+                        actieveOefening === 'ademhaling'
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-orange-300'
+                      }`}
+                    >
+                      Basis Ademhaling
+                    </button>
+                    <div className="text-sm text-slate-600">
+                      <strong>4-7-8 Techniek:</strong> Adem 4 sec in, houd 7 sec vast, adem 8 sec uit. Herhaal 4x.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4">Lichamelijke Ontspanning</h3>
+                  <div className="space-y-4">
+                    <button 
+                      onClick={() => setActieveOefening('progressief')}
+                      className={`w-full p-3 rounded-xl border-2 font-medium transition-all ${
+                        actieveOefening === 'progressief'
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-orange-300'
+                      }`}
+                    >
+                      Progressieve Ontspanning
+                    </button>
+                    <div className="text-sm text-slate-600">
+                      Span bewust spiergroepen aan en ontspan ze systematisch voor diepe ontspanning.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4">Mindfulness</h3>
+                  <div className="space-y-4">
+                    <button 
+                      onClick={() => setActieveOefening('zintuigen')}
+                      className={`w-full p-3 rounded-xl border-2 font-medium transition-all ${
+                        actieveOefening === 'zintuigen'
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-orange-300'
+                      }`}
+                    >
+                      5-4-3-2-1 Techniek
+                    </button>
+                    <div className="text-sm text-slate-600">
+                      Focus op je zintuigen om je aandacht terug naar het hier en nu te brengen.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actieve Oefening Display */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+                <h2 className="text-xl font-bold text-slate-800 mb-6">Actieve Oefening</h2>
+                
+                <div>
+                  {actieveOefening === 'ademhaling' && <AdemhalingOefening />}
+                  {actieveOefening === 'zintuigen' && <VijfZintuigenOefening />}
+                  {actieveOefening === 'progressief' && <ProgressieveOntspanning />}
+                </div>
+              </div>
+
+              {/* Stress Management Technieken */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {stressManagementTechnieken.map(techniek => (
+                  <div key={techniek.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h3 className="text-lg font-bold text-slate-800 mb-3">{techniek.titel}</h3>
+                    <p className="text-slate-600 mb-4 text-sm">{techniek.beschrijving}</p>
+                    
+                    <button
+                      onClick={() => setActieveStressTechniek(
+                        actieveStressTechniek === techniek.id ? null : techniek.id
+                      )}
+                      className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold py-2 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 mb-4"
+                    >
+                      {actieveStressTechniek === techniek.id ? 'Verberg Tips' : 'Toon Tips'}
+                    </button>
+
+                    {actieveStressTechniek === techniek.id && (
+                      <ul className="space-y-2">
+                        {techniek.tips.map((tip, index) => (
+                          <li key={index} className="flex items-start gap-2 text-sm text-slate-700">
+                            <span className="flex-shrink-0 w-4 h-4 bg-green-500 text-white text-xs font-bold rounded-full flex items-center justify-center mt-0.5">
+                              ✓
+                            </span>
+                            {tip}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Educatie Tab */}
+          {actieveTab === 'educatie' && (
+            <div className="max-w-4xl mx-auto space-y-8">
+              
+              {/* Mentale Gezondheid Basiskennis */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+                <h2 className="text-2xl font-bold text-slate-800 mb-6">Mentale Gezondheid: De Basis</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-slate-800">Wat is mentale gezondheid?</h3>
+                    <p className="text-slate-600 text-sm leading-relaxed">
+                      Mentale gezondheid gaat over hoe je denkt, voelt en je gedraagt. Het beïnvloedt hoe je 
+                      omgaat met stress, relaties aangaat en keuzes maakt. Het is net zo belangrijk als je 
+                      lichamelijke gezondheid.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-slate-800">Waarom is het belangrijk?</h3>
+                    <ul className="text-slate-600 text-sm space-y-2">
+                      <li>• Helpt je beter presteren op school</li>
+                      <li>• Verbetert je relaties</li>
+                      <li>• Vergroot je veerkracht</li>
+                      <li>• Zorgt voor meer levensgeluk</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Wanneer Hulp Zoeken */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
+                <h2 className="text-2xl font-bold text-slate-800 mb-6">Wanneer Professionele Hulp Zoeken?</h2>
+                
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-6">
+                  <h3 className="font-semibold text-amber-800 mb-3">Zoek hulp als je:</h3>
+                  <ul className="space-y-2 text-amber-700 text-sm">
+                    <li>• Al meer dan 2 weken constant verdrietig of angstig bent</li>
+                    <li>• Je niet meer kunt genieten van dingen die je vroeger leuk vond</li>
+                    <li>• Je schoolprestaties duidelijk achteruitgaan</li>
+                    <li>• Je je terugtrekt van vrienden en familie</li>
+                    <li>• Je gedachten hebt over jezelf pijn doen</li>
+                    <li>• Je veel alcohol of drugs gebruikt</li>
+                  </ul>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-semibold text-slate-800 mb-3">Bij wie kun je terecht?</h3>
+                    <ul className="space-y-2 text-slate-600 text-sm">
+                      <li>• Schoolpsycholoog of -maatschappelijk werker</li>
+                      <li>• Huisarts</li>
+                      <li>• Vertrouwenspersoon op school</li>
+                      <li>• Ouders of verzorgers</li>
+                      <li>• JAC (Jongerenadviescentrum)</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-semibold text-slate-800 mb-3">Directe hulplijnen:</h3>
+                    <div className="space-y-3">
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="font-semibold text-red-800">Zelfmoordlijn 1813</div>
+                        <div className="text-sm text-red-600">24/7 bereikbaar bij acute nood</div>
+                      </div>
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="font-semibold text-blue-800">Awel 102</div>
+                        <div className="text-sm text-blue-600">Voor alle vragen en problemen</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
