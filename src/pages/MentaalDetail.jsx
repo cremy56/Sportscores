@@ -462,16 +462,23 @@ const MentaalDetail = () => {
   };
 
   const handleMoodDimensieSave = async () => {
-    if (!effectiveUserId) return;
-    const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
-    try {
-      await setDoc(todayDocRef, { mood_dimensies: moodDimensieWaarden }, { merge: true });
-      toast.success('Mood dimensies opgeslagen!');
-    } catch (error) {
-      toast.error('Kon mood dimensies niet opslaan.');
-      console.error(error);
-    }
-  };
+  if (!effectiveUserId) {
+    toast.error('Geen gebruiker gevonden');
+    return;
+  }
+  
+  console.log('Saving mood dimensions:', moodDimensieWaarden);
+  const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
+  
+  try {
+    await setDoc(todayDocRef, { mood_dimensies: moodDimensieWaarden }, { merge: true });
+    toast.success('Mood dimensies opgeslagen!');
+    console.log('Successfully saved:', moodDimensieWaarden);
+  } catch (error) {
+    console.error('Error saving mood dimensions:', error);
+    toast.error('Kon mood dimensies niet opslaan: ' + error.message);
+  }
+};
 
   const handleScreeningSave = async () => {
     if (!effectiveUserId) return;
@@ -658,7 +665,8 @@ const MentaalDetail = () => {
                     </div>
                   )}
                 </div>
-                  {/* Rechter kolom - 1/3 breedte */}
+              
+              {/* Rechter kolom - 1/3 breedte */}
               <div className="space-y-6">
                 
                 {/* Stress Niveau */}
@@ -1149,45 +1157,49 @@ const MentaalDetail = () => {
         
         /* Custom range slider styling voor mood dimensies */
         input[type="range"] {
-          -webkit-appearance: none;
-          appearance: none;
-          background: transparent;
-          cursor: pointer;
-        }
-        
-        input[type="range"]::-webkit-slider-track {
-          background: #e2e8f0;
-          height: 6px;
-          border-radius: 3px;
-        }
-        
-        input[type="range"]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          height: 18px;
-          width: 18px;
-          border-radius: 50%;
-          background: #f97316;
-          border: 2px solid #fff;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        input[type="range"]::-moz-range-track {
-          background: #e2e8f0;
-          height: 6px;
-          border-radius: 3px;
-          border: none;
-        }
-        
-        input[type="range"]::-moz-range-thumb {
-          height: 18px;
-          width: 18px;
-          border-radius: 50%;
-          background: #f97316;
-          border: 2px solid #fff;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          cursor: pointer;
-        }
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 6px;
+}
+
+input[type="range"]::-webkit-slider-track {
+  background: #e2e8f0;
+  height: 6px;
+  border-radius: 3px;
+  border: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: #f97316;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-track {
+  background: #e2e8f0;
+  height: 6px;
+  border-radius: 3px;
+  border: none;
+}
+
+input[type="range"]::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: #f97316;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  cursor: pointer;
+  border: none;
+}
           
       `}</style>
     </div>
