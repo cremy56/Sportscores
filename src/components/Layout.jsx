@@ -5,13 +5,17 @@ import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { Toaster } from 'react-hot-toast';
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { UserCircleIcon, ChevronDownIcon, Zap, Star, TrendingUp } from '@heroicons/react/24/outline';
+import { UserCircleIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { Zap, Star, TrendingUp } from 'lucide-react';
 import { Bars3Icon } from '@heroicons/react/24/solid';
 import logoSrc from '../assets/logo.png';
 import StudentSearch from './StudentSearch';
 
 // Rewards Display Component voor in de menubalk
-const RewardsDisplay = ({ profile }) => {
+const RewardsDisplay = ({ profile, activeRole }) => {
+  // Toon alleen voor leerlingen
+  if (activeRole !== 'leerling') return null;
+  
   // Mock data - vervang later met echte data uit Firestore
   const xp = profile?.xp || 0;
   const sparks = profile?.sparks || 0;
@@ -43,7 +47,10 @@ const RewardsDisplay = ({ profile }) => {
 };
 
 // Mobile Rewards Display
-const MobileRewardsDisplay = ({ profile }) => {
+const MobileRewardsDisplay = ({ profile, activeRole }) => {
+  // Toon alleen voor leerlingen
+  if (activeRole !== 'leerling') return null;
+  
   const xp = profile?.xp || 0;
   const sparks = profile?.sparks || 0;
   const streak = profile?.streak_days || 0;
@@ -327,9 +334,10 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
             
-            {/* Rewards pagina voor alle rollen */}
-            <li><NavLink to="/rewards" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Rewards</NavLink></li>
-            
+           {/* Rewards alleen voor leerlingen */}
+            {activeRole === 'leerling' && (
+              <li><NavLink to="/rewards" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Rewards</NavLink></li>
+            )}
             {/* Gezondheid voor leerlingen en super-admin */}
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
@@ -369,12 +377,12 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
           {/* MIDDEN (Mobiel): Gecentreerde paginatitel + Mobile Rewards */}
           <div className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
             <h1 className="text-lg font-semibold text-gray-800 whitespace-nowrap">{currentTitle}</h1>
-            <MobileRewardsDisplay profile={simulatedProfile} />
+            <MobileRewardsDisplay profile={simulatedProfile} activeRole={activeRole} />
           </div>
 
           {/* RECHTERKANT: Rewards Display + Profielmenu */}
           <div className="flex items-center justify-end flex-shrink-0 relative z-20">
-            <RewardsDisplay profile={simulatedProfile} />
+            <RewardsDisplay profile={simulatedProfile} activeRole={activeRole} />
             <div ref={menuButtonRef}>
               <button
                 onClick={toggleMenu}
