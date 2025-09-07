@@ -293,7 +293,7 @@ const getHartslagScore = () => {
   const balansStatus = getBalansStatus();
 
   const WelzijnsKompas = () => (
-    <div className="flex justify-center mb-4">
+    <div className="flex justify-center mb-8">
       <div className="relative">
         <div 
           className="relative w-96 h-96 rounded-full"
