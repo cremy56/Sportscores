@@ -663,8 +663,9 @@ const MentaalDetail = () => {
                         ))}
                       </div>
                     </div>
-                     )}
+                  )}
                 </div>
+              </div>
               
               {/* Rechter kolom - 1/3 breedte */}
               <div className="space-y-6">
@@ -764,9 +765,9 @@ const MentaalDetail = () => {
                   </div>
                 </div>
               </div>
-             </div>
             </div>
           )}
+
           {/* Uitgebreide Tracking Tab */}
           {actieveTab === 'tracking' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1157,50 +1158,49 @@ const MentaalDetail = () => {
         
         /* Custom range slider styling voor mood dimensies */
         input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  cursor: pointer;
-  height: 6px;
-}
+          -webkit-appearance: none;
+          appearance: none;
+          background: transparent;
+          cursor: pointer;
+          height: 6px;
+        }
 
-input[type="range"]::-webkit-slider-track {
-  background: #e2e8f0;
-  height: 6px;
-  border-radius: 3px;
-  border: none;
-}
+        input[type="range"]::-webkit-slider-track {
+          background: #e2e8f0;
+          height: 6px;
+          border-radius: 3px;
+          border: none;
+        }
 
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 18px;
-  width: 18px;
-  border-radius: 50%;
-  background: #f97316;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  cursor: pointer;
-}
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 18px;
+          width: 18px;
+          border-radius: 50%;
+          background: #f97316;
+          border: 2px solid #fff;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          cursor: pointer;
+        }
 
-input[type="range"]::-moz-range-track {
-  background: #e2e8f0;
-  height: 6px;
-  border-radius: 3px;
-  border: none;
-}
+        input[type="range"]::-moz-range-track {
+          background: #e2e8f0;
+          height: 6px;
+          border-radius: 3px;
+          border: none;
+        }
 
-input[type="range"]::-moz-range-thumb {
-  height: 18px;
-  width: 18px;
-  border-radius: 50%;
-  background: #f97316;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  cursor: pointer;
-  border: none;
-}
-          
+        input[type="range"]::-moz-range-thumb {
+          height: 18px;
+          width: 18px;
+          border-radius: 50%;
+          background: #f97316;
+          border: 2px solid #fff;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          cursor: pointer;
+          border: none;
+        }
       `}</style>
     </div>
   );
