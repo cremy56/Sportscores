@@ -17,7 +17,7 @@ const EHBODetail = () => {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [showResults, setShowResults] = useState(false);
 
-  // Scenario data
+  // Scenario data - Uitgebreid met meer leerplandoel-relevante scenario's
   const scenarios = [
     {
       id: 'bewusteloos',
@@ -206,8 +206,197 @@ const EHBODetail = () => {
           explanation: 'Bij aanhoudende bloeding: meer druk + omhoog houden + extra lagen verband (zonder de eerste weg te halen).'
         }
       ]
+    },
+    {
+      id: 'reanimatie',
+      title: 'Reanimatie',
+      difficulty: 'Moeilijk',
+      duration: '5-6 min',
+      description: 'Persoon is bewusteloos en ademt niet',
+      image: '🫀',
+      color: 'red',
+      steps: [
+        {
+          id: 1,
+          question: 'Je vindt iemand bewusteloos. Na veiligheidscheck blijkt de persoon niet te ademen en geen pols te hebben. Wat nu?',
+          options: [
+            { id: 'a', text: 'Eerst 112 bellen, daarna beginnen met reanimatie', correct: true, feedback: 'Correct! Professionele hulp is cruciaal bij reanimatie.' },
+            { id: 'b', text: 'Meteen beginnen met hartmassage zonder te bellen', correct: false, feedback: '112 bellen is essentieel - laat iemand anders dit doen of gebruik speaker.' },
+            { id: 'c', text: 'Proberen de persoon wakker te maken', correct: false, feedback: 'De persoon heeft geen hartslag - tijd is cruciaal!' },
+            { id: 'd', text: 'Zoeken naar een AED voordat je start', correct: false, feedback: 'Begin direct met hartmassage, laat iemand anders een AED zoeken.' }
+          ],
+          timeLimit: 10,
+          explanation: 'Bij reanimatie: eerst hulp oproepen (112), dan direct starten met hartmassage. Elke seconde telt!'
+        },
+        {
+          id: 2,
+          question: 'Je start met hartmassage. Wat is de juiste techniek?',
+          options: [
+            { id: 'a', text: 'Handpalmen op de borst, armen gestrekt, 100-120 compressies per minuut', correct: true, feedback: 'Perfect! Harde, snelle compressies met volledige ontspanning tussen.' },
+            { id: 'b', text: 'Zacht masseren om het hart niet te beschadigen', correct: false, feedback: 'Te zacht! Je moet minstens 5cm diep duwen.' },
+            { id: 'c', text: 'Op de maag drukken om de bloedcirculatie te stimuleren', correct: false, feedback: 'Gevaarlijk en nutteloos! Alleen op het borstbeen masseren.' },
+            { id: 'd', text: '60 compressies per minuut met lange pauzes', correct: false, feedback: 'Te traag! 100-120 per minuut zonder onderbrekingen.' }
+          ],
+          timeLimit: 12,
+          explanation: 'Hartmassage: onderste helft borstbeen, 5-6cm diep, 100-120/min, volledig loslaten tussen compressies.'
+        },
+        {
+          id: 3,
+          question: 'Na 30 compressies moet je beademen. Hoe doe je dit?',
+          options: [
+            { id: 'a', text: 'Hoofd achterover, kin omhoog, 2 beademingen van 1 seconde', correct: true, feedback: 'Juist! Luchtwegen vrij maken en effectieve beademing geven.' },
+            { id: 'b', text: 'Hoofd naar voren, veel lucht in één keer blazen', correct: false, feedback: 'Verkeerd! Hoofd achterover voor vrije luchtwegen.' },
+            { id: 'c', text: 'Alleen hartmassage, geen beademing', correct: false, feedback: 'Beademing is belangrijk voor zuurstoftoevoer.' },
+            { id: 'd', text: '10 snelle ademhalingen achter elkaar', correct: false, feedback: 'Te veel! 2 effectieve beademingen van 1 seconde elk.' }
+          ],
+          timeLimit: 15,
+          explanation: '30 compressies : 2 beademingen. Hoofd achterover, kin omhoog, neus dichtknijpen, effectieve beademing.'
+        }
+      ]
+    },
+    {
+      id: 'anafylaxie',
+      title: 'Allergische reactie',
+      difficulty: 'Moeilijk',
+      duration: '3-4 min',
+      description: 'Ernstige allergische reactie na bijensteeek',
+      image: '🐝',
+      color: 'orange',
+      steps: [
+        {
+          id: 1,
+          question: 'Iemand wordt gestoken door een bij. Na 5 minuten krijgt diegene uitslag, zwelling en ademnood. Wat gebeurt er?',
+          options: [
+            { id: 'a', text: 'Normale reactie op een bijensteeek', correct: false, feedback: 'Dit zijn tekenen van een ernstige allergische reactie!' },
+            { id: 'b', text: 'Anafylactische shock - levensbedreigende allergische reactie', correct: true, feedback: 'Correct! Snelle systemische reactie die fataal kan zijn.' },
+            { id: 'c', text: 'Gewoon even afwachten, gaat vanzelf over', correct: false, feedback: 'Gevaarlijk! Deze symptomen vereisen onmiddellijke actie.' },
+            { id: 'd', text: 'Alleen lokale zwelling door het gif', correct: false, feedback: 'Systemische symptomen wijzen op ernstige allergie.' }
+          ],
+          timeLimit: 10,
+          explanation: 'Anafylaxie: snelle allergische reactie met uitslag, zwelling, ademnood, mogelijk bewusteloosheid.'
+        },
+        {
+          id: 2,
+          question: 'De persoon heeft moeite met ademen en wordt bleek. Eerste actie?',
+          options: [
+            { id: 'a', text: 'Onmiddellijk 112 bellen', correct: true, feedback: 'Juist! Anafylaxie is een medisch noodgeval.' },
+            { id: 'b', text: 'Antihistamine geven en afwachten', correct: false, feedback: 'Te traag bij anafylaxie! 112 eerst.' },
+            { id: 'c', text: 'De angel proberen eruit te halen', correct: false, feedback: 'Niet de prioriteit nu - eerst 112.' },
+            { id: 'd', text: 'Water geven om te kalmeren', correct: false, feedback: 'Kan verslikking veroorzaken bij ademnood.' }
+          ],
+          timeLimit: 8,
+          explanation: 'Bij anafylaxie: onmiddellijk 112! Binnen minuten kan het levensgevaarlijk worden.'
+        },
+        {
+          id: 3,
+          question: 'De persoon heeft een EpiPen bij zich. Wat doe je?',
+          options: [
+            { id: 'a', text: 'Wachten tot de ambulance komt', correct: false, feedback: 'Te gevaarlijk! EpiPen kan levens redden.' },
+            { id: 'b', text: 'EpiPen in de dijspier, oranje kant eerst, 10 seconden vasthouden', correct: true, feedback: 'Perfect! EpiPen direct gebruiken bij anafylaxie.' },
+            { id: 'c', text: 'EpiPen in de arm injecteren', correct: false, feedback: 'Verkeerde plaats! Altijd in de dijspier.' },
+            { id: 'd', text: 'Eerst instructies lezen', correct: false, feedback: 'Geen tijd! Bij anafylaxie direct gebruiken.' }
+          ],
+          timeLimit: 12,
+          explanation: 'EpiPen: oranje kant in buitenkant dijspier, door kleding heen, 10 seconden vasthouden.'
+        }
+      ]
+    },
+    {
+      id: 'brand',
+      title: 'Brandwond',
+      difficulty: 'Gemiddeld',
+      duration: '3 min',
+      description: 'Persoon heeft zich gebrand aan heet water',
+      image: '🔥',
+      color: 'orange',
+      steps: [
+        {
+          id: 1,
+          question: 'Iemand morst kokend water over zijn hand en onderarm. De huid wordt rood en er komen blaren. Wat doe je eerst?',
+          options: [
+            { id: 'a', text: 'IJs op de brandwond leggen', correct: false, feedback: 'Gevaarlijk! IJs kan verdere weefselbeschadiging veroorzaken.' },
+            { id: 'b', text: 'De brandwond 10-20 minuten koelen met lauw water', correct: true, feedback: 'Correct! Lauw water stopt de verbranding en vermindert pijn.' },
+            { id: 'c', text: 'Zalf of boter smeren op de wond', correct: false, feedback: 'Nooit! Dit houdt de hitte vast en vergroot infectierisico.' },
+            { id: 'd', text: 'De blaren doorprikken', correct: false, feedback: 'Gevaarlijk! Blaren beschermen tegen infectie.' }
+          ],
+          timeLimit: 10,
+          explanation: 'Brandwonden: eerst koelen met lauw water (15-25°C) gedurende 10-20 minuten.'
+        },
+        {
+          id: 2,
+          question: 'Na het koelen zie je dat de brandwond groot is en er veel blaren zijn. Wat nu?',
+          options: [
+            { id: 'a', text: 'Schone, vochtige doek erop en naar de dokter', correct: true, feedback: 'Juist! Grote brandwonden met blaren vereisen medische zorg.' },
+            { id: 'b', text: 'Verband er stevig omheen wikkelen', correct: false, feedback: 'Niet te strak! Zwelling kan circulatie afknijpen.' },
+            { id: 'c', text: 'Thuis verzorgen met brandwondenzalf', correct: false, feedback: 'Te risicovol bij grote brandwonden.' },
+            { id: 'd', text: 'Aspirine geven tegen de pijn', correct: false, feedback: 'Niet de prioriteit. Eerst naar medische hulp.' }
+          ],
+          timeLimit: 12,
+          explanation: 'Grote brandwonden (>handpalm) of met blaren: medische zorg nodig. Bedekken met schone, vochtige doek.'
+        },
+        {
+          id: 3,
+          question: 'Wanneer moet je bij een brandwond 112 bellen?',
+          options: [
+            { id: 'a', text: 'Alleen bij brandwonden in het gezicht', correct: false, feedback: 'Meer situaties vereisen 112!' },
+            { id: 'b', text: 'Bij brandwonden groter dan een handpalm, of op gezicht/hals/geslachtsdelen', correct: true, feedback: 'Correct! Deze lokaties en grote brandwonden zijn gevaarlijk.' },
+            { id: 'c', text: 'Nooit, brandwonden kunnen altijd thuis behandeld worden', correct: false, feedback: 'Gevaarlijk! Sommige brandwonden zijn levensbedreigeind.' },
+            { id: 'd', text: 'Alleen bij elektrische brandwonden', correct: false, feedback: 'Ook andere ernstige brandwonden vereisen 112.' }
+          ],
+          timeLimit: 15,
+          explanation: '112 bij: brandwonden >handpalm, op gezicht/hals/geslachtsdelen, door elektriciteit, of bij shocksymptomen.'
+        }
+      ]
+    },
+    {
+      id: 'epilepsie',
+      title: 'Epileptische aanval',
+      difficulty: 'Gemiddeld',
+      duration: '4 min',
+      description: 'Iemand krijgt een epileptische aanval',
+      image: '⚡',
+      color: 'purple',
+      steps: [
+        {
+          id: 1,
+          question: 'Je ziet iemand plotseling vallen en hevig schokken. Wat is dit waarschijnlijk?',
+          options: [
+            { id: 'a', text: 'Een hartaanval', correct: false, feedback: 'Bij hartaanval geen schokkende bewegingen.' },
+            { id: 'b', text: 'Een epileptische aanval', correct: true, feedback: 'Correct! Plots vallen en schokken zijn typisch voor epilepsie.' },
+            { id: 'c', text: 'Een beroerte', correct: false, feedback: 'Beroerte toont andere symptomen.' },
+            { id: 'd', text: 'Flauwvallen', correct: false, feedback: 'Bij flauwvallen geen schokkende bewegingen.' }
+          ],
+          timeLimit: 8,
+          explanation: 'Epileptische aanval: plotse bewusteloosheid met ritmische schokkende bewegingen.'
+        },
+        {
+          id: 2,
+          question: 'De persoon schokt hevig op de grond. Wat doe je NIET?',
+          options: [
+            { id: 'a', text: 'Tijd bijhouden hoe lang de aanval duurt', correct: false, feedback: 'Dit is juist goed om te doen.' },
+            { id: 'b', text: 'Proberen de bewegingen tegen te houden', correct: true, feedback: 'Correct! Nooit proberen iemand tegen te houden tijdens een aanval.' },
+            { id: 'c', text: 'Gevaarlijke voorwerpen weghalen', correct: false, feedback: 'Dit is juist belangrijk voor veiligheid.' },
+            { id: 'd', text: 'De omgeving veilig maken', correct: false, feedback: 'Dit is essentieel.' }
+          ],
+          timeLimit: 10,
+          explanation: 'NOOIT doen: tegenhouden, iets in de mond stoppen, verplaatsen. WEL: beschermen, tijd bijhouden.'
+        },
+        {
+          id: 3,
+          question: 'De aanval stopt na 2 minuten. De persoon is nog verward. Wat nu?',
+          options: [
+            { id: 'a', text: 'Direct proberen rechtop te zetten', correct: false, feedback: 'Te vroeg! Persoon is nog verward.' },
+            { id: 'b', text: 'In stabiele zijligging, rustig praten, ambulance als eerste aanval', correct: true, feedback: 'Perfect! Zijligging voor veilige ademhaling, kalmte en professionele beoordeling.' },
+            { id: 'c', text: 'Water geven omdat ze dorst hebben', correct: false, feedback: 'Verslikingsgevaar als nog verward!' },
+            { id: 'd', text: 'Stevig vastpakken om te kalmeren', correct: false, feedback: 'Kan angst vergroten. Rustig praten is beter.' }
+          ],
+          timeLimit: 15,
+          explanation: 'Na aanval: stabiele zijligging, kalmerende woorden, 112 bij eerste aanval of aanval >5 minuten.'
+        }
+      ]
     }
   ];
+      
 
   // Emergency contacts data
   const emergencyContacts = [
