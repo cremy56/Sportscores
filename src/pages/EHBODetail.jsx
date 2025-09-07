@@ -851,9 +851,8 @@ useEffect(() => {
     </div>
   );
 
- const TheoryTab = () => (
+const TheoryTab = () => (
   <div className="space-y-8">
-    {/* Bestaande EHBO Basisprincipes sectie blijft hetzelfde */}
     <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-8 text-white">
       <h2 className="text-2xl font-bold mb-4">EHBO Basisprincipes</h2>
       <p className="text-purple-100">
@@ -861,85 +860,177 @@ useEffect(() => {
       </p>
     </div>
 
-    {/* Uitgebreide theoriesecties */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {/* Bestaande basisprincipes */}
+    {/* Basisprincipes uitgebreid */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <div className="text-4xl mb-4">🛡️</div>
         <h3 className="text-lg font-bold mb-3">1. Eigen Veiligheid</h3>
-        <p className="text-gray-600 text-sm">
+        <p className="text-gray-600 text-sm mb-3">
           Altijd eerst controleren of de situatie veilig is. Een dode held helpt niemand.
         </p>
+        <ul className="text-xs text-gray-500 space-y-1">
+          <li>• Check verkeer, brand, instorting</li>
+          <li>• Gebruik persoonlijke bescherming</li>
+          <li>• Roep hulp als onveilig</li>
+        </ul>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <div className="text-4xl mb-4">📞</div>
         <h3 className="text-lg font-bold mb-3">2. Hulp Oproepen</h3>
-        <p className="text-gray-600 text-sm">
+        <p className="text-gray-600 text-sm mb-3">
           Bij ernstige situaties altijd 112 bellen. Hoe eerder professionele hulp, hoe beter.
         </p>
+        <ul className="text-xs text-gray-500 space-y-1">
+          <li>• Blijf kalm en spreek duidelijk</li>
+          <li>• Geef locatie, situatie, aantal gewonden</li>
+          <li>• Luister naar instructies</li>
+        </ul>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <div className="text-4xl mb-4">🤝</div>
         <h3 className="text-lg font-bold mb-3">3. Eerste Hulp</h3>
-        <p className="text-gray-600 text-sm">
+        <p className="text-gray-600 text-sm mb-3">
           Pas je kennis toe om het slachtoffer te helpen tot professionele hulp arriveert.
         </p>
+        <ul className="text-xs text-gray-500 space-y-1">
+          <li>• ABC: Airway, Breathing, Circulation</li>
+          <li>• Kalmeer het slachtoffer</li>
+          <li>• Monitor vitale functies</li>
+        </ul>
       </div>
+    </div>
 
-      {/* NIEUWE theoriesecties */}
+    {/* Gerestaureerde Reanimatie Keten */}
+    <div className="bg-white border border-gray-200 rounded-xl p-6">
+      <h3 className="text-xl font-bold mb-6">De Reanimatie Keten</h3>
+      <p className="text-gray-600 mb-4 text-sm">
+        De overlevingsketen bij hartstilstand. Elke minuut vertraging vermindert overlevingskans met 10%.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[
+          { step: '1', title: 'Herkenning', desc: 'Bewusteloosheid + geen normale ademhaling', icon: '👁️', detail: 'Roep luid, schud schouders. Check 10 sec ademhaling.' },
+          { step: '2', title: 'Alarm', desc: '112 bellen + AED halen', icon: '📱', detail: 'Bel zelf of laat anderen bellen. Vraag om AED.' },
+          { step: '3', title: 'Reanimatie', desc: '30 borstcompressies + 2 beademingen', icon: '💪', detail: '5-6cm diep, 100-120/min. Volledig loslaten tussen compressies.' },
+          { step: '4', title: 'AED', desc: 'Defibrillator zo snel mogelijk', icon: '⚡', detail: 'Volg stemcommandos. Zorg dat niemand het slachtoffer aanraakt.' }
+        ].map((item, index) => (
+          <div key={index} className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-2xl">{item.icon}</span>
+            </div>
+            <h4 className="font-bold text-red-600 mb-1">Stap {item.step}</h4>
+            <h5 className="font-semibold mb-2">{item.title}</h5>
+            <p className="text-sm text-gray-600 mb-2">{item.desc}</p>
+            <p className="text-xs text-gray-500">{item.detail}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Uitgebreide specifieke scenario's */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <div className="text-4xl mb-4">🔥</div>
         <h3 className="text-lg font-bold mb-3">Brandwonden</h3>
-        <p className="text-gray-600 text-sm">
-          Koelen met lauw water, geen ijs of zalf. Bij grote brandwonden altijd medische hulp.
+        <p className="text-gray-600 text-sm mb-3">
+          Koelen met lauw water (15-25°C), 10-20 minuten. Geen ijs, zalf of boter.
         </p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>1e graad:</strong> Rood, pijnlijk (zonnebrend)</p>
+          <p><strong>2e graad:</strong> Blaren, zeer pijnlijk</p>
+          <p><strong>3e graad:</strong> Wit/zwart, geen pijn</p>
+          <p><strong>112 bij:</strong> handpalm, gezicht/hals, 3e graad</p>
+        </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <div className="text-4xl mb-4">🐝</div>
-        <h3 className="text-lg font-bold mb-3">Allergische Reacties</h3>
-        <p className="text-gray-600 text-sm">
-          Anafylaxie is levensgevaarlijk. EpiPen direct gebruiken, altijd 112 bellen.
+        <h3 className="text-lg font-bold mb-3">Anafylaxie</h3>
+        <p className="text-gray-600 text-sm mb-3">
+          Levensbedreigende allergische reactie. EpiPen direct gebruiken, altijd 112.
         </p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Symptomen:</strong> Uitslag, zwelling, ademnood, bewusteloosheid</p>
+          <p><strong>EpiPen:</strong> Oranje kant in dijspier, 10 sec vasthouden</p>
+          <p><strong>Na EpiPen:</strong> Alsnog 112 bellen, tweede dosis mogelijk</p>
+        </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <div className="text-4xl mb-4">⚡</div>
-        <h3 className="text-lg font-bold mb-3">Epileptische Aanvallen</h3>
-        <p className="text-gray-600 text-sm">
-          Bescherm de persoon, houd tijd bij, nooit tegenhouden of mond openen.
+        <h3 className="text-lg font-bold mb-3">Epilepsie</h3>
+        <p className="text-gray-600 text-sm mb-3">
+          Bescherm de persoon, tijd bijhouden. Nooit tegenhouden of mond openen.
         </p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Tijdens aanval:</strong> Omgeving veilig, tijd bijhouden</p>
+          <p><strong>Na aanval:</strong> Stabiele zijligging, rustig praten</p>
+          <p><strong>112 bij:</strong> 5 min, eerste aanval, letsel</p>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">🩸</div>
+        <h3 className="text-lg font-bold mb-3">Bloedingen</h3>
+        <p className="text-gray-600 text-sm mb-3">
+          Eigen bescherming eerst. Directe druk op wond, gewonde deel omhoog.
+        </p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Methode:</strong> Druk  verhoging  extra lagen</p>
+          <p><strong>Nooit:</strong> Eerste verband weghalen</p>
+          <p><strong>Infectiepreventie:</strong> Handschoenen, geen direct contact</p>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">🫁</div>
+        <h3 className="text-lg font-bold mb-3">Verslikking</h3>
+        <p className="text-gray-600 text-sm mb-3">
+          Geen geluid = complete blokkering. Rugklappen eerst, dan Heimlich.
+        </p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Herkenning:</strong> Handen aan keel, geen geluid</p>
+          <p><strong>Stap 1:</strong> 5 ferme klappen tussen schouderbladen</p>
+          <p><strong>Stap 2:</strong> Heimlich manoeuvre (vuist onder borstbeen)</p>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">💔</div>
+        <h3 className="text-lg font-bold mb-3">Hartaanval</h3>
+        <p className="text-gray-600 text-sm mb-3">
+          Drukkende pijn op borst met uitstraling. Onmiddellijk 112, rust en kalmte.
+        </p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Symptomen:</strong> Borstpijn, zweten, misselijkheid</p>
+          <p><strong>Houding:</strong> Half rechtop, knieën gebogen</p>
+          <p><strong>Niet:</strong> Laten bewegen, aspirine zonder toestemming</p>
+        </div>
       </div>
     </div>
 
-    {/* Bestaande Reanimatie Keten blijft hetzelfde */}
-    <div className="bg-white border border-gray-200 rounded-xl p-6">
-      <h3 className="text-xl font-bold mb-6">De Reanimatie Keten</h3>
-      {/* ... bestaande inhoud ... */}
-    </div>
-
-    {/* NIEUWE sectie: Wanneer 112 bellen */}
+    {/* 112 Prioriteiten */}
     <div className="bg-white border border-gray-200 rounded-xl p-6">
       <h3 className="text-xl font-bold mb-6">Wanneer onmiddellijk 112 bellen?</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <h4 className="font-semibold text-red-600 mb-3">Absoluut levensgevaarlijk:</h4>
+          <h4 className="font-semibold text-red-600 mb-3">Absoluut levensgevaarlijk (minuten tellen):</h4>
           <ul className="space-y-2 text-sm text-gray-700">
-            <li>• Geen ademhaling of hartslag</li>
-            <li>• Anafylactische shock</li>
-            <li>• Ernstige bloeding</li>
+            <li>• Geen ademhaling of hartslag (reanimatie)</li>
+            <li>• Anafylactische shock (EpiPen + 112)</li>
+            <li>• Ernstige bloeding (niet te stoppen)</li>
             <li>• Vermoeden hartaanval</li>
-            <li>• Epileptische aanval langer dan 5 min</li>
+            <li>• Bewusteloosheid onbekende oorzaak</li>
           </ul>
         </div>
         <div>
-          <h4 className="font-semibold text-orange-600 mb-3">Ernstig maar minder urgent:</h4>
+          <h4 className="font-semibold text-orange-600 mb-3">Urgent maar meer tijd:</h4>
           <ul className="space-y-2 text-sm text-gray-700">
-            <li>• Grote brandwonden</li>
-            <li>• Bewusteloosheid</li>
-            <li>• Ernstige verwondingen</li>
+            <li>• Epileptische aanval 5 minuten</li>
+            <li>• Grote brandwonden (handpalm)</li>
+            <li>• Brandwonden gezicht/hals/geslachtsdelen</li>
+            <li>• Vermoeden vergiftiging</li>
             <li>• Bij twijfel: altijd bellen!</li>
           </ul>
         </div>
