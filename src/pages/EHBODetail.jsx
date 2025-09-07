@@ -534,7 +534,8 @@ const EHBODetail = () => {
               red: 'from-red-500 to-pink-500',
               orange: 'from-orange-500 to-amber-500',
               blue: 'from-blue-500 to-indigo-500',
-              green: 'from-green-500 to-emerald-500'
+              green: 'from-green-500 to-emerald-500',
+              purple: 'from-purple-500 to-violet-500'
             }[scenario.color];
 
             return (
