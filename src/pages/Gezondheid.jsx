@@ -439,9 +439,7 @@ const getHartslagScore = () => {
         <div className="max-w-4xl mx-auto space-y-6">
           <WelzijnsKompas />
 
-        // Voeg deze code toe aan je Gezondheid.jsx component
 
-// In de 5 Thema Tiles sectie, vervang de huidige grid met:
 {/* 6 Thema Tiles voor NAVIGATIE */}
 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 max-w-7xl mx-auto">
   <div onClick={() => handleTileClick('/gezondheid/beweging')} className="bg-blue-50 rounded-xl p-4 border-2 border-blue-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
