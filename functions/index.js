@@ -955,7 +955,17 @@ function getTodayString() {
   return `${year}-${month}-${day}`;
 }
 // Test deelname XP (50 XP + 100 XP voor PR)
-exports.awardTestParticipationXP = onCall(async (request) => {
+
+
+exports.awardTestParticipationXP = onCall({
+  cors: [
+    'https://sportscores-app.firebaseapp.com',
+    'https://sportscores-app.web.app', 
+    'https://www.sportscores.be',
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ]
+}, async (request) => {
   const db = getFirestore();
   
   if (!request.auth) {
@@ -963,6 +973,11 @@ exports.awardTestParticipationXP = onCall(async (request) => {
   }
   
   const { userId, testId, newScore } = request.data;
+  
+  console.log('=== AWARD TEST XP FUNCTION START ===');
+  console.log('User ID:', userId);
+  console.log('Test ID:', testId);
+  console.log('New Score:', newScore);
   
   if (!userId || !testId) {
     throw new Error('userId and testId required');
@@ -975,16 +990,24 @@ exports.awardTestParticipationXP = onCall(async (request) => {
       getDoc(doc(db, 'testen', testId))
     ]);
     
-    if (!userDoc.exists() || !testDoc.exists()) {
-      throw new Error('User or test not found');
+    if (!userDoc.exists()) {
+      console.log('User not found, checking toegestane_gebruikers...');
+      const toegestaneUserDoc = await getDoc(doc(db, 'toegestane_gebruikers', userId));
+      if (!toegestaneUserDoc.exists()) {
+        throw new Error('User not found in users or toegestane_gebruikers');
+      }
     }
     
-    const userData = userDoc.data();
+    if (!testDoc.exists()) {
+      throw new Error('Test not found');
+    }
+    
+    const userData = userDoc.exists() ? userDoc.data() : {};
     const testData = testDoc.data();
     
-    if (userData.rol !== 'leerling') {
-      throw new Error('Only students can receive test XP');
-    }
+    console.log('User data found:', !!userData);
+    console.log('Test data found:', !!testData);
+    console.log('Test score_richting:', testData.score_richting);
     
     let totalXP = 50; // Base XP voor test deelname
     const reasons = ['test_participation'];
@@ -992,13 +1015,15 @@ exports.awardTestParticipationXP = onCall(async (request) => {
     
     // Check voor Personal Record alleen als er een score is
     if (newScore !== null && newScore !== undefined) {
+      console.log('Checking Personal Record...');
       prInfo = await checkPersonalRecord(userId, testId, newScore, testData);
+      console.log('PR Result:', prInfo);
       
       if (prInfo.isPersonalRecord) {
         totalXP += 100; // Extra 100 XP voor PR
         reasons.push('personal_record');
         
-        console.log(`🏆 Personal Record! User ${userData.naam}: ${newScore} (previous: ${prInfo.previousBest}, improvement: ${prInfo.improvement})`);
+        console.log(`🏆 Personal Record! User ${userId}: ${newScore} (previous: ${prInfo.previousBest}, improvement: ${prInfo.improvement})`);
       }
     }
     
@@ -1006,7 +1031,7 @@ exports.awardTestParticipationXP = onCall(async (request) => {
     const newXP = currentXP + totalXP;
     const newSparks = Math.floor(newXP / 100);
     
-    // Update user stats
+    // Update user stats - probeer eerst users, dan toegestane_gebruikers
     const updateData = {
       xp: newXP,
       sparks: newSparks,
@@ -1018,14 +1043,25 @@ exports.awardTestParticipationXP = onCall(async (request) => {
       updateData.last_personal_record = FieldValue.serverTimestamp();
     }
     
-    await userDoc.ref.update(updateData);
+    try {
+      if (userDoc.exists()) {
+        await userDoc.ref.update(updateData);
+      } else {
+        const toegestaneUserRef = doc(db, 'toegestane_gebruikers', userId);
+        await toegestaneUserRef.update(updateData);
+      }
+      console.log('User stats updated successfully');
+    } catch (updateError) {
+      console.error('Error updating user stats:', updateError);
+      throw new Error('Failed to update user stats');
+    }
     
     // Log transacties
     for (const reason of reasons) {
       const xpAmount = reason === 'test_participation' ? 50 : 100;
       await logXPTransaction(db, {
         user_id: userId,
-        user_email: userData.email,
+        user_email: userData.email || userId,
         amount: xpAmount,
         reason: reason,
         source_id: testId,
@@ -1037,6 +1073,10 @@ exports.awardTestParticipationXP = onCall(async (request) => {
         } : null
       });
     }
+    
+    console.log('=== AWARD TEST XP FUNCTION SUCCESS ===');
+    console.log('Total XP awarded:', totalXP);
+    console.log('Personal Record:', prInfo?.isPersonalRecord || false);
     
     return {
       success: true,
@@ -1051,6 +1091,79 @@ exports.awardTestParticipationXP = onCall(async (request) => {
     throw new Error('Failed to award test XP: ' + error.message);
   }
 });
+
+// Zorg er ook voor dat je checkPersonalRecord functie deze is:
+async function checkPersonalRecord(userId, testId, newScore, testData) {
+  const db = getFirestore();
+  
+  try {
+    console.log('=== CHECK PERSONAL RECORD ===');
+    console.log('User ID:', userId);
+    console.log('Test ID:', testId);
+    console.log('New Score:', newScore);
+    
+    // Haal alle historische scores op voor deze user + test combinatie
+    const historicalQuery = query(
+      collection(db, 'scores'),
+      where('leerling_id', '==', userId),
+      where('test_id', '==', testId),
+      where('score', '!=', null)
+    );
+    
+    const historicalScores = await getDocs(historicalQuery);
+    console.log('Historical scores found:', historicalScores.size);
+    
+    // Als dit de eerste score is, is het automatisch een PR
+    if (historicalScores.empty) {
+      console.log(`First score for user ${userId} on test ${testId} - automatic PR`);
+      return { isPersonalRecord: true, previousBest: null, improvement: null };
+    }
+    
+    // Filter de huidige score uit (als die er al in staat)
+    const previousScores = [];
+    historicalScores.docs.forEach(doc => {
+      const scoreData = doc.data();
+      // Alleen toevoegen als het niet de score is die we net hebben ingevuld
+      if (scoreData.score !== newScore) {
+        previousScores.push(scoreData.score);
+      }
+    });
+    
+    console.log('Previous scores:', previousScores);
+    
+    if (previousScores.length === 0) {
+      console.log('No previous different scores found - this is a PR');
+      return { isPersonalRecord: true, previousBest: null, improvement: null };
+    }
+    
+    // Bepaal wat "beter" betekent voor deze test
+    const scoreRichting = testData.score_richting || 'hoog';
+    console.log('Score richting:', scoreRichting);
+    
+    let previousBest;
+    if (scoreRichting === 'hoog') {
+      // Hoger = beter (bijv. verspringen, basketball shots)
+      previousBest = Math.max(...previousScores);
+      const isPersonalRecord = newScore > previousBest;
+      const improvement = isPersonalRecord ? newScore - previousBest : null;
+      
+      console.log(`Higher is better: new=${newScore}, previous best=${previousBest}, is PR=${isPersonalRecord}`);
+      return { isPersonalRecord, previousBest, improvement };
+    } else {
+      // Lager = beter (bijv. sprint tijden, cooper test tijd)  
+      previousBest = Math.min(...previousScores);
+      const isPersonalRecord = newScore < previousBest;
+      const improvement = isPersonalRecord ? previousBest - newScore : null;
+      
+      console.log(`Lower is better: new=${newScore}, previous best=${previousBest}, is PR=${isPersonalRecord}`);
+      return { isPersonalRecord, previousBest, improvement };
+    }
+    
+  } catch (error) {
+    console.error('Error checking personal record:', error);
+    return { isPersonalRecord: false, previousBest: null, improvement: null };
+  }
+}
 
 // Wekelijkse bonussen check (elke maandag om 6:00)
 

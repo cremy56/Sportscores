@@ -495,60 +495,19 @@ const handleUpdateScore = async () => {
         const testDatum = new Date(datum);
         const newPunt = await calculatePuntFromScore(details.test_volledig, leerling, scoreValue, testDatum);
 
-        console.log('=== PR DEBUG START ===');
+        console.log('=== SCORE UPDATE ===');
         console.log('User ID:', leerling.id);
         console.log('Test ID:', testId);
         console.log('New Score:', scoreValue);
-        console.log('Functions available:', !!functions);
-        console.log('Score ID being updated:', editingScore.id);
+        console.log('Will trigger onScoreUpdated automatically');
 
-        // Update de score EERST
+        // Update de score - dit zal automatisch onScoreUpdated triggeren
         await updateDoc(scoreRef, { 
             score: scoreValue,
             rapportpunt: newPunt 
         });
         
-        // HANDMATIGE XP toekenning (omdat onScoreUpdated mogelijk niet werkt)
-        if (functions) {
-            try {
-                console.log('Calling awardTestParticipationXP manually...');
-                const awardTestXP = httpsCallable(functions, 'awardTestParticipationXP');
-                
-                const result = await awardTestXP({ 
-                    userId: leerling.id, 
-                    testId: testId,
-                    newScore: scoreValue
-                });
-                
-                console.log('=== XP RESULT ===');
-                console.log('Success:', result.data.success);
-                console.log('Message:', result.data.message);
-                console.log('Personal Record:', result.data.personalRecord);
-                console.log('New Totals:', result.data.newTotals);
-                
-                if (result.data.personalRecord) {
-                    toast.success(
-                        `🏆 PERSONAL RECORD! Score bijgewerkt + 150 XP verdiend!`, 
-                        { duration: 6000 }
-                    );
-                } else {
-                    toast.success(`Score bijgewerkt! +50 XP verdiend!`);
-                }
-                
-            } catch (error) {
-                console.error('=== XP ERROR ===');
-                console.error('Error code:', error.code);
-                console.error('Error message:', error.message);
-                console.error('Full error:', error);
-                
-                toast.error(`XP toekenning gefaald: ${error.message}`);
-            }
-        } else {
-            console.log('Functions not available');
-            toast.success("Score succesvol bijgewerkt!");
-        }
-        
-        console.log('=== PR DEBUG END ===');
+        toast.success("Score bijgewerkt! XP wordt automatisch toegekend...");
         
         // Update lokale state
         setDetails(prevDetails => ({
@@ -563,7 +522,7 @@ const handleUpdateScore = async () => {
         setEditingScore({ id: null, score: '', validation: null });
 
     } catch (error) {
-        console.error("Hoofdfout bij bijwerken:", error);
+        console.error("Fout bij bijwerken:", error);
         toast.error(`Fout bij bijwerken: ${error.message}`);
     } finally {
         setUpdating(false);
