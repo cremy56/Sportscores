@@ -470,7 +470,7 @@ export default function TestafnameDetail() {
     };
 
 
-  const handleUpdateScore = async () => {
+const handleUpdateScore = async () => {
     if (!editingScore.id || !editingScore.validation?.valid) return;
 
     const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
@@ -491,18 +491,23 @@ export default function TestafnameDetail() {
     const scoreRef = doc(db, 'scores', editingScore.id);
     
     try {
-        // Herberekent het punt VOORDAT we opslaan
         const leerling = details.leerlingen.find(l => l.score_id === editingScore.id);
         const testDatum = new Date(datum);
         const newPunt = await calculatePuntFromScore(details.test_volledig, leerling, scoreValue, testDatum);
 
-        // Sla ZOWEL de nieuwe score ALS het nieuwe punt op
+        // Update de score EERST
         await updateDoc(scoreRef, { 
             score: scoreValue,
             rapportpunt: newPunt 
         });
         
-        // NIEUW: Ken XP toe voor test deelname + check PR
+        console.log('=== PR TEST START ===');
+        console.log('User ID:', leerling.id);
+        console.log('Test ID:', testId);
+        console.log('New Score:', scoreValue);
+        console.log('Test Data:', details.test_volledig);
+        
+        // Test de PR functie DIRECT (zonder te wachten op trigger)
         if (functions) {
             try {
                 const awardTestXP = httpsCallable(functions, 'awardTestParticipationXP');
@@ -513,25 +518,37 @@ export default function TestafnameDetail() {
                     newScore: scoreValue
                 });
                 
-                // Toon speciale toast voor Personal Record
-                if (result.data.personalRecord) {
+                console.log('=== XP RESULT ===');
+                console.log('Full result:', result);
+                console.log('Data:', result.data);
+                console.log('Personal Record:', result.data?.personalRecord);
+                console.log('Improvement:', result.data?.improvement);
+                
+                if (result.data?.personalRecord) {
                     toast.success(
-                        `🏆 PERSONAL RECORD! Score bijgewerkt + ${result.data.personalRecord ? 150 : 50} XP verdiend!`, 
-                        { duration: 4000 }
+                        `🏆 PERSONAL RECORD! +150 XP verdiend! Verbetering: ${result.data.improvement}`, 
+                        { duration: 6000 }
                     );
                 } else {
                     toast.success(`Score bijgewerkt! +50 XP verdiend!`);
                 }
                 
             } catch (error) {
-                console.warn('XP toekenning gefaald:', error);
-                toast.success("Score succesvol bijgewerkt!");
+                console.error('=== XP ERROR ===');
+                console.error('Error object:', error);
+                console.error('Error code:', error.code);
+                console.error('Error message:', error.message);
+                console.error('Error details:', error.details);
+                
+                // Toon de fout aan de gebruiker voor debugging
+                toast.error(`XP fout: ${error.code} - ${error.message}`);
             }
         } else {
+            console.log('Functions object not available');
             toast.success("Score succesvol bijgewerkt!");
         }
         
-        // Update de lokale state direct, zonder alles te herladen
+        // Update lokale state
         setDetails(prevDetails => ({
             ...prevDetails,
             leerlingen: prevDetails.leerlingen.map(l => 
@@ -544,7 +561,7 @@ export default function TestafnameDetail() {
         setEditingScore({ id: null, score: '', validation: null });
 
     } catch (error) {
-        console.error("Fout bij bijwerken:", error);
+        console.error("Hoofdfout bij bijwerken:", error);
         toast.error(`Fout bij bijwerken: ${error.message}`);
     } finally {
         setUpdating(false);
