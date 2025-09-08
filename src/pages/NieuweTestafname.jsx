@@ -9,6 +9,13 @@ import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { parseTimeInputToSeconds } from '../utils/formatters.js';
 
+const GENDER_MAPPING = {
+  'man': 'M',
+  'vrouw': 'V',
+  'jongen': 'M',
+  'meisje': 'V'
+};
+
 // --- HELPER FUNCTIES ---
 // De helper functies (calculateAge, calculatePuntFromScore, etc.) blijven ongewijzigd.
 function calculateAge(birthDate, testDate) {
@@ -209,17 +216,23 @@ export default function NieuweTestafname() {
     }, []);
 
     // Filter leerlingen op basis van beschikbare normen
-    const gefilterdeLeerlingen = useMemo(() => {
-        if (normenInfo.loading) return [];
-        const filtered = volledigeLeerlingen.filter(leerling => {
-            const gender = leerling.data.geslacht.toUpperCase();
-            if (gender === 'M') return normenInfo.M;
-            if (gender === 'V') return normenInfo.V;
-            return false;
-        });
-        setUitgeslotenLeerlingen(volledigeLeerlingen.filter(l => !filtered.includes(l)));
-        return filtered;
-    }, [volledigeLeerlingen, normenInfo]);
+   const gefilterdeLeerlingen = useMemo(() => {
+    if (normenInfo.loading) return [];
+    
+    const filtered = volledigeLeerlingen.filter(leerling => {
+        // --- WIJZIGING: Gebruik de GENDER_MAPPING ---
+        const geslachtString = leerling.data.geslacht?.toLowerCase() || '';
+        const mappedGender = GENDER_MAPPING[geslachtString]; // bv. 'man' wordt 'M'
+
+        if (mappedGender === 'M') return normenInfo.M;
+        if (mappedGender === 'V') return normenInfo.V;
+        
+        return false; // Leerling wordt verborgen als geslacht onbekend is
+    });
+
+    setUitgeslotenLeerlingen(volledigeLeerlingen.filter(l => !filtered.includes(l)));
+    return filtered;
+}, [volledigeLeerlingen, normenInfo]);
     
     // Check voor recente testafnames
     useEffect(() => {
