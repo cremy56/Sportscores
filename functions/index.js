@@ -1124,3 +1124,59 @@ exports.testWelzijnXP = onCall(async (request) => {
     newXP: currentXP + 10
   };
 });
+// EHBO scenario XP
+exports.awardEHBOXP = onCall(async (request) => {
+  const db = getFirestore();
+  
+  if (!request.auth) {
+    throw new Error('Authentication required');
+  }
+  
+  const { userId, scenarioId, xpAmount = 30 } = request.data;
+  
+  if (!userId || !scenarioId) {
+    throw new Error('userId and scenarioId required');
+  }
+  
+  try {
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+      throw new Error('User not found');
+    }
+    
+    const userData = userDoc.data();
+    if (userData.rol !== 'leerling') {
+      throw new Error('Only students can receive EHBO XP');
+    }
+    
+    const currentXP = userData.xp || 0;
+    const newXP = currentXP + xpAmount;
+    const newSparks = Math.floor(newXP / 100);
+    
+    await userRef.update({
+      xp: newXP,
+      sparks: newSparks,
+      last_activity: FieldValue.serverTimestamp()
+    });
+    
+    await logXPTransaction(db, {
+      user_id: userId,
+      user_email: userData.email,
+      amount: xpAmount,
+      reason: 'ehbo_scenario_completion',
+      source_id: scenarioId
+    });
+    
+    return {
+      success: true,
+      message: `Awarded ${xpAmount} XP for EHBO scenario`,
+      newTotals: { xp: newXP, sparks: newSparks }
+    };
+    
+  } catch (error) {
+    console.error('Error awarding EHBO XP:', error);
+    throw new Error('Failed to award EHBO XP: ' + error.message);
+  }
+});

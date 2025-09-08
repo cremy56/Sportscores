@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { ArrowLeftIcon, PlayIcon, PauseIcon, CheckIcon, XMarkIcon, ClockIcon, PhoneIcon, MapPinIcon, ExclamationTriangleIcon, AcademicCapIcon, TrophyIcon, StarIcon } from '@heroicons/react/24/outline';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../firebase';
 
 const EHBODetail = () => {
   const { profile } = useOutletContext();
@@ -850,6 +852,26 @@ useEffect(() => {
       </div>
     </div>
   );
+
+  
+const handleScenarioCompletion = async (scenarioId) => {
+  if (!profile?.id || !functions) return;
+  
+  try {
+    // Ken 30 XP toe voor EHBO scenario
+    const awardEHBOXP = httpsCallable(functions, 'awardEHBOXP');
+    await awardEHBOXP({ 
+      userId: profile.id, 
+      scenarioId: scenarioId,
+      xpAmount: 30
+    });
+    
+    toast.success('Scenario voltooid! +30 XP verdiend!');
+  } catch (error) {
+    console.error('EHBO XP fout:', error);
+    // Laat scenario voltooiing niet falen door XP probleem
+  }
+};
 
 const TheoryTab = () => (
   <div className="space-y-8">
