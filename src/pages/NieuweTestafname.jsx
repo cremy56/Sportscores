@@ -46,7 +46,8 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
         const normSnap = normenSnapshot.docs[0];
         const { punten_schaal } = normSnap.data();
         if (!punten_schaal || punten_schaal.length === 0) return null;
-        const mappedGender = geslacht.toUpperCase();
+        const geslachtString = geslacht?.toLowerCase() || '';
+        const mappedGender = GENDER_MAPPING[geslachtString];
         const relevantNorms = punten_schaal
             .filter(n => n.leeftijd === normAge && n.geslacht === mappedGender)
             .sort((a, b) => a.punt - b.punt);
