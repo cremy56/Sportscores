@@ -470,76 +470,86 @@ export default function TestafnameDetail() {
     };
 
 
-   const handleUpdateScore = async () => {
-        if (!editingScore.id || !editingScore.validation?.valid) return;
+  const handleUpdateScore = async () => {
+    if (!editingScore.id || !editingScore.validation?.valid) return;
 
-        const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
+    const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
+    
+    let scoreValue;
+    if (isTimeTest) {
+        scoreValue = parseTimeInputToSeconds(editingScore.score);
+    } else {
+        scoreValue = parseFloat(String(editingScore.score).replace(',', '.'));
+    }
+
+    if (scoreValue === null || isNaN(scoreValue)) {
+        toast.error("Voer een geldige score in.");
+        return;
+    }
+
+    setUpdating(true);
+    const scoreRef = doc(db, 'scores', editingScore.id);
+    
+    try {
+        // Herberekent het punt VOORDAT we opslaan
+        const leerling = details.leerlingen.find(l => l.score_id === editingScore.id);
+        const testDatum = new Date(datum);
+        const newPunt = await calculatePuntFromScore(details.test_volledig, leerling, scoreValue, testDatum);
+
+        // Sla ZOWEL de nieuwe score ALS het nieuwe punt op
+        await updateDoc(scoreRef, { 
+            score: scoreValue,
+            rapportpunt: newPunt 
+        });
         
-        let scoreValue;
-        if (isTimeTest) {
-            scoreValue = parseTimeInputToSeconds(editingScore.score);
-        } else {
-            scoreValue = parseFloat(String(editingScore.score).replace(',', '.'));
-        }
-
-        if (scoreValue === null || isNaN(scoreValue)) {
-            toast.error("Voer een geldige score in.");
-            return;
-        }
-
-        setUpdating(true);
-        const scoreRef = doc(db, 'scores', editingScore.id);
-        
-        try {
-            // Herberekent het punt VOORDAT we opslaan
-            const leerling = details.leerlingen.find(l => l.score_id === editingScore.id);
-            const testDatum = new Date(datum); // Gebruik de datum van de testafname
-            const newPunt = await calculatePuntFromScore(details.test_volledig, leerling, scoreValue, testDatum);
-
-            // Sla ZOWEL de nieuwe score ALS het nieuwe punt op
-            await updateDoc(scoreRef, { 
-                score: scoreValue,
-                rapportpunt: newPunt 
-            });
-            
-            toast.success("Score succesvol bijgewerkt!");
-            // NIEUW: Ken XP toe voor test deelname
-                if (functions) {
-                    try {
-                        const awardTestXP = httpsCallable(functions, 'awardTestParticipationXP');
-                        
-                        // Detecteer persoonlijk record (vergelijk met vorige scores)
-                        const isPersonalRecord = checkIfPersonalRecord(scoreValue, leerling, testData);
-                        
-                        await awardTestXP({ 
-                            userId: leerling.id, 
-                            testId: testId,
-                            isPersonalRecord: isPersonalRecord
-                        });
-                    } catch (error) {
-                        console.warn('XP toekenning gefaald:', error);
-                        // Niet de hoofdoperatie laten falen door XP-probleem
-                    }
+        // NIEUW: Ken XP toe voor test deelname + check PR
+        if (functions) {
+            try {
+                const awardTestXP = httpsCallable(functions, 'awardTestParticipationXP');
+                
+                const result = await awardTestXP({ 
+                    userId: leerling.id, 
+                    testId: testId,
+                    newScore: scoreValue
+                });
+                
+                // Toon speciale toast voor Personal Record
+                if (result.data.personalRecord) {
+                    toast.success(
+                        `🏆 PERSONAL RECORD! Score bijgewerkt + ${result.data.personalRecord ? 150 : 50} XP verdiend!`, 
+                        { duration: 4000 }
+                    );
+                } else {
+                    toast.success(`Score bijgewerkt! +50 XP verdiend!`);
                 }
-            // Update de lokale state direct, zonder alles te herladen
-            setDetails(prevDetails => ({
-                ...prevDetails,
-                leerlingen: prevDetails.leerlingen.map(l => 
-                    l.score_id === editingScore.id 
-                        ? { ...l, score: scoreValue, punt: newPunt } 
-                        : l
-                )
-            }));
-            
-            setEditingScore({ id: null, score: '', validation: null });
-
-        } catch (error) {
-            console.error("Fout bij bijwerken:", error);
-            toast.error(`Fout bij bijwerken: ${error.message}`);
-        } finally {
-            setUpdating(false);
+                
+            } catch (error) {
+                console.warn('XP toekenning gefaald:', error);
+                toast.success("Score succesvol bijgewerkt!");
+            }
+        } else {
+            toast.success("Score succesvol bijgewerkt!");
         }
-    };
+        
+        // Update de lokale state direct, zonder alles te herladen
+        setDetails(prevDetails => ({
+            ...prevDetails,
+            leerlingen: prevDetails.leerlingen.map(l => 
+                l.score_id === editingScore.id 
+                    ? { ...l, score: scoreValue, punt: newPunt } 
+                    : l
+            )
+        }));
+        
+        setEditingScore({ id: null, score: '', validation: null });
+
+    } catch (error) {
+        console.error("Fout bij bijwerken:", error);
+        toast.error(`Fout bij bijwerken: ${error.message}`);
+    } finally {
+        setUpdating(false);
+    }
+};
 
     const handleDeleteScore = (scoreId, leerlingNaam) => {
         setDeleteModalState({ isOpen: true, scoreId, leerlingNaam });
@@ -611,27 +621,6 @@ export default function TestafnameDetail() {
         }
     };
 
-    const checkIfPersonalRecord = (newScore, leerling, testData) => {
-    // Als dit de eerste score is, is het automatisch een PR
-    if (!leerling.previousScores || leerling.previousScores.length === 0) {
-        return true;
-    }
-    
-    const scoreRichting = testData.score_richting || 'hoog';
-    const previousBest = leerling.previousScores.reduce((best, score) => {
-        if (scoreRichting === 'hoog') {
-            return score.score > best ? score.score : best;
-        } else {
-            return score.score < best ? score.score : best;
-        }
-    }, scoreRichting === 'hoog' ? 0 : Infinity);
-    
-    if (scoreRichting === 'hoog') {
-        return newScore > previousBest;
-    } else {
-        return newScore < previousBest;
-    }
-};
 
     const exportToCSV = () => {
         const headers = ['Naam', 'Score', 'Punten'];

@@ -218,9 +218,54 @@ const Rewards = () => {
             </div>
           )}
         </div>
-      </div>
+         </div>
     </div>
+    
   );
+        {/* Personal Records Section - NIEUW */}
+                <div className="bg-white rounded-xl shadow-lg p-6 border">
+                <h3 className="text-lg font-semibold mb-4 flex items-center">
+                    <Trophy className="w-5 h-5 mr-2 text-yellow-600" />
+                    Persoonlijke Records
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-4 rounded-lg border border-yellow-200">
+                    <div className="flex items-center justify-between">
+                        <div>
+                        <p className="text-2xl font-bold text-yellow-800">{studentData.personalRecords}</p>
+                        <p className="text-sm text-yellow-700">Records verbroken</p>
+                        </div>
+                        <Trophy className="w-8 h-8 text-yellow-600" />
+                    </div>
+                    <div className="mt-2">
+                        <p className="text-xs text-yellow-600">
+                        = {studentData.personalRecords * 100} XP verdiend
+                        </p>
+                    </div>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-200">
+                    <div className="text-center">
+                        <p className="text-lg font-bold text-purple-800">Next PR</p>
+                        <p className="text-sm text-purple-700">+150 XP totaal</p>
+                        <p className="text-xs text-purple-600 mt-1">
+                        50 XP deelname + 100 XP record
+                        </p>
+                    </div>
+                    </div>
+                </div>
+                
+                {studentData.personalRecords === 0 && (
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-blue-800 text-sm">
+                        💡 <strong>Tip:</strong> Elke verbetering van je eigen score levert een Personal Record op! 
+                        Doe mee aan sporttesten om je eerste PR te behalen.
+                    </p>
+                    </div>
+                )}
+                </div>
+     
 
   const EarningsTab = () => (
     <div className="space-y-6">
@@ -251,10 +296,15 @@ const Rewards = () => {
             <span className="text-sm">Test deelname</span>
             <span className="font-semibold text-purple-600">+50 XP</span>
           </div>
-          <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg border-2 border-yellow-200">
-            <span className="text-sm font-medium">Persoonlijk Record verbreken 🎉</span>
+         <div className="flex justify-between items-center p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border-2 border-yellow-300">
+            <div>
+                <span className="text-sm font-medium">🏆 Persoonlijk Record verbreken</span>
+                <p className="text-xs text-yellow-700 mt-1">
+                Elke verbetering van je eigen beste score telt als PR
+                </p>
+            </div>
             <span className="font-bold text-yellow-600">+100 XP</span>
-          </div>
+            </div>
         </div>
       </div>
 
@@ -276,6 +326,24 @@ const Rewards = () => {
           </div>
         </div>
       </div>
+      <div className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl p-6 border-2 border-blue-200">
+  <h3 className="text-lg font-semibold mb-2 text-blue-800 flex items-center">
+    <Trophy className="w-5 h-5 mr-2" />
+    Personal Records Uitleg
+  </h3>
+  <div className="space-y-2 text-blue-700 text-sm">
+    <p><strong>Wat is een Personal Record?</strong></p>
+    <p>Elke keer dat je je eigen beste score verbetert bij een test, behaal je een PR.</p>
+    <p><strong>Hoe werkt het?</strong></p>
+    <ul className="list-disc list-inside space-y-1 ml-4">
+      <li>Je eerste test score is automatisch een PR</li>
+      <li>Bij sprint: snellere tijd = PR</li>
+      <li>Bij verspringen: verder springen = PR</li>
+      <li>Bij Cooper test: meer afstand = PR</li>
+    </ul>
+    <p className="font-medium">📈 Focus op je eigen groei, niet op anderen verslaan!</p>
+  </div>
+</div>
     </div>
   );
 

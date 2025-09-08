@@ -962,31 +962,44 @@ exports.awardTestParticipationXP = onCall(async (request) => {
     throw new Error('Authentication required');
   }
   
-  const { userId, testId, isPersonalRecord = false } = request.data;
+  const { userId, testId, newScore } = request.data;
   
   if (!userId || !testId) {
     throw new Error('userId and testId required');
   }
   
   try {
-    const userRef = db.collection('users').doc(userId);
-    const userDoc = await userRef.get();
+    // Haal user en test data op
+    const [userDoc, testDoc] = await Promise.all([
+      getDoc(doc(db, 'users', userId)),
+      getDoc(doc(db, 'testen', testId))
+    ]);
     
-    if (!userDoc.exists) {
-      throw new Error('User not found');
+    if (!userDoc.exists() || !testDoc.exists()) {
+      throw new Error('User or test not found');
     }
     
     const userData = userDoc.data();
+    const testData = testDoc.data();
+    
     if (userData.rol !== 'leerling') {
       throw new Error('Only students can receive test XP');
     }
     
     let totalXP = 50; // Base XP voor test deelname
     const reasons = ['test_participation'];
+    let prInfo = null;
     
-    if (isPersonalRecord) {
-      totalXP += 100; // Extra 100 XP voor PR
-      reasons.push('personal_record');
+    // Check voor Personal Record alleen als er een score is
+    if (newScore !== null && newScore !== undefined) {
+      prInfo = await checkPersonalRecord(userId, testId, newScore, testData);
+      
+      if (prInfo.isPersonalRecord) {
+        totalXP += 100; // Extra 100 XP voor PR
+        reasons.push('personal_record');
+        
+        console.log(`🏆 Personal Record! User ${userData.naam}: ${newScore} (previous: ${prInfo.previousBest}, improvement: ${prInfo.improvement})`);
+      }
     }
     
     const currentXP = userData.xp || 0;
@@ -1000,11 +1013,12 @@ exports.awardTestParticipationXP = onCall(async (request) => {
       last_activity: FieldValue.serverTimestamp()
     };
     
-    if (isPersonalRecord) {
+    if (prInfo?.isPersonalRecord) {
       updateData.personal_records_count = (userData.personal_records_count || 0) + 1;
+      updateData.last_personal_record = FieldValue.serverTimestamp();
     }
     
-    await userRef.update(updateData);
+    await userDoc.ref.update(updateData);
     
     // Log transacties
     for (const reason of reasons) {
@@ -1014,14 +1028,22 @@ exports.awardTestParticipationXP = onCall(async (request) => {
         user_email: userData.email,
         amount: xpAmount,
         reason: reason,
-        source_id: testId
+        source_id: testId,
+        metadata: prInfo?.isPersonalRecord ? {
+          previous_best: prInfo.previousBest,
+          new_score: newScore,
+          improvement: prInfo.improvement,
+          test_name: testData.naam
+        } : null
       });
     }
     
     return {
       success: true,
-      message: `Awarded ${totalXP} XP for test${isPersonalRecord ? ' + PR' : ''}`,
-      newTotals: { xp: newXP, sparks: newSparks }
+      message: `Awarded ${totalXP} XP for test${prInfo?.isPersonalRecord ? ' + PR' : ''}`,
+      newTotals: { xp: newXP, sparks: newSparks },
+      personalRecord: prInfo?.isPersonalRecord || false,
+      improvement: prInfo?.improvement
     };
     
   } catch (error) {
@@ -1178,5 +1200,89 @@ exports.awardEHBOXP = onCall(async (request) => {
   } catch (error) {
     console.error('Error awarding EHBO XP:', error);
     throw new Error('Failed to award EHBO XP: ' + error.message);
+  }
+});
+// ==============================================
+// PERSONAL RECORD DETECTION & XP SYSTEM
+// ==============================================
+
+async function checkPersonalRecord(userId, testId, newScore, testData) {
+  const db = getFirestore();
+  
+  try {
+    // Haal alle historische scores op voor deze user + test combinatie
+    const historicalQuery = query(
+      collection(db, 'scores'),
+      where('leerling_id', '==', userId),
+      where('test_id', '==', testId),
+      where('score', '!=', null)
+    );
+    
+    const historicalScores = await getDocs(historicalQuery);
+    
+    // Als dit de eerste score is, is het automatisch een PR
+    if (historicalScores.empty) {
+      console.log(`First score for user ${userId} on test ${testId} - automatic PR`);
+      return { isPersonalRecord: true, previousBest: null, improvement: null };
+    }
+    
+    // Bepaal wat "beter" betekent voor deze test
+    const scoreRichting = testData.score_richting || 'hoog';
+    const previousScores = historicalScores.docs.map(doc => doc.data().score);
+    
+    let previousBest;
+    if (scoreRichting === 'hoog') {
+      // Hoger = beter (bijv. verspringen, basketball shots)
+      previousBest = Math.max(...previousScores);
+      const isPersonalRecord = newScore > previousBest;
+      const improvement = isPersonalRecord ? newScore - previousBest : null;
+      
+      return { isPersonalRecord, previousBest, improvement };
+    } else {
+      // Lager = beter (bijv. sprint tijden, cooper test tijd)
+      previousBest = Math.min(...previousScores);
+      const isPersonalRecord = newScore < previousBest;
+      const improvement = isPersonalRecord ? previousBest - newScore : null;
+      
+      return { isPersonalRecord, previousBest, improvement };
+    }
+    
+  } catch (error) {
+    console.error('Error checking personal record:', error);
+    return { isPersonalRecord: false, previousBest: null, improvement: null };
+  }
+}
+
+// Trigger automatisch bij score updates (nieuwe Cloud Function)
+exports.onScoreUpdated = onDocumentUpdated('scores/{scoreId}', async (event) => {
+  const change = event.data;
+  const scoreId = event.params.scoreId;
+  
+  const beforeData = change.before.data();
+  const afterData = change.after.data();
+  
+  // Check of de score daadwerkelijk is veranderd
+  const scoreChanged = beforeData.score !== afterData.score;
+  
+  if (!scoreChanged || !afterData.score) {
+    console.log('No score change detected or score is null');
+    return;
+  }
+  
+  try {
+    // Award XP voor de nieuwe/bijgewerkte score
+    const awardTestXP = httpsCallable(functions, 'awardTestParticipationXP');
+    
+    await awardTestXP({
+      userId: afterData.leerling_id,
+      testId: afterData.test_id,
+      newScore: afterData.score
+    });
+    
+    console.log(`Automatically awarded test XP for user ${afterData.leerling_id}`);
+    
+  } catch (error) {
+    console.error('Error in automatic test XP award:', error);
+    // Niet de score update laten falen door XP problemen
   }
 });
