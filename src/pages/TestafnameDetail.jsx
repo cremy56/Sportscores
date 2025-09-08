@@ -20,6 +20,8 @@ import {
 } from '@heroicons/react/24/solid';
 import { parseTimeInputToSeconds, formatScoreWithUnit, getPointColorClass } from '../utils/formatters.js';
 import ConfirmModal from '../components/ConfirmModal';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../firebase';
 
 
 async function calculatePuntFromScore(test, leerling, score, testDatum) {
@@ -501,7 +503,24 @@ export default function TestafnameDetail() {
             });
             
             toast.success("Score succesvol bijgewerkt!");
-
+            // NIEUW: Ken XP toe voor test deelname
+                if (functions) {
+                    try {
+                        const awardTestXP = httpsCallable(functions, 'awardTestParticipationXP');
+                        
+                        // Detecteer persoonlijk record (vergelijk met vorige scores)
+                        const isPersonalRecord = checkIfPersonalRecord(scoreValue, leerling, testData);
+                        
+                        await awardTestXP({ 
+                            userId: leerling.id, 
+                            testId: testId,
+                            isPersonalRecord: isPersonalRecord
+                        });
+                    } catch (error) {
+                        console.warn('XP toekenning gefaald:', error);
+                        // Niet de hoofdoperatie laten falen door XP-probleem
+                    }
+                }
             // Update de lokale state direct, zonder alles te herladen
             setDetails(prevDetails => ({
                 ...prevDetails,
@@ -591,6 +610,28 @@ export default function TestafnameDetail() {
             setShowDeleteConfirm(false);
         }
     };
+
+    const checkIfPersonalRecord = (newScore, leerling, testData) => {
+    // Als dit de eerste score is, is het automatisch een PR
+    if (!leerling.previousScores || leerling.previousScores.length === 0) {
+        return true;
+    }
+    
+    const scoreRichting = testData.score_richting || 'hoog';
+    const previousBest = leerling.previousScores.reduce((best, score) => {
+        if (scoreRichting === 'hoog') {
+            return score.score > best ? score.score : best;
+        } else {
+            return score.score < best ? score.score : best;
+        }
+    }, scoreRichting === 'hoog' ? 0 : Infinity);
+    
+    if (scoreRichting === 'hoog') {
+        return newScore > previousBest;
+    } else {
+        return newScore < previousBest;
+    }
+};
 
     const exportToCSV = () => {
         const headers = ['Naam', 'Score', 'Punten'];

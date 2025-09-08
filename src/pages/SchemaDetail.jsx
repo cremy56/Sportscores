@@ -7,6 +7,7 @@ import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc } fro
 import { ArrowLeftIcon, PlayIcon, CheckCircleIcon, ClockIcon, CameraIcon, StarIcon, TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid';
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { FieldValue } from 'firebase/firestore';
 
 export default function SchemaDetail() {
     
@@ -145,6 +146,17 @@ export default function SchemaDetail() {
         await updateDoc(actiefSchemaRef, {
             voltooide_taken: updatedVoltooide
         });
+        // NIEUW: Update weekly training stats
+            if (functions && isCurrentUser) {
+                try {
+                    const userRef = doc(db, 'users', profile.id);
+                    await updateDoc(userRef, {
+                        'weekly_stats.trainingen': FieldValue.increment(1)
+                    });
+                } catch (error) {
+                    console.warn('Weekly stats update gefaald:', error);
+                }
+            }
 
         // 3. Update de lokale state
         setActiefSchema(prev => ({

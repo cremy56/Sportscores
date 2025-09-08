@@ -1,6 +1,7 @@
 const {onDocumentUpdated} = require('firebase-functions/v2/firestore');
 const {onCall} = require('firebase-functions/v2/https');
 const {onRequest} = require('firebase-functions/v2/https');
+const {onSchedule} = require('firebase-functions/v2/scheduler');  // <- DEZE REGEL TOEVOEGEN
 const {initializeApp} = require('firebase-admin/app');
 const {getFirestore, FieldValue} = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
@@ -575,15 +576,19 @@ async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
 // Functie om XP transacties te loggen
 async function logXPTransaction(db, transactionData) {
   try {
-    await db.collection('xp_transactions').add({
-      ...transactionData,
+    const userId = transactionData.user_id;
+    
+    // Sla transactie op in subcollectie van de specifieke gebruiker
+    await db.collection('users').doc(userId).collection('xp_transactions').add({
+      amount: transactionData.amount,
+      reason: transactionData.reason,
+      source_id: transactionData.source_id,
       created_at: FieldValue.serverTimestamp()
     });
     
-    console.log('XP transaction logged successfully');
+    console.log(`XP transaction logged for user ${userId}: +${transactionData.amount} XP`);
   } catch (error) {
     console.error('Error logging XP transaction:', error);
-    // Don't throw here - we don't want transaction logging to fail the main operation
   }
 }
 
@@ -722,6 +727,9 @@ exports.onWelzijnKompasUpdated = onDocumentUpdated('welzijn/{userId}/dagelijkse_
   } else {
     console.log('No newly completed segments detected');
   }
+// NIEUW: Check voor completion bonus na elke update
+  console.log('Checking for completion bonus...');
+  await checkKompasCompletionBonus(userId, afterData, dateString);
 });
 
 // Functie om XP toe te kennen voor welzijn segmenten
@@ -821,7 +829,7 @@ async function checkKompasCompletionBonus(userId, dayData, dateString) {
         
         if (userDoc.exists) {
           const userData = userDoc.data();
-          const bonusXP = 16; // 16 XP bonus = totaal 20 XP voor volledig kompas
+          const bonusXP = 10; // 16 XP bonus = totaal 20 XP voor volledig kompas
           
           const currentXP = userData.xp || 0;
           const newXP = currentXP + bonusXP;
@@ -946,6 +954,152 @@ function getTodayString() {
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+// Test deelname XP (50 XP + 100 XP voor PR)
+exports.awardTestParticipationXP = onCall(async (request) => {
+  const db = getFirestore();
+  
+  if (!request.auth) {
+    throw new Error('Authentication required');
+  }
+  
+  const { userId, testId, isPersonalRecord = false } = request.data;
+  
+  if (!userId || !testId) {
+    throw new Error('userId and testId required');
+  }
+  
+  try {
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+      throw new Error('User not found');
+    }
+    
+    const userData = userDoc.data();
+    if (userData.rol !== 'leerling') {
+      throw new Error('Only students can receive test XP');
+    }
+    
+    let totalXP = 50; // Base XP voor test deelname
+    const reasons = ['test_participation'];
+    
+    if (isPersonalRecord) {
+      totalXP += 100; // Extra 100 XP voor PR
+      reasons.push('personal_record');
+    }
+    
+    const currentXP = userData.xp || 0;
+    const newXP = currentXP + totalXP;
+    const newSparks = Math.floor(newXP / 100);
+    
+    // Update user stats
+    const updateData = {
+      xp: newXP,
+      sparks: newSparks,
+      last_activity: FieldValue.serverTimestamp()
+    };
+    
+    if (isPersonalRecord) {
+      updateData.personal_records_count = (userData.personal_records_count || 0) + 1;
+    }
+    
+    await userRef.update(updateData);
+    
+    // Log transacties
+    for (const reason of reasons) {
+      const xpAmount = reason === 'test_participation' ? 50 : 100;
+      await logXPTransaction(db, {
+        user_id: userId,
+        user_email: userData.email,
+        amount: xpAmount,
+        reason: reason,
+        source_id: testId
+      });
+    }
+    
+    return {
+      success: true,
+      message: `Awarded ${totalXP} XP for test${isPersonalRecord ? ' + PR' : ''}`,
+      newTotals: { xp: newXP, sparks: newSparks }
+    };
+    
+  } catch (error) {
+    console.error('Error awarding test XP:', error);
+    throw new Error('Failed to award test XP: ' + error.message);
+  }
+});
+
+// Wekelijkse bonussen check (elke maandag om 6:00)
+
+
+exports.checkWeeklyBonuses = onSchedule('0 6 * * 1', async (event) => {
+  const db = getFirestore();
+  
+  try {
+    console.log('Starting weekly bonus check...');
+    
+    const usersSnapshot = await db.collection('users')
+      .where('rol', '==', 'leerling')
+      .get();
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const weeklyStats = userData.weekly_stats || {};
+      
+      const kompasDays = weeklyStats.kompas || 0;
+      const trainingCount = weeklyStats.trainingen || 0;
+      
+      // Perfecte Week bonus (5x kompas + 2x training = 50 XP)
+      if (kompasDays >= 5 && trainingCount >= 2 && !weeklyStats.perfectWeek) {
+        await awardWeeklyBonus(userDoc, userData, 50, 'perfect_week_bonus');
+      }
+      
+      // Training bonus (3x training = 25 XP)
+      if (trainingCount >= 3 && !weeklyStats.trainingBonus) {
+        await awardWeeklyBonus(userDoc, userData, 25, 'weekly_training_bonus');
+      }
+      
+      // Reset weekly stats
+      await userDoc.ref.update({
+        weekly_stats: {
+          kompas: 0,
+          trainingen: 0,
+          perfectWeek: false,
+          trainingBonus: false
+        }
+      });
+    }
+    
+    return { success: true };
+    
+  } catch (error) {
+    console.error('Error in weekly bonus check:', error);
+    throw error;
+  }
+});
+
+async function awardWeeklyBonus(userDoc, userData, bonusXP, reason) {
+  const db = getFirestore();
+  const currentXP = userData.xp || 0;
+  const newXP = currentXP + bonusXP;
+  const newSparks = Math.floor(newXP / 100);
+  
+  await userDoc.ref.update({
+    xp: newXP,
+    sparks: newSparks
+  });
+  
+  await logXPTransaction(db, {
+    user_id: userDoc.id,
+    user_email: userData.email,
+    amount: bonusXP,
+    reason: reason
+  });
+  
+  console.log(`Awarded ${bonusXP} XP (${reason}) to ${userData.naam || userDoc.id}`);
+}
+// Voeg dit tijdelijk toe aan het einde van je index.js
 exports.testWelzijnXP = onCall(async (request) => {
   const { userId } = request.data;
   console.log('Test functie voor userId:', userId);
