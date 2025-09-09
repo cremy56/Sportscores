@@ -42,7 +42,8 @@ const getStudentEvolutionData = async (studentId, studentProfile) => {
                 test_id: testId,
                 naam: testData.naam,
                 personal_best_points,
-                test_data: testData
+                test_data: testData,
+                scores: testScores
             };
         }).filter(Boolean);
 

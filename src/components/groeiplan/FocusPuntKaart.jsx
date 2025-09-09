@@ -6,7 +6,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { Target } from 'lucide-react';
 import { useState } from 'react';
-import { deleteDoc, X } from 'lucide-react'; // X ontbreekt
+import { Target, X } from 'lucide-react'; // Lucide icons
 import ConfirmModal from '../ConfirmModal';
 
 // De component is nu veel simpeler en heeft geen eigen state of useEffect meer.
