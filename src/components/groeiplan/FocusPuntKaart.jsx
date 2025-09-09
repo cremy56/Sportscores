@@ -4,7 +4,7 @@ import { useOutletContext } from 'react-router-dom';
 import { db } from '../../firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { Target } from 'lucide-react';
+import { Target, X } from 'lucide-react';
 import { useState } from 'react';
 import ConfirmModal from '../ConfirmModal';
 
