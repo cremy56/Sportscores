@@ -11,7 +11,8 @@ import { useNavigate } from 'react-router-dom'; // Voeg deze toe
 import { Bars3Icon } from '@heroicons/react/24/solid';
 import logoSrc from '../assets/logo.png';
 import StudentSearch from './StudentSearch';
-
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 
 // Dropdown Component
 const DropdownMenu = ({ title, children, isActive = false }) => {
@@ -253,6 +254,32 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef();
+  const [realtimeProfile, setRealtimeProfile] = useState(profile);
+useEffect(() => {
+  if (!profile?.id || activeRole !== 'leerling') {
+    setRealtimeProfile(profile);
+    return;
+  }
+
+  // Set up real-time listener voor de ingelogde leerling
+  const userRef = doc(db, 'users', profile.id);
+  const unsubscribe = onSnapshot(userRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const userData = docSnap.data();
+      setRealtimeProfile(prev => ({
+        ...prev,
+        xp: userData.xp || 0,
+        sparks: userData.sparks || 0,
+        streak_days: userData.streak_days || 0,
+        personal_records_count: userData.personal_records_count || 0
+      }));
+    }
+  }, (error) => {
+    console.error('Layout real-time listener error:', error);
+  });
+
+  return () => unsubscribe();
+}, [profile?.id, activeRole]);
 
   useEffect(() => {
     if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
@@ -278,18 +305,18 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   };
 
   const simulatedProfile = useMemo(() => {
-    if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
-      return {
-        ...impersonatedStudent,
-        rol: 'leerling',
-        originalProfile: profile
-      };
-    }
+  if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
     return {
-      ...profile,
-      rol: activeRole,
+      ...impersonatedStudent,
+      rol: 'leerling',
+      originalProfile: profile
     };
-  }, [profile, activeRole, impersonatedStudent]);
+  }
+  return {
+    ...realtimeProfile, // Gebruik realtimeProfile in plaats van profile
+    rol: activeRole,
+  };
+}, [realtimeProfile, activeRole, impersonatedStudent]);
 
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator';
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';

@@ -5,6 +5,7 @@ const {onSchedule} = require('firebase-functions/v2/scheduler');  // <- DEZE REG
 const {initializeApp} = require('firebase-admin/app');
 const {getFirestore, FieldValue} = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
+const { doc, getDoc } = require('firebase-admin/firestore');
 
 if (admin.apps.length === 0) {
   initializeApp();
@@ -1368,34 +1369,254 @@ async function checkPersonalRecord(userId, testId, newScore, testData) {
 
 // Trigger automatisch bij score updates (nieuwe Cloud Function)
 exports.onScoreUpdated = onDocumentUpdated('scores/{scoreId}', async (event) => {
-  const change = event.data;
-  const scoreId = event.params.scoreId;
+  console.log('TRIGGER START');
   
-  const beforeData = change.before.data();
-  const afterData = change.after.data();
+  const beforeData = event.data.before.data();
+  const afterData = event.data.after.data();
   
-  // Check of de score daadwerkelijk is veranderd
-  const scoreChanged = beforeData.score !== afterData.score;
-  
-  if (!scoreChanged || !afterData.score) {
-    console.log('No score change detected or score is null');
+  if (beforeData?.score === afterData?.score || !afterData?.score) {
+    console.log('No score change');
     return;
   }
   
   try {
-    // Award XP voor de nieuwe/bijgewerkte score
-    const awardTestXP = httpsCallable(functions, 'awardTestParticipationXP');
+    const adminDb = admin.firestore();
+    const userEmail = afterData.leerling_id; // Dit is eigenlijk een email
     
-    await awardTestXP({
-      userId: afterData.leerling_id,
-      testId: afterData.test_id,
-      newScore: afterData.score
+    console.log('Target user email:', userEmail);
+    
+    // Zoek in users collectie op email field
+    console.log('Searching users by email...');
+    const usersQuery = await adminDb.collection('users')
+      .where('email', '==', userEmail)
+      .get();
+    
+    let targetRef = null;
+    let userData = null;
+    let collectionUsed = '';
+    
+    if (!usersQuery.empty) {
+      const userDoc = usersQuery.docs[0];
+      targetRef = userDoc.ref;
+      userData = userDoc.data();
+      collectionUsed = 'users';
+      console.log('Found in users collection by email');
+      console.log('Current users XP:', userData.xp || 0);
+    } else {
+      console.log('Not found in users, trying toegestane_gebruikers...');
+      // Fallback naar toegestane_gebruikers (met email als document ID)
+      const toegestaneRef = adminDb.collection('toegestane_gebruikers').doc(userEmail);
+      const toegestaneSnap = await toegestaneRef.get();
+      
+      if (toegestaneSnap.exists) {
+        targetRef = toegestaneRef;
+        userData = toegestaneSnap.data();
+        collectionUsed = 'toegestane_gebruikers';
+        console.log('Found in toegestane_gebruikers');
+        console.log('Current toegestane XP:', userData.xp || 0);
+      }
+    }
+    
+    if (!targetRef || !userData) {
+      console.log('User not found in either collection!');
+      return;
+    }
+    
+    // Rest van de update logica blijft hetzelfde
+    const currentXP = userData.xp || 0;
+    const newXP = currentXP + 150;
+    
+    console.log(`Collection: ${collectionUsed}`);
+    console.log(`Attempting update: ${currentXP} -> ${newXP}`);
+    
+    await targetRef.update({
+      xp: newXP,
+      sparks: Math.floor(newXP / 100),
+      last_update_test: new Date().toISOString(),
+      last_collection_used: collectionUsed
     });
     
-    console.log(`Automatically awarded test XP for user ${afterData.leerling_id}`);
+    console.log(`UPDATE SUCCESS in ${collectionUsed}`);
     
   } catch (error) {
-    console.error('Error in automatic test XP award:', error);
-    // Niet de score update laten falen door XP problemen
+    console.error('FUNCTION ERROR:', error);
+  }
+});
+
+// Voeg ook de checkPersonalRecord functie toe zoals eerder gedefinieerd
+async function checkPersonalRecord(db, userId, testId, newScore, testData) {
+  try {
+    const scoresRef = db.collection('scores');
+    const query = scoresRef
+      .where('leerling_id', '==', userId)
+      .where('test_id', '==', testId);
+    
+    const snapshot = await query.get();
+    
+    const previousScores = [];
+    snapshot.docs.forEach(doc => {
+      const score = doc.data().score;
+      if (score !== null && score !== newScore) {
+        previousScores.push(score);
+      }
+    });
+    
+    console.log(`Found ${previousScores.length} previous scores:`, previousScores);
+    
+    if (previousScores.length === 0) {
+      console.log('First score = automatic PR');
+      return { isPersonalRecord: true, previousBest: null };
+    }
+    
+    const scoreRichting = testData.score_richting || 'hoog';
+    console.log('Score richting:', scoreRichting);
+    
+    if (scoreRichting === 'hoog') {
+      const previousBest = Math.max(...previousScores);
+      const isRecord = newScore > previousBest;
+      console.log(`Higher is better: ${newScore} > ${previousBest} = ${isRecord}`);
+      return { isPersonalRecord: isRecord, previousBest };
+    } else {
+      const previousBest = Math.min(...previousScores);
+      const isRecord = newScore < previousBest;
+      console.log(`Lower is better: ${newScore} < ${previousBest} = ${isRecord}`);
+      return { isPersonalRecord: isRecord, previousBest };
+    }
+    
+  } catch (error) {
+    console.error('PR check failed:', error);
+    return { isPersonalRecord: false, previousBest: null };
+  }
+}
+
+async function checkPersonalRecord(db, userId, testId, newScore, testData) {
+  try {
+    const scoresRef = db.collection('scores');
+    const query = scoresRef
+      .where('leerling_id', '==', userId)
+      .where('test_id', '==', testId);
+    
+    const snapshot = await query.get();
+    
+    const previousScores = [];
+    snapshot.docs.forEach(doc => {
+      const score = doc.data().score;
+      if (score !== null && score !== newScore) {
+        previousScores.push(score);
+      }
+    });
+    
+    console.log(`Found ${previousScores.length} previous scores:`, previousScores);
+    
+    if (previousScores.length === 0) {
+      console.log('First score = automatic PR');
+      return { isPersonalRecord: true, previousBest: null };
+    }
+    
+    const scoreRichting = testData.score_richting || 'hoog';
+    console.log('Score richting:', scoreRichting);
+    
+    if (scoreRichting === 'hoog') {
+      const previousBest = Math.max(...previousScores);
+      const isRecord = newScore > previousBest;
+      console.log(`Higher is better: ${newScore} > ${previousBest} = ${isRecord}`);
+      return { isPersonalRecord: isRecord, previousBest };
+    } else {
+      const previousBest = Math.min(...previousScores);
+      const isRecord = newScore < previousBest;
+      console.log(`Lower is better: ${newScore} < ${previousBest} = ${isRecord}`);
+      return { isPersonalRecord: isRecord, previousBest };
+    }
+    
+  } catch (error) {
+    console.error('PR check failed:', error);
+    return { isPersonalRecord: false, previousBest: null };
+  }
+}
+
+// Maak een interne versie van de XP functie die geen HTTP/auth nodig heeft:
+async function awardTestParticipationXPInternal(userId, testId, newScore) {
+  const db = getFirestore();
+  
+  console.log('=== INTERNAL XP AWARD START ===');
+  
+  try {
+    // Zoek user in beide collecties
+    let userDoc = await getDoc(doc(db, 'users', userId));
+    if (!userDoc.exists()) {
+      userDoc = await getDoc(doc(db, 'toegestane_gebruikers', userId));
+    }
+    
+    const testDoc = await getDoc(doc(db, 'testen', testId));
+    
+    if (!userDoc.exists() || !testDoc.exists()) {
+      throw new Error(`User or test not found. User exists: ${userDoc.exists()}, Test exists: ${testDoc.exists()}`);
+    }
+    
+    const userData = userDoc.data();
+    const testData = testDoc.data();
+    
+    // Check Personal Record
+    const prInfo = await checkPersonalRecord(userId, testId, newScore, testData);
+    
+    let totalXP = 50; // Base XP
+    if (prInfo.isPersonalRecord) {
+      totalXP += 100; // PR bonus
+    }
+    
+    // Update user XP
+    const currentXP = userData.xp || 0;
+    const newXP = currentXP + totalXP;
+    const newSparks = Math.floor(newXP / 100);
+    
+    const updateData = {
+      xp: newXP,
+      sparks: newSparks,
+      last_activity: FieldValue.serverTimestamp()
+    };
+    
+    if (prInfo.isPersonalRecord) {
+      updateData.personal_records_count = (userData.personal_records_count || 0) + 1;
+    }
+    
+    await userDoc.ref.update(updateData);
+    
+    console.log(`Successfully awarded ${totalXP} XP to user ${userId}`);
+    console.log(`Personal Record: ${prInfo.isPersonalRecord}`);
+    
+    return { success: true, totalXP, personalRecord: prInfo.isPersonalRecord };
+    
+  } catch (error) {
+    console.error('Internal XP award error:', error);
+    throw error;
+  }
+}
+// Nieuwe Cloud Function voor bij registratie
+exports.onUserRegistration = onCall(async (request) => {
+  const { email } = request.data;
+  const db = getFirestore();
+  
+  try {
+    // Check of er data is in toegestane_gebruikers
+    const toegestaneRef = db.collection('toegestane_gebruikers').doc(email);
+    const toegestaneSnap = await toegestaneRef.get();
+    
+    if (toegestaneSnap.exists) {
+      const toegestaneData = toegestaneSnap.data();
+      
+      // Kopieer data naar users collectie
+      const userRef = db.collection('users').doc(email);
+      await userRef.set({
+        ...toegestaneData,
+        registered_at: FieldValue.serverTimestamp()
+      });
+      
+      console.log(`Migrated data for ${email} from toegestane_gebruikers to users`);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Migration failed:', error);
+    throw error;
   }
 });
