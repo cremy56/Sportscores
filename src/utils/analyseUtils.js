@@ -10,33 +10,32 @@ export function analyseerEvolutieData(evolutionData) {
     return [];
   }
 
+  console.log("=== ANALYSE DEBUG ===");
+  
   const alleTestenMetStatus = evolutionData.map(test => {
-    // Gebruik consistent personal_best_points voor beide bepalingen
-    const currentBest = test.personal_best_points || 0;
+    const currentPoints = test.personal_best_points || 0;
+    const isWeak = currentPoints <= 10;
     
-    // Bepaal of er verbetering is door te kijken naar de evolutie in scores
+    // Bepaal of er verbetering is (van zwak naar sterk)
+    // Voor nu: als er een actief schema bestaat EN de score nu > 10 is
     let isImproved = false;
-    if (test.scores && test.scores.length >= 4) {
-      const gesorteerdeScores = test.scores.sort((a, b) => new Date(b.datum) - new Date(a.datum));
-      const recenteScores = gesorteerdeScores.slice(0, 2); // Laatste 2 scores
-      const oudereScores = gesorteerdeScores.slice(-2); // Eerste 2 scores
-      
-      const gemiddeldeRecent = recenteScores.reduce((sum, s) => sum + (s.rapportpunt || 0), 0) / recenteScores.length;
-      const gemiddeldeOuder = oudereScores.reduce((sum, s) => sum + (s.rapportpunt || 0), 0) / oudereScores.length;
-      
-      isImproved = currentBest >= 10.5 && gemiddeldeRecent > gemiddeldeOuder;
+    if (currentPoints > 10 && currentPoints <= 15) {
+      // Waarschijnlijk recent verbeterd (tussen 10-15 punten)
+      isImproved = true;
     }
-
-    const isWeak = currentBest <= 10; // Nog steeds zwak
-
+    
+    console.log(`Test: ${test.naam}, Points: ${currentPoints}, Is Weak: ${isWeak}, Is Improved: ${isImproved}`);
+    
     return {
       ...test,
       isWeak,
-      isImproved,
-      current_best: currentBest
+      isImproved
     };
-  }).filter(Boolean);
+  });
 
-  // Return alle testen die zwak zijn OF verbeterd
-  return alleTestenMetStatus.filter(test => test.isWeak || test.isImproved);
+  // Return ZOWEL zwakke ALS verbeterde testen
+  const resultaat = alleTestenMetStatus.filter(test => test.isWeak || test.isImproved);
+  console.log("Resultaat na filter:", resultaat.map(t => `${t.naam} (weak: ${t.isWeak}, improved: ${t.isImproved})`));
+  
+  return resultaat.sort((a, b) => a.personal_best_points - b.personal_best_points);
 }
