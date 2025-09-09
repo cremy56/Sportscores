@@ -123,7 +123,7 @@ export default function SchemaDetail() {
     }, []);
 
     // ALLE FUNCTIE DEFINITIES
-   const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
+const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
     if (!schemaData) return;
     const schemaId = `${schemaData.userId}_${schemaData.schemaTemplateId}`;
     if (!actiefSchema || !isCurrentUser) return;
@@ -146,17 +146,18 @@ export default function SchemaDetail() {
         await updateDoc(actiefSchemaRef, {
             voltooide_taken: updatedVoltooide
         });
+        
         // NIEUW: Update weekly training stats
-            if (functions && isCurrentUser) {
-                try {
-                    const userRef = doc(db, 'users', profile.id);
-                    await updateDoc(userRef, {
-                        'weekly_stats.trainingen': FieldValue.increment(1)
-                    });
-                } catch (error) {
-                    console.warn('Weekly stats update gefaald:', error);
-                }
+        if (isCurrentUser && profile?.id) {
+            try {
+                const userRef = doc(db, 'users', profile.id);
+                await updateDoc(userRef, {
+                    'weekly_stats.trainingen': FieldValue.increment(1)
+                });
+            } catch (error) {
+                console.warn('Weekly stats update gefaald:', error);
             }
+        }
 
         // 3. Update de lokale state
         setActiefSchema(prev => ({
