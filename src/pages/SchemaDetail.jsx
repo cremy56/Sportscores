@@ -259,7 +259,7 @@ export default function SchemaDetail() {
 
                 // Update gevalideerde weken
                 const updatedGevalideerdeWeken = { ...freshSchemaData.gevalideerde_weken || {} };
-                const weekXP = weekData.taken.length * 15; // 15 XP per taak
+                const weekXP = weekData.taken.length * 25; // 25 XP per taak
                 
                 if (gevalideerd) {
                     updatedGevalideerdeWeken[`week${weekNummer}`] = {
@@ -517,13 +517,7 @@ export default function SchemaDetail() {
                                 <div className="text-2xl font-bold text-purple-600">{progressStats.percentage}%</div>
                                 <div className="text-sm text-slate-600">Voltooid</div>
                             </div>
-                            <div className="text-center">
-                                <div className="flex items-center text-2xl font-bold text-orange-600">
-                                    <FireIcon className="h-6 w-6 mr-1" />
-                                    {progressStats.trainingsXP}
-                                </div>
-                                <div className="text-sm text-slate-600">TrainingsXP</div>
-                            </div>
+                            
                             <div className="text-center">
                                 <div className="text-2xl font-bold text-green-600">{progressStats.completed}/{progressStats.total}</div>
                                 <div className="text-sm text-slate-600">Weken</div>
@@ -618,7 +612,7 @@ function WeekCard({ week, actiefSchema, onTaakVoltooien, onValidatieWeek, isCurr
     }).length;
     
     // Calculate XP for this week
-    const weekXP = weekTaken.length * 15;
+    const weekXP = weekTaken.length * 25;
     
     return (
         <div className={`bg-white rounded-2xl shadow-sm border-2 p-6 ${
@@ -945,7 +939,7 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                             : 'bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700'
                     }`}>
                         <StarIcon className="h-4 w-4 mr-1" />
-                        +15 XP
+                        +25 XP
                     </div>
                 )}
         </div>
