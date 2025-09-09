@@ -310,6 +310,10 @@ export default function Groeiplan() {
             const profileEmail = currentProfile.email;
             const identifiers = [profileIdentifier, profileEmail].filter(Boolean);
 
+            console.log("=== DEBUG START ===");
+                console.log("1. currentProfile:", currentProfile);
+                console.log("2. identifiers:", identifiers);
+
             if (identifiers.length === 0) {
                 setLoading(false); return;
             }
@@ -327,13 +331,18 @@ export default function Groeiplan() {
 
             // Stap 2: Bepaal verplichte focuspunten op basis van testresultaten
             const evolutionData = await getStudentEvolutionData(profileIdentifier, currentProfile);
+            console.log("3. evolutionData:", evolutionData);
             const zwakkeTesten = analyseerEvolutieData(evolutionData);
+             console.log("4. zwakkeTesten na analyse:", zwakkeTesten);
             const verplichteFocusPuntenData = [];
             
             for (const testResult of zwakkeTesten) {
+                console.log("5. Processing test:", testResult.test_id, "with points:", testResult.personal_best_points);
+
                 const schemaQuery = query(collection(db, 'trainingsschemas'), where('gekoppelde_test_id', '==', testResult.test_id));
                 const schemaSnapshot = await getDocs(schemaQuery);
-                
+                console.log("6. Found schemas for", testResult.test_id, ":", schemaSnapshot.docs.map(d => d.data().naam));
+
                 if (!schemaSnapshot.empty) {
                     const schemaDoc = schemaSnapshot.docs[0];
                     const schemaData = { id: schemaDoc.id, ...schemaDoc.data() };
@@ -346,6 +355,7 @@ export default function Groeiplan() {
                     });
                 }
             }
+            console.log("7. Final verplichteFocusPuntenData:", verplichteFocusPuntenData);
             setVerplichteFocusPunten(verplichteFocusPuntenData);
 
             // Stap 3: Bepaal optionele schema's
