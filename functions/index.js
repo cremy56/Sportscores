@@ -6,6 +6,7 @@ const {initializeApp} = require('firebase-admin/app');
 const {getFirestore, FieldValue} = require('firebase-admin/firestore');
 const admin = require('firebase-admin');
 const { doc, getDoc } = require('firebase-admin/firestore');
+const { query, collection, where, getDocs } = require('firebase-admin/firestore');
 
 if (admin.apps.length === 0) {
   initializeApp();
@@ -496,6 +497,7 @@ exports.onTrainingWeekValidated = onDocumentUpdated('leerling_schemas/{schemaId}
   }
 });
 
+
 // Functie om XP toe te kennen aan een leerling
 async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
   console.log(`Awarding training XP to: ${leerlingEmail}`);
@@ -567,6 +569,9 @@ async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
         validated_weeks: weekDetails
       }
     });
+    
+    // NIEUW: Update class challenge for training logged
+    await updateClassChallengeProgressInternal(userDoc.id, 0, 'training');
     
   } catch (error) {
     console.error('Error awarding training XP:', error);
@@ -807,6 +812,7 @@ async function awardWelzijnXP(userId, completedSegments, dateString, dayData) {
 }
 
 // Check voor volledig kompas bonus (extra XP als alle segmenten ingevuld zijn)
+// Check voor volledig kompas bonus (extra XP als alle segmenten ingevuld zijn)
 async function checkKompasCompletionBonus(userId, dayData, dateString) {
   const db = getFirestore();
   
@@ -830,7 +836,7 @@ async function checkKompasCompletionBonus(userId, dayData, dateString) {
         
         if (userDoc.exists) {
           const userData = userDoc.data();
-          const bonusXP = 10; // 16 XP bonus = totaal 20 XP voor volledig kompas
+          const bonusXP = 10; // 10 XP bonus = totaal 20 XP voor volledig kompas
           
           const currentXP = userData.xp || 0;
           const newXP = currentXP + bonusXP;
@@ -868,12 +874,70 @@ async function checkKompasCompletionBonus(userId, dayData, dateString) {
           
           // Update streak
           await updateWelzijnStreak(userId, dateString);
+          
+          // NIEUW: Check voor streak milestones na het voltooien van kompas
+          await checkStreakMilestonesInternal(userId);
         }
       }
     }
     
   } catch (error) {
     console.error('Error checking kompas completion bonus:', error);
+  }
+}
+
+// Helper functie voor streak milestone checks
+async function checkStreakMilestonesInternal(userId) {
+  const db = getFirestore();
+  
+  try {
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) return;
+    
+    const userData = userDoc.data();
+    const currentStreak = userData.streak_days || 0;
+    const rewardedMilestones = userData.streak_milestones_rewarded || [];
+    
+    const milestones = [
+      { days: 7, sparks: 3, description: '7 dagen alle kompas segmenten' },
+      { days: 30, sparks: 12, description: '30 dagen streak' },
+      { days: 100, sparks: 40, description: '100 dagen streak' }
+    ];
+    
+    let newRewards = [];
+    
+    for (const milestone of milestones) {
+      if (currentStreak >= milestone.days && !rewardedMilestones.includes(milestone.days)) {
+        // Award Sparks
+        const currentSparks = userData.sparks || 0;
+        const newSparks = currentSparks + milestone.sparks;
+        
+        await userRef.update({
+          sparks: newSparks,
+          [`streak_milestones_rewarded`]: [...rewardedMilestones, milestone.days]
+        });
+        
+        // Log streak reward
+        await db.collection('users').doc(userId).collection('streak_rewards').add({
+          streak_days: milestone.days,
+          sparks_awarded: milestone.sparks,
+          description: milestone.description,
+          awarded_at: FieldValue.serverTimestamp()
+        });
+        
+        newRewards.push(milestone);
+        console.log(`Awarded ${milestone.sparks} Sparks for ${milestone.days} day streak to ${userData.naam || userId}`);
+      }
+    }
+    
+    if (newRewards.length > 0) {
+      console.log(`User ${userId} achieved ${newRewards.length} new streak milestones`);
+    }
+    
+  } catch (error) {
+    console.error('Error checking streak milestones:', error);
   }
 }
 
@@ -1024,7 +1088,7 @@ exports.awardTestParticipationXP = onCall({
         totalXP += 100; // Extra 100 XP voor PR
         reasons.push('personal_record');
         
-        console.log(`🏆 Personal Record! User ${userId}: ${newScore} (previous: ${prInfo.previousBest}, improvement: ${prInfo.improvement})`);
+        console.log(`Personal Record! User ${userId}: ${newScore} (previous: ${prInfo.previousBest}, improvement: ${prInfo.improvement})`);
       }
     }
     
@@ -1075,6 +1139,14 @@ exports.awardTestParticipationXP = onCall({
       });
     }
     
+    // NIEUW: Check leaderboard positions and award Sparks
+    if (newScore !== null && newScore !== undefined) {
+      await checkLeaderboardPositionsInternal(userId, testId, newScore, userData.school_id);
+    }
+    
+    // NIEUW: Update class challenge progress
+    await updateClassChallengeProgressInternal(userId, totalXP, 'xp');
+    
     console.log('=== AWARD TEST XP FUNCTION SUCCESS ===');
     console.log('Total XP awarded:', totalXP);
     console.log('Personal Record:', prInfo?.isPersonalRecord || false);
@@ -1093,78 +1165,148 @@ exports.awardTestParticipationXP = onCall({
   }
 });
 
-// Zorg er ook voor dat je checkPersonalRecord functie deze is:
-async function checkPersonalRecord(userId, testId, newScore, testData) {
+// Helper functies voor test XP functie
+async function checkLeaderboardPositionsInternal(userId, testId, newScore, schoolId) {
+  if (!schoolId) return;
+  
   const db = getFirestore();
   
   try {
-    console.log('=== CHECK PERSONAL RECORD ===');
-    console.log('User ID:', userId);
-    console.log('Test ID:', testId);
-    console.log('New Score:', newScore);
+    const userDoc = await db.collection('users').doc(userId).get();
+    const testDoc = await db.collection('testen').doc(testId).get();
     
-    // Haal alle historische scores op voor deze user + test combinatie
-    const historicalQuery = query(
-      collection(db, 'scores'),
-      where('leerling_id', '==', userId),
-      where('test_id', '==', testId),
-      where('score', '!=', null)
-    );
+    if (!userDoc.exists || !testDoc.exists) return;
     
-    const historicalScores = await getDocs(historicalQuery);
-    console.log('Historical scores found:', historicalScores.size);
+    const userData = userDoc.data();
+    const testData = testDoc.data();
     
-    // Als dit de eerste score is, is het automatisch een PR
-    if (historicalScores.empty) {
-      console.log(`First score for user ${userId} on test ${testId} - automatic PR`);
-      return { isPersonalRecord: true, previousBest: null, improvement: null };
-    }
+    // Check school records (simplified version)
+    const schoolScoresQuery = await db.collection('scores')
+      .where('test_id', '==', testId)
+      .where('school_id', '==', schoolId)
+      .where('score', '!=', null)
+      .get();
     
-    // Filter de huidige score uit (als die er al in staat)
-    const previousScores = [];
-    historicalScores.docs.forEach(doc => {
-      const scoreData = doc.data();
-      // Alleen toevoegen als het niet de score is die we net hebben ingevuld
-      if (scoreData.score !== newScore) {
-        previousScores.push(scoreData.score);
-      }
+    const schoolScores = [];
+    schoolScoresQuery.docs.forEach(doc => {
+      schoolScores.push(doc.data().score);
     });
     
-    console.log('Previous scores:', previousScores);
+    // Sort based on score direction
+    schoolScores.sort((a, b) => {
+      return testData.score_richting === 'hoog' ? b - a : a - b;
+    });
     
-    if (previousScores.length === 0) {
-      console.log('No previous different scores found - this is a PR');
-      return { isPersonalRecord: true, previousBest: null, improvement: null };
-    }
+    // Find position
+    let schoolPosition = getPositionInArray(newScore, schoolScores, testData.score_richting);
     
-    // Bepaal wat "beter" betekent voor deze test
-    const scoreRichting = testData.score_richting || 'hoog';
-    console.log('Score richting:', scoreRichting);
-    
-    let previousBest;
-    if (scoreRichting === 'hoog') {
-      // Hoger = beter (bijv. verspringen, basketball shots)
-      previousBest = Math.max(...previousScores);
-      const isPersonalRecord = newScore > previousBest;
-      const improvement = isPersonalRecord ? newScore - previousBest : null;
+    // Award school record Sparks
+    if (schoolPosition >= 1 && schoolPosition <= 5) {
+      let sparksAwarded = 0;
+      if (schoolPosition === 1) sparksAwarded = 15;
+      else if (schoolPosition === 2) sparksAwarded = 10;
+      else sparksAwarded = 5; // 3rd-5th place
       
-      console.log(`Higher is better: new=${newScore}, previous best=${previousBest}, is PR=${isPersonalRecord}`);
-      return { isPersonalRecord, previousBest, improvement };
-    } else {
-      // Lager = beter (bijv. sprint tijden, cooper test tijd)  
-      previousBest = Math.min(...previousScores);
-      const isPersonalRecord = newScore < previousBest;
-      const improvement = isPersonalRecord ? previousBest - newScore : null;
+      const currentSparks = userData.sparks || 0;
+      await userDoc.ref.update({ 
+        sparks: currentSparks + sparksAwarded,
+        last_school_record: FieldValue.serverTimestamp()
+      });
       
-      console.log(`Lower is better: new=${newScore}, previous best=${previousBest}, is PR=${isPersonalRecord}`);
-      return { isPersonalRecord, previousBest, improvement };
+      // Log achievement
+      await db.collection('users').doc(userId).collection('achievements').add({
+        type: 'school_record',
+        test_id: testId,
+        test_name: testData.naam,
+        position: schoolPosition,
+        sparks_awarded: sparksAwarded,
+        score: newScore,
+        achieved_at: FieldValue.serverTimestamp()
+      });
+      
+      console.log(`Awarded ${sparksAwarded} Sparks for school position ${schoolPosition} to ${userData.naam}`);
     }
-    
   } catch (error) {
-    console.error('Error checking personal record:', error);
-    return { isPersonalRecord: false, previousBest: null, improvement: null };
+    console.error('Error checking leaderboard positions:', error);
   }
 }
+
+async function updateClassChallengeProgressInternal(userId, xpEarned, action) {
+  const db = getFirestore();
+  
+  try {
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) return;
+    
+    const userData = userDoc.data();
+    const userGroups = userData.groepen || [];
+    
+    // Get current week
+    const now = new Date();
+    const weekStart = new Date(now);
+    const dayOfWeek = weekStart.getDay();
+    const daysToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
+    weekStart.setDate(now.getDate() + daysToMonday);
+    weekStart.setHours(0, 0, 0, 0);
+    
+    const weekId = `${weekStart.getFullYear()}-W${getWeekNumber(weekStart)}`;
+    
+    for (const groupId of userGroups) {
+      const challengeRef = db.collection('class_challenges').doc(`${groupId}_${weekId}`);
+      const challengeDoc = await challengeRef.get();
+      
+      if (!challengeDoc.exists) continue;
+      
+      const challengeData = challengeDoc.data();
+      const currentProgress = challengeData.current_progress || {};
+      const participants = currentProgress.participants || [];
+      
+      const updates = {};
+      
+      if (action === 'xp' && xpEarned) {
+        updates['current_progress.total_xp'] = (currentProgress.total_xp || 0) + xpEarned;
+      }
+      
+      if (action === 'training') {
+        updates['current_progress.total_trainings'] = (currentProgress.total_trainings || 0) + 1;
+      }
+      
+      // Add user to participants if not already included
+      if (!participants.includes(userId)) {
+        updates['current_progress.participants'] = [...participants, userId];
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        await challengeRef.update(updates);
+        console.log(`Updated class challenge progress for group ${groupId}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error updating class challenge:', error);
+  }
+}
+
+function getPositionInArray(newScore, existingScores, scoreRichting) {
+  let position = 1;
+  for (const score of existingScores) {
+    if (scoreRichting === 'hoog' ? newScore > score : newScore < score) {
+      break;
+    }
+    if (score !== newScore) {
+      position++;
+    }
+  }
+  return position;
+}
+
+function getWeekNumber(date) {
+  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+  const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+}
+
+
+
 
 // Wekelijkse bonussen check (elke maandag om 6:00)
 
@@ -1320,52 +1462,7 @@ exports.awardEHBOXP = onCall(async (request) => {
 // PERSONAL RECORD DETECTION & XP SYSTEM
 // ==============================================
 
-async function checkPersonalRecord(userId, testId, newScore, testData) {
-  const db = getFirestore();
-  
-  try {
-    // Haal alle historische scores op voor deze user + test combinatie
-    const historicalQuery = query(
-      collection(db, 'scores'),
-      where('leerling_id', '==', userId),
-      where('test_id', '==', testId),
-      where('score', '!=', null)
-    );
-    
-    const historicalScores = await getDocs(historicalQuery);
-    
-    // Als dit de eerste score is, is het automatisch een PR
-    if (historicalScores.empty) {
-      console.log(`First score for user ${userId} on test ${testId} - automatic PR`);
-      return { isPersonalRecord: true, previousBest: null, improvement: null };
-    }
-    
-    // Bepaal wat "beter" betekent voor deze test
-    const scoreRichting = testData.score_richting || 'hoog';
-    const previousScores = historicalScores.docs.map(doc => doc.data().score);
-    
-    let previousBest;
-    if (scoreRichting === 'hoog') {
-      // Hoger = beter (bijv. verspringen, basketball shots)
-      previousBest = Math.max(...previousScores);
-      const isPersonalRecord = newScore > previousBest;
-      const improvement = isPersonalRecord ? newScore - previousBest : null;
-      
-      return { isPersonalRecord, previousBest, improvement };
-    } else {
-      // Lager = beter (bijv. sprint tijden, cooper test tijd)
-      previousBest = Math.min(...previousScores);
-      const isPersonalRecord = newScore < previousBest;
-      const improvement = isPersonalRecord ? previousBest - newScore : null;
-      
-      return { isPersonalRecord, previousBest, improvement };
-    }
-    
-  } catch (error) {
-    console.error('Error checking personal record:', error);
-    return { isPersonalRecord: false, previousBest: null, improvement: null };
-  }
-}
+
 
 // Trigger automatisch bij score updates (nieuwe Cloud Function)
 exports.onScoreUpdated = onDocumentUpdated('scores/{scoreId}', async (event) => {
@@ -1444,93 +1541,75 @@ exports.onScoreUpdated = onDocumentUpdated('scores/{scoreId}', async (event) => 
 });
 
 // Voeg ook de checkPersonalRecord functie toe zoals eerder gedefinieerd
-async function checkPersonalRecord(db, userId, testId, newScore, testData) {
+// HOUD ALLEEN DEZE VERSIE - verwijder de andere duplicaten
+async function checkPersonalRecord(userId, testId, newScore, testData) {
+  const db = getFirestore();
+  
   try {
-    const scoresRef = db.collection('scores');
-    const query = scoresRef
-      .where('leerling_id', '==', userId)
-      .where('test_id', '==', testId);
+    console.log('=== CHECK PERSONAL RECORD ===');
+    console.log('User ID:', userId);
+    console.log('Test ID:', testId);
+    console.log('New Score:', newScore);
     
-    const snapshot = await query.get();
+    const { query, collection, where, getDocs } = require('firebase-admin/firestore');
     
+    // Haal alle historische scores op voor deze user + test combinatie
+    const historicalQuery = query(
+      collection(db, 'scores'),
+      where('leerling_id', '==', userId),
+      where('test_id', '==', testId),
+      where('score', '!=', null)
+    );
+    
+    const historicalScores = await getDocs(historicalQuery);
+    console.log('Historical scores found:', historicalScores.size);
+    
+    // Als dit de eerste score is, is het automatisch een PR
+    if (historicalScores.empty) {
+      console.log(`First score for user ${userId} on test ${testId} - automatic PR`);
+      return { isPersonalRecord: true, previousBest: null, improvement: null };
+    }
+    
+    // Filter de huidige score uit (als die er al in staat)
     const previousScores = [];
-    snapshot.docs.forEach(doc => {
-      const score = doc.data().score;
-      if (score !== null && score !== newScore) {
-        previousScores.push(score);
+    historicalScores.docs.forEach(doc => {
+      const scoreData = doc.data();
+      if (scoreData.score !== newScore) {
+        previousScores.push(scoreData.score);
       }
     });
     
-    console.log(`Found ${previousScores.length} previous scores:`, previousScores);
+    console.log('Previous scores:', previousScores);
     
     if (previousScores.length === 0) {
-      console.log('First score = automatic PR');
-      return { isPersonalRecord: true, previousBest: null };
+      console.log('No previous different scores found - this is a PR');
+      return { isPersonalRecord: true, previousBest: null, improvement: null };
     }
     
+    // Bepaal wat "beter" betekent voor deze test
     const scoreRichting = testData.score_richting || 'hoog';
     console.log('Score richting:', scoreRichting);
     
+    let previousBest;
     if (scoreRichting === 'hoog') {
-      const previousBest = Math.max(...previousScores);
-      const isRecord = newScore > previousBest;
-      console.log(`Higher is better: ${newScore} > ${previousBest} = ${isRecord}`);
-      return { isPersonalRecord: isRecord, previousBest };
+      previousBest = Math.max(...previousScores);
+      const isPersonalRecord = newScore > previousBest;
+      const improvement = isPersonalRecord ? newScore - previousBest : null;
+      
+      console.log(`Higher is better: new=${newScore}, previous best=${previousBest}, is PR=${isPersonalRecord}`);
+      return { isPersonalRecord, previousBest, improvement };
     } else {
-      const previousBest = Math.min(...previousScores);
-      const isRecord = newScore < previousBest;
-      console.log(`Lower is better: ${newScore} < ${previousBest} = ${isRecord}`);
-      return { isPersonalRecord: isRecord, previousBest };
+      previousBest = Math.min(...previousScores);
+      const isPersonalRecord = newScore < previousBest;
+      const improvement = isPersonalRecord ? previousBest - newScore : null;
+      
+      console.log(`Lower is better: new=${newScore}, previous best=${previousBest}, is PR=${isPersonalRecord}`);
+      return { isPersonalRecord, previousBest, improvement };
     }
     
   } catch (error) {
-    console.error('PR check failed:', error);
-    return { isPersonalRecord: false, previousBest: null };
-  }
-}
-
-async function checkPersonalRecord(db, userId, testId, newScore, testData) {
-  try {
-    const scoresRef = db.collection('scores');
-    const query = scoresRef
-      .where('leerling_id', '==', userId)
-      .where('test_id', '==', testId);
-    
-    const snapshot = await query.get();
-    
-    const previousScores = [];
-    snapshot.docs.forEach(doc => {
-      const score = doc.data().score;
-      if (score !== null && score !== newScore) {
-        previousScores.push(score);
-      }
-    });
-    
-    console.log(`Found ${previousScores.length} previous scores:`, previousScores);
-    
-    if (previousScores.length === 0) {
-      console.log('First score = automatic PR');
-      return { isPersonalRecord: true, previousBest: null };
-    }
-    
-    const scoreRichting = testData.score_richting || 'hoog';
-    console.log('Score richting:', scoreRichting);
-    
-    if (scoreRichting === 'hoog') {
-      const previousBest = Math.max(...previousScores);
-      const isRecord = newScore > previousBest;
-      console.log(`Higher is better: ${newScore} > ${previousBest} = ${isRecord}`);
-      return { isPersonalRecord: isRecord, previousBest };
-    } else {
-      const previousBest = Math.min(...previousScores);
-      const isRecord = newScore < previousBest;
-      console.log(`Lower is better: ${newScore} < ${previousBest} = ${isRecord}`);
-      return { isPersonalRecord: isRecord, previousBest };
-    }
-    
-  } catch (error) {
-    console.error('PR check failed:', error);
-    return { isPersonalRecord: false, previousBest: null };
+    console.error('Error checking personal record:', error);
+    return { isPersonalRecord: false, previousBest: null, improvement: null };
   }
 }
 
@@ -1617,6 +1696,754 @@ exports.onUserRegistration = onCall(async (request) => {
     return { success: true };
   } catch (error) {
     console.error('Migration failed:', error);
+    throw error;
+  }
+});
+// Add this to your index.js - Streak milestone rewards
+exports.checkStreakMilestones = onCall(async (request) => {
+  const db = getFirestore();
+  
+  if (!request.auth) {
+    throw new Error('Authentication required');
+  }
+  
+  const { userId } = request.data;
+  
+  try {
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+      throw new Error('User not found');
+    }
+    
+    const userData = userDoc.data();
+    const currentStreak = userData.streak_days || 0;
+    const rewardedMilestones = userData.streak_milestones_rewarded || [];
+    
+    const milestones = [
+      { days: 7, sparks: 3, description: '7 dagen alle kompas segmenten' },
+      { days: 30, sparks: 12, description: '30 dagen streak' },
+      { days: 100, sparks: 40, description: '100 dagen streak' }
+    ];
+    
+    let newRewards = [];
+    
+    for (const milestone of milestones) {
+      if (currentStreak >= milestone.days && !rewardedMilestones.includes(milestone.days)) {
+        // Award Sparks
+        const currentSparks = userData.sparks || 0;
+        const newSparks = currentSparks + milestone.sparks;
+        
+        await userRef.update({
+          sparks: newSparks,
+          [`streak_milestones_rewarded`]: [...rewardedMilestones, milestone.days]
+        });
+        
+        // Log the reward
+        await logStreakReward(db, {
+          user_id: userId,
+          user_email: userData.email,
+          streak_days: milestone.days,
+          sparks_awarded: milestone.sparks,
+          description: milestone.description
+        });
+        
+        newRewards.push(milestone);
+        console.log(`Awarded ${milestone.sparks} Sparks for ${milestone.days} day streak to ${userData.naam}`);
+      }
+    }
+    
+    return {
+      success: true,
+      newRewards: newRewards,
+      currentStreak: currentStreak
+    };
+    
+  } catch (error) {
+    console.error('Error checking streak milestones:', error);
+    throw error;
+  }
+});
+
+async function logStreakReward(db, rewardData) {
+  try {
+    await db.collection('users').doc(rewardData.user_id).collection('streak_rewards').add({
+      streak_days: rewardData.streak_days,
+      sparks_awarded: rewardData.sparks_awarded,
+      description: rewardData.description,
+      awarded_at: FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error logging streak reward:', error);
+  }
+}
+
+// Automated daily streak calculation and reward check
+exports.updateDailyStreaks = onSchedule('0 1 * * *', async (event) => {
+  const db = getFirestore();
+  
+  try {
+    console.log('Starting daily streak updates...');
+    
+    const usersSnapshot = await db.collection('users')
+      .where('rol', '==', 'leerling')
+      .get();
+    
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayString = yesterday.toISOString().split('T')[0];
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userId = userDoc.id;
+      const userData = userDoc.data();
+      
+      // Check if user completed kompas yesterday
+      const yesterdayKompasRef = db.collection('welzijn')
+        .doc(userId)
+        .collection('dagelijkse_data')
+        .doc(yesterdayString);
+        
+      const yesterdayData = await yesterdayKompasRef.get();
+      
+      if (yesterdayData.exists && yesterdayData.data().completion_bonus_awarded) {
+        // User completed kompas yesterday - increment streak
+        const newStreak = (userData.streak_days || 0) + 1;
+        await userDoc.ref.update({ streak_days: newStreak });
+        
+        // Check for milestone rewards
+       await checkStreakMilestonesInternal(userId);
+        
+        console.log(`Updated streak for ${userData.naam}: ${newStreak} days`);
+      } else {
+        // User didn't complete kompas yesterday - reset streak
+        if (userData.streak_days > 0) {
+          await userDoc.ref.update({ streak_days: 0 });
+          console.log(`Reset streak for ${userData.naam}`);
+        }
+      }
+    }
+    
+    console.log('Daily streak updates completed');
+    return { success: true };
+    
+  } catch (error) {
+    console.error('Error updating daily streaks:', error);
+    throw error;
+  }
+});
+exports.checkLeaderboardPositions = onCall(async (request) => {
+  const db = getFirestore();
+  
+  if (!request.auth) {
+    throw new Error('Authentication required');
+  }
+  
+  const { userId, testId, newScore, schoolId } = request.data;
+  
+  try {
+    const userDoc = await db.collection('users').doc(userId).get();
+    const testDoc = await db.collection('testen').doc(testId).get();
+    
+    if (!userDoc.exists || !testDoc.exists) {
+      throw new Error('User or test not found');
+    }
+    
+    const userData = userDoc.data();
+    const testData = testDoc.data();
+    const userAge = calculateAge(userData.geboortedatum);
+    
+    // Check school records
+    const schoolRecords = await checkSchoolRecords(db, testId, schoolId, newScore, testData);
+    // Check age records  
+    const ageRecords = await checkAgeRecords(db, testId, userAge, newScore, testData);
+    
+    let totalSparks = 0;
+    let achievements = [];
+    
+    // Award school record Sparks
+    if (schoolRecords.position >= 1 && schoolRecords.position <= 5) {
+      let sparksAwarded = 0;
+      if (schoolRecords.position === 1) sparksAwarded = 15;
+      else if (schoolRecords.position === 2) sparksAwarded = 10;
+      else sparksAwarded = 5; // 3rd-5th place
+      
+      totalSparks += sparksAwarded;
+      achievements.push({
+        type: 'school_record',
+        position: schoolRecords.position,
+        sparks: sparksAwarded,
+        description: `Schoolrecord ${schoolRecords.position}e plaats`
+      });
+    }
+    
+    // Award age record Sparks
+    if (ageRecords.position >= 1 && ageRecords.position <= 5) {
+      let sparksAwarded = 0;
+      if (ageRecords.position <= 2) sparksAwarded = 5;
+      else sparksAwarded = 3; // 3rd-5th place
+      
+      totalSparks += sparksAwarded;
+      achievements.push({
+        type: 'age_record', 
+        position: ageRecords.position,
+        sparks: sparksAwarded,
+        description: `Leeftijdsrecord ${ageRecords.position}e plaats (${userAge} jaar)`
+      });
+    }
+    
+    // Award Sparks if any achievements
+    if (totalSparks > 0) {
+      const currentSparks = userData.sparks || 0;
+      const newSparks = currentSparks + totalSparks;
+      
+      await userDoc.ref.update({
+        sparks: newSparks,
+        last_achievement: FieldValue.serverTimestamp()
+      });
+      
+      // Log achievements
+      for (const achievement of achievements) {
+        await logLeaderboardAchievement(db, {
+          user_id: userId,
+          user_email: userData.email,
+          test_id: testId,
+          test_name: testData.naam,
+          score: newScore,
+          ...achievement
+        });
+      }
+      
+      console.log(`Awarded ${totalSparks} Sparks to ${userData.naam} for leaderboard positions`);
+    }
+    
+    return {
+      success: true,
+      achievements: achievements,
+      totalSparks: totalSparks,
+      schoolPosition: schoolRecords.position,
+      agePosition: ageRecords.position
+    };
+    
+  } catch (error) {
+    console.error('Error checking leaderboard positions:', error);
+    throw error;
+  }
+});
+
+async function checkSchoolRecords(db, testId, schoolId, newScore, testData) {
+  const scoreRichting = testData.score_richting || 'hoog';
+  
+  // Query all scores for this test in this school
+  const schoolScoresQuery = await db.collection('scores')
+    .where('test_id', '==', testId)
+    .where('school_id', '==', schoolId)
+    .where('score', '!=', null)
+    .get();
+  
+  const allScores = [];
+  schoolScoresQuery.docs.forEach(doc => {
+    const scoreData = doc.data();
+    allScores.push({
+      score: scoreData.score,
+      userId: scoreData.leerling_id,
+      datum: scoreData.datum
+    });
+  });
+  
+  // Sort scores based on test direction
+  allScores.sort((a, b) => {
+    return scoreRichting === 'hoog' ? b.score - a.score : a.score - b.score;
+  });
+  
+  // Find position of new score
+  let position = 1;
+  for (const record of allScores) {
+    if (scoreRichting === 'hoog' ? newScore > record.score : newScore < record.score) {
+      break;
+    }
+    if (record.score !== newScore) {
+      position++;
+    }
+  }
+  
+  return { position, totalScores: allScores.length + 1 };
+}
+
+async function checkAgeRecords(db, testId, userAge, newScore, testData) {
+  const scoreRichting = testData.score_richting || 'hoog';
+  
+  // Query all users of the same age with scores for this test
+  const usersOfAgeQuery = await db.collection('users')
+    .where('rol', '==', 'leerling')
+    .get();
+  
+  const sameAgeUserIds = [];
+  usersOfAgeQuery.docs.forEach(doc => {
+    const userData = doc.data();
+    if (calculateAge(userData.geboortedatum) === userAge) {
+      sameAgeUserIds.push(doc.id);
+    }
+  });
+  
+  if (sameAgeUserIds.length === 0) return { position: 1, totalScores: 1 };
+  
+  // Get scores for users of same age
+  const ageScoresQuery = await db.collection('scores')
+    .where('test_id', '==', testId)
+    .where('leerling_id', 'in', sameAgeUserIds.slice(0, 10)) // Firestore 'in' limit
+    .where('score', '!=', null)
+    .get();
+  
+  const ageScores = [];
+  ageScoresQuery.docs.forEach(doc => {
+    const scoreData = doc.data();
+    ageScores.push({
+      score: scoreData.score,
+      userId: scoreData.leerling_id
+    });
+  });
+  
+  // Sort and find position
+  ageScores.sort((a, b) => {
+    return scoreRichting === 'hoog' ? b.score - a.score : a.score - b.score;
+  });
+  
+  let position = 1;
+  for (const record of ageScores) {
+    if (scoreRichting === 'hoog' ? newScore > record.score : newScore < record.score) {
+      break;
+    }
+    if (record.score !== newScore) {
+      position++;
+    }
+  }
+  
+  return { position, totalScores: ageScores.length + 1 };
+}
+
+function calculateAge(geboortedatum) {
+  if (!geboortedatum) return 0;
+  
+  const birthDate = new Date(geboortedatum);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  return age;
+}
+
+async function logLeaderboardAchievement(db, achievementData) {
+  try {
+    await db.collection('users').doc(achievementData.user_id).collection('achievements').add({
+      type: achievementData.type,
+      test_id: achievementData.test_id,
+      test_name: achievementData.test_name,
+      position: achievementData.position,
+      sparks_awarded: achievementData.sparks,
+      score: achievementData.score,
+      description: achievementData.description,
+      achieved_at: FieldValue.serverTimestamp()
+    });
+    
+    console.log(`Achievement logged: ${achievementData.description} for user ${achievementData.user_id}`);
+  } catch (error) {
+    console.error('Error logging leaderboard achievement:', error);
+  }
+}
+// Add to index.js - Class Challenge System
+exports.createWeeklyClassChallenge = onSchedule('0 6 * * 1', async (event) => {
+  const db = getFirestore();
+  
+  try {
+    console.log('Creating weekly class challenges...');
+    
+    // Get all active classes/groups
+    const groupsSnapshot = await db.collection('groepen').get();
+    
+    for (const groupDoc of groupsSnapshot.docs) {
+      const groupData = groupDoc.data();
+      const groupId = groupDoc.id;
+      
+      // Count active students in group
+      const studentsCount = groupData.leerlingen?.length || 0;
+      if (studentsCount === 0) continue;
+      
+      // Calculate challenge targets based on group size
+      const xpTarget = Math.max(2000, studentsCount * 150); // Minimum 2000 XP, or 150 per student
+      const trainingTarget = Math.max(10, studentsCount * 2); // Minimum 10 trainings, or 2 per student
+      
+      // Get current week dates
+      const now = new Date();
+      const weekStart = getWeekStart(now);
+      const weekEnd = getWeekEnd(now);
+      const weekId = `${weekStart.getFullYear()}-W${getWeekNumber(weekStart)}`;
+      
+      // Create challenge
+      const challengeData = {
+        group_id: groupId,
+        group_name: groupData.naam,
+        school_id: groupData.school_id,
+        week_id: weekId,
+        week_start: weekStart,
+        week_end: weekEnd,
+        targets: {
+          total_xp: xpTarget,
+          total_trainings: trainingTarget
+        },
+        current_progress: {
+          total_xp: 0,
+          total_trainings: 0,
+          participants: []
+        },
+        reward_xp: 40,
+        status: 'active',
+        created_at: FieldValue.serverTimestamp()
+      };
+      
+      await db.collection('class_challenges').doc(`${groupId}_${weekId}`).set(challengeData);
+      
+      console.log(`Created challenge for group ${groupData.naam}: ${xpTarget} XP target`);
+    }
+    
+    return { success: true };
+    
+  } catch (error) {
+    console.error('Error creating weekly class challenges:', error);
+    throw error;
+  }
+});
+
+// Function to update class challenge progress when students earn XP
+exports.updateClassChallengeProgress = onCall(async (request) => {
+  const db = getFirestore();
+  
+  try {
+    const { userId, xpEarned, action } = request.data; // action: 'xp', 'training', etc.
+    
+    // Get user's group
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) return { success: false, error: 'User not found' };
+    
+    const userData = userDoc.data();
+    const userGroups = userData.groepen || [];
+    
+    // Get current week ID
+    const now = new Date();
+    const weekStart = getWeekStart(now);
+    const weekId = `${weekStart.getFullYear()}-W${getWeekNumber(weekStart)}`;
+    
+    // Update progress for all user's groups
+    for (const groupId of userGroups) {
+      const challengeId = `${groupId}_${weekId}`;
+      const challengeRef = db.collection('class_challenges').doc(challengeId);
+      const challengeDoc = await challengeRef.get();
+      
+      if (!challengeDoc.exists) continue;
+      
+      const challengeData = challengeDoc.data();
+      const currentProgress = challengeData.current_progress;
+      
+      // Update progress based on action type
+      const updates = {};
+      
+      if (action === 'xp' && xpEarned) {
+        updates['current_progress.total_xp'] = (currentProgress.total_xp || 0) + xpEarned;
+      }
+      
+      if (action === 'training') {
+        updates['current_progress.total_trainings'] = (currentProgress.total_trainings || 0) + 1;
+      }
+      
+      // Track participant
+      const participants = currentProgress.participants || [];
+      if (!participants.includes(userId)) {
+        updates['current_progress.participants'] = [...participants, userId];
+      }
+      
+      // Update challenge
+      if (Object.keys(updates).length > 0) {
+        await challengeRef.update(updates);
+        
+        // Check if challenge is completed
+        await checkChallengeCompletion(db, challengeId);
+      }
+    }
+    
+    return { success: true };
+    
+  } catch (error) {
+    console.error('Error updating class challenge progress:', error);
+    throw error;
+  }
+});
+
+async function checkChallengeCompletion(db, challengeId) {
+  const challengeRef = db.collection('class_challenges').doc(challengeId);
+  const challengeDoc = await challengeRef.get();
+  
+  if (!challengeDoc.exists) return;
+  
+  const challengeData = challengeDoc.data();
+  const progress = challengeData.current_progress;
+  const targets = challengeData.targets;
+  
+  // Check if all targets are met
+  const xpComplete = progress.total_xp >= targets.total_xp;
+  const trainingComplete = progress.total_trainings >= targets.total_trainings;
+  
+  if (xpComplete && trainingComplete && challengeData.status === 'active') {
+    // Challenge completed! Award XP to all participants
+    await challengeRef.update({ 
+      status: 'completed',
+      completed_at: FieldValue.serverTimestamp()
+    });
+    
+    // Award XP to participants
+    const rewardXP = challengeData.reward_xp || 40;
+    for (const userId of progress.participants) {
+      await awardClassChallengeReward(db, userId, rewardXP, challengeData);
+    }
+    
+    console.log(`Class challenge ${challengeId} completed! Awarded ${rewardXP} XP to ${progress.participants.length} students`);
+  }
+}
+
+async function awardClassChallengeReward(db, userId, xpAmount, challengeData) {
+  try {
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) return;
+    
+    const userData = userDoc.data();
+    const currentXP = userData.xp || 0;
+    const newXP = currentXP + xpAmount;
+    const newSparks = Math.floor(newXP / 100);
+    
+    await userRef.update({
+      xp: newXP,
+      sparks: newSparks,
+      last_class_challenge_reward: FieldValue.serverTimestamp()
+    });
+    
+    // Log the reward
+    await logXPTransaction(db, {
+      user_id: userId,
+      user_email: userData.email,
+      amount: xpAmount,
+      reason: 'class_challenge_completion',
+      source_id: challengeData.week_id,
+      metadata: {
+        group_name: challengeData.group_name,
+        week_id: challengeData.week_id
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error awarding class challenge reward:', error);
+  }
+}
+
+// Helper functions
+function getWeekStart(date) {
+  const result = new Date(date);
+  const day = result.getDay();
+  const diff = result.getDate() - day + (day === 0 ? -6 : 1); // Monday
+  result.setDate(diff);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+function getWeekEnd(date) {
+  const result = getWeekStart(date);
+  result.setDate(result.getDate() + 6);
+  result.setHours(23, 59, 59, 999);
+  return result;
+}
+
+function getWeekNumber(date) {
+  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+  const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+}
+// Add to index.js - Training Program Completion Detection
+exports.checkTrainingProgramCompletion = onDocumentUpdated('leerling_schemas/{schemaId}', async (event) => {
+  const change = event.data;
+  const schemaId = event.params.schemaId;
+  
+  const afterData = change.after.data();
+  
+  try {
+    // Check if the entire training program is now completed
+    const isFullyCompleted = checkIfProgramFullyCompleted(afterData);
+    
+    if (isFullyCompleted && !afterData.completion_reward_awarded) {
+      await awardProgramCompletionReward(afterData.leerling_id, schemaId, afterData);
+    }
+    
+  } catch (error) {
+    console.error('Error checking training program completion:', error);
+  }
+});
+
+function checkIfProgramFullyCompleted(schemaData) {
+  const gevalideerdeWeken = schemaData.gevalideerde_weken || {};
+  const totalWeken = schemaData.total_weken || 0;
+  
+  if (totalWeken === 0) return false;
+  
+  // Count validated weeks
+  let validatedCount = 0;
+  Object.values(gevalideerdeWeken).forEach(week => {
+    if (week.gevalideerd === true) {
+      validatedCount++;
+    }
+  });
+  
+  // Consider program completed if 90% of weeks are validated
+  const completionThreshold = Math.ceil(totalWeken * 0.9);
+  return validatedCount >= completionThreshold;
+}
+
+async function awardProgramCompletionReward(leerlingEmail, schemaId, schemaData) {
+  const db = getFirestore();
+  
+  try {
+    // Find user
+    const usersQuery = await db.collection('users')
+      .where('email', '==', leerlingEmail)
+      .where('rol', '==', 'leerling')
+      .get();
+      
+    if (usersQuery.empty) {
+      console.error(`Student not found: ${leerlingEmail}`);
+      return;
+    }
+    
+    const userDoc = usersQuery.docs[0];
+    const userData = userDoc.data();
+    
+    // Award 8 Sparks for program completion
+    const completionSparks = 8;
+    const currentSparks = userData.sparks || 0;
+    const newSparks = currentSparks + completionSparks;
+    
+    await userDoc.ref.update({
+      sparks: newSparks,
+      completed_programs: (userData.completed_programs || 0) + 1,
+      last_program_completion: FieldValue.serverTimestamp()
+    });
+    
+    // Mark reward as awarded in schema
+    await db.collection('leerling_schemas').doc(schemaId).update({
+      completion_reward_awarded: true,
+      completion_reward_sparks: completionSparks,
+      completion_reward_date: FieldValue.serverTimestamp()
+    });
+    
+    // Log the achievement
+    await logTrainingCompletion(db, {
+      user_id: userDoc.id,
+      user_email: leerlingEmail,
+      schema_id: schemaId,
+      sparks_awarded: completionSparks,
+      program_name: schemaData.naam || 'Training Program'
+    });
+    
+    console.log(`Awarded ${completionSparks} Sparks to ${userData.naam} for completing training program`);
+    
+    // Optional: Create notification for student
+    await createCompletionNotification(db, userDoc.id, userData.naam, completionSparks);
+    
+  } catch (error) {
+    console.error('Error awarding training program completion reward:', error);
+  }
+}
+
+async function logTrainingCompletion(db, completionData) {
+  try {
+    await db.collection('users')
+      .doc(completionData.user_id)
+      .collection('training_completions')
+      .add({
+        schema_id: completionData.schema_id,
+        program_name: completionData.program_name,
+        sparks_awarded: completionData.sparks_awarded,
+        completed_at: FieldValue.serverTimestamp()
+      });
+      
+    console.log(`Training completion logged for user ${completionData.user_id}`);
+  } catch (error) {
+    console.error('Error logging training completion:', error);
+  }
+}
+
+async function createCompletionNotification(db, userId, userName, sparksAwarded) {
+  try {
+    await db.collection('notifications').add({
+      recipient_id: userId,
+      type: 'training_completion',
+      title: 'Training Program Voltooid!',
+      message: `Gefeliciteerd ${userName}! Je hebt een volledig trainingsprogramma afgerond en ${sparksAwarded} Sparks verdiend.`,
+      sparks_earned: sparksAwarded,
+      read: false,
+      created_at: FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error creating completion notification:', error);
+  }
+}
+
+// Manual function to check and award retroactive rewards
+exports.checkRetroactiveTrainingRewards = onCall(async (request) => {
+  const db = getFirestore();
+  
+  // Admin check
+  if (!request.auth) {
+    throw new Error('Authentication required');
+  }
+  
+  const adminDoc = await db.collection('users').doc(request.auth.uid).get();
+  if (!adminDoc.exists || !['administrator', 'super-administrator'].includes(adminDoc.data().rol)) {
+    throw new Error('Admin access required');
+  }
+  
+  try {
+    const schemasSnapshot = await db.collection('leerling_schemas').get();
+    let rewardsAwarded = 0;
+    
+    for (const schemaDoc of schemasSnapshot.docs) {
+      const schemaData = schemaDoc.data();
+      
+      // Skip if already awarded
+      if (schemaData.completion_reward_awarded) continue;
+      
+      // Check if program is completed
+      if (checkIfProgramFullyCompleted(schemaData)) {
+        await awardProgramCompletionReward(
+          schemaData.leerling_id, 
+          schemaDoc.id, 
+          schemaData
+        );
+        rewardsAwarded++;
+      }
+    }
+    
+    return {
+      success: true,
+      message: `Checked ${schemasSnapshot.docs.length} training programs, awarded ${rewardsAwarded} completion rewards`,
+      rewardsAwarded
+    };
+    
+  } catch (error) {
+    console.error('Error checking retroactive training rewards:', error);
     throw error;
   }
 });
