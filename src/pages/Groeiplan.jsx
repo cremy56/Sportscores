@@ -59,7 +59,7 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin })
     const [schemaExists, setSchemaExists] = useState(!schema.isNew);
     const [loading, setLoading] = useState(!schema.isNew);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-    const studentIdentifier = student?.id;
+    const studentIdentifier = student?.emai;
     const schemaInstanceId = `${studentIdentifier}_${schema.id}`;
 
     useEffect(() => {
@@ -329,8 +329,8 @@ export default function Groeiplan() {
             const zwakkeTesten = analyseerEvolutieData(evolutionData);
             const verplichteFocusPuntenData = [];
             
-            for (const zwakkeTest of zwakkeTesten) {
-                const schemaQuery = query(collection(db, 'trainingsschemas'), where('gekoppelde_test_id', '==', zwakkeTest.test_id));
+            for (const testResult of zwakkeTesten) {
+                const schemaQuery = query(collection(db, 'trainingsschemas'), where('gekoppelde_test_id', '==', testResult.test_id));
                 const schemaSnapshot = await getDocs(schemaQuery);
                 
                 if (!schemaSnapshot.empty) {
@@ -338,9 +338,10 @@ export default function Groeiplan() {
                     const schemaData = { id: schemaDoc.id, ...schemaDoc.data() };
                     
                     verplichteFocusPuntenData.push({
-                        test: { ...zwakkeTest, test_naam: zwakkeTest.naam },
+                        test: { ...testResult, test_naam: testResult.naam },
                         schema: schemaData,
-                        isActief: actieveSchemaMap.has(schemaData.id) // <-- CHECK OF HET AL ACTIEF IS
+                        isActief: actieveSchemaMap.has(schemaData.id),
+                        isImproved: testResult.isImproved // NIEUW: voeg improved status toe
                     });
                 }
             }
@@ -466,6 +467,7 @@ export default function Groeiplan() {
                                                 schema={focusPunt.schema} 
                                                 student={currentProfile} 
                                                 isActief={focusPunt.isActief}
+                                                isImproved={focusPunt.isImproved}
                                             />
                                         ))
                                     ) : (
