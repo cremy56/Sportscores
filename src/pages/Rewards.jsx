@@ -335,8 +335,8 @@ const Rewards = () => {
             <span className="font-semibold text-blue-600">+20 XP</span>
           </div>
           <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-            <span className="text-sm">Training loggen</span>
-            <span className="font-semibold text-green-600">+15 XP</span>
+            <span className="text-sm">Trainingsschema uitvoeren</span>
+            <span className="font-semibold text-green-600">+25 XP</span>
           </div>
           <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
             <span className="text-sm">EHBO scenario voltooien</span>
