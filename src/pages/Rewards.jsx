@@ -507,6 +507,13 @@ const Rewards = () => {
        </p>
      </div>
 
+ {/* De "Spelregel" wordt hier geplaatst, buiten de voorwaarde, zodat deze altijd zichtbaar is. */}
+    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700">
+      <p>
+        <strong>Spelregel:</strong> Je bouwt een streak op door dagelijks actief te zijn, maar je behoudt hem alleen door <strong>elke dag</strong> je Welzijn Kompas volledig in te vullen.
+      </p>
+    </div>
+    
      {/* Huidige Streak Status */}
     {studentData.streak_days > 0 && (
       <div className="bg-white rounded-xl shadow-lg p-6 border">
@@ -515,13 +522,7 @@ const Rewards = () => {
           Jouw Streak Status
         </h3>
 
-        {/* --- START WIJZIGING --- */}
-        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700">
-          <p>
-            <strong>Spelregel:</strong> Je behoudt je streak alleen door <strong>elke dag</strong> je Welzijn Kompas volledig in te vullen.
-          </p>
-        </div>
-        {/* --- EINDE WIJZIGING --- */}
+       
 
         <div className="space-y-4">
           <div className="text-center">
