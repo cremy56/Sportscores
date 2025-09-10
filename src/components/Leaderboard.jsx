@@ -244,8 +244,13 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
                             console.log(`❌ No birth date for user: ${score.leerling_id} (${score.leerling_naam})`);
                             return;
                         }
-                        
+                        const scoreUserAge = calculateAge(userData.geboortedatum);
                         console.log(`Processing ${score.leerling_naam}: birth date =`, userData.geboortedatum);
+                          if (scoreUserAge === null) {
+                              return; // Sla over als leeftijd niet berekend kan worden
+                          }
+                          
+                          // De logica om te bepalen of de score moet worden opgenomen
                         const targetAge = globalAgeFilter;
                     let isMatch = false;
 
