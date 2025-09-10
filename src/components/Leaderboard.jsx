@@ -1,390 +1,171 @@
-// src/components/Leaderboard.jsx
-import { useState, useEffect, useRef } from 'react';
+// src/pages/Highscores.jsx
+import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
-import { formatScoreWithUnit } from '../utils/formatters.js';
-import { Users, User } from 'lucide-react';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import CategoryCard from '../components/CategoryCard';
 
-// CACHE voor gebruikersdata om duplicate queries te voorkomen
-const usersCache = new Map();
-const cacheExpiry = 5 * 60 * 1000; // 5 minuten
-
-// --- HELPER FUNCTIE 1: Schooljaar veilig berekenen ---
-function getSchoolYear(date) {
-    if (!date || isNaN(new Date(date).getTime())) {
-        return 'Onbekend';
-    }
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    
-    if (month >= 7) {
-        return `${year}-${year + 1}`;
-    } else {
-        return `${year - 1}-${year}`;
-    }
-}
-
-// --- HELPER FUNCTIE 2: Leeftijd berekenen ---
-function calculateAge(birthDate) {
-    if (!birthDate) return null;
-    
-    const birth = new Date(birthDate);
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-    }
-    
-    return age;
-}
-
-// --- HELPER FUNCTIE 3: Gecachte gebruikersdata ophalen ---
-async function getCachedUsers(schoolId) {
-    const cacheKey = `users_${schoolId}`;
-    const cached = usersCache.get(cacheKey);
-    
-    // Check cache expiry
-    if (cached && (Date.now() - cached.timestamp) < cacheExpiry) {
-        return cached.data;
-    }
-    
-    try {
-        // Alleen relevante velden ophalen om kosten te beperken
-        const usersRef = collection(db, 'users');
-        const usersQuery = query(
-            usersRef, 
-            where('rol', '==', 'leerling'),
-            where('school_id', '==', schoolId)
-        );
-        const usersSnapshot = await getDocs(usersQuery);
-        
-        const usersData = {};
-        usersSnapshot.docs.forEach(doc => {
-            const userData = doc.data();
-            // Alleen relevante velden cachen
-            usersData[userData.email] = {
-                geboortedatum: userData.geboortedatum,
-                naam: userData.naam
-            };
-        });
-        
-        // Cache voor 5 minuten
-        usersCache.set(cacheKey, {
-            data: usersData,
-            timestamp: Date.now()
-        });
-        
-        return usersData;
-    } catch (error) {
-        console.error('Error fetching users:', error);
-        return {};
-    }
-}
-
-export default function Leaderboard({ testId }) { 
-    const { profile } = useOutletContext();
-    const [scores, setScores] = useState([]);
-    const [testData, setTestData] = useState(null);
+export default function Highscores() {
+    const { profile, school } = useOutletContext(); 
+    const [testen, setTesten] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [showAgeGroup, setShowAgeGroup] = useState(false); 
-    const [selectedAge, setSelectedAge] = useState(null);
-    const [userAge, setUserAge] = useState(null);
-    const isMountedRef = useRef(true);
 
-    // Stel de juiste standaard waarde in op basis van gebruikersrol
     useEffect(() => {
-        if (profile?.rol === 'leerling') {
-            setShowAgeGroup(true); // Leerlingen beginnen met leeftijdsgroep
-        } else {
-            setShowAgeGroup(false); // Admins beginnen met hele school
-            setSelectedAge(null); // Reset age selection
+        if (!profile?.school_id) {
+            setLoading(false);
+            return;
         }
-    }, [profile?.rol]);
 
-    // Bereken gebruiker leeftijd (geen database query)
-    useEffect(() => {
-        if (profile?.geboortedatum) {
-            const age = calculateAge(profile.geboortedatum);
-            setUserAge(age);
-        }
-    }, [profile?.geboortedatum]);
-
-    // Cleanup bij unmount
-    useEffect(() => {
-        return () => {
-            isMountedRef.current = false;
-        };
-    }, []);
-
-    useEffect(() => {
-        const fetchScores = async () => {
-            if (!testId || !profile?.school_id) {
-                setLoading(false);
-                return;
-            }
-            
-            setLoading(true);
-            setError(null);
-
+        const fetchTesten = async () => {
             try {
-                // DEBUG LOGGING
-                console.log('=== LEADERBOARD DEBUG ===');
-                console.log('Profile role:', profile?.rol);
-                console.log('School ID:', profile?.school_id);
-                console.log('Show age group:', showAgeGroup);
-                console.log('Selected age:', selectedAge);
-                console.log('User age:', userAge);
-
-                // 1. Test data ophalen (slechts 1 document read)
-                const testRef = doc(db, 'testen', testId);
-                const testSnap = await getDoc(testRef);
-
-                if (!testSnap.exists()) {
-                    throw new Error("Test niet gevonden.");
-                }
-                const currentTestData = testSnap.data();
-                setTestData(currentTestData);
-
-                // 2. Scores ophalen - BEPERKT tot 10 in plaats van 50
-                const scoresRef = collection(db, 'scores');
-                const scoreDirection = currentTestData.score_richting === 'hoog' ? 'desc' : 'asc';
-                
-                const scoresQuery = query(
-                    scoresRef, 
-                    where('test_id', '==', testId),
+                setError(null);
+                const testenRef = collection(db, 'testen');
+                const q = query(
+                    testenRef, 
                     where('school_id', '==', profile.school_id),
-                    orderBy('score', scoreDirection),
-                    limit(10) // Gereduceerd van 50 naar 10
+                    where('is_actief', '==', true), // Alleen actieve testen
+                    orderBy('naam')
                 );
-
-                const querySnapshot = await getDocs(scoresQuery);
-                const rawScores = querySnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    return {
-                        ...data,
-                        id: doc.id,
-                        datum: data.datum?.toDate ? data.datum.toDate() : null
-                    };
-                });
-
-                console.log('Raw scores count:', rawScores.length);
-
-                // Check if component is still mounted
-                if (!isMountedRef.current) return;
-
-                // 3. Filtering op basis van rol en selecties
-                let filteredScores = rawScores;
-
-                console.log('Starting filtering logic...');
-
-                // Voor leerlingen: alleen filteren als ze expliciet hun leeftijdsgroep kiezen
-                if (profile?.rol === 'leerling' && showAgeGroup && userAge && profile?.school_id) {
-                    console.log('Filtering for student age group:', userAge);
-                    const usersData = await getCachedUsers(profile.school_id);
-                    
-                    if (!isMountedRef.current) return;
-                    
-                    filteredScores = rawScores.filter(score => {
-                        const userData = usersData[score.leerling_id];
-                        if (!userData?.geboortedatum) return false;
-                        
-                        const scoreUserAge = calculateAge(userData.geboortedatum);
-                        return scoreUserAge === userAge;
-                    });
-                    console.log('Filtered scores (student):', filteredScores.length);
-                }
-                // Voor admins: alleen filteren als ze een specifieke leeftijd selecteren
-                else if ((profile?.rol === 'administrator' || profile?.rol === 'super-administrator' || profile?.rol === 'leerkracht') && selectedAge && profile?.school_id) {
-                    console.log('Filtering for admin selected age:', selectedAge);
-                    const usersData = await getCachedUsers(profile.school_id);
-                    
-                    if (!isMountedRef.current) return;
-                    
-                    filteredScores = rawScores.filter(score => {
-                        const userData = usersData[score.leerling_id];
-                        if (!userData?.geboortedatum) return false;
-                        
-                        const scoreUserAge = calculateAge(userData.geboortedatum);
-                        return scoreUserAge === selectedAge;
-                    });
-                    console.log('Filtered scores (admin):', filteredScores.length);
-                }
-                // Anders: geen filtering (toon alle rawScores)
-                else {
-                    console.log('No filtering applied - showing all scores');
-                }
-
-                console.log('Final filtered scores:', filteredScores.length);
-                
-                // Top 5 scores
-                setScores(filteredScores.slice(0, 5));
-
+                const querySnapshot = await getDocs(q);
+                const testenData = querySnapshot.docs.map(doc => ({ 
+                    id: doc.id, 
+                    ...doc.data() 
+                }));
+                setTesten(testenData);
             } catch (err) {
-                console.error('Error fetching highscores:', err);
-                if (isMountedRef.current) {
-                    setError('Kon de scores niet laden.');
-                }
+                console.error('Error fetching testen:', err);
+                setError('Kon de testen niet laden. Probeer het later opnieuw.');
             } finally {
-                if (isMountedRef.current) {
-                    setLoading(false);
-                }
+                setLoading(false);
             }
         };
 
-        fetchScores();
-    }, [testId, profile?.school_id, showAgeGroup, userAge, selectedAge]);
+        fetchTesten();
+    }, [profile?.school_id]);
 
-    // Toggle functie - geen nieuwe database queries
-    const handleToggle = (newShowAgeGroup) => {
-        setShowAgeGroup(newShowAgeGroup);
-    };
+    // Groepeer de testen per categorie
+    const grouped_tests = testen.reduce((acc, test) => {
+        const cat = test.categorie || 'Algemeen';
+        (acc[cat] = acc[cat] || []).push(test);
+        return acc;
+    }, {});
 
-    if (loading) return (
-        <div className="text-center text-gray-500 pt-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto mb-2"></div>
-            Laden...
-        </div>
-    );
-    
-    if (error) return (
-        <div className="text-center text-red-500 pt-4 bg-red-50 rounded-lg p-3">
-            {error}
-        </div>
-    );
-    
-    if (scores.length === 0) return (
-        <div className="text-center text-gray-500 pt-4 bg-gray-50 rounded-lg p-4">
-            <div className="text-sm">
-                {profile?.rol === 'leerling' && showAgeGroup 
-                    ? `Nog geen scores van ${userAge}-jarigen voor deze test.`
-                    : selectedAge 
-                    ? `Nog geen scores van ${selectedAge}-jarigen voor deze test.`
-                    : 'Nog geen scores ingevoerd voor deze test.'
-                }
+    if (loading) {
+        return (
+            <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
+                <div className="bg-white p-8 rounded-2xl shadow-sm">
+                    <div className="flex items-center space-x-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                        <span className="text-gray-700 font-medium">Highscores laden...</span>
+                    </div>
+                </div>
             </div>
-            {profile?.rol === 'leerling' && showAgeGroup && (
-                <button 
-                    onClick={() => handleToggle(false)}
-                    className="mt-2 text-xs text-purple-600 hover:text-purple-800 underline"
-                >
-                    Bekijk alle schoolscores
-                </button>
-            )}
-        </div>
-    );
+        );
+    }
 
     return (
-        <div className="bg-white/80 rounded-xl p-4">
-            {/* Controls voor verschillende rollen */}
-            {profile?.rol === 'leerling' && userAge ? (
-                // Leerling: toggle tussen eigen leeftijd en hele school
-                <div className="flex mb-4 bg-gray-100 rounded-lg p-1">
-                    <button
-                        onClick={() => handleToggle(true)}
-                        className={`flex-1 flex items-center justify-center py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                            showAgeGroup
-                                ? 'bg-white text-purple-700 shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                    >
-                        <User className="w-4 h-4 mr-1" />
-                        {userAge} jaar
-                    </button>
-                    <button
-                        onClick={() => handleToggle(false)}
-                        className={`flex-1 flex items-center justify-center py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                            !showAgeGroup
-                                ? 'bg-white text-purple-700 shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                    >
-                        <Users className="w-4 h-4 mr-1" />
-                        Hele school
-                    </button>
+        <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
+            <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8">
+                
+                {/* Compacte Header */}
+                <div className="text-center mb-8">
+                    <div className="flex justify-center mb-4 pt-8">
+                        <img
+                            src={school?.logo_url || '/logo.png'}
+                            alt={`${school?.naam || 'Sportscores'} Logo`}
+                            className="h-12 w-auto object-contain"
+                            onError={(e) => {
+                                e.target.src = '/logo.png'; // Fallback
+                            }}
+                        />
+                    </div>
+                    
+                    <p className="text-slate-600 mb-4">
+                        De beste tijden van onze school!
+                    </p>
+                    
+                    <div className="flex justify-center mb-6">
+                        <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                    </div>
                 </div>
-            ) : (profile?.rol === 'administrator' || profile?.rol === 'super-administrator' || profile?.rol === 'leerkracht') ? (
-                // Admin/leerkracht: dropdown voor leeftijden
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Filter op leeftijd:
-                    </label>
-                    <select
-                        value={selectedAge || ''}
-                        onChange={(e) => setSelectedAge(e.target.value ? parseInt(e.target.value) : null)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    >
-                        <option value="">Alle leeftijden (hele school)</option>
-                        {[12, 13, 14, 15, 16, 17].map(age => (
-                            <option key={age} value={age}>{age} jaar</option>
-                        ))}
-                    </select>
-                </div>
-            ) : null}
 
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
-                Top 5 Scores
-                {profile?.rol === 'leerling' && showAgeGroup && userAge && (
-                    <span className="block text-sm font-normal text-gray-600 mt-1">
-                        Leeftijdsgroep: {userAge} jaar
-                    </span>
+                {/* Error State */}
+                {error && (
+                    <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-8 max-w-2xl mx-auto mb-8">
+                        <div className="text-center">
+                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-red-800 mb-2">Oeps!</h3>
+                            <p className="text-red-600 leading-relaxed mb-4">{error}</p>
+                            <button 
+                                onClick={() => window.location.reload()}
+                                className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium"
+                            >
+                                Probeer opnieuw
+                            </button>
+                        </div>
+                    </div>
                 )}
-                {(profile?.rol === 'administrator' || profile?.rol === 'super-administrator' || profile?.rol === 'leerkracht') && selectedAge && (
-                    <span className="block text-sm font-normal text-gray-600 mt-1">
-                        Leeftijdsgroep: {selectedAge} jaar
-                    </span>
+
+                {/* Empty State */}
+                {!error && Object.keys(grouped_tests).length === 0 && !loading && (
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-2xl mx-auto">
+                        <div className="text-center">
+                            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-800 mb-2">Geen Actieve Testen</h3>
+                            <p className="text-slate-600 leading-relaxed">
+                                Er zijn momenteel geen actieve testen beschikbaar voor deze school.
+                                {profile?.rol === 'administrator' && (
+                                    <span className="block mt-2 text-sm">
+                                        Als administrator kun je nieuwe testen toevoegen in het testbeheer.
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+                    </div>
                 )}
-                {!showAgeGroup && !selectedAge && (
-                    <span className="block text-sm font-normal text-gray-600 mt-1">
-                        Hele school
-                    </span>
-                )}
-            </h3>
-            
-            <ol className="space-y-2 text-gray-700">
-                {scores.map((entry, index) => (
-                    <li 
-                        key={entry.id || index}
-                        className={`flex justify-between items-center p-3 rounded-lg transition-colors ${
-                            index === 0 ? 'bg-gradient-to-r from-yellow-100 to-yellow-200' :
-                            index === 1 ? 'bg-gradient-to-r from-gray-100 to-gray-200' :
-                            index === 2 ? 'bg-gradient-to-r from-orange-100 to-orange-200' :
-                            'bg-gray-50 hover:bg-gray-100'
-                        }`}
-                    >
-                        <div className="flex items-center gap-3">
-                            <span className={`font-bold w-8 h-8 rounded-full flex items-center justify-center text-sm ${
-                                index === 0 ? 'bg-yellow-500 text-white' :
-                                index === 1 ? 'bg-gray-500 text-white' :
-                                index === 2 ? 'bg-orange-500 text-white' :
-                                'bg-purple-100 text-purple-700'
-                            }`}>
-                                {index + 1}
-                            </span>
-                            <div>
-                                <span className="font-medium text-gray-900">
-                                    {entry.leerling_naam || 'Onbekende leerling'}
-                                </span>
-                                <div className="text-xs text-gray-500">
-                                    {getSchoolYear(entry.datum)}
-                                    {((profile?.rol === 'leerling' && showAgeGroup && userAge) || 
-                                      ((profile?.rol === 'administrator' || profile?.rol === 'super-administrator' || profile?.rol === 'leerkracht') && selectedAge)) && (
-                                        <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
-                                            {profile?.rol === 'leerling' ? userAge : selectedAge} jaar
-                                        </span>
-                                    )}
+                
+                {/* Tests Grid - CategoryCards staan nu direct in de grid */}
+                {!error && Object.keys(grouped_tests).length > 0 && (
+                    <div className="space-y-8">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+                            {Object.entries(grouped_tests).map(([categoryName, testsInCategory]) => (
+                                <CategoryCard 
+                                    key={categoryName}
+                                    categoryName={categoryName}
+                                    tests={testsInCategory}
+                                />
+                            ))}
+                        </div>
+                        
+                        {/* Stats Footer */}
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4">
+                            <div className="flex items-center justify-center space-x-8 text-sm text-slate-600 flex-wrap gap-4">
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                                    <span>{Object.keys(grouped_tests).length} Categorieën</span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full"></div>
+                                    <span>{testen.length} Actieve Testen</span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-3 h-3 bg-gradient-to-r from-teal-500 to-green-500 rounded-full"></div>
+                                    <span>School: {school?.naam || 'Onbekend'}</span>
                                 </div>
                             </div>
                         </div>
-                        <span className="font-bold text-lg text-purple-700">
-                            {formatScoreWithUnit(entry.score, testData?.eenheid)}
-                        </span>
-                    </li>
-                ))}
-            </ol>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
