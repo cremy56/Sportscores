@@ -35,7 +35,7 @@ export default function SchemaDetail() {
     const [leerlingProfiel, setLeerlingProfiel] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator';
+    const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator';
     const isCurrentUser = profile?.id === leerlingProfiel?.id || profile?.email === leerlingProfiel?.email;
 
   useEffect(() => {
