@@ -1,20 +1,23 @@
 // src/components/Leaderboard.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { formatScoreWithUnit } from '../utils/formatters.js';
 import { Users, User } from 'lucide-react';
 
+// CACHE voor gebruikersdata om duplicate queries te voorkomen
+const usersCache = new Map();
+const cacheExpiry = 5 * 60 * 1000; // 5 minuten
+
 // --- HELPER FUNCTIE 1: Schooljaar veilig berekenen ---
 function getSchoolYear(date) {
     if (!date || isNaN(new Date(date).getTime())) {
-        return 'Onbekend'; // Voorkomt 'NaN' bij ongeldige datums
+        return 'Onbekend';
     }
     const year = date.getFullYear();
-    const month = date.getMonth(); // 0 = januari, 7 = augustus
+    const month = date.getMonth();
     
-    // Schooljaar start in augustus
     if (month >= 7) {
         return `${year}-${year + 1}`;
     } else {
@@ -38,16 +41,60 @@ function calculateAge(birthDate) {
     return age;
 }
 
+// --- HELPER FUNCTIE 3: Gecachte gebruikersdata ophalen ---
+async function getCachedUsers(schoolId) {
+    const cacheKey = `users_${schoolId}`;
+    const cached = usersCache.get(cacheKey);
+    
+    // Check cache expiry
+    if (cached && (Date.now() - cached.timestamp) < cacheExpiry) {
+        return cached.data;
+    }
+    
+    try {
+        // Alleen relevante velden ophalen om kosten te beperken
+        const usersRef = collection(db, 'users');
+        const usersQuery = query(
+            usersRef, 
+            where('rol', '==', 'leerling'),
+            where('school_id', '==', schoolId)
+        );
+        const usersSnapshot = await getDocs(usersQuery);
+        
+        const usersData = {};
+        usersSnapshot.docs.forEach(doc => {
+            const userData = doc.data();
+            // Alleen relevante velden cachen
+            usersData[userData.email] = {
+                geboortedatum: userData.geboortedatum,
+                naam: userData.naam
+            };
+        });
+        
+        // Cache voor 5 minuten
+        usersCache.set(cacheKey, {
+            data: usersData,
+            timestamp: Date.now()
+        });
+        
+        return usersData;
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        return {};
+    }
+}
+
 export default function Leaderboard({ testId }) { 
     const { profile } = useOutletContext();
     const [scores, setScores] = useState([]);
     const [testData, setTestData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [showAgeGroup, setShowAgeGroup] = useState(true); // Standaard leeftijdsgroep
+    const [showAgeGroup, setShowAgeGroup] = useState(true);
     const [userAge, setUserAge] = useState(null);
+    const isMountedRef = useRef(true);
 
-    // Bereken gebruiker leeftijd
+    // Bereken gebruiker leeftijd (geen database query)
     useEffect(() => {
         if (profile?.geboortedatum) {
             const age = calculateAge(profile.geboortedatum);
@@ -55,40 +102,25 @@ export default function Leaderboard({ testId }) {
         }
     }, [profile?.geboortedatum]);
 
-    // Haal alle gebruikers op om leeftijden te kunnen filteren
-    const [allUsers, setAllUsers] = useState({});
+    // Cleanup bij unmount
     useEffect(() => {
-        const fetchUsers = async () => {
-            try {
-                const usersRef = collection(db, 'users');
-                const usersQuery = query(usersRef, where('rol', '==', 'leerling'));
-                const usersSnapshot = await getDocs(usersQuery);
-                
-                const usersData = {};
-                usersSnapshot.docs.forEach(doc => {
-                    const userData = doc.data();
-                    usersData[userData.email] = userData;
-                });
-                
-                setAllUsers(usersData);
-            } catch (error) {
-                console.error('Error fetching users:', error);
-            }
+        return () => {
+            isMountedRef.current = false;
         };
-
-        fetchUsers();
     }, []);
 
     useEffect(() => {
         const fetchScores = async () => {
-            if (!testId) {
+            if (!testId || !profile?.school_id) {
                 setLoading(false);
                 return;
             }
+            
             setLoading(true);
             setError(null);
 
             try {
+                // 1. Test data ophalen (slechts 1 document read)
                 const testRef = doc(db, 'testen', testId);
                 const testSnap = await getDoc(testRef);
 
@@ -98,29 +130,20 @@ export default function Leaderboard({ testId }) {
                 const currentTestData = testSnap.data();
                 setTestData(currentTestData);
 
+                // 2. Scores ophalen - BEPERKT tot 10 in plaats van 50
                 const scoresRef = collection(db, 'scores');
                 const scoreDirection = currentTestData.score_richting === 'hoog' ? 'desc' : 'asc';
                 
-                let q;
-                if (profile?.school_id) {
-                    q = query(
-                        scoresRef, 
-                        where('test_id', '==', testId),
-                        where('school_id', '==', profile.school_id),
-                        orderBy('score', scoreDirection),
-                        limit(50) // Meer ophalen om te kunnen filteren
-                    );
-                } else {
-                    q = query(
-                        scoresRef, 
-                        where('test_id', '==', testId),
-                        orderBy('score', scoreDirection),
-                        limit(50)
-                    );
-                }
+                const scoresQuery = query(
+                    scoresRef, 
+                    where('test_id', '==', testId),
+                    where('school_id', '==', profile.school_id),
+                    orderBy('score', scoreDirection),
+                    limit(10) // Gereduceerd van 50 naar 10
+                );
 
-                const querySnapshot = await getDocs(q);
-                const scoresData = querySnapshot.docs.map(doc => {
+                const querySnapshot = await getDocs(scoresQuery);
+                const rawScores = querySnapshot.docs.map(doc => {
                     const data = doc.data();
                     return {
                         ...data,
@@ -128,12 +151,19 @@ export default function Leaderboard({ testId }) {
                         datum: data.datum?.toDate ? data.datum.toDate() : null
                     };
                 });
-                
-                // Filter op leeftijdsgroep als showAgeGroup waar is en we de gebruiker leeftijd kennen
-                let filteredScores = scoresData;
-                if (showAgeGroup && userAge && Object.keys(allUsers).length > 0) {
-                    filteredScores = scoresData.filter(score => {
-                        const userData = allUsers[score.leerling_id];
+
+                // Check if component is still mounted
+                if (!isMountedRef.current) return;
+
+                // 3. Alleen gebruikersdata ophalen als we leeftijdsfiltering nodig hebben
+                let filteredScores = rawScores;
+                if (showAgeGroup && userAge && profile?.school_id) {
+                    const usersData = await getCachedUsers(profile.school_id);
+                    
+                    if (!isMountedRef.current) return;
+                    
+                    filteredScores = rawScores.filter(score => {
+                        const userData = usersData[score.leerling_id];
                         if (!userData?.geboortedatum) return false;
                         
                         const scoreUserAge = calculateAge(userData.geboortedatum);
@@ -141,19 +171,28 @@ export default function Leaderboard({ testId }) {
                     });
                 }
                 
-                // Neem alleen top 5
+                // Top 5 scores
                 setScores(filteredScores.slice(0, 5));
 
             } catch (err) {
                 console.error('Error fetching highscores:', err);
-                setError('Kon de scores niet laden.');
+                if (isMountedRef.current) {
+                    setError('Kon de scores niet laden.');
+                }
             } finally {
-                setLoading(false);
+                if (isMountedRef.current) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchScores();
-    }, [testId, profile?.school_id, showAgeGroup, userAge, allUsers]);
+    }, [testId, profile?.school_id, showAgeGroup, userAge]);
+
+    // Toggle functie - geen nieuwe database queries
+    const handleToggle = (newShowAgeGroup) => {
+        setShowAgeGroup(newShowAgeGroup);
+    };
 
     if (loading) return (
         <div className="text-center text-gray-500 pt-4">
@@ -178,7 +217,7 @@ export default function Leaderboard({ testId }) {
             </div>
             {showAgeGroup && (
                 <button 
-                    onClick={() => setShowAgeGroup(false)}
+                    onClick={() => handleToggle(false)}
                     className="mt-2 text-xs text-purple-600 hover:text-purple-800 underline"
                 >
                     Bekijk alle schoolscores
@@ -189,11 +228,11 @@ export default function Leaderboard({ testId }) {
 
     return (
         <div className="bg-white/80 rounded-xl p-4">
-            {/* Toggle buttons */}
+            {/* Toggle buttons - alleen voor leerlingen */}
             {profile?.rol === 'leerling' && userAge && (
                 <div className="flex mb-4 bg-gray-100 rounded-lg p-1">
                     <button
-                        onClick={() => setShowAgeGroup(true)}
+                        onClick={() => handleToggle(true)}
                         className={`flex-1 flex items-center justify-center py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                             showAgeGroup
                                 ? 'bg-white text-purple-700 shadow-sm'
@@ -204,7 +243,7 @@ export default function Leaderboard({ testId }) {
                         {userAge} jaar
                     </button>
                     <button
-                        onClick={() => setShowAgeGroup(false)}
+                        onClick={() => handleToggle(false)}
                         className={`flex-1 flex items-center justify-center py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                             !showAgeGroup
                                 ? 'bg-white text-purple-700 shadow-sm'
@@ -251,7 +290,7 @@ export default function Leaderboard({ testId }) {
                                     {entry.leerling_naam || 'Onbekende leerling'}
                                 </span>
                                 <div className="text-xs text-gray-500">
-                                    Schooljaar - {getSchoolYear(entry.datum)}
+                                    {getSchoolYear(entry.datum)}
                                     {showAgeGroup && userAge && (
                                         <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
                                             {userAge} jaar
