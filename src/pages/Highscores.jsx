@@ -107,10 +107,10 @@ export default function Highscores() {
                     {/* --- START VAN WIJZIGING (Header voor leerlingen) --- */}
                     {profile?.rol === 'leerling' ? (
                         <>
-                            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-2">
+                            <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
                                 {profile?.naam || 'Leerling'}
                             </h1>
-                            <p className="text-slate-600 mb-4">
+                            <p className="text-sm text-slate-600 mb-3">
                                 {getLearnerAgeText()}
                             </p>
                         </>
