@@ -173,6 +173,7 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
                         
                         if (!userData) {
                             console.log(`No user data found for: ${score.leerling_id} (${score.leerling_naam})`);
+                            console.log('Available keys:', Object.keys(usersData));
                             return;
                         }
                         
@@ -181,7 +182,13 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
                             return;
                         }
                         
+                        console.log(`Processing ${score.leerling_naam}: birth date =`, userData.geboortedatum);
                         const scoreUserAge = calculateAge(userData.geboortedatum);
+                        
+                        if (scoreUserAge === null) {
+                            console.log(`Could not calculate age for ${score.leerling_naam}`);
+                            return;
+                        }
                         
                         if (scoreUserAge === globalAgeFilter) {
                             console.log(`✓ Including: ${score.leerling_naam} (age ${scoreUserAge}, score: ${score.score})`);
