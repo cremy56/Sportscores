@@ -291,9 +291,10 @@ export default function Leaderboard({ testId }) {
                                 </span>
                                 <div className="text-xs text-gray-500">
                                     {getSchoolYear(entry.datum)}
-                                    {showAgeGroup && userAge && (
+                                    {((profile?.rol === 'leerling' && showAgeGroup && userAge) || 
+                                      ((profile?.rol === 'administrator' || profile?.rol === 'super-administrator' || profile?.rol === 'leerkracht') && selectedAge)) && (
                                         <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
-                                            {userAge} jaar
+                                            {profile?.rol === 'leerling' ? userAge : selectedAge} jaar
                                         </span>
                                     )}
                                 </div>
