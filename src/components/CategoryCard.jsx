@@ -50,7 +50,7 @@ export default function CategoryCard({ categoryName, tests }) {
       </div>
       
       <div className="mt-4 flex-grow">
-        <Leaderboard key={currentTest.id} testId={currentTest.id} />
+        <Leaderboard key={currentTest.id} testId={currentTest.id} globalAgeFilter={globalAgeFilter} />
       </div>
     </div>
   );
