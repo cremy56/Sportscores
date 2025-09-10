@@ -319,11 +319,6 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
                                 </span>
                                 <div className="text-xs text-gray-500">
                                     {getSchoolYear(entry.datum)}
-                                    {globalAgeFilter && (
-                                        <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
-                                            {globalAgeFilter} jaar
-                                        </span>
-                                    )}
                                 </div>
                             </div>
                         </div>

@@ -90,39 +90,28 @@ export default function Highscores() {
                         <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
                     </div>
 
-                    {/* Age Filter Controls */}
-                    <div className="flex justify-center mb-6">
-                        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4">
-                            <div className="flex items-center space-x-4">
-                                <span className="text-sm font-medium text-slate-700">Filter op leeftijd:</span>
-                                <div className="flex space-x-2">
-                                    <button
-                                        onClick={() => setGlobalAgeFilter(null)}
-                                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                                            globalAgeFilter === null 
-                                                ? 'bg-purple-600 text-white' 
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
+                    {/* Age Filter Controls - Only for teachers/administrators */}
+                    {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
+                        <div className="flex justify-center mb-6">
+                            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4">
+                                <div className="flex items-center space-x-4">
+                                    <span className="text-sm font-medium text-slate-700">Filter op leeftijd:</span>
+                                    <select
+                                        value={globalAgeFilter || ''}
+                                        onChange={(e) => setGlobalAgeFilter(e.target.value ? parseInt(e.target.value) : null)}
+                                        className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                     >
-                                        Alle leeftijden
-                                    </button>
-                                    {[6, 7, 8, 9, 10, 11, 12].map(age => (
-                                        <button
-                                            key={age}
-                                            onClick={() => setGlobalAgeFilter(age)}
-                                            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                                                globalAgeFilter === age 
-                                                    ? 'bg-purple-600 text-white' 
-                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                            }`}
-                                        >
-                                            {age} jaar
-                                        </button>
-                                    ))}
+                                        <option value="">Alle leeftijden</option>
+                                        {[12, 13, 14, 15, 16, 17].map(age => (
+                                            <option key={age} value={age}>
+                                                {age} jaar
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Error State */}
