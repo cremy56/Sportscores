@@ -246,20 +246,25 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
                         }
                         
                         console.log(`Processing ${score.leerling_naam}: birth date =`, userData.geboortedatum);
-                        const scoreUserAge = calculateAge(userData.geboortedatum);
-                        
-                        if (scoreUserAge === null) {
-                            console.log(`Could not calculate age for ${score.leerling_naam}`);
-                            return;
-                        }
-                        
-                        if (scoreUserAge === globalAgeFilter) {
-                            console.log(`✓ Including: ${score.leerling_naam} (age ${scoreUserAge}, score: ${score.score})`);
-                            filteredScores.push(score);
-                        } else {
-                            console.log(`✗ Excluding: ${score.leerling_naam} (age ${scoreUserAge}, wanted ${globalAgeFilter})`);
-                        }
-                    });
+                        const targetAge = globalAgeFilter;
+                    let isMatch = false;
+
+                    if (targetAge === 12) {
+                        isMatch = scoreUserAge <= 12; // Inclusief 12 jaar en jonger
+                    } else if (targetAge === 17) {
+                        isMatch = scoreUserAge >= 17; // Inclusief 17 jaar en ouder
+                    } else {
+                        isMatch = scoreUserAge === targetAge; // Exacte leeftijd voor 13, 14, 15, 16
+                    }
+                    // --- EINDE VAN DE WIJZIGING ---
+                    
+                    if (isMatch) {
+                        console.log(`✓ Including: ${score.leerling_naam} (age ${scoreUserAge}, rule for ${targetAge})`);
+                        filteredScores.push(score);
+                    } else {
+                        console.log(`✗ Excluding: ${score.leerling_naam} (age ${scoreUserAge}, wanted ${targetAge})`);
+                    }
+                });
                     
                     rawScores = filteredScores;
                     console.log(`Filtered to ${rawScores.length} scores for age ${globalAgeFilter}`);
