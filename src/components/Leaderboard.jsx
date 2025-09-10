@@ -90,28 +90,7 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
     const [testData, setTestData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [showAgeGroup, setShowAgeGroup] = useState(false);
-    const [selectedAge, setSelectedAge] = useState(null);
-    const [userAge, setUserAge] = useState(null);
     const isMountedRef = useRef(true);
-
-    // Stel de juiste standaard waarde in op basis van gebruikersrol
-    useEffect(() => {
-        if (profile?.rol === 'leerling') {
-            setShowAgeGroup(true); // Leerlingen beginnen met leeftijdsgroep
-        } else {
-            setShowAgeGroup(false); // Admins beginnen met hele school
-            setSelectedAge(null); // Reset age selection
-        }
-    }, [profile?.rol]);
-
-    // Bereken gebruiker leeftijd (geen database query)
-    useEffect(() => {
-        if (profile?.geboortedatum) {
-            const age = calculateAge(profile.geboortedatum);
-            setUserAge(age);
-        }
-    }, [profile?.geboortedatum]);
 
     // Cleanup bij unmount
     useEffect(() => {
@@ -120,6 +99,7 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
         };
     }, []);
 
+    // HOOFDEFFECT: Deze wordt getriggerd bij elke wijziging van testId, school_id of globalAgeFilter
     useEffect(() => {
         const fetchScores = async () => {
             if (!testId || !profile?.school_id) {
@@ -131,15 +111,13 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
             setError(null);
 
             try {
-                // DEBUG LOGGING
-                console.log('=== LEADERBOARD DEBUG ===');
-                console.log('Profile role:', profile?.rol);
-                console.log('School ID:', profile?.school_id);
-                console.log('Show age group:', showAgeGroup);
-                console.log('Selected age:', selectedAge);
-                console.log('User age:', userAge);
+                console.log('=== FETCHING SCORES ===');
+                console.log('Test ID:', testId);
+                console.log('School ID:', profile.school_id);
+                console.log('Global Age Filter:', globalAgeFilter);
+                console.log('Profile Role:', profile.rol);
 
-                // 1. Test data ophalen (slechts 1 document read)
+                // 1. Test data ophalen
                 const testRef = doc(db, 'testen', testId);
                 const testSnap = await getDoc(testRef);
 
@@ -149,7 +127,7 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
                 const currentTestData = testSnap.data();
                 setTestData(currentTestData);
 
-                // 2. Scores ophalen - BEPERKT tot 10 in plaats van 50
+                // 2. Scores ophalen - meer ophalen als we gaan filteren op leeftijd
                 const scoresRef = collection(db, 'scores');
                 const scoreDirection = currentTestData.score_richting === 'hoog' ? 'desc' : 'asc';
                 
@@ -158,11 +136,11 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
                     where('test_id', '==', testId),
                     where('school_id', '==', profile.school_id),
                     orderBy('score', scoreDirection),
-                    limit(10) // Gereduceerd van 50 naar 10
+                    limit(globalAgeFilter ? 200 : 20) // Veel meer ophalen bij filtering
                 );
 
                 const querySnapshot = await getDocs(scoresQuery);
-                const rawScores = querySnapshot.docs.map(doc => {
+                let rawScores = querySnapshot.docs.map(doc => {
                     const data = doc.data();
                     return {
                         ...data,
@@ -171,57 +149,59 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
                     };
                 });
 
-                console.log('Raw scores count:', rawScores.length);
+                console.log('Raw scores ophgehaald:', rawScores.length);
 
                 // Check if component is still mounted
                 if (!isMountedRef.current) return;
 
-                // 3. Filtering op basis van rol en selecties
-                let filteredScores = rawScores;
-
-                console.log('Starting filtering logic...');
-
-                // Voor leerlingen: alleen filteren als ze expliciet hun leeftijdsgroep kiezen
-                if (profile?.rol === 'leerling' && showAgeGroup && userAge && profile?.school_id) {
-                    console.log('Filtering for student age group:', userAge);
+                // 3. LEEFTIJDSFILTERING
+                if (globalAgeFilter && profile?.school_id) {
+                    console.log('=== FILTERING BY AGE ===');
+                    console.log('Target age:', globalAgeFilter);
+                    
+                    // Haal gebruikersdata op
                     const usersData = await getCachedUsers(profile.school_id);
+                    console.log('Users data keys:', Object.keys(usersData).length);
                     
                     if (!isMountedRef.current) return;
                     
-                    filteredScores = rawScores.filter(score => {
+                    // Filter scores op basis van leeftijd
+                    const filteredScores = [];
+                    
+                    rawScores.forEach((score, index) => {
                         const userData = usersData[score.leerling_id];
-                        if (!userData?.geboortedatum) return false;
+                        
+                        if (!userData) {
+                            console.log(`No user data found for: ${score.leerling_id} (${score.leerling_naam})`);
+                            return;
+                        }
+                        
+                        if (!userData.geboortedatum) {
+                            console.log(`No birth date for user: ${score.leerling_id} (${score.leerling_naam})`);
+                            return;
+                        }
                         
                         const scoreUserAge = calculateAge(userData.geboortedatum);
-                        return scoreUserAge === userAge;
-                    });
-                    console.log('Filtered scores (student):', filteredScores.length);
-                }
-                // Voor admins: alleen filteren als ze een specifieke leeftijd selecteren
-                else if ((profile?.rol === 'administrator' || profile?.rol === 'super-administrator' || profile?.rol === 'leerkracht') && selectedAge && profile?.school_id) {
-                    console.log('Filtering for admin selected age:', selectedAge);
-                    const usersData = await getCachedUsers(profile.school_id);
-                    
-                    if (!isMountedRef.current) return;
-                    
-                    filteredScores = rawScores.filter(score => {
-                        const userData = usersData[score.leerling_id];
-                        if (!userData?.geboortedatum) return false;
                         
-                        const scoreUserAge = calculateAge(userData.geboortedatum);
-                        return scoreUserAge === selectedAge;
+                        if (scoreUserAge === globalAgeFilter) {
+                            console.log(`✓ Including: ${score.leerling_naam} (age ${scoreUserAge}, score: ${score.score})`);
+                            filteredScores.push(score);
+                        } else {
+                            console.log(`✗ Excluding: ${score.leerling_naam} (age ${scoreUserAge}, wanted ${globalAgeFilter})`);
+                        }
                     });
-                    console.log('Filtered scores (admin):', filteredScores.length);
-                }
-                // Anders: geen filtering (toon alle rawScores)
-                else {
-                    console.log('No filtering applied - showing all scores');
+                    
+                    rawScores = filteredScores;
+                    console.log(`Filtered to ${rawScores.length} scores for age ${globalAgeFilter}`);
+                } else {
+                    console.log('No age filtering - showing all scores');
                 }
 
-                console.log('Final filtered scores:', filteredScores.length);
+                // 4. Neem de top 5
+                const top5Scores = rawScores.slice(0, 5);
+                console.log('Final top 5 scores:', top5Scores.map(s => `${s.leerling_naam}: ${s.score}`));
                 
-                // Top 5 scores
-                setScores(filteredScores.slice(0, 5));
+                setScores(top5Scores);
 
             } catch (err) {
                 console.error('Error fetching highscores:', err);
@@ -236,12 +216,7 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
         };
 
         fetchScores();
-    }, [testId, profile?.school_id, showAgeGroup, userAge, selectedAge]);
-
-    // Toggle functie - geen nieuwe database queries
-    const handleToggle = (newShowAgeGroup) => {
-        setShowAgeGroup(newShowAgeGroup);
-    };
+    }, [testId, profile?.school_id, globalAgeFilter]); // BELANGRIJKE DEPENDENCY ARRAY
 
     if (loading) return (
         <div className="text-center text-gray-500 pt-4">
@@ -259,21 +234,11 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
     if (scores.length === 0) return (
         <div className="text-center text-gray-500 pt-4 bg-gray-50 rounded-lg p-4">
             <div className="text-sm">
-                {profile?.rol === 'leerling' && showAgeGroup 
-                    ? `Nog geen scores van ${userAge}-jarigen voor deze test.`
-                    : selectedAge 
-                    ? `Nog geen scores van ${selectedAge}-jarigen voor deze test.`
+                {globalAgeFilter 
+                    ? `Nog geen scores van ${globalAgeFilter}-jarigen voor deze test.`
                     : 'Nog geen scores ingevoerd voor deze test.'
                 }
             </div>
-            {profile?.rol === 'leerling' && showAgeGroup && (
-                <button 
-                    onClick={() => handleToggle(false)}
-                    className="mt-2 text-xs text-purple-600 hover:text-purple-800 underline"
-                >
-                    Bekijk alle schoolscores
-                </button>
-            )}
         </div>
     );
 
@@ -296,7 +261,7 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
             <ol className="space-y-2 text-gray-700">
                 {scores.map((entry, index) => (
                     <li 
-                        key={entry.id || index}
+                        key={`${entry.id || entry.leerling_id}-${index}-${globalAgeFilter || 'all'}`}
                         className={`flex justify-between items-center p-3 rounded-lg transition-colors ${
                             index === 0 ? 'bg-gradient-to-r from-yellow-100 to-yellow-200' :
                             index === 1 ? 'bg-gradient-to-r from-gray-100 to-gray-200' :
