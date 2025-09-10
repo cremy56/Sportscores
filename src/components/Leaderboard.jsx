@@ -118,7 +118,7 @@ async function getCachedUsers(schoolId) {
     }
 }
 
-export default function Leaderboard({ testId, globalAgeFilter }) { 
+export default function Leaderboard({ testId, globalAgeFilter, isLearner }) { 
     const { profile } = useOutletContext();
     const [scores, setScores] = useState([]);
     const [testData, setTestData] = useState(null);
@@ -324,19 +324,21 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
 
     return (
         <div className="bg-white/80 rounded-xl p-4">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
-                Top 5 Scores
-                {globalAgeFilter && (
-                    <span className="block text-sm font-normal text-gray-600 mt-1">
-                        Leeftijdsgroep: {globalAgeFilter} jaar
-                    </span>
-                )}
-                {!globalAgeFilter && (
-                    <span className="block text-sm font-normal text-gray-600 mt-1">
-                        Alle leeftijden
-                    </span>
-                )}
-            </h3>
+           {!isLearner && (
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
+                    Top 5 Scores
+                    {globalAgeFilter && (
+                        <span className="block text-sm font-normal text-gray-600 mt-1">
+                            Leeftijdsgroep: {globalAgeFilter} jaar
+                        </span>
+                    )}
+                    {!globalAgeFilter && (
+                        <span className="block text-sm font-normal text-gray-600 mt-1">
+                            Alle leeftijden
+                        </span>
+                    )}
+                </h3>
+            )}
             
             <ol className="space-y-2 text-gray-700">
                 {scores.map((entry, index) => (

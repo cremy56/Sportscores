@@ -3,8 +3,9 @@ import { useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import Leaderboard from './Leaderboard';
 
-export default function CategoryCard({ categoryName, tests, globalAgeFilter }) {
+export default function CategoryCard({ categoryName, tests, globalAgeFilter, isLearner }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+
 
   const handlePrev = () => {
     const newIndex = currentIndex === 0 ? tests.length - 1 : currentIndex - 1;
@@ -33,8 +34,6 @@ export default function CategoryCard({ categoryName, tests, globalAgeFilter }) {
 
   return (
     <div className="bg-white/60 p-6 rounded-2xl shadow-xl border border-white/30 backdrop-blur-lg transform hover:scale-105 transition-all duration-300 flex flex-col h-full">
-      
-      {/* De class 'text-center' is hier toegevoegd */}
       <h2 className="text-2xl font-bold text-gray-800 text-center">
         {categoryName}
       </h2>
@@ -50,7 +49,13 @@ export default function CategoryCard({ categoryName, tests, globalAgeFilter }) {
       </div>
       
       <div className="mt-4 flex-grow">
-        <Leaderboard key={currentTest.id} testId={currentTest.id} globalAgeFilter={globalAgeFilter} />
+        {/* --- WIJZIGING 2: Geef 'isLearner' door aan de Leaderboard component --- */}
+        <Leaderboard 
+            key={currentTest.id} 
+            testId={currentTest.id} 
+            globalAgeFilter={globalAgeFilter} 
+            isLearner={isLearner} 
+        />
       </div>
     </div>
   );
