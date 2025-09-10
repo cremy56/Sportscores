@@ -182,18 +182,18 @@ const Rewards = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Kompas invullingen</span>
-              <span className="text-sm font-semibold">{studentData.weeklyProgress.kompas}/7</span>
+           <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-600">Kompas Dagen Voltooid (deze week)</span>
+              <span className="text-sm font-semibold">{studentData.weeklyProgress.kompas_days || 0}/7</span>
             </div>
             <div className="bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${Math.min((studentData.weeklyProgress.kompas / 7) * 100, 100)}%` }}
+                style={{ width: `${Math.min(((studentData.weeklyProgress.kompas_days || 0) / 7) * 100, 100)}%` }}
               />
             </div>
-            {studentData.weeklyProgress.kompas >= 5 && (
-              <p className="text-xs text-blue-600 mt-1">Klaar voor Perfect Week bonus!</p>
+            {(studentData.weeklyProgress.kompas_days || 0) >= 5 && (
+              <p className="text-xs text-blue-600 mt-1">Goed bezig! Nog een paar dagen voor een Perfect Week!</p>
             )}
           </div>
           

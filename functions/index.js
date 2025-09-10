@@ -8,9 +8,7 @@ const admin = require('firebase-admin');
 const { doc, getDoc } = require('firebase-admin/firestore');
 const { query, collection, where, getDocs } = require('firebase-admin/firestore');
 
-if (admin.apps.length === 0) {
-  initializeApp();
-}
+
 // ==============================================
 // PRIVATE SPORT NEWS PROXY
 // ==============================================
@@ -296,6 +294,8 @@ function formatNewsTitle(title) {
 
 // Cloud Function voor naam wijzigingen monitoren
 exports.onUserNameChange = onDocumentUpdated('users/{userId}', async (event) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
     const change = event.data;
     const userId = event.params.userId;
 
@@ -315,6 +315,8 @@ exports.onUserNameChange = onDocumentUpdated('users/{userId}', async (event) => 
   });
 
 async function updateDenormalizedNames(userId, oldName, newName) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   const batch = db.batch();
   
@@ -346,6 +348,8 @@ async function updateDenormalizedNames(userId, oldName, newName) {
 }
 
 async function logNameChange(userId, oldName, newName) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   await db.collection('audit_log').add({
@@ -359,6 +363,8 @@ async function logNameChange(userId, oldName, newName) {
 }
 
 async function sendAlertToAdmins(userId, oldName, newName, error) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   // Zoek alle administrators
@@ -390,6 +396,8 @@ async function sendAlertToAdmins(userId, oldName, newName, error) {
 
 // Handmatige consistency check (kan periodiek worden uitgevoerd)
 exports.checkDataConsistency = onCall(async (request) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   // Verify user is admin
   const uid = request.auth.uid;
   const userDoc = await getFirestore().collection('users').doc(uid).get();
@@ -452,6 +460,8 @@ exports.checkDataConsistency = onCall(async (request) => {
 
 // Cloud Function die triggert wanneer een leerling_schema document wordt geüpdatet
 exports.onTrainingWeekValidated = onDocumentUpdated('leerling_schemas/{schemaId}', async (event) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const change = event.data;
   const schemaId = event.params.schemaId;
   
@@ -500,6 +510,8 @@ exports.onTrainingWeekValidated = onDocumentUpdated('leerling_schemas/{schemaId}
 
 // Functie om XP toe te kennen aan een leerling
 async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   console.log(`Awarding training XP to: ${leerlingEmail}`);
   const db = getFirestore();
   
@@ -521,11 +533,33 @@ async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
       console.error(`User ${leerlingEmail} is not a student, skipping XP award`);
       return;
     }
+     // --- LOGICA VOOR STREAKS & WEKELIJKSE STATS ---
+    const newTrainingCount = validatedWeeks.reduce((count, week) => {
+        return count + (week.weekData?.trainingen ? Object.keys(week.weekData.trainingen).length : 0);
+    }, 0);
+
+    const weeklyStats = userData.weekly_stats || { kompas: 0, trainingen: 0 };
+    const currentStreak = userData.streak_days || 0;
+    const lastActivityDate = userData.last_activity?.toDate();
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
     
-    // Bereken totaal XP voor alle gevalideerde weken
+    let newStreak = currentStreak;
+    if (lastActivityDate && lastActivityDate.toDateString() === yesterday.toDateString()) {
+        newStreak++;
+    } else if (!lastActivityDate || lastActivityDate.toDateString() !== today.toDateString()) {
+        newStreak = 1;
+    }
+    
+    const updatedWeeklyStats = {
+      ...weeklyStats,
+      trainingen: (weeklyStats.trainingen || 0) + newTrainingCount
+    };
+
+    // --- LOGICA VOOR XP BEREKENING & LOGGING DETAILS (jouw stuk code) ---
     let totalXP = 0;
     const weekDetails = [];
-    
     validatedWeeks.forEach(week => {
       const weekXP = week.trainingsXP || 0;
       totalXP += weekXP;
@@ -535,43 +569,44 @@ async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
       });
     });
     
-    if (totalXP <= 0) {
-      console.log('No XP to award (total XP is 0)');
+    if (totalXP <= 0 && newTrainingCount <= 0) {
+      console.log('No XP to award and no new trainings logged.');
       return;
     }
     
     // Update user document met nieuwe XP en Sparks
-    const currentXP = userData.xp || 0;
-    const currentSparks = userData.sparks || 0;
+   const currentXP = userData.xp || 0;
     const newXP = currentXP + totalXP;
-    const newSparks = Math.floor(newXP / 100); // 100 XP = 1 Spark
+    const newSparks = Math.floor(newXP / 100);
     
     await userDoc.ref.update({
       xp: newXP,
-      sparks: newSparks
+      sparks: newSparks,
+      weekly_stats: updatedWeeklyStats,
+      streak_days: newStreak,
+      last_activity: FieldValue.serverTimestamp()
     });
     
-    console.log(`Successfully awarded ${totalXP} XP to ${userData.naam || leerlingEmail}`);
-    console.log(`New totals: ${newXP} XP, ${newSparks} Sparks`);
+    console.log(`Successfully updated stats for ${userData.naam || leerlingEmail}`);
     
-    // Log de transactie voor audit trail
-    await logXPTransaction(db, {
-      user_id: userDoc.id,
-      user_email: leerlingEmail,
-      transaction_type: 'earn',
-      reward_type: 'xp',
-      amount: totalXP,
-      reason: 'training_validation',
-      source_id: schemaId,
-      balance_after: { xp: newXP, sparks: newSparks },
-      metadata: {
-        schema_id: schemaId,
-        validated_weeks: weekDetails
-      }
-    });
+    if (totalXP > 0) {
+      await logXPTransaction(db, {
+        user_id: userDoc.id,
+        user_email: leerlingEmail,
+        transaction_type: 'earn',
+        reward_type: 'xp',
+        amount: totalXP,
+        reason: 'training_validation',
+        source_id: schemaId,
+        balance_after: { xp: newXP, sparks: newSparks },
+        metadata: {
+          schema_id: schemaId,
+          validated_weeks: weekDetails // Hier worden de details gebruikt
+        }
+      });
+    }
     
-    // NIEUW: Update class challenge for training logged
-    await updateClassChallengeProgressInternal(userDoc.id, 0, 'training');
+    await updateClassChallengeProgressInternal(userDoc.id, totalXP, 'training');
     
   } catch (error) {
     console.error('Error awarding training XP:', error);
@@ -581,6 +616,8 @@ async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
 
 // Functie om XP transacties te loggen
 async function logXPTransaction(db, transactionData) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   try {
     const userId = transactionData.user_id;
     
@@ -600,6 +637,8 @@ async function logXPTransaction(db, transactionData) {
 
 // Handmatige XP toekenning functie (voor testing en admin gebruik)
 exports.manualAwardTrainingXP = onCall(async (request) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   // Check of gebruiker admin is
@@ -672,6 +711,8 @@ exports.manualAwardTrainingXP = onCall(async (request) => {
 
 // Cloud Function die triggert wanneer welzijn dagelijkse data wordt geüpdatet
 exports.onWelzijnKompasUpdated = onDocumentUpdated('welzijn/{userId}/dagelijkse_data/{dateString}', async (event) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const change = event.data;
   const userId = event.params.userId;
   const dateString = event.params.dateString;
@@ -740,6 +781,8 @@ exports.onWelzijnKompasUpdated = onDocumentUpdated('welzijn/{userId}/dagelijkse_
 
 // Functie om XP toe te kennen voor welzijn segmenten
 async function awardWelzijnXP(userId, completedSegments, dateString, dayData) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   console.log(`Awarding welzijn XP to user: ${userId}`);
   const db = getFirestore();
   
@@ -811,53 +854,55 @@ async function awardWelzijnXP(userId, completedSegments, dateString, dayData) {
   }
 }
 
-// Check voor volledig kompas bonus (extra XP als alle segmenten ingevuld zijn)
+
 // Check voor volledig kompas bonus (extra XP als alle segmenten ingevuld zijn)
 async function checkKompasCompletionBonus(userId, dayData, dateString) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   try {
-    // Check of alle 5 segmenten ingevuld zijn
-    const hasStappen = (dayData.stappen || 0) > 0;
-    const hasWater = (dayData.water_intake || 0) > 0;
-    const hasSlaap = (dayData.slaap_uren || 0) > 0;
-    const hasHumeur = dayData.humeur ? true : false;
-    const hasHartslag = (dayData.hartslag_rust || 0) > 0;
+    const isKompasComplete = (dayData.stappen || 0) > 0 &&
+                           (dayData.water_intake || 0) > 0 &&
+                           (dayData.slaap_uren || 0) > 0 &&
+                           dayData.humeur &&
+                           (dayData.hartslag_rust || 0) > 0;
     
-    const isKompasComplete = hasStappen && hasWater && hasSlaap && hasHumeur && hasHartslag;
-    
-    if (isKompasComplete) {
+    if (isKompasComplete && !dayData.completion_bonus_awarded) {
       console.log(`Complete kompas detected for ${userId} on ${dateString}`);
       
-      // Check of bonus al is toegekend (via een completion_bonus veld)
-      if (!dayData.completion_bonus_awarded) {
-        const userRef = db.collection('users').doc(userId);
-        const userDoc = await userRef.get();
+      const userRef = db.collection('users').doc(userId);
+      const userDoc = await userRef.get();
+      
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        const bonusXP = 10;
+        const currentXP = userData.xp || 0;
+        const newXP = currentXP + bonusXP;
         
-        if (userDoc.exists) {
-          const userData = userDoc.data();
-          const bonusXP = 10; // 10 XP bonus = totaal 20 XP voor volledig kompas
-          
-          const currentXP = userData.xp || 0;
-          const newXP = currentXP + bonusXP;
-          const newSparks = Math.floor(newXP / 100);
-          
-          await userRef.update({
-            xp: newXP,
-            sparks: newSparks
-          });
-          
-          // Mark bonus als toegekend in dagelijkse data
-          const dayRef = db.collection('welzijn').doc(userId).collection('dagelijkse_data').doc(dateString);
-          await dayRef.update({
-            completion_bonus_awarded: true,
-            completion_bonus_xp: bonusXP
-          });
-          
-          console.log(`Awarded ${bonusXP} completion bonus to ${userData.naam || userId}`);
-          
-          // Log transactie
-          await logXPTransaction(db, {
+        // --- START WIJZIGING: Update weekly_stats met voltooide dagen ---
+        const weeklyStats = userData.weekly_stats || { kompas_days: 0, trainingen: 0 };
+        const updatedWeeklyStats = {
+          ...weeklyStats,
+          kompas_days: (weeklyStats.kompas_days || 0) + 1
+        };
+        // --- EINDE WIJZIGING ---
+        
+        await userRef.update({
+          xp: newXP,
+          sparks: Math.floor(newXP / 100),
+          weekly_stats: updatedWeeklyStats // Gebruik de nieuwe stats
+        });
+        
+        const dayRef = db.collection('welzijn').doc(userId).collection('dagelijkse_data').doc(dateString);
+        await dayRef.update({
+          completion_bonus_awarded: true,
+          completion_bonus_xp: bonusXP
+        });
+        
+        console.log(`Awarded ${bonusXP} bonus XP and incremented kompas_days for ${userData.naam || userId}`);
+        
+        await logXPTransaction(db, {
             user_id: userId,
             user_email: userData.email,
             transaction_type: 'earn',
@@ -877,7 +922,7 @@ async function checkKompasCompletionBonus(userId, dayData, dateString) {
           
           // NIEUW: Check voor streak milestones na het voltooien van kompas
           await checkStreakMilestonesInternal(userId);
-        }
+        
       }
     }
     
@@ -888,6 +933,8 @@ async function checkKompasCompletionBonus(userId, dayData, dateString) {
 
 // Helper functie voor streak milestone checks
 async function checkStreakMilestonesInternal(userId) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   try {
@@ -943,6 +990,8 @@ async function checkStreakMilestonesInternal(userId) {
 
 // Update welzijn streak (voor toekomstige streak beloningen)
 async function updateWelzijnStreak(userId, dateString) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   try {
@@ -969,6 +1018,8 @@ async function updateWelzijnStreak(userId, dateString) {
 
 // Handmatige welzijn XP functie (voor testing)
 exports.manualAwardWelzijnXP = onCall(async (request) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   // Check admin rechten
@@ -1023,6 +1074,7 @@ function getTodayString() {
 
 
 exports.awardTestParticipationXP = onCall({
+  
   cors: [
     'https://sportscores-app.firebaseapp.com',
     'https://sportscores-app.web.app', 
@@ -1031,6 +1083,8 @@ exports.awardTestParticipationXP = onCall({
     'http://localhost:5173'
   ]
 }, async (request) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   if (!request.auth) {
@@ -1167,6 +1221,8 @@ exports.awardTestParticipationXP = onCall({
 
 // Helper functies voor test XP functie
 async function checkLeaderboardPositionsInternal(userId, testId, newScore, schoolId) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   if (!schoolId) return;
   
   const db = getFirestore();
@@ -1232,6 +1288,8 @@ async function checkLeaderboardPositionsInternal(userId, testId, newScore, schoo
 }
 
 async function updateClassChallengeProgressInternal(userId, xpEarned, action) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   try {
@@ -1312,6 +1370,8 @@ function getWeekNumber(date) {
 
 
 exports.checkWeeklyBonuses = onSchedule('0 6 * * 1', async (event) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   try {
@@ -1358,6 +1418,8 @@ exports.checkWeeklyBonuses = onSchedule('0 6 * * 1', async (event) => {
 });
 
 async function awardWeeklyBonus(userDoc, userData, bonusXP, reason) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   const currentXP = userData.xp || 0;
   const newXP = currentXP + bonusXP;
@@ -1379,6 +1441,8 @@ async function awardWeeklyBonus(userDoc, userData, bonusXP, reason) {
 }
 // Voeg dit tijdelijk toe aan het einde van je index.js
 exports.testWelzijnXP = onCall(async (request) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const { userId } = request.data;
   console.log('Test functie voor userId:', userId);
   
@@ -1404,6 +1468,8 @@ exports.testWelzijnXP = onCall(async (request) => {
 });
 // EHBO scenario XP
 exports.awardEHBOXP = onCall(async (request) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   if (!request.auth) {
@@ -1466,6 +1532,8 @@ exports.awardEHBOXP = onCall(async (request) => {
 
 // Trigger automatisch bij score updates (nieuwe Cloud Function)
 exports.onScoreUpdated = onDocumentUpdated('scores/{scoreId}', async (event) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   console.log('TRIGGER START');
   
   const beforeData = event.data.before.data();
@@ -1543,6 +1611,8 @@ exports.onScoreUpdated = onDocumentUpdated('scores/{scoreId}', async (event) => 
 // Voeg ook de checkPersonalRecord functie toe zoals eerder gedefinieerd
 // HOUD ALLEEN DEZE VERSIE - verwijder de andere duplicaten
 async function checkPersonalRecord(userId, testId, newScore, testData) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   try {
@@ -1615,6 +1685,8 @@ async function checkPersonalRecord(userId, testId, newScore, testData) {
 
 // Maak een interne versie van de XP functie die geen HTTP/auth nodig heeft:
 async function awardTestParticipationXPInternal(userId, testId, newScore) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   console.log('=== INTERNAL XP AWARD START ===');
@@ -1672,6 +1744,8 @@ async function awardTestParticipationXPInternal(userId, testId, newScore) {
 }
 // Nieuwe Cloud Function voor bij registratie
 exports.onUserRegistration = onCall(async (request) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const { email } = request.data;
   const db = getFirestore();
   
@@ -1701,6 +1775,8 @@ exports.onUserRegistration = onCall(async (request) => {
 });
 // Add this to your index.js - Streak milestone rewards
 exports.checkStreakMilestones = onCall(async (request) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   if (!request.auth) {
@@ -1767,6 +1843,8 @@ exports.checkStreakMilestones = onCall(async (request) => {
 });
 
 async function logStreakReward(db, rewardData) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   try {
     await db.collection('users').doc(rewardData.user_id).collection('streak_rewards').add({
       streak_days: rewardData.streak_days,
@@ -1781,6 +1859,8 @@ async function logStreakReward(db, rewardData) {
 
 // Automated daily streak calculation and reward check
 exports.updateDailyStreaks = onSchedule('0 1 * * *', async (event) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   try {
@@ -1835,6 +1915,8 @@ exports.updateDailyStreaks = onSchedule('0 1 * * *', async (event) => {
   }
 });
 exports.checkLeaderboardPositions = onCall(async (request) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   if (!request.auth) {
@@ -1934,6 +2016,8 @@ exports.checkLeaderboardPositions = onCall(async (request) => {
 });
 
 async function checkSchoolRecords(db, testId, schoolId, newScore, testData) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const scoreRichting = testData.score_richting || 'hoog';
   
   // Query all scores for this test in this school
@@ -1973,6 +2057,8 @@ async function checkSchoolRecords(db, testId, schoolId, newScore, testData) {
 }
 
 async function checkAgeRecords(db, testId, userAge, newScore, testData) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const scoreRichting = testData.score_richting || 'hoog';
   
   // Query all users of the same age with scores for this test
@@ -2040,6 +2126,8 @@ function calculateAge(geboortedatum) {
 }
 
 async function logLeaderboardAchievement(db, achievementData) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   try {
     await db.collection('users').doc(achievementData.user_id).collection('achievements').add({
       type: achievementData.type,
@@ -2059,6 +2147,8 @@ async function logLeaderboardAchievement(db, achievementData) {
 }
 // Add to index.js - Class Challenge System
 exports.createWeeklyClassChallenge = onSchedule('0 6 * * 1', async (event) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   try {
@@ -2122,6 +2212,8 @@ exports.createWeeklyClassChallenge = onSchedule('0 6 * * 1', async (event) => {
 
 // Function to update class challenge progress when students earn XP
 exports.updateClassChallengeProgress = onCall(async (request) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   try {
@@ -2185,6 +2277,8 @@ exports.updateClassChallengeProgress = onCall(async (request) => {
 });
 
 async function checkChallengeCompletion(db, challengeId) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const challengeRef = db.collection('class_challenges').doc(challengeId);
   const challengeDoc = await challengeRef.get();
   
@@ -2216,6 +2310,8 @@ async function checkChallengeCompletion(db, challengeId) {
 }
 
 async function awardClassChallengeReward(db, userId, xpAmount, challengeData) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   try {
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
@@ -2275,6 +2371,8 @@ function getWeekNumber(date) {
 }
 // Add to index.js - Training Program Completion Detection
 exports.checkTrainingProgramCompletion = onDocumentUpdated('leerling_schemas/{schemaId}', async (event) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const change = event.data;
   const schemaId = event.params.schemaId;
   
@@ -2313,6 +2411,8 @@ function checkIfProgramFullyCompleted(schemaData) {
 }
 
 async function awardProgramCompletionReward(leerlingEmail, schemaId, schemaData) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   try {
@@ -2368,6 +2468,8 @@ async function awardProgramCompletionReward(leerlingEmail, schemaId, schemaData)
 }
 
 async function logTrainingCompletion(db, completionData) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   try {
     await db.collection('users')
       .doc(completionData.user_id)
@@ -2386,6 +2488,8 @@ async function logTrainingCompletion(db, completionData) {
 }
 
 async function createCompletionNotification(db, userId, userName, sparksAwarded) {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   try {
     await db.collection('notifications').add({
       recipient_id: userId,
@@ -2403,6 +2507,8 @@ async function createCompletionNotification(db, userId, userName, sparksAwarded)
 
 // Manual function to check and award retroactive rewards
 exports.checkRetroactiveTrainingRewards = onCall(async (request) => {
+  // Initialiseer de app binnen de functie
+  initializeApp();
   const db = getFirestore();
   
   // Admin check
