@@ -28,8 +28,15 @@ function getSchoolYear(date) {
 // --- HELPER FUNCTIE 2: Leeftijd berekenen ---
 function calculateAge(birthDate) {
     if (!birthDate) return null;
+
+    // Converteer Firestore Timestamp naar JS Date object indien nodig
+    const birth = birthDate.toDate ? birthDate.toDate() : new Date(birthDate);
+
+    // Controleer of de datum geldig is
+    if (isNaN(birth.getTime())) {
+        return null;
+    }
     
-    const birth = new Date(birthDate);
     const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
@@ -41,37 +48,64 @@ function calculateAge(birthDate) {
     return age;
 }
 
+
 // --- HELPER FUNCTIE 3: Gecachte gebruikersdata ophalen ---
 async function getCachedUsers(schoolId) {
-    const cacheKey = `users_${schoolId}`;
+    const cacheKey = `users_and_allowed_${schoolId}`; // Aangepaste cache key
     const cached = usersCache.get(cacheKey);
     
-    // Check cache expiry
     if (cached && (Date.now() - cached.timestamp) < cacheExpiry) {
         return cached.data;
     }
     
     try {
-        // Alleen relevante velden ophalen om kosten te beperken
+        // Query voor beide collecties parallel om tijd te besparen
         const usersRef = collection(db, 'users');
+        const toegestaneGebruikersRef = collection(db, 'toegestane_gebruikers');
+
         const usersQuery = query(
             usersRef, 
             where('rol', '==', 'leerling'),
             where('school_id', '==', schoolId)
         );
-        const usersSnapshot = await getDocs(usersQuery);
+        const toegestaneQuery = query(
+            toegestaneGebruikersRef,
+            where('rol', '==', 'leerling'),
+            where('school_id', '==', schoolId)
+        );
+
+        // Wacht tot beide queries voltooid zijn
+        const [usersSnapshot, toegestaneSnapshot] = await Promise.all([
+            getDocs(usersQuery),
+            getDocs(toegestaneQuery)
+        ]);
         
         const usersData = {};
+        
+        // 1. Voeg data toe uit de 'users' collectie
         usersSnapshot.docs.forEach(doc => {
             const userData = doc.data();
-            // Alleen relevante velden cachen
-            usersData[userData.email] = {
-                geboortedatum: userData.geboortedatum,
-                naam: userData.naam
-            };
+            if (userData.email) {
+                usersData[userData.email] = {
+                    geboortedatum: userData.geboortedatum,
+                    naam: userData.naam
+                };
+            }
+        });
+
+        // 2. Voeg data toe uit de 'toegestane_gebruikers' collectie
+        toegestaneSnapshot.docs.forEach(doc => {
+            const userData = doc.data();
+            // Het document ID is hier de email
+            if (doc.id && !usersData[doc.id]) { // Voeg alleen toe als de gebruiker nog niet bestaat
+                 usersData[doc.id] = {
+                    geboortedatum: userData.geboortedatum,
+                    naam: userData.naam
+                };
+            }
         });
         
-        // Cache voor 5 minuten
+        // Sla de gecombineerde data op in de cache
         usersCache.set(cacheKey, {
             data: usersData,
             timestamp: Date.now()
@@ -79,8 +113,8 @@ async function getCachedUsers(schoolId) {
         
         return usersData;
     } catch (error) {
-        console.error('Error fetching users:', error);
-        return {};
+        console.error('Error fetching combined users data:', error);
+        return {}; // Geef een leeg object terug bij een fout
     }
 }
 

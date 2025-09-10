@@ -5,27 +5,55 @@ import { db } from '../firebase';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import CategoryCard from '../components/CategoryCard';
 
+function calculateAge(birthDate) {
+    if (!birthDate) return null;
+    const birth = birthDate.toDate ? birthDate.toDate() : new Date(birthDate);
+    if (isNaN(birth.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+    return age;
+}
+
 export default function Highscores() {
     const { profile, school } = useOutletContext(); 
     const [testen, setTesten] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [globalAgeFilter, setGlobalAgeFilter] = useState(null);
+    // State voor de filter van leerkrachten
+    const [teacherSelectedAge, setTeacherSelectedAge] = useState(null);
+    // State voor de effectieve filter die wordt doorgegeven aan de componenten
+    const [effectiveAgeFilter, setEffectiveAgeFilter] = useState(null);
+
+
+   // Bepaal de effectieve filter op basis van de rol en selectie
+    useEffect(() => {
+        if (profile?.rol === 'leerling') {
+            const userAge = calculateAge(profile.geboortedatum);
+            setEffectiveAgeFilter(userAge);
+        } else {
+            setEffectiveAgeFilter(teacherSelectedAge);
+        }
+    }, [profile, teacherSelectedAge]);
 
     useEffect(() => {
+        // ... de bestaande fetchTesten useEffect blijft ongewijzigd ...
         if (!profile?.school_id) {
             setLoading(false);
             return;
         }
 
-        const fetchTesten = async () => {
+       const fetchTesten = async () => {
             try {
                 setError(null);
                 const testenRef = collection(db, 'testen');
                 const q = query(
                     testenRef, 
                     where('school_id', '==', profile.school_id),
-                    where('is_actief', '==', true), // Alleen actieve testen
+                    where('is_actief', '==', true),
                     orderBy('naam')
                 );
                 const querySnapshot = await getDocs(q);
@@ -91,14 +119,14 @@ export default function Highscores() {
                     </div>
 
                     {/* Age Filter Controls - Only for teachers/administrators */}
-                    {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
+                    {profile?.rol !== 'leerling' && (
                         <div className="flex justify-center mb-6">
                             <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4">
                                 <div className="flex items-center space-x-4">
                                     <span className="text-sm font-medium text-slate-700">Filter op leeftijd:</span>
                                     <select
-                                        value={globalAgeFilter || ''}
-                                        onChange={(e) => setGlobalAgeFilter(e.target.value ? parseInt(e.target.value) : null)}
+                                        value={teacherSelectedAge || ''}
+                                        onChange={(e) => setTeacherSelectedAge(e.target.value ? parseInt(e.target.value) : null)}
                                         className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                     >
                                         <option value="">Alle leeftijden</option>
@@ -166,7 +194,7 @@ export default function Highscores() {
                                     key={categoryName}
                                     categoryName={categoryName}
                                     tests={testsInCategory}
-                                    globalAgeFilter={globalAgeFilter}
+                                    globalAgeFilter={effectiveAgeFilter} // Hier de aanpassing
                                 />
                             ))}
                         </div>
