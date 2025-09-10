@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { formatScoreWithUnit } from '../utils/formatters.js';
 import { Users, User } from 'lucide-react';
+import Leaderboard from '../components/Leaderboard';
 
 // CACHE voor gebruikersdata om duplicate queries te voorkomen
 const usersCache = new Map();
