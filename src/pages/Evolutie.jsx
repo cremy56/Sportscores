@@ -390,7 +390,7 @@ const exportToCSV = () => {
                             {/* Titel sectie */}
                             <div className="text-center lg:text-left lg:flex-1">
                                 <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
-                                    {selectedStudent ? selectedStudent.naam : pageTitle}
+                                    {selectedStudent ? selectedStudent.naam : pageTitle} 
                                 </h1>
                                 <p className="text-sm text-slate-600 mb-3">
                                     {selectedStudent 
