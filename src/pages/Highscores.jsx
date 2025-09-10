@@ -31,10 +31,25 @@ export default function Highscores() {
 
    // Bepaal de effectieve filter op basis van de rol en selectie
     useEffect(() => {
-        if (profile?.rol === 'leerling') {
+       if (profile?.rol === 'leerling') {
             const userAge = calculateAge(profile.geboortedatum);
-            setEffectiveAgeFilter(userAge);
+            
+            // --- START VAN DE WIJZIGING ---
+            // Als de leerling 17 of ouder is, gebruik dan de filter voor 17-jarigen.
+            // Anders, gebruik de daadwerkelijke leeftijd.
+            if (userAge >= 17) {
+                setEffectiveAgeFilter(17);
+            } else if (userAge <= 12) {
+                // Bonus: zorg dat leerlingen jonger dan 12 ook correct worden ingedeeld
+                setEffectiveAgeFilter(12);
+            }
+            else {
+                setEffectiveAgeFilter(userAge);
+            }
+            // --- EINDE VAN DE WIJZIGING ---
+
         } else {
+            // Voor leerkrachten en admins blijft de logica hetzelfde
             setEffectiveAgeFilter(teacherSelectedAge);
         }
     }, [profile, teacherSelectedAge]);
