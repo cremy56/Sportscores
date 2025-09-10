@@ -90,9 +90,19 @@ export default function Leaderboard({ testId }) {
     const [testData, setTestData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [showAgeGroup, setShowAgeGroup] = useState(true);
+   const [showAgeGroup, setShowAgeGroup] = useState(false); 
+const [selectedAge, setSelectedAge] = useState(null);
     const [userAge, setUserAge] = useState(null);
     const isMountedRef = useRef(true);
+
+    useEffect(() => {
+    if (profile?.rol === 'leerling') {
+        setShowAgeGroup(true); // Leerlingen beginnen met leeftijdsgroep
+    } else {
+        setShowAgeGroup(false); // Admins beginnen met hele school
+        setSelectedAge(null); // Reset age selection
+    }
+}, [profile?.rol]);
 
     // Bereken gebruiker leeftijd (geen database query)
     useEffect(() => {
@@ -125,7 +135,7 @@ export default function Leaderboard({ testId }) {
                 console.log('Profile role:', profile?.rol);
                 console.log('School ID:', profile?.school_id);
                 console.log('Show age group:', showAgeGroup);
-                console.log('Selected age:', selectedAge);
+               
                 console.log('User age:', userAge);
                 // 1. Test data ophalen (slechts 1 document read)
                 const testRef = doc(db, 'testen', testId);
@@ -223,7 +233,7 @@ export default function Leaderboard({ testId }) {
         };
 
         fetchScores();
-    }, [testId, profile?.school_id, showAgeGroup, userAge]);
+    }, [testId, profile?.school_id, showAgeGroup, userAge, selectedAge]);
 
     // Toggle functie - geen nieuwe database queries
     const handleToggle = (newShowAgeGroup) => {
@@ -265,32 +275,50 @@ export default function Leaderboard({ testId }) {
     return (
         <div className="bg-white/80 rounded-xl p-4">
             {/* Toggle buttons - alleen voor leerlingen */}
-            {profile?.rol === 'leerling' && userAge && (
-                <div className="flex mb-4 bg-gray-100 rounded-lg p-1">
-                    <button
-                        onClick={() => handleToggle(true)}
-                        className={`flex-1 flex items-center justify-center py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                            showAgeGroup
-                                ? 'bg-white text-purple-700 shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                    >
-                        <User className="w-4 h-4 mr-1" />
-                        {userAge} jaar
-                    </button>
-                    <button
-                        onClick={() => handleToggle(false)}
-                        className={`flex-1 flex items-center justify-center py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                            !showAgeGroup
-                                ? 'bg-white text-purple-700 shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                    >
-                        <Users className="w-4 h-4 mr-1" />
-                        Hele school
-                    </button>
-                </div>
-            )}
+            {profile?.rol === 'leerling' && userAge ? (
+    // Leerling: toggle tussen eigen leeftijd en hele school
+    <div className="flex mb-4 bg-gray-100 rounded-lg p-1">
+        <button
+            onClick={() => handleToggle(true)}
+            className={`flex-1 flex items-center justify-center py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                showAgeGroup
+                    ? 'bg-white text-purple-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+            }`}
+        >
+            <User className="w-4 h-4 mr-1" />
+            {userAge} jaar
+        </button>
+        <button
+            onClick={() => handleToggle(false)}
+            className={`flex-1 flex items-center justify-center py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                !showAgeGroup
+                    ? 'bg-white text-purple-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+            }`}
+        >
+            <Users className="w-4 h-4 mr-1" />
+            Hele school
+        </button>
+    </div>
+) : (profile?.rol === 'administrator' || profile?.rol === 'super-administrator' || profile?.rol === 'leerkracht') ? (
+    // Admin/leerkracht: dropdown voor leeftijden
+    <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+            Filter op leeftijd:
+        </label>
+        <select
+            value={selectedAge || ''}
+            onChange={(e) => setSelectedAge(e.target.value ? parseInt(e.target.value) : null)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+        >
+            <option value="">Alle leeftijden (hele school)</option>
+            {[12, 13, 14, 15, 16, 17].map(age => (
+                <option key={age} value={age}>{age} jaar</option>
+            ))}
+        </select>
+    </div>
+) : null}
 
             <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
                 Top 5 Scores
