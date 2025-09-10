@@ -120,6 +120,13 @@ export default function Leaderboard({ testId }) {
             setError(null);
 
             try {
+                 // DEBUG LOGGING
+                console.log('=== LEADERBOARD DEBUG ===');
+                console.log('Profile role:', profile?.rol);
+                console.log('School ID:', profile?.school_id);
+                console.log('Show age group:', showAgeGroup);
+                console.log('Selected age:', selectedAge);
+                console.log('User age:', userAge);
                 // 1. Test data ophalen (slechts 1 document read)
                 const testRef = doc(db, 'testen', testId);
                 const testSnap = await getDoc(testRef);
@@ -151,13 +158,19 @@ export default function Leaderboard({ testId }) {
                         datum: data.datum?.toDate ? data.datum.toDate() : null
                     };
                 });
-
+            console.log('Raw scores count:', rawScores.length);
                 // Check if component is still mounted
                 if (!isMountedRef.current) return;
 
                 // 3. Alleen gebruikersdata ophalen als we leeftijdsfiltering nodig hebben
+               // 3. Filtering op basis van rol en selecties
                 let filteredScores = rawScores;
-                if (showAgeGroup && userAge && profile?.school_id) {
+
+                console.log('Starting filtering logic...');
+
+                // Voor leerlingen: alleen filteren als ze expliciet hun leeftijdsgroep kiezen
+                if (profile?.rol === 'leerling' && showAgeGroup && userAge && profile?.school_id) {
+                    console.log('Filtering for student age group:', userAge);
                     const usersData = await getCachedUsers(profile.school_id);
                     
                     if (!isMountedRef.current) return;
@@ -169,7 +182,30 @@ export default function Leaderboard({ testId }) {
                         const scoreUserAge = calculateAge(userData.geboortedatum);
                         return scoreUserAge === userAge;
                     });
+                    console.log('Filtered scores (student):', filteredScores.length);
                 }
+                // Voor admins: alleen filteren als ze een specifieke leeftijd selecteren
+                else if ((profile?.rol === 'administrator' || profile?.rol === 'super-administrator' || profile?.rol === 'leerkracht') && selectedAge && profile?.school_id) {
+                    console.log('Filtering for admin selected age:', selectedAge);
+                    const usersData = await getCachedUsers(profile.school_id);
+                    
+                    if (!isMountedRef.current) return;
+                    
+                    filteredScores = rawScores.filter(score => {
+                        const userData = usersData[score.leerling_id];
+                        if (!userData?.geboortedatum) return false;
+                        
+                        const scoreUserAge = calculateAge(userData.geboortedatum);
+                        return scoreUserAge === selectedAge;
+                    });
+                    console.log('Filtered scores (admin):', filteredScores.length);
+                }
+                // Anders: geen filtering (toon alle rawScores)
+                else {
+                    console.log('No filtering applied - showing all scores');
+                }
+
+                console.log('Final filtered scores:', filteredScores.length);
                 
                 // Top 5 scores
                 setScores(filteredScores.slice(0, 5));
