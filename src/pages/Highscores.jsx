@@ -100,7 +100,7 @@ export default function Highscores() {
 
     // JSX return
     return (
-        <div className="fixed inset-0 bg-slate-50 overflow-y-auto pt-20">
+        <div className="fixed inset-0 bg-slate-50 overflow-y-auto pt-18">
             <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8">
                 
                 <div className="text-center mb-8">
