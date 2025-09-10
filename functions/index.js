@@ -1370,8 +1370,7 @@ function getWeekNumber(date) {
 
 
 exports.checkWeeklyBonuses = onSchedule('0 6 * * 1', async (event) => {
-  // Initialiseer de app binnen de functie
-  initializeApp();
+  initializeApp(); // Lazy initialization
   const db = getFirestore();
   
   try {
@@ -1385,10 +1384,11 @@ exports.checkWeeklyBonuses = onSchedule('0 6 * * 1', async (event) => {
       const userData = userDoc.data();
       const weeklyStats = userData.weekly_stats || {};
       
-      const kompasDays = weeklyStats.kompas || 0;
+      // --- START WIJZIGING: Gebruik 'kompas_days' ---
+      const kompasDays = weeklyStats.kompas_days || 0;
       const trainingCount = weeklyStats.trainingen || 0;
       
-      // Perfecte Week bonus (5x kompas + 2x training = 50 XP)
+      // Perfecte Week bonus (5x kompas dagen + 2x training = 50 XP)
       if (kompasDays >= 5 && trainingCount >= 2 && !weeklyStats.perfectWeek) {
         await awardWeeklyBonus(userDoc, userData, 50, 'perfect_week_bonus');
       }
@@ -1398,17 +1398,19 @@ exports.checkWeeklyBonuses = onSchedule('0 6 * * 1', async (event) => {
         await awardWeeklyBonus(userDoc, userData, 25, 'weekly_training_bonus');
       }
       
-      // Reset weekly stats
+      // Reset weekly stats met de correcte datastructuur
       await userDoc.ref.update({
         weekly_stats: {
-          kompas: 0,
+          kompas_days: 0, // Gebruik 'kompas_days'
           trainingen: 0,
           perfectWeek: false,
           trainingBonus: false
         }
       });
+      // --- EINDE WIJZIGING ---
     }
     
+    console.log('Weekly bonus check and reset completed successfully.');
     return { success: true };
     
   } catch (error) {

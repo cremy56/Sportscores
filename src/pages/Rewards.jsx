@@ -508,19 +508,28 @@ const Rewards = () => {
      </div>
 
      {/* Huidige Streak Status */}
-     {studentData.streak_days > 0 && (
-       <div className="bg-white rounded-xl shadow-lg p-6 border">
-         <h3 className="text-lg font-semibold mb-4 flex items-center">
-           <TrendingUp className="w-5 h-5 mr-2 text-green-600" />
-           Jouw Streak Status
-         </h3>
-         <div className="space-y-4">
-           <div className="text-center">
-             <div className="text-3xl font-bold text-green-600 mb-2">
-               {studentData.streak_days} dagen
-             </div>
-             <p className="text-gray-600 text-sm">Huidige streak</p>
-           </div>
+    {studentData.streak_days > 0 && (
+      <div className="bg-white rounded-xl shadow-lg p-6 border">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <TrendingUp className="w-5 h-5 mr-2 text-green-600" />
+          Jouw Streak Status
+        </h3>
+
+        {/* --- START WIJZIGING --- */}
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700">
+          <p>
+            <strong>Spelregel:</strong> Je behoudt je streak alleen door <strong>elke dag</strong> je Welzijn Kompas volledig in te vullen.
+          </p>
+        </div>
+        {/* --- EINDE WIJZIGING --- */}
+
+        <div className="space-y-4">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-600 mb-2">
+              {studentData.streak_days} dagen
+            </div>
+            <p className="text-gray-600 text-sm">Huidige streak</p>
+          </div>
            
            {/* Progress naar volgende milestone */}
            <div className="space-y-2">
