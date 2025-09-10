@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import Leaderboard from './Leaderboard';
 
-export default function CategoryCard({ categoryName, tests }) {
+export default function CategoryCard({ categoryName, tests, globalAgeFilter }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const handlePrev = () => {

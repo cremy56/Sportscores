@@ -10,6 +10,7 @@ export default function Highscores() {
     const [testen, setTesten] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [globalAgeFilter, setGlobalAgeFilter] = useState(null);
 
     useEffect(() => {
         if (!profile?.school_id) {
@@ -88,6 +89,40 @@ export default function Highscores() {
                     <div className="flex justify-center mb-6">
                         <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
                     </div>
+
+                    {/* Age Filter Controls */}
+                    <div className="flex justify-center mb-6">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4">
+                            <div className="flex items-center space-x-4">
+                                <span className="text-sm font-medium text-slate-700">Filter op leeftijd:</span>
+                                <div className="flex space-x-2">
+                                    <button
+                                        onClick={() => setGlobalAgeFilter(null)}
+                                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                            globalAgeFilter === null 
+                                                ? 'bg-purple-600 text-white' 
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        Alle leeftijden
+                                    </button>
+                                    {[6, 7, 8, 9, 10, 11, 12].map(age => (
+                                        <button
+                                            key={age}
+                                            onClick={() => setGlobalAgeFilter(age)}
+                                            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                                globalAgeFilter === age 
+                                                    ? 'bg-purple-600 text-white' 
+                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                            }`}
+                                        >
+                                            {age} jaar
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Error State */}
@@ -142,6 +177,7 @@ export default function Highscores() {
                                     key={categoryName}
                                     categoryName={categoryName}
                                     tests={testsInCategory}
+                                    globalAgeFilter={globalAgeFilter}
                                 />
                             ))}
                         </div>
