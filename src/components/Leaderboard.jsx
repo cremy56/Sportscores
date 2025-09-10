@@ -142,6 +142,12 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
                 const querySnapshot = await getDocs(scoresQuery);
                 let rawScores = querySnapshot.docs.map(doc => {
                     const data = doc.data();
+                    console.log('📊 Raw score data:', {
+                        leerling_id: data.leerling_id,
+                        leerling_naam: data.leerling_naam,
+                        score: data.score,
+                        school_id: data.school_id
+                    });
                     return {
                         ...data,
                         id: doc.id,
@@ -169,16 +175,39 @@ export default function Leaderboard({ testId, globalAgeFilter }) {
                     const filteredScores = [];
                     
                     rawScores.forEach((score, index) => {
-                        const userData = usersData[score.leerling_id];
+                        // Probeer eerst op email
+                        let userData = usersData[score.leerling_id];
+                        
+                        // Als email niet gevonden, probeer naam matching
+                        if (!userData) {
+                            console.log(`No user data found for email: ${score.leerling_id} (${score.leerling_naam})`);
+                            console.log('Available keys:', Object.keys(usersData));
+                            
+                            // Zoek op naam als fallback
+                            const scoreName = score.leerling_naam?.toLowerCase();
+                            if (scoreName) {
+                                for (const [key, user] of Object.entries(usersData)) {
+                                    const userName = user.naam?.toLowerCase();
+                                    if (userName && (
+                                        userName === scoreName ||
+                                        userName.includes(scoreName) ||
+                                        scoreName.includes(userName)
+                                    )) {
+                                        console.log(`🎯 Found name match: "${score.leerling_naam}" matches user "${user.naam}" (${key})`);
+                                        userData = user;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                         
                         if (!userData) {
-                            console.log(`No user data found for: ${score.leerling_id} (${score.leerling_naam})`);
-                            console.log('Available keys:', Object.keys(usersData));
+                            console.log(`❌ Could not find user data for: ${score.leerling_id} (${score.leerling_naam})`);
                             return;
                         }
                         
                         if (!userData.geboortedatum) {
-                            console.log(`No birth date for user: ${score.leerling_id} (${score.leerling_naam})`);
+                            console.log(`❌ No birth date for user: ${score.leerling_id} (${score.leerling_naam})`);
                             return;
                         }
                         
