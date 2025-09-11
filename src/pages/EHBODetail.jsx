@@ -5,12 +5,15 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useEnhancedScenario, useAdaptiveAnalysis, useAccessibilityFeatures } from '../hooks/useEnhancedEHBO';
+import { EnhancedUIComponents } from '../utils/enhancedEHBO';
+
 
 const EHBODetail = () => {
   const { profile } = useOutletContext();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeScenario, setActiveScenario] = useState(null);
-  const [accessibilityMode, setAccessibilityMode] = useState(false);
+ 
 
   const [userProgress, setUserProgress] = useState({
     completedScenarios: [],
@@ -22,6 +25,31 @@ const EHBODetail = () => {
   const [scenarioResults, setScenarioResults] = useState({});
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [showResults, setShowResults] = useState(false);
+
+// NIEUW: Enhanced hooks toevoegen
+  const {
+    enhancedMode,
+    setEnhancedMode,
+    enhancedScenario,
+    startEnhancedScenario,
+    completeEnhancedScenario,
+    toggleHint,
+    showHints,
+    insights,
+    isEnhanced
+  } = useEnhancedScenario(profile);
+
+  const {
+    userAnalysis,
+    shouldShowTimeAdjustment,
+    shouldShowHints
+  } = useAdaptiveAnalysis(profile);
+
+  const {
+    accessibilityMode,
+    setAccessibilityMode,
+    features: accessibilityFeatures
+  } = useAccessibilityFeatures(profile);
 
   // Dit blok laadt de opgeslagen voortgang wanneer de component laadt
    useEffect(() => {
@@ -788,13 +816,30 @@ useEffect(() => {
     setShowResults(true);
   };
 
-    const startScenario = (scenario) => {
-    setActiveScenario(scenario);
-    setCurrentStep(0);
-    setScenarioResults({});
-    setShowResults(false);
-    // Tijd alleen instellen als accessibility mode uit staat
-    setTimeRemaining(accessibilityMode ? null : scenario.steps[0].timeLimit);
+  const startScenario = async (scenario) => {
+    if (enhancedMode) {
+      // Gebruik enhanced system
+      const enhanced = await startEnhancedScenario(scenario);
+      if (enhanced) {
+        setActiveScenario(enhanced);
+        setCurrentStep(0);
+        setScenarioResults({});
+        setShowResults(false);
+        // Tijd instellen - enhanced scenarios kunnen aangepaste tijden hebben
+        const firstStep = enhanced.steps[0];
+        setTimeRemaining(
+          accessibilityMode ? null : 
+          firstStep.timeLimit || scenario.steps[0].timeLimit
+        );
+      }
+    } else {
+      // Je bestaande logica blijft hetzelfde
+      setActiveScenario(scenario);
+      setCurrentStep(0);
+      setScenarioResults({});
+      setShowResults(false);
+      setTimeRemaining(accessibilityMode ? null : scenario.steps[0].timeLimit);
+    }
   };
 
   const handleAnswer = (selectedOption, step) => {
@@ -823,11 +868,12 @@ useEffect(() => {
 
   // in EHBODetail.jsx
 
-  const completeScenario = (results) => {
+ const completeScenario = async (results) => {
     const correctAnswers = Object.values(results).filter(r => r.correct).length;
     const totalQuestions = activeScenario.steps.length;
     const score = Math.round((correctAnswers / totalQuestions) * 100);
     
+    // Bestaande logica voor normale scenarios
     if (!userProgress.completedScenarios.includes(activeScenario.id)) {
       setUserProgress(prev => ({
         ...prev,
@@ -836,22 +882,27 @@ useEffect(() => {
         streak: prev.streak + 1
       }));
       
-      // Roep de XP functie aan
       handleScenarioCompletion(activeScenario.id);
       
-      // --- START WIJZIGING ---
-      // Roep de nieuwe functie aan om de voortgang op te slaan
       try {
         const saveProgress = httpsCallable(functions, 'saveEHBOProgress');
-        saveProgress({
+        await saveProgress({
           userId: profile.id,
           scenarioId: activeScenario.id,
-          score: score
+          score: score,
+          isEnhanced: isEnhanced // NIEUW: Track enhanced scenarios
         });
       } catch (error) {
         console.error("Opslaan EHBO voortgang mislukt:", error);
       }
-      // --- EINDE WIJZIGING ---
+    }
+
+    // NIEUW: Enhanced scenario completion
+    if (isEnhanced) {
+      const enhancedCompletion = await completeEnhancedScenario(Object.values(results));
+      if (enhancedCompletion?.insights) {
+        // Enhanced insights worden later getoond in ScenarioResults
+      }
     }
     
     setShowResults(true);
@@ -865,10 +916,12 @@ useEffect(() => {
     setTimeRemaining(null);
   };
 // Header met toegankelijkheidsopties
-  const AccessibilityControls = () => (
+ const AccessibilityControls = () => (
     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-      <h3 className="font-semibold text-blue-800 mb-3">Toegankelijkheidsopties</h3>
-      <label className="flex items-center gap-3 cursor-pointer">
+      <h3 className="font-semibold text-blue-800 mb-3">Leer Modi & Toegankelijkheid</h3>
+      
+      {/* Bestaande accessibility toggle */}
+      <label className="flex items-center gap-3 cursor-pointer mb-3">
         <input
           type="checkbox"
           checked={accessibilityMode}
@@ -876,14 +929,55 @@ useEffect(() => {
           className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
         />
         <div>
-          <span className="font-medium text-blue-700">Tijdsdruk uitschakelen</span>
+          <span className="font-medium text-blue-700">Basis Toegankelijkheid</span>
           <p className="text-sm text-blue-600">
-            Voor leerlingen met dyslexie of leesmoeilijkheden. Neemt alle tijdslimieten weg.
+            Geen tijdsdruk + aangepaste interface
           </p>
         </div>
       </label>
+
+      {/* NIEUW: Enhanced mode toggle */}
+      <label className="flex items-center gap-3 cursor-pointer mb-3">
+        <input
+          type="checkbox"
+          checked={enhancedMode}
+          onChange={(e) => setEnhancedMode(e.target.checked)}
+          className="w-4 h-4 text-purple-600 border-purple-300 rounded focus:ring-purple-500"
+        />
+        <div>
+          <span className="font-medium text-purple-700">Enhanced Leren</span>
+          <p className="text-sm text-purple-600">
+            Adaptieve scenarios met realistische complicaties
+          </p>
+        </div>
+      </label>
+
+      {/* NIEUW: Toon welke adaptaties actief zijn */}
+      {(enhancedMode || accessibilityMode) && (
+        <div className="mt-3 p-3 bg-white/50 rounded-lg">
+          <h4 className="text-sm font-medium text-blue-800 mb-2">Actieve Aanpassingen:</h4>
+          <div className="flex flex-wrap gap-2">
+            {accessibilityMode && (
+              <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">
+                Uitgebreide tijd
+              </span>
+            )}
+            {enhancedMode && shouldShowTimeAdjustment && (
+              <span className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded">
+                Slim tijdsbeheer
+              </span>
+            )}
+            {enhancedMode && shouldShowHints && (
+              <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">
+                Hint systeem
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
+
   const Dashboard = () => (
     <div className="space-y-8">
         <AccessibilityControls />
@@ -987,10 +1081,26 @@ useEffect(() => {
     return (
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+           {/* NIEUW: Enhanced status display */}
+          {isEnhanced && (
+            <EnhancedUIComponents.ResourceStatusDisplay 
+              adaptations={activeScenario.adaptations}
+              timeRemaining={timeRemaining}
+            />
+          )}
+
           {/* Header */}
           <div className={`bg-gradient-to-r from-${activeScenario.color}-500 to-${activeScenario.color}-600 p-6 text-white`}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">{activeScenario.title}</h2>
+             <h2 className="text-2xl font-bold">
+                {activeScenario.title}
+                {/* NIEUW: Enhanced indicator */}
+                {isEnhanced && (
+                  <span className="ml-2 text-sm bg-white/20 px-2 py-1 rounded">
+                    Enhanced
+                  </span>
+                )}
+              </h2>
               <button 
                 onClick={() => setActiveTab('dashboard')}
                 className="bg-white/20 hover:bg-white/30 rounded-lg p-2 transition-colors"
@@ -998,6 +1108,13 @@ useEffect(() => {
                 <XMarkIcon className="w-6 h-6" />
               </button>
             </div>
+            
+            {/* NIEUW: Context beschrijving voor enhanced scenarios */}
+            {isEnhanced && activeScenario.contextDescription && (
+              <div className="mb-4 p-3 bg-white/10 rounded-lg">
+                <p className="text-sm">{activeScenario.contextDescription}</p>
+              </div>
+            )}
             
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -1068,6 +1185,14 @@ useEffect(() => {
                       </button>
                     ))}
                   </div>
+                {/* NIEUW: Hint systeem voor enhanced scenarios */}
+                  {isEnhanced && currentStepData.hint && shouldShowHints && (
+                    <EnhancedUIComponents.HintDisplay
+                      hint={currentStepData.hint}
+                      showHint={showHints[currentStepData.id]}
+                      onToggleHint={() => toggleHint(currentStepData.id)}
+                    />
+                  )}
                 </div>
                 
                 {selectedAnswer && (
@@ -1137,7 +1262,13 @@ useEffect(() => {
             );
           })}
         </div>
-        
+        {/* NIEUW: Enhanced insights */}
+        {isEnhanced && insights && insights.length > 0 && (
+          <div className="mb-8">
+            <EnhancedUIComponents.PerformanceInsights insights={insights} />
+          </div>
+        )}
+        {/* Je bestaande action buttons */}
         <div className="flex gap-4 justify-center">
           <button
             onClick={() => startScenario(activeScenario)}
