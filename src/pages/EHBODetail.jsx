@@ -7,6 +7,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useEnhancedScenario, useAdaptiveAnalysis, useAccessibilityFeatures } from '../hooks/useEnhancedEHBO';
 import { EnhancedUIComponents } from '../utils/enhancedEHBO.jsx';
+import { RoleBasedScenarios, ComplicationSystem } from '../utils/advancedEnhancedEHBO';
 
 
 const EHBODetail = () => {
@@ -26,6 +27,14 @@ const EHBODetail = () => {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [showResults, setShowResults] = useState(false);
   const [showNextButton, setShowNextButton] = useState(false);
+
+  const [gameState, setGameState] = useState({
+  role: null,
+  complications: [],
+  resources: { time: 100, stress: 0, effectiveness: 100 }
+});
+const [showRoleIntro, setShowRoleIntro] = useState(false);
+const [showComplication, setShowComplication] = useState(null);
 
 // NIEUW: Enhanced hooks toevoegen
   const {
@@ -822,7 +831,17 @@ useEffect(() => {
       // Gebruik enhanced system
       const enhanced = await startEnhancedScenario(scenario);
       if (enhanced) {
-        setActiveScenario(enhanced);
+        const role = RoleBasedScenarios.assignRole(enhanced, profile);
+      const roleEnhanced = RoleBasedScenarios.adaptScenarioForRole(enhanced, role);
+      
+      setGameState({
+        role: role,
+        complications: [],
+        resources: { time: 100, stress: role.stressLevel, effectiveness: 100 }
+      });
+      
+      setShowRoleIntro(true); // Toon rol introductie
+      setActiveScenario(roleEnhanced);
         setCurrentStep(0);
         setScenarioResults({});
         setShowResults(false);
