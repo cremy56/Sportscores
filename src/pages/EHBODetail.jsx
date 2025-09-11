@@ -22,16 +22,27 @@ const EHBODetail = () => {
   const [showResults, setShowResults] = useState(false);
 
   // Dit blok laadt de opgeslagen voortgang wanneer de component laadt
-  useEffect(() => {
-    if (profile) {
-      setUserProgress({
-        completedScenarios: profile.completed_ehbo_scenarios || [],
-        certificates: [], // Logica voor certificaten nog te implementeren
-        totalScore: profile.ehbo_total_score || 0,
-        streak: profile.ehbo_streak || 0
-      });
-    }
-  }, [profile]);
+   useEffect(() => {
+    if (!profile?.id) return;
+
+    // Luister direct naar wijzigingen in het gebruikersdocument
+    const userRef = doc(db, 'users', profile.id);
+    const unsubscribe = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        setUserProgress({
+          completedScenarios: userData.completed_ehbo_scenarios || [],
+          certificates: [], // Logica voor certificaten nog te implementeren
+          totalScore: userData.ehbo_total_score || 0,
+          streak: userData.ehbo_streak || 0
+        });
+      }
+    });
+
+    // Stop de listener wanneer de component wordt verlaten
+    return () => unsubscribe();
+    
+  }, [profile?.id]);
   
   // Scenario data - Uitgebreid met meer leerplandoel-relevante scenario's
   const scenarios = [
