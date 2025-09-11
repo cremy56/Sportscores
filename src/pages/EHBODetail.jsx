@@ -25,6 +25,7 @@ const EHBODetail = () => {
   const [scenarioResults, setScenarioResults] = useState({});
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [showResults, setShowResults] = useState(false);
+  const [showNextButton, setShowNextButton] = useState(false);
 
 // NIEUW: Enhanced hooks toevoegen
   const {
@@ -840,31 +841,38 @@ useEffect(() => {
       setShowResults(false);
       setTimeRemaining(accessibilityMode ? null : scenario.steps[0].timeLimit);
     }
+    setShowNextButton(false);
   };
 
   const handleAnswer = (selectedOption, step) => {
-    const newResults = {
-      ...scenarioResults,
-      [step.id]: {
-        selected: selectedOption,
-        correct: selectedOption.correct,
-        // Bij accessibility mode geen tijd bijhouden
-        timeUsed: accessibilityMode ? 0 : (step.timeLimit - timeRemaining)
-      }
-    };
-    setScenarioResults(newResults);
+  const newResults = {
+    ...scenarioResults,
+    [step.id]: {
+      selected: selectedOption,
+      correct: selectedOption.correct,
+      timeUsed: accessibilityMode ? 0 : (step.timeLimit - timeRemaining)
+    }
+  };
+  setScenarioResults(newResults);
     
    // Show immediate feedback
-    setTimeout(() => {
-      if (currentStep < activeScenario.steps.length - 1) {
-        setCurrentStep(currentStep + 1);
-        // Tijd alleen instellen als accessibility mode uit staat
-        setTimeRemaining(accessibilityMode ? null : activeScenario.steps[currentStep + 1].timeLimit);
-      } else {
-        completeScenario(newResults);
-      }
-    }, 2000);
-  };
+   setTimeout(() => {
+    setShowNextButton(true);
+  }, 500); // Kort genoeg om feedback te tonen, lang genoeg om te lezen
+};
+
+// Nieuwe functie voor volgende stap
+const goToNextStep = () => {
+  setShowNextButton(false);
+  
+  if (currentStep < activeScenario.steps.length - 1) {
+    setCurrentStep(currentStep + 1);
+    const nextStep = activeScenario.steps[currentStep + 1];
+    setTimeRemaining(accessibilityMode ? null : nextStep.timeLimit);
+  } else {
+    completeScenario(scenarioResults);
+  }
+};
 
   // in EHBODetail.jsx
 
@@ -1204,6 +1212,17 @@ useEffect(() => {
                       <h4 className="font-semibold text-blue-800 mb-1">Uitleg:</h4>
                       <p className="text-blue-700 text-sm">{currentStepData.explanation}</p>
                     </div>
+                    {/* NIEUW: Volgende knop */}
+                      {showNextButton && (
+                        <div className="mt-4 text-center">
+                          <button
+                            onClick={goToNextStep}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors font-medium"
+                          >
+                            {currentStep < activeScenario.steps.length - 1 ? 'Volgende Vraag' : 'Toon Resultaten'}
+                          </button>
+                        </div>
+                      )}
                   </div>
                 )}
               </>
