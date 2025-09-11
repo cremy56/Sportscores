@@ -2361,8 +2361,6 @@ exports.checkRetroactiveTrainingRewards = onCall(async (request) => {
 // in index.js
 
 exports.saveEHBOProgress = onCall(async (request) => {
-  initialize();
-  
   if (!request.auth) {
     throw new Error('Authentication required');
   }
@@ -2374,19 +2372,35 @@ exports.saveEHBOProgress = onCall(async (request) => {
   
   try {
     const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
     
+    if (!userDoc.exists || userDoc.data().rol !== 'leerling') {
+      throw new Error('User not found or is not a student');
+    }
+    
+    const userData = userDoc.data();
+    const completedScenarios = userData.completed_ehbo_scenarios || [];
+    
+    // Check if already completed
+    if (completedScenarios.includes(scenarioId)) {
+      throw new Error('EHBO scenario already completed');
+    }
+    
+    // Update alleen progress data - GEEN XP (dat doet awardEHBOXP al)
     await userRef.update({
-      // Gebruik arrayUnion om scenarioId toe te voegen aan de lijst
       completed_ehbo_scenarios: FieldValue.arrayUnion(scenarioId),
-      // Update ook de totale score en de streak
       ehbo_total_score: FieldValue.increment(score || 0),
-      ehbo_streak: FieldValue.increment(1)
+      ehbo_streak: FieldValue.increment(1),
+      last_activity: FieldValue.serverTimestamp() // Voor streak tracking
     });
     
-    return { success: true, message: 'EHBO progress saved' };
+    return { 
+      success: true, 
+      message: 'EHBO progress saved successfully'
+    };
     
   } catch (error) {
     console.error('Error saving EHBO progress:', error);
-    throw new Error('Failed to save EHBO progress');
+    throw new Error('Failed to save EHBO progress: ' + error.message);
   }
 });
