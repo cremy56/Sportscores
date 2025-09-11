@@ -3,6 +3,8 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { ArrowLeftIcon, PlayIcon, PauseIcon, CheckIcon, XMarkIcon, ClockIcon, PhoneIcon, MapPinIcon, ExclamationTriangleIcon, AcademicCapIcon, TrophyIcon, StarIcon } from '@heroicons/react/24/outline';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const EHBODetail = () => {
   const { profile } = useOutletContext();
