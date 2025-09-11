@@ -8,6 +8,7 @@ import { db } from '../firebase';
 import { useEnhancedScenario, useAdaptiveAnalysis, useAccessibilityFeatures } from '../hooks/useEnhancedEHBO';
 import { EnhancedUIComponents } from '../utils/enhancedEHBO.jsx';
 import { RoleBasedScenarios, ComplicationSystem } from '../utils/advancedEnhancedEHBO';
+import { Phase3UIComponents } from '../components/EHBO/EnhancedScenarioManager';
 
 
 const EHBODetail = () => {
@@ -833,6 +834,8 @@ useEffect(() => {
       if (enhanced) {
         const role = RoleBasedScenarios.assignRole(enhanced, profile);
       const roleEnhanced = RoleBasedScenarios.adaptScenarioForRole(enhanced, role);
+      // Genereer complicaties
+      const complications = ComplicationSystem.generateComplications(enhanced, profile, {});
       
       setGameState({
         role: role,
@@ -840,7 +843,11 @@ useEffect(() => {
         resources: { time: 100, stress: role.stressLevel, effectiveness: 100 }
       });
       
-      setShowRoleIntro(true); // Toon rol introductie
+      if (role) {
+        setShowRoleIntro(true);
+        setActiveScenario(roleEnhanced);
+        return; // Wacht op rol intro
+      }
       setActiveScenario(roleEnhanced);
         setCurrentStep(0);
         setScenarioResults({});
@@ -863,7 +870,7 @@ useEffect(() => {
     setShowNextButton(false);
   };
 
-  const handleAnswer = (selectedOption, step) => {
+const handleAnswer = (selectedOption, step) => {
   const newResults = {
     ...scenarioResults,
     [step.id]: {
@@ -873,9 +880,36 @@ useEffect(() => {
     }
   };
   setScenarioResults(newResults);
+
+  // Check for complications in enhanced mode
+  if (isEnhanced && gameState.complications.length > 0) {
+    const activeComplications = gameState.complications.filter(
+      comp => comp.triggerStep === currentStep && !comp.resolved
+    );
+
+    if (activeComplications.length > 0) {
+      setShowComplication(activeComplications[0]);
+      return; // Pause for complication
+    }
+  }
+
+  // Update resources in enhanced mode
+  if (isEnhanced) {
+    setGameState(prev => ({
+      ...prev,
+      resources: {
+        ...prev.resources,
+        stress: Math.min(100, prev.resources.stress + (selectedOption.correct ? -5 : 10)),
+        effectiveness: selectedOption.correct ? 
+          Math.min(100, prev.resources.effectiveness + 5) :
+          Math.max(0, prev.resources.effectiveness - 10),
+        time: Math.max(0, prev.resources.time - 2) // Tijd loopt langzaam af
+      }
+    }));
+  }
     
-   // Show immediate feedback
-   setTimeout(() => {
+  // Show immediate feedback
+  setTimeout(() => {
     setShowNextButton(true);
   }, 500); // Kort genoeg om feedback te tonen, lang genoeg om te lezen
 };
@@ -890,6 +924,19 @@ const goToNextStep = () => {
     setTimeRemaining(accessibilityMode ? null : nextStep.timeLimit);
   } else {
     completeScenario(scenarioResults);
+  }
+};
+
+// Role intro completion handler (voeg toe na je goToNextStep functie)
+const handleRoleIntroComplete = () => {
+  setShowRoleIntro(false);
+  if (activeScenario) {
+    setCurrentStep(0);
+    setScenarioResults({});
+    setShowResults(false);
+    
+    const firstStep = activeScenario.steps[0];
+    setTimeRemaining(accessibilityMode ? null : firstStep.timeLimit);
   }
 };
 
@@ -936,12 +983,20 @@ const goToNextStep = () => {
   };
 
   const resetScenario = () => {
-    setActiveScenario(null);
-    setCurrentStep(0);
-    setScenarioResults({});
-    setShowResults(false);
-    setTimeRemaining(null);
-  };
+  setActiveScenario(null);
+  setCurrentStep(0);
+  setScenarioResults({});
+  setShowResults(false);
+  setTimeRemaining(null);
+  // NIEUW: Reset enhanced state
+  setGameState({
+    role: null,
+    complications: [],
+    resources: { time: 100, stress: 0, effectiveness: 100 }
+  });
+  setShowRoleIntro(false);
+  setShowComplication(null);
+};
 // Header met toegankelijkheidsopties
  const AccessibilityControls = () => (
     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
@@ -1108,13 +1163,22 @@ const goToNextStep = () => {
     return (
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-           {/* NIEUW: Enhanced status display */}
-          {isEnhanced && (
-            <EnhancedUIComponents.ResourceStatusDisplay 
-              adaptations={activeScenario.adaptations}
-              timeRemaining={timeRemaining}
-            />
-          )}
+          {/* Enhanced status display */}
+            {isEnhanced && (
+              <EnhancedUIComponents.ResourceStatusDisplay 
+                adaptations={activeScenario.adaptations}
+                timeRemaining={timeRemaining}
+              />
+            )}
+
+            {/* Enhanced resource display */}
+            {isEnhanced && (
+              <Phase3UIComponents.EnhancedResourceDisplay 
+                resources={gameState.resources}
+                role={gameState.role}
+                complications={gameState.complications}
+              />
+            )}
 
           {/* Header */}
           <div className={`bg-gradient-to-r from-${activeScenario.color}-500 to-${activeScenario.color}-600 p-6 text-white`}>
@@ -1142,7 +1206,12 @@ const goToNextStep = () => {
                 <p className="text-sm">{activeScenario.contextDescription}</p>
               </div>
             )}
-            
+            {/* Role context */}
+            {isEnhanced && gameState.role && (
+              <div className="mb-4 p-3 bg-white/10 rounded-lg">
+                <p className="text-sm font-medium">{gameState.role.description}</p>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <span className="text-lg">Stap {currentStep + 1} van {activeScenario.steps.length}</span>
@@ -1179,6 +1248,17 @@ const goToNextStep = () => {
               <>
                 <div className="mb-8">
                   <h3 className="text-xl font-bold mb-4">{currentStepData.question}</h3>
+                  {/* Role considerations */}
+                  {isEnhanced && currentStepData.roleConsiderations && currentStepData.roleConsiderations.length > 0 && (
+                    <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                      <h4 className="font-semibold text-purple-800 mb-2">Denk hierbij aan:</h4>
+                      <ul className="text-sm text-purple-700 space-y-1">
+                        {currentStepData.roleConsiderations.map((consideration, index) => (
+                          <li key={index}>• {consideration}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <div className="space-y-3">
                     {currentStepData.options.map(option => (
                       <button
@@ -1250,6 +1330,59 @@ const goToNextStep = () => {
             )}
           </div>
         </div>
+        {/* Role Introduction Modal */}
+{showRoleIntro && gameState.role && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-2xl p-8 max-w-lg mx-4">
+      <div className="text-center mb-6">
+        <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span className="text-3xl">🎭</span>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-800">Je Rol in dit Scenario</h2>
+      </div>
+
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold text-purple-700 mb-2">{gameState.role.name}</h3>
+        <p className="text-gray-600 mb-4">{gameState.role.description}</p>
+        
+        <div className="bg-purple-50 rounded-lg p-4">
+          <h4 className="font-semibold text-purple-800 mb-2">Je Verantwoordelijkheden:</h4>
+          <ul className="text-sm text-purple-700 space-y-1">
+            {gameState.role.responsibilities.map((resp, index) => (
+              <li key={index}>• {resp}</li>
+            ))}
+          </ul>
+        </div>
+
+        {gameState.role.challenges.length > 0 && (
+          <div className="bg-orange-50 rounded-lg p-4 mt-3">
+            <h4 className="font-semibold text-orange-800 mb-2">Extra Uitdagingen:</h4>
+            <ul className="text-sm text-orange-700 space-y-1">
+              {gameState.role.challenges.map((challenge, index) => (
+                <li key={index}>• {challenge}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          onClick={handleRoleIntroComplete}
+          className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-lg font-medium transition-colors"
+        >
+          Start Scenario
+        </button>
+        <button
+          onClick={() => setShowRoleIntro(false)}
+          className="px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+        >
+          Overslaan
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     );
   };
