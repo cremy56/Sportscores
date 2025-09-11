@@ -47,7 +47,7 @@ const EHBODetail = () => {
   }, [profile?.id]);
   
   // Scenario data - Uitgebreid met meer leerplandoel-relevante scenario's
-  const scenarios = [
+ const scenarios = [
     {
       id: 'bewusteloos',
       title: 'Bewusteloze persoon',
@@ -421,198 +421,192 @@ const EHBODetail = () => {
           ],
           timeLimit: 15,
           explanation: 'Na aanval: stabiele zijligging, kalmerende woorden, 112 bij eerste aanval of aanval >5 minuten.'
+        }
+      ]
+    },
+    {
+      id: 'ademstilstand',
+      title: 'Ademhalingsstilstand',
+      difficulty: 'Moeilijk',
+      duration: '4-5 min',
+      description: 'Persoon is bewusteloos en ademt niet, maar heeft nog pols.',
+      image: '🌬️',
+      color: 'blue',
+      steps: [
+        {
+          id: 1,
+          question: 'Je controleert de ademhaling (kinlift, kijken, luisteren, voelen) en stelt vast dat er GEEN ademhaling is, maar je voelt WEL een pols. Wat is je prioriteit?',
+          options: [
+            { id: 'a', text: 'Meteen beginnen met hartmassage (30:2)', correct: false, feedback: 'Niet correct. Het hart klopt nog, het probleem is de zuurstof.' },
+            { id: 'b', text: 'Starten met enkel beademing (1 keer per 5-6 seconden)', correct: true, feedback: 'Correct! Dit is een ademhalingsstilstand, geen hartstilstand. Zuurstof toedienen is de prioriteit.' },
+            { id: 'c', text: 'De persoon in stabiele zijligging leggen en wachten', correct: false, feedback: 'Gevaarlijk! Zonder ademhaling zal het hart snel stoppen. Je moet ingrijpen.' },
+            { id: 'd', text: '112 bellen en niets doen tot de ambulance er is', correct: false, feedback: 'Elke seconde zonder zuurstof telt. Je moet de tijd overbruggen.' }
+          ],
+          timeLimit: 15,
+          explanation: 'Geen ademhaling maar wel een hartslag betekent een ademhalingsstilstand. De behandeling is beademing om de 5-6 seconden om het bloed van zuurstof te voorzien.'
         },
         {
-  id: 'ademstilstand',
-  title: 'Ademhalingsstilstand',
-  difficulty: 'Moeilijk',
-  duration: '4-5 min',
-  description: 'Persoon is bewusteloos en ademt niet, maar heeft nog pols.',
-  image: '🌬️',
-  color: 'blue',
-  steps: [
-    {
-      id: 1,
-      question: 'Je controleert de ademhaling (kinlift, kijken, luisteren, voelen) en stelt vast dat er GEEN ademhaling is, maar je voelt WEL een pols. Wat is je prioriteit?',
-      options: [
-        { id: 'a', text: 'Meteen beginnen met hartmassage (30:2)', correct: false, feedback: 'Niet correct. Het hart klopt nog, het probleem is de zuurstof.' },
-        { id: 'b', text: 'Starten met enkel beademing (1 keer per 5-6 seconden)', correct: true, feedback: 'Correct! Dit is een ademhalingsstilstand, geen hartstilstand. Zuurstof toedienen is de prioriteit.' },
-        { id: 'c', text: 'De persoon in stabiele zijligging leggen en wachten', correct: false, feedback: 'Gevaarlijk! Zonder ademhaling zal het hart snel stoppen. Je moet ingrijpen.' },
-        { id: 'd', text: '112 bellen en niets doen tot de ambulance er is', correct: false, feedback: 'Elke seconde zonder zuurstof telt. Je moet de tijd overbruggen.' }
-      ],
-      timeLimit: 15,
-      explanation: 'Geen ademhaling maar wel een hartslag betekent een ademhalingsstilstand. De behandeling is beademing om de 5-6 seconden om het bloed van zuurstof te voorzien.'
+          id: 2,
+          question: 'Je geeft beademingen. Hoe controleer je of je beademing effectief is?',
+          options: [
+            { id: 'a', text: 'Je kijkt of de borstkas omhoog komt', correct: true, feedback: 'Precies! Als de borstkas omhoog komt, weet je dat de lucht in de longen terechtkomt.' },
+            { id: 'b', text: 'Je luistert of de persoon begint te hoesten', correct: false, feedback: 'Hoesten is een goed teken, maar geen directe maatstaf voor effectieve beademing.' },
+            { id: 'c', text: 'Je voelt of de buik opzwelt', correct: false, feedback: 'Als de buik opzwelt, blaas je lucht in de maag. Controleer de kinlift opnieuw.' },
+            { id: 'd', text: 'Je blaast zo hard als je kan', correct: false, feedback: 'Te hard blazen kan longschade veroorzaken. Blaas rustig gedurende 1 seconde.' }
+          ],
+          timeLimit: 12,
+          explanation: 'Een effectieve beademing duurt ongeveer 1 seconde en zorgt ervoor dat de borstkas zichtbaar en rustig omhoog komt.'
+        },
+        {
+          id: 3,
+          question: 'Na ongeveer 2 minuten beademen, voel je geen pols meer. Wat doe je nu?',
+          options: [
+            { id: 'a', text: 'Doorgaan met alleen beademing', correct: false, feedback: 'Niet meer voldoende. De hartslag is nu ook weggevallen.' },
+            { id: 'b', text: 'Stoppen en wachten op de ambulance', correct: false, feedback: 'Niet doen! De overlevingskans daalt nu snel.' },
+            { id: 'c', text: 'Overschakelen op volledige reanimatie (30 compressies, 2 beademingen)', correct: true, feedback: 'Correct! De situatie is veranderd in een hartstilstand. Volledige reanimatie is nu nodig.' },
+            { id: 'd', text: 'De persoon in stabiele zijligging leggen', correct: false, feedback: 'Dit is alleen voor bewusteloze slachtoffers die NORMAAL ademen.' }
+          ],
+          timeLimit: 15,
+          explanation: 'Als de pols wegvalt tijdens beademing, is het een hartstilstand geworden. Start onmiddellijk met de cyclus van 30 borstcompressies en 2 beademingen.'
+        }
+      ]
     },
     {
-      id: 2,
-      question: 'Je geeft beademingen. Hoe controleer je of je beademing effectief is?',
-      options: [
-        { id: 'a', text: 'Je kijkt of de borstkas omhoog komt', correct: true, feedback: 'Precies! Als de borstkas omhoog komt, weet je dat de lucht in de longen terechtkomt.' },
-        { id: 'b', text: 'Je luistert of de persoon begint te hoesten', correct: false, feedback: 'Hoesten is een goed teken, maar geen directe maatstaf voor effectieve beademing.' },
-        { id: 'c', text: 'Je voelt of de buik opzwelt', correct: false, feedback: 'Als de buik opzwelt, blaas je lucht in de maag. Controleer de kinlift opnieuw.' },
-        { id: 'd', text: 'Je blaast zo hard als je kan', correct: false, feedback: 'Te hard blazen kan longschade veroorzaken. Blaas rustig gedurende 1 seconde.' }
-      ],
-      timeLimit: 12,
-      explanation: 'Een effectieve beademing duurt ongeveer 1 seconde en zorgt ervoor dat de borstkas zichtbaar en rustig omhoog komt.'
+      id: 'verdrinking',
+      title: 'Verdrinking',
+      difficulty: 'Moeilijk',
+      duration: '5-6 min',
+      description: 'Je haalt iemand uit het water die niet bij bewustzijn is.',
+      image: '🌊',
+      color: 'blue',
+      steps: [
+        {
+          id: 1,
+          question: 'Je hebt een persoon uit het water gehaald. Hij reageert niet en ademt niet. Wat is de belangrijkste eerste stap bij een drenkeling?',
+          options: [
+            { id: 'a', text: 'Starten met 30 borstcompressies', correct: false, feedback: 'Bij verdrinking is de procedure net iets anders. Zuurstof is de prioriteit.' },
+            { id: 'b', text: 'Proberen water uit de longen te duwen door op de buik te drukken', correct: false, feedback: 'Gevaarlijk en verouderd advies! Dit veroorzaakt braken en verspilt kostbare tijd.' },
+            { id: 'c', text: 'Starten met 5 beademingen', correct: true, feedback: 'Correct! Bij verdrinking is de hartstilstand het gevolg van zuurstoftekort. Eerst zuurstof toedienen is cruciaal.' },
+            { id: 'd', text: 'De persoon opwarmen met dekens', correct: false, feedback: 'Opwarmen is belangrijk, maar reanimatie heeft absolute voorrang.' }
+          ],
+          timeLimit: 12,
+          explanation: 'De reanimatierichtlijnen voor drenkelingen schrijven voor om te starten met 5 initiële beademingen voordat je met borstcompressies begint.'
+        }
+      ]
     },
     {
-      id: 3,
-      question: 'Na ongeveer 2 minuten beademen, voel je geen pols meer. Wat doe je nu?',
-      options: [
-        { id: 'a', text: 'Doorgaan met alleen beademing', correct: false, feedback: 'Niet meer voldoende. De hartslag is nu ook weggevallen.' },
-        { id: 'b', text: 'Stoppen en wachten op de ambulance', correct: false, feedback: 'Niet doen! De overlevingskans daalt nu snel.' },
-        { id: 'c', text: 'Overschakelen op volledige reanimatie (30 compressies, 2 beademingen)', correct: true, feedback: 'Correct! De situatie is veranderd in een hartstilstand. Volledige reanimatie is nu nodig.' },
-        { id: 'd', text: 'De persoon in stabiele zijligging leggen', correct: false, feedback: 'Dit is alleen voor bewusteloze slachtoffers die NORMAAL ademen.' }
-      ],
-      timeLimit: 15,
-      explanation: 'Als de pols wegvalt tijdens beademing, is het een hartstilstand geworden. Start onmiddellijk met de cyclus van 30 borstcompressies en 2 beademingen.'
-    }
-  ]
-},
-{
-  id: 'verdrinking',
-  title: 'Verdrinking',
-  difficulty: 'Moeilijk',
-  duration: '5-6 min',
-  description: 'Je haalt iemand uit het water die niet bij bewustzijn is.',
-  image: '🌊',
-  color: 'blue',
-  steps: [
-    {
-      id: 1,
-      question: 'Je hebt een persoon uit het water gehaald. Hij reageert niet en ademt niet. Wat is de belangrijkste eerste stap bij een drenkeling?',
-      options: [
-        { id: 'a', text: 'Starten met 30 borstcompressies', correct: false, feedback: 'Bij verdrinking is de procedure net iets anders. Zuurstof is de prioriteit.' },
-        { id: 'b', text: 'Proberen water uit de longen te duwen door op de buik te drukken', correct: false, feedback: 'Gevaarlijk en verouderd advies! Dit veroorzaakt braken en verspilt kostbare tijd.' },
-        { id: 'c', text: 'Starten met 5 beademingen', correct: true, feedback: 'Correct! Bij verdrinking is de hartstilstand het gevolg van zuurstoftekort. Eerst zuurstof toedienen is cruciaal.' },
-        { id: 'd', text: 'De persoon opwarmen met dekens', correct: false, feedback: 'Opwarmen is belangrijk, maar reanimatie heeft absolute voorrang.' }
-      ],
-      timeLimit: 12,
-      explanation: 'De reanimatierichtlijnen voor drenkelingen schrijven voor om te starten met 5 initiële beademingen voordat je met borstcompressies begint.'
+      id: 'wondverzorging',
+      title: 'Wondverzorging (Schaafwond)',
+      difficulty: 'Makkelijk',
+      duration: '2-3 min',
+      description: 'Hoe verzorg je een alledaagse schaafwond correct?',
+      image: '🩹',
+      color: 'green',
+      steps: [
+        {
+          id: 1,
+          question: 'Een kind valt op de speelplaats en heeft een vuile schaafwond op de knie. Wat is de eerste stap?',
+          options: [
+            { id: 'a', text: 'Meteen een pleister erop plakken', correct: false, feedback: 'Niet doen! Je sluit het vuil op, wat tot infecties kan leiden.' },
+            { id: 'b', text: 'De wond schoonmaken met stromend water', correct: true, feedback: 'Perfect! Vuil en bacteriën moeten eerst weggespoeld worden met lauw, stromend water.' },
+            { id: 'c', text: 'Ontsmettingsalcohol erop gieten', correct: false, feedback: 'Alcohol kan pijnlijk zijn en weefsel beschadigen. Eerst spoelen met water.' },
+            { id: 'd', text: 'De wond laten drogen aan de lucht', correct: false, feedback: 'Eerst moet de wond proper gemaakt worden.' }
+          ],
+          timeLimit: 10,
+          explanation: 'Een vuile wond moet altijd eerst grondig gespoeld worden met proper, lauw water om infecties te voorkomen.'
+        }
+      ]
     },
-    // ... overige stappen voor dit scenario ...
-  ]
-},
-{
-  id: 'wondverzorging',
-  title: 'Wondverzorging (Schaafwond)',
-  difficulty: 'Makkelijk',
-  duration: '2-3 min',
-  description: 'Hoe verzorg je een alledaagse schaafwond correct?',
-  image: '🩹',
-  color: 'green',
-  steps: [
     {
-      id: 1,
-      question: 'Een kind valt op de speelplaats en heeft een vuile schaafwond op de knie. Wat is de eerste stap?',
-      options: [
-        { id: 'a', text: 'Meteen een pleister erop plakken', correct: false, feedback: 'Niet doen! Je sluit het vuil op, wat tot infecties kan leiden.' },
-        { id: 'b', text: 'De wond schoonmaken met stromend water', correct: true, feedback: 'Perfect! Vuil en bacteriën moeten eerst weggespoeld worden met lauw, stromend water.' },
-        { id: 'c', text: 'Ontsmettingsalcohol erop gieten', correct: false, feedback: 'Alcohol kan pijnlijk zijn en weefsel beschadigen. Eerst spoelen met water.' },
-        { id: 'd', text: 'De wond laten drogen aan de lucht', correct: false, feedback: 'Eerst moet de wond proper gemaakt worden.' }
-      ],
-      timeLimit: 10,
-      explanation: 'Een vuile wond moet altijd eerst grondig gespoeld worden met proper, lauw water om infecties te voorkomen.'
+      id: 'verstuiking',
+      title: 'Verstuiking (Enkel)',
+      difficulty: 'Gemiddeld',
+      duration: '3 min',
+      description: 'Iemand verstuikt zijn enkel tijdens het sporten.',
+      image: '🦶',
+      color: 'purple',
+      steps: [
+        {
+          id: 1,
+          question: 'Tijdens de sportles zwikt een leerling zijn enkel om. De enkel wordt dik en pijnlijk. Wat is de juiste eerste hulp procedure?',
+          options: [
+            { id: 'a', text: 'De schoen uitdoen en de enkel masseren', correct: false, feedback: 'Massage kan de zwelling verergeren. De schoen aanlaten geeft steun.' },
+            { id: 'b', text: 'De RICE-methode toepassen: Rust, IJs, Compressie, Elevatie', correct: true, feedback: 'Correct! De RICE-methode is de standaardbehandeling om zwelling en pijn te beperken.' },
+            { id: 'c', text: 'Proberen verder te stappen om de spieren los te maken', correct: false, feedback: 'Gevaarlijk! Dit kan de blessure veel erger maken.' },
+            { id: 'd', text: 'Een warm kompres aanbrengen om de pijn te verlichten', correct: false, feedback: 'Warmte verhoogt de bloedtoevoer en de zwelling. Gebruik altijd koeling (ijs).' }
+          ],
+          timeLimit: 12,
+          explanation: 'Bij een verstuiking pas je de RICE-regel toe: Rust, IJs (koelen), Compressie (drukverband) en Elevatie (omhoog leggen).'
+        }
+      ]
     },
-    // ... overige stappen voor dit scenario ...
-  ]
-},
-{
-  id: 'verstuiking',
-  title: 'Verstuiking (Enkel)',
-  difficulty: 'Gemiddeld',
-  duration: '3 min',
-  description: 'Iemand verstuikt zijn enkel tijdens het sporten.',
-  image: '🦶',
-  color: 'purple',
-  steps: [
     {
-      id: 1,
-      question: 'Tijdens de sportles zwikt een leerling zijn enkel om. De enkel wordt dik en pijnlijk. Wat is de juiste eerste hulp procedure?',
-      options: [
-        { id: 'a', text: 'De schoen uitdoen en de enkel masseren', correct: false, feedback: 'Massage kan de zwelling verergeren. De schoen aanlaten geeft steun.' },
-        { id: 'b', text: 'De RICE-methode toepassen: Rust, IJs, Compressie, Elevatie', correct: true, feedback: 'Correct! De RICE-methode is de standaardbehandeling om zwelling en pijn te beperken.' },
-        { id: 'c', text: 'Proberen verder te stappen om de spieren los te maken', correct: false, feedback: 'Gevaarlijk! Dit kan de blessure veel erger maken.' },
-        { id: 'd', text: 'Een warm kompres aanbrengen om de pijn te verlichten', correct: false, feedback: 'Warmte verhoogt de bloedtoevoer en de zwelling. Gebruik altijd koeling (ijs).' }
-      ],
-      timeLimit: 12,
-      explanation: 'Bij een verstuiking pas je de RICE-regel toe: Rust, IJs (koelen), Compressie (drukverband) en Elevatie (omhoog leggen).'
+      id: 'bloedneus',
+      title: 'Bloedneus',
+      difficulty: 'Makkelijk',
+      duration: '2 min',
+      description: 'Hoe stop je een gewone neusbloeding correct?',
+      image: '👃',
+      color: 'red',
+      steps: [
+        {
+          id: 1,
+          question: 'Een leerling krijgt spontaan een bloedneus. Wat is de juiste houding?',
+          options: [
+            { id: 'a', text: 'Hoofd achterover houden om geen bloed te morsen', correct: false, feedback: 'Fout! Het bloed loopt dan de keel in, wat misselijkheid en braken kan veroorzaken.' },
+            { id: 'b', text: 'Rechtop zitten met het hoofd licht voorover gebogen', correct: true, feedback: 'Juist! Zo kan het bloed uit de neus lopen en niet in de keel.' },
+            { id: 'c', text: 'Plat op de rug gaan liggen', correct: false, feedback: 'Gevaarlijk, het bloed kan de luchtwegen instromen.' },
+            { id: 'd', text: 'Rondlopen om de bloeddruk te verlagen', correct: false, feedback: 'Rust is beter. Beweging kan de bloeding verergeren.' }
+          ],
+          timeLimit: 10,
+          explanation: 'De juiste houding bij een bloedneus is rechtop zitten en het hoofd licht naar voren buigen.'
+        }
+      ]
     },
-    // ... overige stappen voor dit scenario ...
-  ]
-},
-{
-  id: 'bloedneus',
-  title: 'Bloedneus',
-  difficulty: 'Makkelijk',
-  duration: '2 min',
-  description: 'Hoe stop je een gewone neusbloeding correct?',
-  image: '👃',
-  color: 'red',
-  steps: [
     {
-      id: 1,
-      question: 'Een leerling krijgt spontaan een bloedneus. Wat is de juiste houding?',
-      options: [
-        { id: 'a', text: 'Hoofd achterover houden om geen bloed te morsen', correct: false, feedback: 'Fout! Het bloed loopt dan de keel in, wat misselijkheid en braken kan veroorzaken.' },
-        { id: 'b', text: 'Rechtop zitten met het hoofd licht voorover gebogen', correct: true, feedback: 'Juist! Zo kan het bloed uit de neus lopen en niet in de keel.' },
-        { id: 'c', text: 'Plat op de rug gaan liggen', correct: false, feedback: 'Gevaarlijk, het bloed kan de luchtwegen instromen.' },
-        { id: 'd', text: 'Rondlopen om de bloeddruk te verlagen', correct: false, feedback: 'Rust is beter. Beweging kan de bloeding verergeren.' }
-      ],
-      timeLimit: 10,
-      explanation: 'De juiste houding bij een bloedneus is rechtop zitten en het hoofd licht naar voren buigen.'
+      id: 'aed_gebruik',
+      title: 'Gebruik van een AED',
+      difficulty: 'Moeilijk',
+      duration: '4-5 min',
+      description: 'Hoe gebruik je een Automatische Externe Defibrillator?',
+      image: '⚡️',
+      color: 'red',
+      steps: [
+        {
+          id: 1,
+          question: 'Je bent aan het reanimeren en iemand brengt een AED. Wat is je allereerste stap met het toestel?',
+          options: [
+            { id: 'a', text: 'Meteen de elektroden op de borstkas plakken', correct: false, feedback: 'Eerst moet het toestel aan. Het zal je dan zelf instructies geven.' },
+            { id: 'b', text: 'Het toestel aanzetten', correct: true, feedback: 'Correct! Stap 1 is altijd het toestel aanzetten. Volg daarna de gesproken instructies.' },
+            { id: 'c', text: 'De schokknop indrukken', correct: false, feedback: 'Gevaarlijk! De AED moet eerst het hartritme analyseren.' },
+            { id: 'd', text: 'Wachten tot de ambulance er is', correct: false, feedback: 'Nee, een AED zo snel mogelijk gebruiken verhoogt de overlevingskans drastisch.' }
+          ],
+          timeLimit: 10,
+          explanation: 'Zodra een AED beschikbaar is, is de eerste stap altijd het toestel aanzetten. Volg daarna nauwgezet de stemcommando\'s.'
+        }
+      ]
     },
-    // ... overige stappen voor dit scenario ...
-  ]
-},
-{
-  id: 'aed_gebruik',
-  title: 'Gebruik van een AED',
-  difficulty: 'Moeilijk',
-  duration: '4-5 min',
-  description: 'Hoe gebruik je een Automatische Externe Defibrillator?',
-  image: '⚡️',
-  color: 'red',
-  steps: [
     {
-      id: 1,
-      question: 'Je bent aan het reanimeren en iemand brengt een AED. Wat is je allereerste stap met het toestel?',
-      options: [
-        { id: 'a', text: 'Meteen de elektroden op de borstkas plakken', correct: false, feedback: 'Eerst moet het toestel aan. Het zal je dan zelf instructies geven.' },
-        { id: 'b', text: 'Het toestel aanzetten', correct: true, feedback: 'Correct! Stap 1 is altijd het toestel aanzetten. Volg daarna de gesproken instructies.' },
-        { id: 'c', text: 'De schokknop indrukken', correct: false, feedback: 'Gevaarlijk! De AED moet eerst het hartritme analyseren.' },
-        { id: 'd', text: 'Wachten tot de ambulance er is', correct: false, feedback: 'Nee, een AED zo snel mogelijk gebruiken verhoogt de overlevingskans drastisch.' }
-      ],
-      timeLimit: 10,
-      explanation: 'Zodra een AED beschikbaar is, is de eerste stap altijd het toestel aanzetten. Volg daarna nauwgezet de stemcommando\'s.'
-    },
-    // ... overige stappen voor dit scenario ...
-  ]
-},
-{
-  id: 'communicatie_hulpdiensten',
-  title: 'Communicatie met 112',
-  difficulty: 'Makkelijk',
-  duration: '3 min',
-  description: 'Hoe communiceer je effectief met de noodcentrale?',
-  image: '☎️',
-  color: 'blue',
-  steps: [
-    {
-      id: 1,
-      question: 'Je belt 112 voor een noodgeval. Wat is de allerbelangrijkste informatie die je als eerste doorgeeft?',
-      options: [
-        { id: 'a', text: 'Je eigen naam', correct: false, feedback: 'Je naam is nuttig, maar de locatie is de absolute prioriteit.' },
-        { id: 'b', text: 'De exacte locatie van het noodgeval', correct: true, feedback: 'Correct! Zelfs als de verbinding wegvalt, weten de hulpdiensten dan waar ze moeten zijn.' },
-        { id: 'c', text: 'Wat er precies gebeurd is', correct: false, feedback: 'Dit is de tweede belangrijkste vraag, maar de locatie komt eerst.' },
-        { id: 'd', text: 'Het aantal slachtoffers', correct: false, feedback: 'Ook heel belangrijk, maar komt na de locatie.' }
-      ],
-      timeLimit: 12,
-      explanation: 'De gouden regel bij een noodoproep: begin altijd met de exacte locatie. Geef het adres, de gemeente en eventuele herkenningspunten.'
-    },
-    // ... overige stappen voor dit scenario ...
-  ]
-}
+      id: 'communicatie_hulpdiensten',
+      title: 'Communicatie met 112',
+      difficulty: 'Makkelijk',
+      duration: '3 min',
+      description: 'Hoe communiceer je effectief met de noodcentrale?',
+      image: '☎️',
+      color: 'blue',
+      steps: [
+        {
+          id: 1,
+          question: 'Je belt 112 voor een noodgeval. Wat is de allerbelangrijkste informatie die je als eerste doorgeeft?',
+          options: [
+            { id: 'a', text: 'Je eigen naam', correct: false, feedback: 'Je naam is nuttig, maar de locatie is de absolute prioriteit.' },
+            { id: 'b', text: 'De exacte locatie van het noodgeval', correct: true, feedback: 'Correct! Zelfs als de verbinding wegvalt, weten de hulpdiensten dan waar ze moeten zijn.' },
+            { id: 'c', text: 'Wat er precies gebeurd is', correct: false, feedback: 'Dit is de tweede belangrijkste vraag, maar de locatie komt eerst.' },
+            { id: 'd', text: 'Het aantal slachtoffers', correct: false, feedback: 'Ook heel belangrijk, maar komt na de locatie.' }
+          ],
+          timeLimit: 12,
+          explanation: 'De gouden regel bij een noodoproep: begin altijd met de exacte locatie. Geef het adres, de gemeente en eventuele herkenningspunten.'
+        }
       ]
     }
   ];
