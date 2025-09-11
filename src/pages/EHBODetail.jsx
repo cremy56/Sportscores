@@ -21,6 +21,18 @@ const EHBODetail = () => {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [showResults, setShowResults] = useState(false);
 
+  // Dit blok laadt de opgeslagen voortgang wanneer de component laadt
+  useEffect(() => {
+    if (profile) {
+      setUserProgress({
+        completedScenarios: profile.completed_ehbo_scenarios || [],
+        certificates: [], // Logica voor certificaten nog te implementeren
+        totalScore: profile.ehbo_total_score || 0,
+        streak: profile.ehbo_streak || 0
+      });
+    }
+  }, [profile]);
+  
   // Scenario data - Uitgebreid met meer leerplandoel-relevante scenario's
   const scenarios = [
     {
@@ -467,12 +479,13 @@ useEffect(() => {
     }, 2000);
   };
 
+  // in EHBODetail.jsx
+
   const completeScenario = (results) => {
     const correctAnswers = Object.values(results).filter(r => r.correct).length;
     const totalQuestions = activeScenario.steps.length;
     const score = Math.round((correctAnswers / totalQuestions) * 100);
     
-    // Update progress
     if (!userProgress.completedScenarios.includes(activeScenario.id)) {
       setUserProgress(prev => ({
         ...prev,
@@ -480,6 +493,23 @@ useEffect(() => {
         totalScore: prev.totalScore + score,
         streak: prev.streak + 1
       }));
+      
+      // Roep de XP functie aan
+      handleScenarioCompletion(activeScenario.id);
+      
+      // --- START WIJZIGING ---
+      // Roep de nieuwe functie aan om de voortgang op te slaan
+      try {
+        const saveProgress = httpsCallable(functions, 'saveEHBOProgress');
+        saveProgress({
+          userId: profile.id,
+          scenarioId: activeScenario.id,
+          score: score
+        });
+      } catch (error) {
+        console.error("Opslaan EHBO voortgang mislukt:", error);
+      }
+      // --- EINDE WIJZIGING ---
     }
     
     setShowResults(true);
