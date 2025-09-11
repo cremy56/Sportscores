@@ -6,7 +6,7 @@ import { functions } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useEnhancedScenario, useAdaptiveAnalysis, useAccessibilityFeatures } from '../hooks/useEnhancedEHBO';
-import { EnhancedUIComponents } from '../utils/enhancedEHBO';
+import { EnhancedUIComponents } from '../utils/enhancedEHBO.jsx';
 
 
 const EHBODetail = () => {
