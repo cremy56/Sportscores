@@ -155,34 +155,124 @@ exports.saveEHBOProgress = onCall(async (request) => {
     throw new Error('Failed to save EHBO progress: ' + error.message);
   }
 });
-// OPTIMIZED: Get class EHBO stats without storing objectives
+
+// Replace your getClassEHBOStats function with this clean version
 exports.getClassEHBOStats = onCall(async (request) => {
-  if (!request.auth) throw new Error('Authentication required');
+  console.log('=== getClassEHBOStats START ===');
+  
+  if (!request.auth) {
+    throw new Error('Authentication required');
+  }
   
   const { classId, schoolId, studentId } = request.data;
+  console.log('Parameters:', { classId, schoolId, studentId });
   
   try {
-    // Verify teacher access
-    const teacherDoc = await db.collection('users').doc(request.auth.uid).get();
-   if (!['leerkracht', 'administrator', 'super-administrator'].includes(teacherData.rol)) {
-  throw new Error('Access denied');
-}
-   if (studentId) {
-  studentsQuery = studentsQuery.where(admin.firestore.FieldPath.documentId(), '==', studentId);
-} 
-    // Get all students in the school/class
-    let studentsQuery = db.collection('users')
-      .where('rol', '==', 'leerling')
-      .where('school_id', '==', schoolId);
+    // Verify user access
+    const userDoc = await db.collection('users').doc(request.auth.uid).get();
     
-    // Filter by class if specified
-    if (classId && classId !== 'all') {
-      studentsQuery = studentsQuery.where('klas', '==', classId);
+    if (!userDoc.exists) {
+      throw new Error('User not found');
     }
     
-    const studentsSnapshot = await studentsQuery.get();
+    const userData = userDoc.data();
     
-    const students = [];
+    if (!['leerkracht', 'administrator', 'super-administrator'].includes(userData.rol)) {
+      throw new Error('Access denied');
+    }
+    
+    console.log('Access granted for role:', userData.rol);
+    
+    // Get students based on filters
+    let studentsSnapshot;
+    
+    if (studentId) {
+      // For admin: get specific student by email
+      console.log('Getting specific student by email:', studentId);
+      
+      // First, try to find in registered users
+      const emailQuery = await db.collection('users')
+        .where('email', '==', studentId)
+        .where('rol', '==', 'leerling')
+        .where('school_id', '==', schoolId)
+        .limit(1)
+        .get();
+      
+      if (!emailQuery.empty) {
+        // Student is registered
+        const studentDoc = emailQuery.docs[0];
+        const studentData = studentDoc.data();
+        console.log('Found registered student:', studentData.naam);
+        studentsSnapshot = { docs: [studentDoc] };
+        
+      } else {
+        // Check if student is in toegestane_gebruikers (not yet registered)
+        console.log('Student not found in users, checking toegestane_gebruikers...');
+        
+        const toegestaneDoc = await db.collection('toegestane_gebruikers').doc(studentId).get();
+        
+        if (toegestaneDoc.exists) {
+          const toegestaneData = toegestaneDoc.data();
+          console.log('Found unregistered student:', toegestaneData.naam);
+          
+          // Return specific error for unregistered students
+          return {
+            success: false,
+            error: `Student "${toegestaneData.naam}" is nog niet geregistreerd. De student moet eerst inloggen om EHBO gegevens te kunnen bekijken.`,
+            studentStatus: 'unregistered',
+            studentName: toegestaneData.naam,
+            studentEmail: studentId,
+            classStats: {
+              totalStudents: 0,
+              studentsStarted: 0,
+              studentsCompleted: 0,
+              averageScore: 0,
+              objectiveCompletion: {},
+              strugglingStudents: [],
+              topPerformers: []
+            },
+            students: []
+          };
+          
+        } else {
+          // Student not found in either collection
+          console.log('Student not found in either collection:', studentId);
+          return {
+            success: false,
+            error: `Student "${studentId}" niet gevonden. Controleer of het email adres correct is en of de student toegang heeft tot deze school.`,
+            studentStatus: 'not_found',
+            classStats: {
+              totalStudents: 0,
+              studentsStarted: 0,
+              studentsCompleted: 0,
+              averageScore: 0,
+              objectiveCompletion: {},
+              strugglingStudents: [],
+              topPerformers: []
+            },
+            students: []
+          };
+        }
+      }
+      
+    } else {
+      // For teacher/admin: get students by school/class
+      let query = db.collection('users')
+        .where('rol', '==', 'leerling')
+        .where('school_id', '==', schoolId);
+      
+      if (classId && classId !== 'all') {
+        console.log('Filtering by class:', classId);
+        query = query.where('klas', '==', classId);
+      }
+      
+      console.log('Executing query...');
+      studentsSnapshot = await query.get();
+    }
+    
+    console.log('Found students:', studentsSnapshot.docs.length);
+    
+    // Initialize stats
     const classStats = {
       totalStudents: 0,
       studentsStarted: 0,
@@ -193,6 +283,7 @@ exports.getClassEHBOStats = onCall(async (request) => {
       topPerformers: []
     };
     
+    const students = [];
     let totalScoreSum = 0;
     let studentsWithScores = 0;
     
@@ -206,100 +297,151 @@ exports.getClassEHBOStats = onCall(async (request) => {
     });
     
     // Process each student
-    studentsSnapshot.docs.forEach(doc => {
-      const studentData = doc.data();
-      const completedScenarios = studentData.completed_ehbo_scenarios || [];
-      const totalScore = studentData.ehbo_total_score || 0;
-      const scenarioCount = completedScenarios.length;
-      
-      if (scenarioCount === 0) return; // Skip students who haven't started
-      
-      classStats.totalStudents++;
-      classStats.studentsStarted++;
-      
-      // Calculate objectives for this student (real-time)
-      const objectives = calculateEHBOObjectives(completedScenarios, totalScore);
-      
-      // Count objective completions
-      Object.entries(objectives).forEach(([objId, objData]) => {
-        classStats.objectiveCompletion[objId].total++;
-        if (objData.status === 'completed') {
-          classStats.objectiveCompletion[objId].completed++;
+    studentsSnapshot.docs.forEach((doc) => {
+      try {
+        const studentData = doc.data();
+        const completedScenarios = studentData.completed_ehbo_scenarios || [];
+        const totalScore = studentData.ehbo_total_score || 0;
+        const scenarioCount = completedScenarios.length;
+
+        // Skip students with no activity
+        if (scenarioCount === 0) return;
+
+        classStats.totalStudents++;
+        classStats.studentsStarted++;
+
+        // Calculate objectives
+        const objectives = calculateEHBOObjectives(completedScenarios, totalScore);
+
+        // Count objective completions
+        Object.entries(objectives).forEach(([objId, objData]) => {
+          if (classStats.objectiveCompletion[objId]) {
+            classStats.objectiveCompletion[objId].total++;
+            if (objData.status === 'completed') {
+              classStats.objectiveCompletion[objId].completed++;
+            }
+          }
+        });
+
+        // Calculate progress
+        const completedObjectives = Object.values(objectives).filter(obj => obj.status === 'completed').length;
+        const progressPercentage = Math.round((completedObjectives / Object.keys(EHBO_OBJECTIVES).length) * 100);
+
+        if (progressPercentage >= 80) {
+          classStats.studentsCompleted++;
         }
-      });
-      
-      // Calculate completion percentage
-      const completedObjectives = Object.values(objectives).filter(obj => obj.status === 'completed').length;
-      const totalObjectives = Object.keys(EHBO_OBJECTIVES).length;
-      const progressPercentage = (completedObjectives / totalObjectives) * 100;
-      
-      if (progressPercentage >= 80) {
-        classStats.studentsCompleted++;
-      }
-      
-      // Average score calculation
-      const averageScore = scenarioCount > 0 ? Math.round(totalScore / scenarioCount) : 0;
-      if (averageScore > 0) {
-        totalScoreSum += averageScore;
-        studentsWithScores++;
-      }
-      
-      // Student data
-      const studentStats = {
-        id: doc.id,
-        name: studentData.naam,
-        email: studentData.email,
-        completedScenarios: scenarioCount,
-        totalScore: totalScore,
-        averageScore: averageScore,
-        progressPercentage: Math.round(progressPercentage),
-        objectives: objectives, // Calculated on-the-fly
-        lastActivity: studentData.last_activity,
-        certificationReady: progressPercentage >= 80 && averageScore >= 75,
-        strugglingAreas: identifyStrugglingAreas(objectives)
-      };
-      
-      students.push(studentStats);
-      
-      // Struggling students
-      if (averageScore < 60 || isInactive(studentData.last_activity)) {
-        classStats.strugglingStudents.push({
-          name: studentData.naam,
-          issue: averageScore < 60 ? 'low_scores' : 'inactive',
-          lastScore: averageScore,
-          recommendation: getStudentRecommendation(studentStats)
-        });
-      }
-      
-      // Top performers
-      if (averageScore > 85 && scenarioCount >= 5) {
-        classStats.topPerformers.push({
-          name: studentData.naam,
+
+        // Calculate average score
+        const averageScore = scenarioCount > 0 ? Math.round(totalScore / scenarioCount) : 0;
+        if (averageScore > 0) {
+          totalScoreSum += averageScore;
+          studentsWithScores++;
+        }
+
+        // Build student object
+        const studentStats = {
+          id: doc.id,
+          name: studentData.naam || 'Onbekend',
+          email: studentData.email || doc.id,
+          completedScenarios: scenarioCount,
+          totalScore: totalScore,
           averageScore: averageScore,
-          completedScenarios: scenarioCount
-        });
+          progressPercentage: progressPercentage,
+          objectives: objectives,
+          lastActivity: studentData.last_activity,
+          certificationReady: progressPercentage >= 80 && averageScore >= 75,
+          strugglingAreas: identifyStrugglingAreas(objectives)
+        };
+
+        students.push(studentStats);
+
+        // Check for struggling students
+        if (averageScore < 60 || isInactive(studentData.last_activity)) {
+          classStats.strugglingStudents.push({
+            name: studentData.naam || 'Onbekend',
+            issue: averageScore < 60 ? 'low_scores' : 'inactive',
+            lastScore: averageScore,
+            recommendation: getStudentRecommendation(studentStats)
+          });
+        }
+
+        // Check for top performers
+        if (averageScore > 85 && scenarioCount >= 5) {
+          classStats.topPerformers.push({
+            name: studentData.naam || 'Onbekend',
+            averageScore: averageScore,
+            completedScenarios: scenarioCount
+          });
+        }
+
+      } catch (studentError) {
+        console.error('Error processing student:', doc.id, studentError);
       }
     });
-    
-    // Calculate class averages
+
+    // Finalize stats
     classStats.averageScore = studentsWithScores > 0 ? Math.round(totalScoreSum / studentsWithScores) : 0;
-    
-    // Sort students by progress
     students.sort((a, b) => b.progressPercentage - a.progressPercentage);
+
+    console.log('=== SUCCESS ===');
     
     return {
       success: true,
       classStats,
       students: students.slice(0, 50),
-      objectives: EHBO_OBJECTIVES, // Send objective definitions
+      objectives: EHBO_OBJECTIVES,
       lastUpdated: new Date().toISOString()
     };
-    
+
   } catch (error) {
-    console.error('Error getting class EHBO stats:', error);
-    throw error;
+    console.error('=== ERROR ===', error.message);
+    
+    return {
+      success: false,
+      error: error.message,
+      classStats: {
+        totalStudents: 0,
+        studentsStarted: 0,
+        studentsCompleted: 0,
+        averageScore: 0,
+        objectiveCompletion: {},
+        strugglingStudents: [],
+        topPerformers: []
+      },
+      students: []
+    };
   }
 });
+
+// Helper functions
+function identifyStrugglingAreas(objectives) {
+  try {
+    return Object.entries(objectives || {})
+      .filter(([objId, obj]) => obj.status !== 'completed' && obj.best_score < 70)
+      .map(([objId]) => EHBO_OBJECTIVES[objId]?.title || 'Onbekend')
+      .slice(0, 3);
+  } catch (error) {
+    return [];
+  }
+}
+
+function isInactive(lastActivity) {
+  if (!lastActivity) return true;
+  const twoWeeksAgo = new Date();
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  const activityDate = lastActivity.toDate ? lastActivity.toDate() : new Date(lastActivity);
+  return activityDate < twoWeeksAgo;
+}
+
+function getStudentRecommendation(studentStats) {
+  if (studentStats.averageScore < 60) {
+    return "Extra begeleiding en herhaling van basisprincipes";
+  }
+  if (studentStats.strugglingAreas.length > 2) {
+    return `Focus op: ${studentStats.strugglingAreas.join(', ')}`;
+  }
+  return "Regelmatige oefening aanmoedigen";
+}
 
 
 // Complete getSchoolEHBOStats function with proper access control

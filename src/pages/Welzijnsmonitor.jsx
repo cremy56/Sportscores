@@ -89,7 +89,14 @@ const Welzijnsmonitor = () => {
         setClassStats(result.data.classStats);
         setStudents(result.data.students || []);
       } else {
-        throw new Error(result.data?.error || 'Onbekende fout bij laden van statistieken');
+        // Handle specific error cases for better user feedback
+        if (result.data?.studentStatus === 'unregistered') {
+          setError(`${result.data.studentName} is nog niet geregistreerd. De student moet eerst inloggen om EHBO gegevens te kunnen bekijken.`);
+        } else if (result.data?.studentStatus === 'not_found') {
+          setError(result.data.error);
+        } else {
+          throw new Error(result.data?.error || 'Onbekende fout bij laden van statistieken');
+        }
       }
       
     } catch (error) {
