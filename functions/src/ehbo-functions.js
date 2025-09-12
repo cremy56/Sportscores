@@ -159,15 +159,17 @@ exports.saveEHBOProgress = onCall(async (request) => {
 exports.getClassEHBOStats = onCall(async (request) => {
   if (!request.auth) throw new Error('Authentication required');
   
-  const { classId, schoolId } = request.data;
+  const { classId, schoolId, studentId } = request.data;
   
   try {
     // Verify teacher access
     const teacherDoc = await db.collection('users').doc(request.auth.uid).get();
-    if (!teacherDoc.exists || !['leerkracht', 'administrator'].includes(teacherDoc.data().rol)) {
-      throw new Error('Access denied');
-    }
-    
+   if (!['leerkracht', 'administrator', 'super-administrator'].includes(teacherData.rol)) {
+  throw new Error('Access denied');
+}
+   if (studentId) {
+  studentsQuery = studentsQuery.where(admin.firestore.FieldPath.documentId(), '==', studentId);
+} 
     // Get all students in the school/class
     let studentsQuery = db.collection('users')
       .where('rol', '==', 'leerling')
@@ -299,17 +301,62 @@ exports.getClassEHBOStats = onCall(async (request) => {
   }
 });
 
-// SIMPLIFIED: School stats (no duplicate data)
+
+// Complete getSchoolEHBOStats function with proper access control
+
 exports.getSchoolEHBOStats = onCall(async (request) => {
-  if (!request.auth) throw new Error('Authentication required');
+  console.log('=== getSchoolEHBOStats FUNCTION START ===');
+  console.log('Request auth:', !!request.auth);
+  console.log('Request data:', request.data);
+  
+  if (!request.auth) {
+    console.log('ERROR: No authentication');
+    throw new Error('Authentication required');
+  }
   
   const { schoolId } = request.data;
+  console.log('School ID:', schoolId);
+  
+  if (!schoolId) {
+    console.log('ERROR: No schoolId provided');
+    throw new Error('schoolId is required');
+  }
   
   try {
-    const studentsQuery = await db.collection('users')
+    // Verify user access - FIXED to include all three roles
+    console.log('Verifying user access for:', request.auth.uid);
+    const userDoc = await db.collection('users').doc(request.auth.uid).get();
+    console.log('User doc exists:', userDoc.exists);
+    
+    if (!userDoc.exists) {
+      console.log('ERROR: User document not found');
+      throw new Error('User not found');
+    }
+    
+    const userData = userDoc.data();
+    console.log('User role:', userData.rol);
+    console.log('User school_id:', userData.school_id);
+    
+    // FIXED: Allow leerkracht, administrator, and super-administrator
+    if (!['leerkracht', 'administrator', 'super-administrator'].includes(userData.rol)) {
+      console.log('ERROR: Access denied for role:', userData.rol);
+      throw new Error('Access denied - requires teacher or administrator role');
+    }
+    
+    // Optional: Verify user belongs to the school (except for super-administrators)
+    if (userData.rol !== 'super-administrator' && userData.school_id !== schoolId) {
+      console.log('ERROR: User school mismatch. User school:', userData.school_id, 'Requested school:', schoolId);
+      throw new Error('Access denied - can only view stats for your own school');
+    }
+    
+    console.log('Building students query for school:', schoolId);
+    const studentsQuery = db.collection('users')
       .where('rol', '==', 'leerling')
-      .where('school_id', '==', schoolId)
-      .get();
+      .where('school_id', '==', schoolId);
+    
+    console.log('Executing students query...');
+    const studentsSnapshot = await studentsQuery.get();
+    console.log('Found students:', studentsSnapshot.docs.length);
     
     let totalStudents = 0;
     let studentsStarted = 0;
@@ -317,51 +364,89 @@ exports.getSchoolEHBOStats = onCall(async (request) => {
     let totalScoreSum = 0;
     let studentsWithScores = 0;
     
-    studentsQuery.docs.forEach(doc => {
-      const data = doc.data();
-      const completedScenarios = data.completed_ehbo_scenarios || [];
-      const totalScore = data.ehbo_total_score || 0;
-      
-      totalStudents++;
-      
-      if (completedScenarios.length > 0) {
-        studentsStarted++;
+    console.log('Processing students...');
+    studentsSnapshot.docs.forEach((doc, index) => {
+      try {
+        const data = doc.data();
+        const completedScenarios = data.completed_ehbo_scenarios || [];
+        const totalScore = data.ehbo_total_score || 0;
         
-        // Calculate objectives real-time
-        const objectives = calculateEHBOObjectives(completedScenarios, totalScore);
-        const completedObjectives = Object.values(objectives).filter(obj => obj.status === 'completed').length;
-        const progressPercentage = (completedObjectives / Object.keys(EHBO_OBJECTIVES).length) * 100;
+        totalStudents++;
         
-        if (progressPercentage >= 80) {
-          studentsCompleted++;
+        if (completedScenarios.length > 0) {
+          studentsStarted++;
+          
+          // Calculate objectives real-time
+          const objectives = calculateEHBOObjectives(completedScenarios, totalScore);
+          const completedObjectives = Object.values(objectives).filter(obj => obj.status === 'completed').length;
+          const totalObjectives = Object.keys(EHBO_OBJECTIVES).length;
+          const progressPercentage = (completedObjectives / totalObjectives) * 100;
+          
+          if (progressPercentage >= 80) {
+            studentsCompleted++;
+          }
+          
+          if (totalScore > 0 && completedScenarios.length > 0) {
+            const averageScore = totalScore / completedScenarios.length;
+            totalScoreSum += averageScore;
+            studentsWithScores++;
+          }
         }
         
-        if (totalScore > 0) {
-          totalScoreSum += totalScore / completedScenarios.length; // Average per scenario
-          studentsWithScores++;
-        }
+      } catch (studentError) {
+        console.error('Error processing student:', doc.id, studentError);
+        // Continue processing other students
       }
     });
     
+    console.log('Calculating final stats...');
     const schoolStats = {
       totalStudents,
       studentsStarted,
       studentsCompleted,
       certificationReady: studentsCompleted,
       averageScore: studentsWithScores > 0 ? Math.round(totalScoreSum / studentsWithScores) : 0,
-      complianceRate: Math.round((studentsCompleted / totalStudents) * 100)
+      complianceRate: totalStudents > 0 ? Math.round((studentsCompleted / totalStudents) * 100) : 0,
+      participationRate: totalStudents > 0 ? Math.round((studentsStarted / totalStudents) * 100) : 0
     };
+    
+    console.log('Final school stats:', schoolStats);
+    console.log('=== getSchoolEHBOStats FUNCTION SUCCESS ===');
     
     return {
       success: true,
       schoolStats,
       objectives: EHBO_OBJECTIVES,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
+      metadata: {
+        schoolId: schoolId,
+        requestedBy: userData.naam || 'Unknown',
+        requestedAt: new Date().toISOString()
+      }
     };
     
   } catch (error) {
-    console.error('Error getting school EHBO stats:', error);
-    throw error;
+    console.error('=== getSchoolEHBOStats FUNCTION ERROR ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    // Return a proper error response instead of throwing
+    return {
+      success: false,
+      error: error.message,
+      schoolStats: {
+        totalStudents: 0,
+        studentsStarted: 0,
+        studentsCompleted: 0,
+        certificationReady: 0,
+        averageScore: 0,
+        complianceRate: 0,
+        participationRate: 0
+      },
+      objectives: EHBO_OBJECTIVES || {},
+      lastUpdated: new Date().toISOString()
+    };
   }
 });
 

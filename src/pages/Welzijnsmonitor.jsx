@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
+import StudentSearch from '../components/StudentSearch';
 import { 
   AcademicCapIcon, 
   ChartBarIcon, 
@@ -20,135 +21,96 @@ const Welzijnsmonitor = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // State for role-based functionality
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState('all');
+  const [availableGroups, setAvailableGroups] = useState([]);
 
-  // Load EHBO class statistics
+  const isTeacher = profile?.rol === 'leerkracht';
+  const isAdmin = ['administrator', 'super-administrator'].includes(profile?.rol);
+
+  // Load available groups for teachers
   useEffect(() => {
-    if (profile?.school_id && ['leerkracht', 'administrator'].includes(profile.rol)) {
+    if (isTeacher && profile?.groepen) {
+      const groups = [
+        { id: 'all', naam: 'Alle mijn groepen' },
+        ...profile.groepen.map(groepId => ({ id: groepId, naam: groepId }))
+      ];
+      setAvailableGroups(groups);
+    }
+  }, [profile, isTeacher]);
+
+  // Load EHBO statistics based on user role
+  useEffect(() => {
+    if (profile?.school_id && (isTeacher || isAdmin)) {
       loadEHBOStats();
     }
-  }, [profile]);
-useEffect(() => {
-  let retryCount = 0;
-  const maxRetries = 3;
-  
-  const loadWithRetry = async () => {
-    if (!profile?.school_id || !['leerkracht', 'administrator'].includes(profile.rol)) {
+  }, [profile, selectedGroup, selectedStudent]);
+
+  const loadEHBOStats = async () => {
+    setLoading(true);
+    setError(null);
+    
+    const timeoutId = setTimeout(() => {
       setLoading(false);
-      return;
-    }
+      setError('Het laden van de gegevens duurt te lang. Probeer het later opnieuw.');
+    }, 30000);
     
     try {
-      await loadEHBOStats();
-    } catch (error) {
-      if (retryCount < maxRetries) {
-        retryCount++;
-        console.log(`Retrying EHBO stats load (attempt ${retryCount}/${maxRetries})`);
-        setTimeout(loadWithRetry, 2000 * retryCount); // Exponential backoff
+      const getClassEHBOStats = httpsCallable(functions, 'getClassEHBOStats');
+      
+      let requestData = {
+        schoolId: profile.school_id
+      };
+
+      // For teachers: filter by selected group
+      if (isTeacher) {
+        if (selectedGroup && selectedGroup !== 'all') {
+          requestData.classId = selectedGroup;
+        }
       }
+
+      // For admins: if a specific student is selected, filter to show just that student
+      if (isAdmin && selectedStudent) {
+        requestData.studentId = selectedStudent.id; // We'll need to modify the backend for this
+      }
+      
+      const result = await Promise.race([
+        getClassEHBOStats(requestData),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Firebase function timeout')), 25000)
+        )
+      ]);
+      
+      clearTimeout(timeoutId);
+      
+      if (result.data && result.data.success) {
+        setClassStats(result.data.classStats);
+        setStudents(result.data.students || []);
+      } else {
+        throw new Error(result.data?.error || 'Onbekende fout bij laden van statistieken');
+      }
+      
+    } catch (error) {
+      console.error('Error loading EHBO stats:', error);
+      clearTimeout(timeoutId);
+      
+      if (error.code === 'functions/unauthenticated') {
+        setError('U bent niet geautoriseerd. Log opnieuw in.');
+      } else if (error.code === 'functions/permission-denied') {
+        setError('Geen toegang tot deze gegevens. Controleer uw rechten.');
+      } else if (error.message.includes('timeout')) {
+        setError('De verbinding is verlopen. Controleer uw internetverbinding en probeer opnieuw.');
+      } else {
+        setError(`Fout bij laden: ${error.message || 'Onbekende fout'}`);
+      }
+    } finally {
+      setLoading(false);
     }
   };
-  
-  loadWithRetry();
-}, [profile]);
 
- const loadEHBOStats = async () => {
-  setLoading(true);
-  setError(null); // Clear any previous errors
-  
-  // Set up timeout
-  const timeoutId = setTimeout(() => {
-    setLoading(false);
-    setError('Het laden van de gegevens duurt te lang. Probeer het later opnieuw.');
-    console.error('EHBO stats loading timeout after 30 seconds');
-  }, 30000); // 30 second timeout
-  
-  try {
-    console.log('Starting EHBO stats load for school:', profile.school_id);
-    
-    const getClassEHBOStats = httpsCallable(functions, 'getClassEHBOStats');
-    
-    // Add timeout to the Firebase call itself
-    const result = await Promise.race([
-      getClassEHBOStats({
-        schoolId: profile.school_id,
-        classId: profile.klas || 'all'
-      }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Firebase function timeout')), 25000)
-      )
-    ]);
-    
-    // Clear timeout since we got a response
-    clearTimeout(timeoutId);
-    
-    console.log('EHBO stats result:', result.data);
-    
-    if (result.data && result.data.success) {
-      setClassStats(result.data.classStats);
-      setStudents(result.data.students || []);
-      console.log('Successfully loaded EHBO stats');
-    } else {
-      throw new Error(result.data?.error || 'Onbekende fout bij laden van statistieken');
-    }
-    
-  } catch (error) {
-    console.error('Error loading EHBO stats:', error);
-    clearTimeout(timeoutId);
-    
-    // Set specific error messages based on error type
-    if (error.code === 'functions/unauthenticated') {
-      setError('U bent niet geautoriseerd. Log opnieuw in.');
-    } else if (error.code === 'functions/permission-denied') {
-      setError('Geen toegang tot deze gegevens. Controleer uw rechten.');
-    } else if (error.code === 'functions/not-found') {
-      setError('De functie kon niet worden gevonden. Contacteer de administrator.');
-    } else if (error.message.includes('timeout')) {
-      setError('De verbinding is verlopen. Controleer uw internetverbinding en probeer opnieuw.');
-    } else {
-      setError(`Fout bij laden: ${error.message || 'Onbekende fout'}`);
-    }
-    
-  } finally {
-    setLoading(false);
-  }
-};
-const debugLoadEHBO = async () => {
-  console.log('=== DEBUG EHBO LOAD ===');
-  console.log('Profile:', profile);
-  console.log('School ID:', profile?.school_id);
-  console.log('Role:', profile?.rol);
-  console.log('Class:', profile?.klas);
-  
-  try {
-    // Test if functions are available
-    console.log('Functions object:', functions);
-    
-    // Try a simple function call first
-    const testFunction = httpsCallable(functions, 'getClassEHBOStats');
-    console.log('Function callable created');
-    
-    const result = await testFunction({
-      schoolId: profile.school_id,
-      classId: 'all'
-    });
-    
-    console.log('Function result:', result);
-    
-  } catch (error) {
-    console.error('Debug error:', error);
-    console.error('Error code:', error.code);
-    console.error('Error message:', error.message);
-  }
-};
-
-// Add this button temporarily to your JSX for debugging:
-<button
-  onClick={debugLoadEHBO}
-  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
->
-  Debug EHBO Load
-</button>
-  // EHBO Dashboard Component
+  // EHBO Dashboard Component with role-based controls
   const EHBODashboard = () => {
     if (loading) {
       return (
@@ -234,7 +196,9 @@ const debugLoadEHBO = async () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">EHBO Voortgang per Leerling</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                EHBO Voortgang {isAdmin && selectedStudent ? `- ${selectedStudent.naam}` : 'per Leerling'}
+              </h3>
               <button
                 onClick={loadEHBOStats}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
@@ -330,7 +294,7 @@ const debugLoadEHBO = async () => {
           </div>
         </div>
 
-        {/* Struggling Students Alert */}
+        {/* Rest of the existing cards (struggling students, top performers) */}
         {classStats?.strugglingStudents?.length > 0 && (
           <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
             <div className="flex items-center mb-4">
@@ -357,7 +321,6 @@ const debugLoadEHBO = async () => {
           </div>
         )}
 
-        {/* Top Performers */}
         {classStats?.topPerformers?.length > 0 && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-6">
             <div className="flex items-center mb-4">
@@ -381,7 +344,7 @@ const debugLoadEHBO = async () => {
     );
   };
 
-  // Welzijn Dashboard Component (placeholder for existing functionality)
+  // Welzijn Dashboard Component (placeholder)
   const WelzijnDashboard = () => (
     <div className="space-y-6">
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -392,55 +355,78 @@ const debugLoadEHBO = async () => {
         <p className="text-gray-600 mb-4">
           Hier komen de welzijn statistieken zoals BMI, vetpercentage, en andere gezondheidsmetrieken.
         </p>
-        
-        {/* Placeholder for welzijn charts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gray-50 rounded-lg p-4 h-64 flex items-center justify-center">
-            <p className="text-gray-500">BMI Verdeling Chart</p>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4 h-64 flex items-center justify-center">
-            <p className="text-gray-500">Vetpercentage Trends</p>
-          </div>
-        </div>
-
-        {/* Data Input Form */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <h4 className="font-semibold text-blue-800 mb-3">Aanvullende Gezondheidsmeting Invoeren</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Leerling</label>
-              <select className="w-full border border-gray-300 rounded-md px-3 py-2">
-                <option>Selecteer leerling...</option>
-                {students.map(student => (
-                  <option key={student.id} value={student.id}>{student.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Vetpercentage (%)</label>
-              <input type="number" step="0.1" className="w-full border border-gray-300 rounded-md px-3 py-2" />
-            </div>
-            <div className="flex items-end">
-              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors">
-                Opslaan
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      {/* Header */}
+      {/* Header with Role-Based Controls */}
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
-          Welzijnsmonitor - {profile?.rol === 'administrator' ? 'School Dashboard' : 'Klas Dashboard'}
-        </h1>
-        <p className="text-slate-600">
-          Overzicht van EHBO competenties en welzijn statistieken voor {profile?.rol === 'administrator' ? 'de hele school' : 'uw klas'}
-        </p>
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="text-center lg:text-left lg:flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
+              Welzijnsmonitor - {profile?.rol === 'administrator' || profile?.rol === 'super-administrator' ? 'School Dashboard' : 'Groep Dashboard'}
+            </h1>
+            <p className="text-slate-600">
+              {isTeacher ? 'Overzicht van EHBO competenties voor uw groepen' : 
+               isAdmin ? 'Overzicht van EHBO competenties en welzijn voor de hele school' :
+               'Overzicht van EHBO competenties en welzijn statistieken'}
+            </p>
+          </div>
+          
+          {/* Role-Based Controls */}
+          <div className="lg:flex-shrink-0 lg:w-[400px]">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              {/* Teacher: Group Selection */}
+              {isTeacher && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Selecteer Groep
+                  </label>
+                  <select
+                    value={selectedGroup}
+                    onChange={(e) => setSelectedGroup(e.target.value)}
+                    className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-red-500 focus:ring-red-500"
+                  >
+                    {availableGroups.map(group => (
+                      <option key={group.id} value={group.id}>
+                        {group.naam}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
+              {/* Admin: Student Search */}
+              {isAdmin && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Zoek Leerling (Optioneel)
+                  </label>
+                  <StudentSearch 
+                    onStudentSelect={setSelectedStudent}
+                    schoolId={profile?.school_id}
+                    initialStudent={selectedStudent}
+                    placeholder="Alle leerlingen"
+                  />
+                </div>
+              )}
+              
+              {/* Clear Selection Button for Admins */}
+              {isAdmin && selectedStudent && (
+                <div className="flex items-end">
+                  <button
+                    onClick={() => setSelectedStudent(null)}
+                    className="w-full h-10 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-sm"
+                  >
+                    Toon Alle Leerlingen
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Navigation Tabs */}
