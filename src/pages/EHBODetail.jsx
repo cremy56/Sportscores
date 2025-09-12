@@ -871,6 +871,7 @@ useEffect(() => {
   };
 
 const handleAnswer = (selectedOption, step) => {
+  setTimeRemaining(null);
   const newResults = {
     ...scenarioResults,
     [step.id]: {
@@ -889,7 +890,7 @@ const handleAnswer = (selectedOption, step) => {
 
     if (activeComplications.length > 0) {
       setShowComplication(activeComplications[0]);
-      return; // Pause for complication
+      return;
     }
   }
 
@@ -903,7 +904,7 @@ const handleAnswer = (selectedOption, step) => {
         effectiveness: selectedOption.correct ? 
           Math.min(100, prev.resources.effectiveness + 5) :
           Math.max(0, prev.resources.effectiveness - 10),
-        time: Math.max(0, prev.resources.time - 2) // Tijd loopt langzaam af
+        time: Math.max(0, prev.resources.time - 2)
       }
     }));
   }

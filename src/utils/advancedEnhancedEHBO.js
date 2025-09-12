@@ -40,16 +40,20 @@ export const RoleBasedScenarios = {
     // Bepaal rol gebaseerd op gebruikersprofiel en scenario type
     const difficulty = userProfile.difficultyPreference || 'beginner';
     
-    if (difficulty === 'beginner') {
-      return Math.random() > 0.7 ? this.roles.bystander : this.roles.first_responder;
-    } else if (difficulty === 'intermediate') {
-      const options = [this.roles.first_responder, this.roles.bystander, this.roles.school_staff];
-      return options[Math.floor(Math.random() * options.length)];
-    } else {
-      // Advanced users get challenging roles
-      return Math.random() > 0.5 ? this.roles.family_member : this.roles.school_staff;
-    }
-  },
+    const random = Math.random();
+  
+  if (difficulty === 'beginner') {
+    return random > 0.6 ? this.roles.bystander : 
+           random > 0.3 ? this.roles.first_responder : this.roles.school_staff;
+  } else if (difficulty === 'intermediate') {
+    const options = [this.roles.first_responder, this.roles.bystander, this.roles.school_staff];
+    return options[Math.floor(Math.random() * options.length)];
+  } else {
+    // Advanced users get all roles including challenging ones
+    const allRoles = Object.values(this.roles);
+    return allRoles[Math.floor(Math.random() * allRoles.length)];
+  }
+},
 
   adaptScenarioForRole(scenario, role) {
     return {
