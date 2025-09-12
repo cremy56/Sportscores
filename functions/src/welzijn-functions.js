@@ -376,3 +376,209 @@ exports.updateDailyStreaks = onSchedule('0 1 * * *', async (event) => {
     throw error;
   }
 });
+// Add this debugging function to welzijn-functions.js
+exports.debugWelzijnData = onCall(async (request) => {
+  console.log('=== DEBUG WELZIJN FUNCTION START ===');
+  
+  if (!request.auth) {
+    console.log('ERROR: No authentication');
+    throw new Error('Authentication required');
+  }
+  
+  const userId = request.auth.uid;
+  console.log('User ID:', userId);
+  
+  try {
+    // Check user exists and has correct role
+    const userDoc = await db.collection('users').doc(userId).get();
+    console.log('User doc exists:', userDoc.exists);
+    
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      console.log('User role:', userData.rol);
+      console.log('User XP:', userData.xp);
+      console.log('User weekly_stats:', userData.weekly_stats);
+    }
+    
+    // Check welzijn data structure
+    const welzijnRef = db.collection('welzijn').doc(userId);
+    const welzijnDoc = await welzijnRef.get();
+    console.log('Welzijn doc exists:', welzijnDoc.exists);
+    
+    // Check recent dagelijkse_data
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayString = yesterday.toISOString().split('T')[0];
+    
+    const todayDataRef = welzijnRef.collection('dagelijkse_data').doc(today);
+    const yesterdayDataRef = welzijnRef.collection('dagelijkse_data').doc(yesterdayString);
+    
+    const [todayData, yesterdayData] = await Promise.all([
+      todayDataRef.get(),
+      yesterdayDataRef.get()
+    ]);
+    
+    console.log('Today data exists:', todayData.exists);
+    console.log('Yesterday data exists:', yesterdayData.exists);
+    
+    if (todayData.exists) {
+      console.log('Today data:', todayData.data());
+    }
+    
+    return {
+      success: true,
+      userId: userId,
+      userExists: userDoc.exists,
+      userRole: userDoc.exists ? userDoc.data().rol : null,
+      welzijnExists: welzijnDoc.exists,
+      todayDataExists: todayData.exists,
+      yesterdayDataExists: yesterdayData.exists,
+      todayData: todayData.exists ? todayData.data() : null
+    };
+    
+  } catch (error) {
+    console.error('Debug function error:', error);
+    throw new Error(`Debug failed: ${error.message}`);
+  }
+});
+
+// Add error handling to existing welzijn function
+exports.onWelzijnKompasUpdatedFixed = onDocumentUpdated('welzijn/{userId}/dagelijkse_data/{dateString}', async (event) => {
+  const userId = event.params.userId;
+  const dateString = event.params.dateString;
+  
+  console.log(`=== WELZIJN UPDATE: ${userId} on ${dateString} ===`);
+  
+  try {
+    const beforeData = event.data.before.data() || {};
+    const afterData = event.data.after.data() || {};
+    
+    console.log('Before data:', beforeData);
+    console.log('After data:', afterData);
+    
+    const newlyCompletedSegments = [];
+    if (((afterData.stappen || 0) > 0) && !((beforeData.stappen || 0) > 0)) newlyCompletedSegments.push('beweging');
+    if (((afterData.water_intake || 0) > 0) && !((beforeData.water_intake || 0) > 0)) newlyCompletedSegments.push('voeding');
+    if (((afterData.slaap_uren || 0) > 0) && !((beforeData.slaap_uren || 0) > 0)) newlyCompletedSegments.push('slaap');
+    if (afterData.humeur && !beforeData.humeur) newlyCompletedSegments.push('mentaal');
+    if (((afterData.hartslag_rust || 0) > 0) && !((beforeData.hartslag_rust || 0) > 0)) newlyCompletedSegments.push('hart');
+
+    console.log('Newly completed segments:', newlyCompletedSegments);
+
+    if (newlyCompletedSegments.length > 0) {
+      await awardWelzijnXPFixed(userId, newlyCompletedSegments, dateString);
+    }
+
+    await checkKompasCompletionBonusFixed(userId, afterData, dateString);
+    
+    console.log('=== WELZIJN UPDATE COMPLETED SUCCESSFULLY ===');
+    
+  } catch (error) {
+    console.error('ERROR in welzijn update:', error);
+    // Don't throw - let the function complete to avoid retries
+  }
+});
+
+// Fixed version with better error handling
+async function awardWelzijnXPFixed(userId, completedSegments, dateString) {
+  console.log(`Awarding XP to ${userId} for segments:`, completedSegments);
+  
+  try {
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+
+    if (!userDoc.exists) {
+      console.error(`User ${userId} not found in users collection`);
+      return;
+    }
+    
+    const userData = userDoc.data();
+    
+    if (userData.rol !== 'leerling') {
+      console.log(`User ${userId} is not a student, skipping XP award`);
+      return;
+    }
+
+    const xpPerSegment = 4;
+    const totalXP = completedSegments.length * xpPerSegment;
+    const currentXP = userData.xp || 0;
+    const newXP = currentXP + totalXP;
+
+    console.log(`Updating XP: ${currentXP} + ${totalXP} = ${newXP}`);
+
+    await userRef.update({
+      xp: newXP,
+      sparks: Math.floor(newXP / 100),
+      last_activity: FieldValue.serverTimestamp()
+    });
+
+    // Log transaction with error handling
+    try {
+      await logXPTransaction({
+        user_id: userId,
+        user_email: userData.email,
+        amount: totalXP,
+        reason: 'welzijn_segment_completion',
+        source_id: `welzijn_${dateString}`,
+        balance_after: { xp: newXP, sparks: Math.floor(newXP / 100) },
+        metadata: { completed_segments: completedSegments }
+      });
+    } catch (logError) {
+      console.error('Failed to log XP transaction:', logError);
+      // Continue execution even if logging fails
+    }
+
+    console.log(`Successfully awarded ${totalXP} XP to ${userId}`);
+    
+  } catch (error) {
+    console.error(`Error awarding welzijn XP to ${userId}:`, error);
+    throw error;
+  }
+}
+
+async function checkKompasCompletionBonusFixed(userId, dayData, dateString) {
+  console.log(`Checking kompas completion for ${userId} on ${dateString}`);
+  
+  try {
+    const isKompasComplete = (dayData.stappen || 0) > 0 && 
+                           (dayData.water_intake || 0) > 0 && 
+                           (dayData.slaap_uren || 0) > 0 && 
+                           dayData.humeur && 
+                           (dayData.hartslag_rust || 0) > 0;
+
+    console.log('Kompas complete:', isKompasComplete);
+    console.log('Bonus already awarded:', dayData.completion_bonus_awarded);
+
+    if (isKompasComplete && !dayData.completion_bonus_awarded) {
+      const userRef = db.collection('users').doc(userId);
+      const userDoc = await userRef.get();
+
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        const bonusXP = 10;
+        const currentXP = userData.xp || 0;
+        const newXP = currentXP + bonusXP;
+        const weeklyStats = userData.weekly_stats || { kompas_days: 0, trainingen: 0 };
+        const updatedWeeklyStats = { ...weeklyStats, kompas_days: (weeklyStats.kompas_days || 0) + 1 };
+
+        await userRef.update({
+          xp: newXP,
+          sparks: Math.floor(newXP / 100),
+          weekly_stats: updatedWeeklyStats
+        });
+
+        const dayRef = db.collection('welzijn').doc(userId).collection('dagelijkse_data').doc(dateString);
+        await dayRef.update({
+          completion_bonus_awarded: true,
+          completion_bonus_xp: bonusXP
+        });
+
+        console.log(`Awarded completion bonus of ${bonusXP} XP to ${userId}`);
+      }
+    }
+  } catch (error) {
+    console.error(`Error checking kompas completion for ${userId}:`, error);
+    throw error;
+  }
+}

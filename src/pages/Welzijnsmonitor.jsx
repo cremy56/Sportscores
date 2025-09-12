@@ -27,28 +27,127 @@ const Welzijnsmonitor = () => {
       loadEHBOStats();
     }
   }, [profile]);
-
-  const loadEHBOStats = async () => {
-    setLoading(true);
-    try {
-      const getClassEHBOStats = httpsCallable(functions, 'getClassEHBOStats');
-      const result = await getClassEHBOStats({
-        schoolId: profile.school_id,
-        classId: profile.klas || 'all'
-      });
-      
-      if (result.data.success) {
-        setClassStats(result.data.classStats);
-        setStudents(result.data.students);
-      }
-    } catch (error) {
-      console.error('Error loading EHBO stats:', error);
-      setError('Kon EHBO statistieken niet laden');
-    } finally {
+useEffect(() => {
+  let retryCount = 0;
+  const maxRetries = 3;
+  
+  const loadWithRetry = async () => {
+    if (!profile?.school_id || !['leerkracht', 'administrator'].includes(profile.rol)) {
       setLoading(false);
+      return;
+    }
+    
+    try {
+      await loadEHBOStats();
+    } catch (error) {
+      if (retryCount < maxRetries) {
+        retryCount++;
+        console.log(`Retrying EHBO stats load (attempt ${retryCount}/${maxRetries})`);
+        setTimeout(loadWithRetry, 2000 * retryCount); // Exponential backoff
+      }
     }
   };
+  
+  loadWithRetry();
+}, [profile]);
 
+ const loadEHBOStats = async () => {
+  setLoading(true);
+  setError(null); // Clear any previous errors
+  
+  // Set up timeout
+  const timeoutId = setTimeout(() => {
+    setLoading(false);
+    setError('Het laden van de gegevens duurt te lang. Probeer het later opnieuw.');
+    console.error('EHBO stats loading timeout after 30 seconds');
+  }, 30000); // 30 second timeout
+  
+  try {
+    console.log('Starting EHBO stats load for school:', profile.school_id);
+    
+    const getClassEHBOStats = httpsCallable(functions, 'getClassEHBOStats');
+    
+    // Add timeout to the Firebase call itself
+    const result = await Promise.race([
+      getClassEHBOStats({
+        schoolId: profile.school_id,
+        classId: profile.klas || 'all'
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Firebase function timeout')), 25000)
+      )
+    ]);
+    
+    // Clear timeout since we got a response
+    clearTimeout(timeoutId);
+    
+    console.log('EHBO stats result:', result.data);
+    
+    if (result.data && result.data.success) {
+      setClassStats(result.data.classStats);
+      setStudents(result.data.students || []);
+      console.log('Successfully loaded EHBO stats');
+    } else {
+      throw new Error(result.data?.error || 'Onbekende fout bij laden van statistieken');
+    }
+    
+  } catch (error) {
+    console.error('Error loading EHBO stats:', error);
+    clearTimeout(timeoutId);
+    
+    // Set specific error messages based on error type
+    if (error.code === 'functions/unauthenticated') {
+      setError('U bent niet geautoriseerd. Log opnieuw in.');
+    } else if (error.code === 'functions/permission-denied') {
+      setError('Geen toegang tot deze gegevens. Controleer uw rechten.');
+    } else if (error.code === 'functions/not-found') {
+      setError('De functie kon niet worden gevonden. Contacteer de administrator.');
+    } else if (error.message.includes('timeout')) {
+      setError('De verbinding is verlopen. Controleer uw internetverbinding en probeer opnieuw.');
+    } else {
+      setError(`Fout bij laden: ${error.message || 'Onbekende fout'}`);
+    }
+    
+  } finally {
+    setLoading(false);
+  }
+};
+const debugLoadEHBO = async () => {
+  console.log('=== DEBUG EHBO LOAD ===');
+  console.log('Profile:', profile);
+  console.log('School ID:', profile?.school_id);
+  console.log('Role:', profile?.rol);
+  console.log('Class:', profile?.klas);
+  
+  try {
+    // Test if functions are available
+    console.log('Functions object:', functions);
+    
+    // Try a simple function call first
+    const testFunction = httpsCallable(functions, 'getClassEHBOStats');
+    console.log('Function callable created');
+    
+    const result = await testFunction({
+      schoolId: profile.school_id,
+      classId: 'all'
+    });
+    
+    console.log('Function result:', result);
+    
+  } catch (error) {
+    console.error('Debug error:', error);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+  }
+};
+
+// Add this button temporarily to your JSX for debugging:
+<button
+  onClick={debugLoadEHBO}
+  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+>
+  Debug EHBO Load
+</button>
   // EHBO Dashboard Component
   const EHBODashboard = () => {
     if (loading) {

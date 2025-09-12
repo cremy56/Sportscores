@@ -2,6 +2,67 @@ const {onCall} = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const {FieldValue} = require('firebase-admin/firestore');
 const db = admin.firestore();
+const { logXPTransaction } = require('./utils');
+
+// Scenario to Objective Mapping (in memory, geen database)
+const EHBO_OBJECTIVES = {
+  "obj_001": {
+    id: "obj_001",
+    title: "Veiligheid beoordelen",
+    description: "Kan situatie veilig inschatten en prioriteiten stellen",
+    required_scenarios: ["bewusteloos", "brand", "bloeding"],
+    required_score: 75,
+    weight: 1
+  },
+  "obj_002": {
+    id: "obj_002", 
+    title: "Bewustzijn & vitale functies",
+    description: "Kan bewustzijn en ademhaling correct beoordelen",
+    required_scenarios: ["bewusteloos", "epilepsie", "ademstilstand"],
+    required_score: 80,
+    weight: 2 // Verhoogd omdat vitale functies cruciaal zijn
+  },
+  "obj_003": {
+    id: "obj_003",
+    title: "Hulpdiensten inschakelen",
+    description: "Weet wanneer en hoe 112 te bellen", 
+    required_scenarios: ["communicatie_hulpdiensten", "hartaanval", "anafylaxie"],
+    required_score: 90,
+    weight: 2 // Belangrijk voor alle noodsituaties
+  },
+  "obj_004": {
+    id: "obj_004",
+    title: "Reanimatie & AED",
+    description: "Kan reanimatie en AED correct toepassen",
+    required_scenarios: ["reanimatie", "aed_gebruik", "verdrinking"],
+    required_score: 85,
+    weight: 3 // Hoogste gewicht - levensreddend
+  },
+  "obj_005": {
+    id: "obj_005",
+    title: "Eerste hulp basis",
+    description: "Kan basale eerste hulp en wondverzorging",
+    required_scenarios: ["verstuiking", "bloedneus", "wondverzorging"],
+    required_score: 70,
+    weight: 1
+  },
+  "obj_006": {
+    id: "obj_006",
+    title: "Verslikking & brandwonden",
+    description: "Kan omgaan met verslikking en brandwonden",
+    required_scenarios: ["choking", "brand"], // Gecorrigeerd: "brand" ipv "brandwond"
+    required_score: 80,
+    weight: 2
+  },
+  "obj_007": {
+    id: "obj_007",
+    title: "Complexe noodsituaties",
+    description: "Kan omgaan met hartproblemen en ernstige allergieën",
+    required_scenarios: ["hartaanval", "anafylaxie"],
+    required_score: 85,
+    weight: 2
+  }
+};
 // EHBO scenario XP
 exports.awardEHBOXP = onCall(async (request) => {
   
@@ -304,65 +365,7 @@ exports.getSchoolEHBOStats = onCall(async (request) => {
   }
 });
 
-// Scenario to Objective Mapping (in memory, geen database)
-const EHBO_OBJECTIVES = {
-  "obj_001": {
-    id: "obj_001",
-    title: "Veiligheid beoordelen",
-    description: "Kan situatie veilig inschatten en prioriteiten stellen",
-    required_scenarios: ["bewusteloos", "brand", "bloeding"],
-    required_score: 75,
-    weight: 1
-  },
-  "obj_002": {
-    id: "obj_002", 
-    title: "Bewustzijn & vitale functies",
-    description: "Kan bewustzijn en ademhaling correct beoordelen",
-    required_scenarios: ["bewusteloos", "epilepsie", "ademstilstand"],
-    required_score: 80,
-    weight: 2 // Verhoogd omdat vitale functies cruciaal zijn
-  },
-  "obj_003": {
-    id: "obj_003",
-    title: "Hulpdiensten inschakelen",
-    description: "Weet wanneer en hoe 112 te bellen", 
-    required_scenarios: ["communicatie_hulpdiensten", "hartaanval", "anafylaxie"],
-    required_score: 90,
-    weight: 2 // Belangrijk voor alle noodsituaties
-  },
-  "obj_004": {
-    id: "obj_004",
-    title: "Reanimatie & AED",
-    description: "Kan reanimatie en AED correct toepassen",
-    required_scenarios: ["reanimatie", "aed_gebruik", "verdrinking"],
-    required_score: 85,
-    weight: 3 // Hoogste gewicht - levensreddend
-  },
-  "obj_005": {
-    id: "obj_005",
-    title: "Eerste hulp basis",
-    description: "Kan basale eerste hulp en wondverzorging",
-    required_scenarios: ["verstuiking", "bloedneus", "wondverzorging"],
-    required_score: 70,
-    weight: 1
-  },
-  "obj_006": {
-    id: "obj_006",
-    title: "Verslikking & brandwonden",
-    description: "Kan omgaan met verslikking en brandwonden",
-    required_scenarios: ["choking", "brand"], // Gecorrigeerd: "brand" ipv "brandwond"
-    required_score: 80,
-    weight: 2
-  },
-  "obj_007": {
-    id: "obj_007",
-    title: "Complexe noodsituaties",
-    description: "Kan omgaan met hartproblemen en ernstige allergieën",
-    required_scenarios: ["hartaanval", "anafylaxie"],
-    required_score: 85,
-    weight: 2
-  }
-};
+
 // Helper function: Calculate objectives from scenario data
 function calculateEHBOObjectives(userScenarios, scenarioScores) {
   const objectives = {};
