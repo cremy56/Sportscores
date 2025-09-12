@@ -1,4 +1,5 @@
-const {onCall, onDocumentUpdated} = require('firebase-functions/v2/https');
+const {onCall} = require('firebase-functions/v2/https');
+const {onDocumentUpdated} = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const {FieldValue} = require('firebase-admin/firestore');
 const db = admin.firestore();

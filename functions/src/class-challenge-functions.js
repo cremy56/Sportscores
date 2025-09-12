@@ -1,4 +1,5 @@
-const {onCall, onSchedule} = require('firebase-functions/v2/https');
+const {onCall} = require('firebase-functions/v2/https');
+const {onSchedule} = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
 const {FieldValue} = require('firebase-admin/firestore');
 const db = admin.firestore();
