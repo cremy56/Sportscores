@@ -187,14 +187,3 @@ async function checkStreakMilestonesInternal(userId) {
     console.error('Error checking streak milestones:', error);
   }
 }
-module.exports = {
-  getWeekStart,
-  getWeekEnd,
-  getWeekNumber,
-  getTodayString,
-  calculateAge,
-  logXPTransaction,
-  updateClassChallengeProgressInternal,
-  checkStreakMilestonesInternal,
-  getPositionInArray
-};

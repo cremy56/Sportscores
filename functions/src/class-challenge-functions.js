@@ -200,7 +200,3 @@ async function awardClassChallengeReward(userId, xpAmount, challengeData) {
     console.error('Error awarding class challenge reward:', error);
   }
 }
-module.exports = {
-  createWeeklyClassChallenge,
-  updateClassChallengeProgress
-};

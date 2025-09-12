@@ -190,8 +190,3 @@ exports.onUserRegistration = onCall(async (request) => {
     throw error;
   }
 });
-module.exports = {
-  onUserNameChange,
-  checkDataConsistency,
-  onUserRegistration
-};

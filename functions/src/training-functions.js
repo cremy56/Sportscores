@@ -417,9 +417,3 @@ exports.checkRetroactiveTrainingRewards = onCall(async (request) => {
     throw error;
   }
 });
-module.exports = {
-  onTrainingWeekValidated,
-  manualAwardTrainingXP,
-  checkTrainingProgramCompletion,
-  checkRetroactiveTrainingRewards
-};

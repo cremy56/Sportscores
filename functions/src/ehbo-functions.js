@@ -436,9 +436,3 @@ function getStudentRecommendation(studentStats) {
   }
   return "Regelmatige oefening aanmoedigen";
 }
-module.exports = {
-  awardEHBOXP,
-  saveEHBOProgress,
-  getClassEHBOStats,
-  getSchoolEHBOStats
-};

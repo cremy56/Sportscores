@@ -374,11 +374,3 @@ exports.updateDailyStreaks = onSchedule('0 1 * * *', async (event) => {
     throw error;
   }
 });
-module.exports = {
-  onWelzijnKompasUpdated,
-  manualAwardWelzijnXP,
-  testWelzijnXP,
-  checkWeeklyBonuses,
-  checkStreakMilestones,
-  updateDailyStreaks
-};

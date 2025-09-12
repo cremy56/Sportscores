@@ -627,8 +627,3 @@ async function logLeaderboardAchievement(achievementData) {
     console.error('Error logging leaderboard achievement:', error);
   }
 }
-module.exports = {
-  awardTestParticipationXP,
-  onScoreUpdated,
-  checkLeaderboardPositions
-};

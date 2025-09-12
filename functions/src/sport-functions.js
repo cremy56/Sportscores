@@ -279,6 +279,3 @@ function formatNewsTitle(title) {
 
   return formatted;
 }
-module.exports = {
-  getSportNews
-};
