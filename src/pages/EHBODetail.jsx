@@ -121,7 +121,10 @@ const [chainProgress, setChainProgress] = useState(null);
         {
           id: '1_consequence',
           question: 'Je bent te snel naar het slachtoffer gegaan. In je haast struikel je over een losliggende kabel en val je zelf. De situatie is nu complexer. Wat had je moeten doen?',
-          options: [ { id: 'a', text: 'Eerst de omgeving controleren op gevaren', correct: true, feedback: 'Precies. Laten we opnieuw beginnen, met veiligheid als prioriteit.', nextStepId: 2 } ],
+         options: [
+            { id: 'a', text: 'Eerst de omgeving controleren op gevaren', correct: true, feedback: 'Precies. Laten we opnieuw beginnen, met veiligheid als prioriteit.', nextStepId: 2 },
+            { id: 'b', text: 'Meteen 112 bellen', correct: false, feedback: 'Hoewel belangrijk, is het inschatten van direct gevaar voor jezelf nog belangrijker.', nextStepId: 2 }
+          ],
           timeLimit: 10,
           explanation: 'Een onveilige omgeving kan van één slachtoffer twee maken. Controleer altijd eerst op gevaren.'
         },
@@ -139,7 +142,10 @@ const [chainProgress, setChainProgress] = useState(null);
         {
           id: '2_consequence',
           question: 'Je bent onnodig met hartmassage begonnen. Het slachtoffer kreunt en reageert met pijn. Je hebt een cruciale stap overgeslagen. Wat doe je nu om je fout te herstellen?',
-          options: [ { id: 'a', text: 'Stoppen en de ademhaling opnieuw controleren', correct: true, feedback: 'Correct. Herken je fout en ga terug naar de basis: controleer de vitale functies.', nextStepId: 3 } ],
+          options: [
+              { id: 'a', text: 'Stoppen en de ademhaling opnieuw controleren', correct: true, feedback: 'Correct. Herken je fout en ga terug naar de basis.', nextStepId: 3 },
+              { id: 'b', text: 'Doorgaan, het kreunen kan een reflex zijn', correct: false, feedback: 'Fout, een reactie op pijn is een duidelijk teken dat het hart klopt.', nextStepId: 3 }
+          ],
           timeLimit: 15,
           explanation: 'Een fout maken kan gebeuren. Het is cruciaal om de fout te herkennen, te stoppen en de juiste procedure te hervatten.'
         },
@@ -156,8 +162,11 @@ const [chainProgress, setChainProgress] = useState(null);
         {
             id: '3b_consequence',
             question: 'Terwijl je aan de telefoon bent met 112, hoor je een rochelend geluid. De luchtweg van het slachtoffer is geblokkeerd door de tong. Wat had je moeten doen om dit te voorkomen?',
-            options: [ { id: 'a', text: 'De persoon in stabiele zijligging leggen', correct: true, feedback: 'Inderdaad. Deze houding houdt de luchtweg vrij. Laten we het scenario afronden.', nextStepId: null } ],
-            timeLimit: 10,
+           options: [
+              { id: 'a', text: 'De persoon in stabiele zijligging leggen', correct: true, feedback: 'Inderdaad. Deze houding houdt de luchtweg vrij.', nextStepId: null },
+              { id: 'b', text: 'Het hoofd verder naar achteren kantelen', correct: false, feedback: 'Dit helpt niet als de persoon op zijn rug ligt en kan de blokkade verergeren.', nextStepId: null }
+            ],           
+             timeLimit: 10,
             explanation: 'De stabiele zijligging is een cruciale, levensreddende handeling bij een bewusteloos slachtoffer dat nog ademt.'
         }
       ]
@@ -185,7 +194,10 @@ const [chainProgress, setChainProgress] = useState(null);
         {
           id: '1_consequence',
           question: 'Je geeft water, maar het slachtoffer verslikt zich nog erger en begint in paniek te raken. Het water blokkeert de luchtweg verder. Wat had je moeten doen?',
-          options: [ { id: 'a', text: '5 klappen tussen de schouderbladen geven', correct: true, feedback: 'Juist, dat is de eerste stap.', nextStepId: 2 } ],
+          options: [
+            { id: 'a', text: '5 klappen tussen de schouderbladen geven', correct: true, feedback: 'Juist, dat is de eerste stap.', nextStepId: 2 },
+            { id: 'b', text: 'De persoon laten hoesten', correct: false, feedback: 'Bij een totale verslikking kan het slachtoffer niet meer hoesten.', nextStepId: 2 }
+          ],
           timeLimit: 10,
           explanation: 'Geef nooit drinken bij een verslikking. De eerste stap is altijd rugklappen.'
         },
@@ -202,7 +214,10 @@ const [chainProgress, setChainProgress] = useState(null);
         {
             id: '2_consequence',
             question: 'Je past de Heimlich manoeuvre toe, maar het protocol schrijft voor om eerst met de minder ingrijpende techniek te beginnen. Welke techniek is dat?',
-            options: [ { id: 'a', text: 'Rugklappen', correct: true, feedback: 'Inderdaad. Hoewel je keuze effectief kan zijn, volgen we de richtlijnen.', nextStepId: 3 } ],
+            options: [
+            { id: 'a', text: 'Rugklappen', correct: true, feedback: 'Inderdaad. Hoewel je keuze effectief kan zijn, volgen we de richtlijnen.', nextStepId: 3 },
+            { id: 'b', text: 'Niets, de Heimlich manoeuvre is altijd de beste keuze', correct: false, feedback: 'Fout, de richtlijnen schrijven voor om met de minst ingrijpende techniek te beginnen.', nextStepId: 3 }
+          ],
             timeLimit: 10,
             explanation: 'De officiële richtlijn is: eerst 5 rugklappen, en als dat niet werkt, dan pas 5 buikstoten (Heimlich).'
         },
@@ -219,7 +234,10 @@ const [chainProgress, setChainProgress] = useState(null);
         {
             id: '3_consequence',
             question: 'Je blijft rugklappen geven zonder succes. De persoon verliest het bewustzijn en zakt op de grond. Wat doe je nu?',
-            options: [ { id: 'a', text: 'Start de reanimatie en bel 112', correct: true, feedback: 'Correct. Een bewusteloos slachtoffer met geblokkeerde luchtweg behandel je als een reanimatie.', nextStepId: null } ],
+            options: [
+              { id: 'a', text: 'Start de reanimatie en bel 112', correct: true, feedback: 'Correct. Een bewusteloos slachtoffer met geblokkeerde luchtweg behandel je als een reanimatie.', nextStepId: null },
+              { id: 'b', text: 'Proberen het voorwerp uit de keel te halen met je vingers', correct: false, feedback: 'Gevaarlijk! Je kunt het voorwerp dieper duwen en de keel beschadigen.', nextStepId: null }
+            ],
             timeLimit: 10,
             explanation: 'Als een slachtoffer van verslikking het bewustzijn verliest, alarmeer je onmiddellijk 112 en start je de reanimatie.'
         }
@@ -250,7 +268,8 @@ const [chainProgress, setChainProgress] = useState(null);
           id: '1_consequence',
           question: 'Je stelt de persoon gerust en zegt dat het stress is. Na enkele minuten wordt de pijn erger en wordt de persoon lijkbleek. Tijd is cruciaal bij een hartaanval. Wat had je moeten herkennen?',
           options: [
-            { id: 'a', text: 'De combinatie van symptomen als een noodgeval', correct: true, feedback: 'Precies. Bij twijfel, behandel het altijd als het ergste scenario.', nextStepId: 2 }
+            { id: 'a', text: 'De combinatie van symptomen als een noodgeval behandelen', correct: true, feedback: 'Precies. Bij twijfel, behandel het altijd als het ergste scenario.', nextStepId: 2 },
+            { id: 'b', text: 'Een pijnstiller geven en afwachten', correct: false, feedback: 'Dit maskeert de symptomen en verspilt kostbare tijd.', nextStepId: 2 }
           ],
           timeLimit: 10,
           explanation: 'Bij een hartaanval telt elke minuut. Het verkeerd inschatten van de symptomen kan leiden tot onherstelbare schade aan de hartspier.'
@@ -271,7 +290,8 @@ const [chainProgress, setChainProgress] = useState(null);
             id: '2_consequence',
             question: 'Je moedigt de persoon aan te wandelen \'om het los te maken\'. Na een paar stappen zakt hij in elkaar en verliest het bewustzijn. De inspanning was te veel voor het hart. Wat had je absoluut moeten doen?',
             options: [
-              { id: 'a', text: '112 bellen en de persoon in rust houden', correct: true, feedback: 'Inderdaad. Rust is essentieel om het hart niet verder te belasten.', nextStepId: 3 }
+              { id: 'a', text: '112 bellen en de persoon in rust houden', correct: true, feedback: 'Inderdaad. Rust is essentieel om het hart niet verder te belasten.', nextStepId: 3 },
+              { id: 'b', text: 'De persoon snel naar de dichtstbijzijnde stoel helpen', correct: false, feedback: 'Elke inspanning, hoe klein ook, is een extra last voor het hart.', nextStepId: 3 }
             ],
             timeLimit: 10,
             explanation: 'Elke vorm van fysieke inspanning moet vermeden worden tijdens een hartaanval.'
@@ -292,7 +312,8 @@ const [chainProgress, setChainProgress] = useState(null);
             id: '3_consequence',
             question: 'Je legt de persoon plat met de benen omhoog. Hij begint te kreunen en zegt dat hij moeilijk kan ademen en meer druk op de borst voelt. Welke houding ontlast het hart wél?',
             options: [
-              { id: 'a', text: 'Half rechtop zitten met gebogen knieën', correct: true, feedback: 'Correct, deze houding vermindert de druk op het hart.', nextStepId: null }
+              { id: 'a', text: 'Half rechtop zitten met gebogen knieën', correct: true, feedback: 'Correct, deze houding vermindert de druk op het hart.', nextStepId: null },
+              { id: 'b', text: 'De persoon plat op de buik leggen', correct: false, feedback: 'Dit bemoeilijkt de ademhaling en is geen comfortabele houding.', nextStepId: null }
             ],
             timeLimit: 12,
             explanation: 'Plat liggen kan bij hartproblemen de ademhaling bemoeilijken. Een halfzittende houding is altijd beter.'
@@ -325,7 +346,8 @@ const [chainProgress, setChainProgress] = useState(null);
           id: '1_consequence',
           question: 'Je oefent druk uit met je blote handen en stopt de bloeding, maar je handen zitten vol bloed. Je hebt jezelf nu blootgesteld aan mogelijke infectieziekten. Wat had je absoluut eerst moeten doen?',
           options: [
-            { id: 'a', text: 'Handschoenen aantrekken', correct: true, feedback: 'Precies. Laten we verdergaan alsof je dat gedaan hebt.', nextStepId: 2 }
+            { id: 'a', text: 'Handschoenen aantrekken', correct: true, feedback: 'Precies. Laten we verdergaan alsof je dat gedaan hebt.', nextStepId: 2 },
+            { id: 'b', text: 'Je handen wassen na het helpen', correct: false, feedback: 'Hoewel belangrijk, is het voorkomen van contact de eerste stap.', nextStepId: 2 }
           ],
           timeLimit: 10,
           explanation: 'Zelfs in een noodgeval is je eigen veiligheid cruciaal. Gebruik handschoenen of, indien niet beschikbaar, een plastic zak als barrière.'
@@ -345,7 +367,8 @@ const [chainProgress, setChainProgress] = useState(null);
           id: '2_consequence',
           question: 'Je legt een knelverband aan. Dit stopt de bloedtoevoer volledig en kan tot permanent letsel of amputatie leiden als het niet correct wordt gebruikt. Wat is de standaard eerstehulptechniek die je had moeten toepassen?',
           options: [
-            { id: 'a', text: 'Directe druk uitoefenen op de wond', correct: true, feedback: 'Inderdaad, dat is de juiste eerste stap.', nextStepId: 3 }
+            { id: 'a', text: 'Directe druk uitoefenen op de wond', correct: true, feedback: 'Inderdaad, dat is de juiste eerste stap.', nextStepId: 3 },
+            { id: 'b', text: 'Een riem gebruiken als knelverband', correct: false, feedback: 'Improviseren is goed, maar een tourniquet is een laatste redmiddel, niet de eerste stap.', nextStepId: 3 }
           ],
           timeLimit: 12,
           explanation: 'Een tourniquet is een laatste redmiddel. Begin altijd met directe druk, tenzij de situatie catastrofaal is (bv. afgerukte ledemaat).'
@@ -365,7 +388,8 @@ const [chainProgress, setChainProgress] = useState(null);
           id: '3_consequence',
           question: 'Je haalt het verband weg. De beginnende bloedstolling scheurt open en de wond begint nog heviger te bloeden. Je hebt de situatie verergerd. Wat had je moeten doen met het eerste verband?',
           options: [
-            { id: 'a', text: 'Het eerste verband laten zitten en er een nieuw overheen leggen', correct: true, feedback: 'Juist. Dit is een cruciale regel bij wondzorg.', nextStepId: null }
+            { id: 'a', text: 'Het eerste verband laten zitten en er een nieuw overheen leggen', correct: true, feedback: 'Juist. Dit is een cruciale regel bij wondzorg.', nextStepId: null },
+            { id: 'b', text: 'Het verband vervangen door een schone handdoek', correct: false, feedback: 'Ook hierbij verstoor je de beginnende stolling. Niet verwijderen!', nextStepId: null }
           ],
           timeLimit: 10,
           explanation: 'Het eerste verband fungeert als een basis voor de bloedstolling. Verwijder het nooit.'
@@ -397,7 +421,8 @@ const [chainProgress, setChainProgress] = useState(null);
           id: '1_consequence',
           question: 'Je bent 2 minuten aan het reanimeren, maar er is geen hulp onderweg omdat niemand 112 heeft gebeld. Je bent uitgeput en alleen. Wat had je als allereerste moeten doen?',
           options: [
-            { id: 'a', text: 'De hulpdiensten alarmeren', correct: true, feedback: 'Inderdaad. Zelfs de beste reanimatie is een overbrugging naar professionele hulp.', nextStepId: 2 }
+            { id: 'a', text: 'De hulpdiensten alarmeren (112)', correct: true, feedback: 'Inderdaad. Zelfs de beste reanimatie is een overbrugging naar professionele hulp.', nextStepId: 2 },
+            { id: 'b', text: 'Eerst een AED zoeken voordat je belt', correct: false, feedback: 'De operator van 112 kan je vertellen waar de dichtstbijzijnde AED is. Eerst bellen!', nextStepId: 2 }
           ],
           timeLimit: 10,
           explanation: 'Zonder 112 te bellen, komt er geen ambulance. Alarmeren is een levensreddende stap.'
@@ -418,7 +443,8 @@ const [chainProgress, setChainProgress] = useState(null);
           id: '2_consequence',
           question: 'Je duwt zacht op de borstkas. De compressies zijn te oppervlakkig om het bloed effectief naar de hersenen te pompen. De persoon blijft levenloos. Hoe diep moet je duwen bij een volwassene?',
           options: [
-            { id: 'a', text: 'Ongeveer 5 tot 6 centimeter diep', correct: true, feedback: 'Correct. Wees niet bang om kracht te gebruiken, het is levensnoodzakelijk.', nextStepId: 3 }
+            { id: 'a', text: 'Ongeveer 5 tot 6 centimeter diep', correct: true, feedback: 'Correct. Wees niet bang om kracht te gebruiken, het is levensnoodzakelijk.', nextStepId: 3 },
+            { id: 'b', text: 'Net hard genoeg om de borstkas te zien bewegen', correct: false, feedback: 'Dit is te ondiep. Een diepte van 5-6 cm is de richtlijn voor effectieve compressies.', nextStepId: 3 }
           ],
           timeLimit: 12,
           explanation: 'Ondiepe compressies zijn ineffectief. Een diepte van 5-6 cm is nodig om het hart voldoende samen te drukken.'
@@ -438,7 +464,8 @@ const [chainProgress, setChainProgress] = useState(null);
           id: '3_consequence',
           question: 'Je blaast te hard en ziet de maag van het slachtoffer opzwellen. Dit betekent dat er lucht in de maag komt, wat de kans op braken vergroot. Hoe geef je een effectieve beademing?',
           options: [
-            { id: 'a', text: 'Rustig blazen over 1 seconde, net tot de borstkas omhoog komt', correct: true, feedback: 'Precies. Het gaat om de techniek, niet om de kracht.', nextStepId: null }
+            { id: 'a', text: 'Rustig blazen over 1 seconde, net tot de borstkas omhoog komt', correct: true, feedback: 'Precies. Het gaat om de techniek, niet om de kracht.', nextStepId: null },
+            { id: 'b', text: 'Beademen en tegelijkertijd de pols controleren', correct: false, feedback: 'Focus op de cyclus van 30:2. Onderbreek zo min mogelijk.', nextStepId: null }
           ],
           timeLimit: 10,
           explanation: 'Te veel of te hard blazen is een veelgemaakte fout. Een rustige, beheerste beademing is effectiever en veiliger.'
@@ -495,7 +522,7 @@ const [chainProgress, setChainProgress] = useState(null);
             options: [
               { id: 'a', text: '112 bellen voor dringende medische hulp', correct: true, feedback: 'Correct. Alleen een snelle medische interventie kan deze reactie stoppen.', nextStepId: 3 },
               { id: 'b', text: 'Een koud washandje op het gezicht leggen', correct: false, feedback: 'Dit helpt niet tegen de interne zwelling en lage bloeddruk.', nextStepId: 3 },
-              { id: 'c', text: 'De persoon aanmoedigen om rustig te ademen', correct: false, feedback: 'Dit is onmogelijk als de luchtwegen fysiek aan het dichtzwellen zijn.', nextStepId: 3 }
+              { id: 'c', text: 'Een glas water aanbieden', correct: false, feedback: 'Dit helpt niet en kan gevaarlijk zijn bij zwelling in de keel.', nextStepId: 3 }
             ],
             timeLimit: 10,
             explanation: 'Antihistaminica zijn nuttig voor milde allergieën, maar bij anafylaxie is snellere en krachtigere medicatie (adrenaline) nodig.'
@@ -651,7 +678,10 @@ const [chainProgress, setChainProgress] = useState(null);
         {
             id: '2_consequence_neg',
             question: 'Je hebt correct geïdentificeerd wat je NIET moet doen. Laten we doorgaan naar de volgende fase: de aanval stopt. Wat is nu de juiste actie?',
-            options: [ { id: 'a', text: 'Ok, ga verder', correct: true, feedback: 'Goed begrepen.', nextStepId: 3 } ],
+            options: [
+              { id: 'a', text: 'Ok, ga verder', correct: true, feedback: 'Goed begrepen.', nextStepId: 3 },
+              { id: 'b', text: 'Ik begrijp het niet', correct: false, feedback: 'De regel is: nooit iets in de mond stoppen en bewegingen niet tegenhouden.', nextStepId: 3 }
+            ],
             timeLimit: 5,
             explanation: 'Het herkennen van foute handelingen is even belangrijk als het kennen van de juiste.'
         },
@@ -1371,7 +1401,6 @@ const handleAnswer = (selectedOption, step) => {
 };
 
 // Nieuwe functie voor volgende stap
-// in EHBODetail.jsx
 
   const goToNextStep = () => {
     setShowNextButton(false);
@@ -1735,33 +1764,31 @@ const handleRoleIntroComplete = () => {
                       </ul>
                     </div>
                   )}
-                  <div className="space-y-3">
+                 <div className="space-y-3">
                     {currentStepData.options.map(option => (
                       <button
                         key={option.id}
                         onClick={() => handleAnswer(option, currentStepData)}
                         disabled={selectedAnswer}
-                        className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                        className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
                           selectedAnswer
-                            ? selectedAnswer.id === option.id
+                            ? selectedAnswer.id === option.id // Is dit de gekozen optie?
                               ? option.correct
-                                ? 'border-green-500 bg-green-50 text-green-800'
-                                : 'border-red-500 bg-red-50 text-red-800'
-                              : option.correct
-                              ? 'border-green-500 bg-green-50 text-green-800'
-                              : 'border-gray-200 bg-gray-50 text-gray-500'
-                            : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50'
+                                ? 'border-green-500 bg-green-50 text-green-800 scale-105 shadow-lg' // Gekozen & correct
+                                : 'border-red-500 bg-red-50 text-red-800 scale-105 shadow-lg'   // Gekozen & incorrect
+                              : 'border-gray-200 bg-gray-50 text-gray-500 opacity-70' // Niet gekozen opties
+                            : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50' // Nog geen keuze gemaakt
                         }`}
                       >
                         <div className="flex items-center justify-between">
                           <span>{option.text}</span>
-                          {selectedAnswer && (
+                          {selectedAnswer && selectedAnswer.id === option.id && (
                             <div className="ml-4">
                               {option.correct ? (
-                                <CheckIcon className="w-5 h-5 text-green-600" />
-                              ) : selectedAnswer.id === option.id ? (
-                                <XMarkIcon className="w-5 h-5 text-red-600" />
-                              ) : null}
+                                <CheckIcon className="w-6 h-6 text-green-600" />
+                              ) : (
+                                <XMarkIcon className="w-6 h-6 text-red-600" />
+                              )}
                             </div>
                           )}
                         </div>
