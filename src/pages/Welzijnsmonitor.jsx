@@ -439,67 +439,346 @@ const loadUserGroups = async () => {
   };
 
   // Welzijn Dashboard Component (placeholder)
-  const WelzijnDashboard = () => {
+// Verbeterd Welzijn Dashboard Component
+const WelzijnDashboard = () => {
   if (loading) {
-    return <div className="text-center p-12">Laden van welzijn statistieken...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <span className="ml-3 text-gray-600">Laden van welzijn statistieken...</span>
+      </div>
+    );
   }
+  
   if (error) {
-    return <div className="text-center p-12 text-red-600">Fout: {error}</div>;
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-red-800 font-semibold">Fout bij laden welzijn data</h3>
+            <p className="text-red-700 mt-1">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
   }
+  
   if (!welzijnStats || !welzijnStats.groupStats) {
-    return <div className="text-center p-12 text-slate-500">Selecteer een groep of leerling om de data te zien.</div>;
+    return (
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-12 text-center">
+        <HeartIcon className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold text-blue-900 mb-2">Welzijn & Gezondheid Overzicht</h3>
+        <p className="text-blue-700">Selecteer een groep of leerling om welzijn statistieken te bekijken</p>
+      </div>
+    );
   }
 
   const { groupStats, studentData } = welzijnStats;
 
+  // Helper functie voor score kleuren
+  const getScoreColor = (score) => {
+    if (score >= 85) return 'text-emerald-600 bg-emerald-50 border-emerald-200';
+    if (score >= 70) return 'text-green-600 bg-green-50 border-green-200';
+    if (score >= 55) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    if (score >= 40) return 'text-orange-600 bg-orange-50 border-orange-200';
+    return 'text-red-600 bg-red-50 border-red-200';
+  };
+
+  // Helper functie voor activiteit kleuren
+  const getActivityColor = (percentage) => {
+    if (percentage >= 80) return 'text-emerald-600 bg-emerald-50';
+    if (percentage >= 60) return 'text-green-600 bg-green-50';
+    if (percentage >= 40) return 'text-yellow-600 bg-yellow-50';
+    return 'text-red-600 bg-red-50';
+  };
+
   return (
     <div className="space-y-8">
-      {/* KPI Kaarten */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border"><p className="text-sm text-slate-500">Gem. Welzijnsscore</p><p className="text-3xl font-bold">{groupStats.avgScore}%</p></div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border"><p className="text-sm text-slate-500">Actieve Deelname (7d)</p><p className="text-3xl font-bold">{groupStats.activeParticipation}%</p></div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border"><p className="text-sm text-slate-500">Gem. Slaap (30d)</p><p className="text-3xl font-bold">{groupStats.avgSleep}u</p></div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border"><p className="text-sm text-slate-500">Gem. Stappen (30d)</p><p className="text-3xl font-bold">{groupStats.avgSteps}</p></div>
-      </div>
-      
-      {/* Log Activiteit Kaart */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border">
-        <h3 className="font-bold text-lg mb-4">Log Activiteit</h3>
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div><p className="text-2xl font-bold">{Math.round(groupStats.avgLogs7Days * 7)}</p><p className="text-sm text-slate-500">Logs/week (gem.)</p></div>
-          <div><p className="text-2xl font-bold">{groupStats.avgLogs7Days}</p><p className="text-sm text-slate-500">Logs/dag (gem. 7d)</p></div>
-          <div><p className="text-2xl font-bold">{groupStats.avgLogs30Days}</p><p className="text-sm text-slate-500">Logs/dag (gem. 30d)</p></div>
+      {/* Header met groepsinfo */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Welzijn & Gezondheid Overzicht</h2>
+            <p className="text-blue-100">
+              {selectedStudent ? `Individuele analyse - ${selectedStudent.naam}` : 
+               selectedGroup !== 'all' ? `Groepsanalyse - ${selectedGroupName}` :
+               'Welzijn statistieken'}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-3xl font-bold">{groupStats.totalStudents}</p>
+            <p className="text-blue-100">Leerlingen</p>
+          </div>
         </div>
       </div>
-      
-      {/* Leerlingen Tabel */}
-      <div className="bg-white rounded-xl shadow-sm border">
-        <h3 className="font-bold text-lg p-6">Individuele Voortgang</h3>
+
+      {/* Hoofdstatistieken in kleurrijke kaarten */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Welzijnsscore */}
+        <div className={`p-6 rounded-xl border-2 ${getScoreColor(groupStats.avgScore)}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium opacity-80">Gem. Welzijnsscore</p>
+              <p className="text-3xl font-bold">{groupStats.avgScore}%</p>
+              <div className="mt-2 w-full bg-white bg-opacity-30 rounded-full h-2">
+                <div 
+                  className="h-2 rounded-full bg-current transition-all duration-300"
+                  style={{ width: `${groupStats.avgScore}%` }}
+                ></div>
+              </div>
+            </div>
+            <div className="p-3 bg-white bg-opacity-20 rounded-lg">
+              <ChartBarIcon className="h-8 w-8" />
+            </div>
+          </div>
+        </div>
+
+        {/* Actieve deelname */}
+        <div className={`p-6 rounded-xl border-2 ${getActivityColor(groupStats.activeParticipation)}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium opacity-80">Actieve Deelname (7d)</p>
+              <p className="text-3xl font-bold">{groupStats.activeParticipation}%</p>
+              <p className="text-sm opacity-70 mt-1">
+                {Math.round((groupStats.activeParticipation / 100) * groupStats.totalStudents)} van {groupStats.totalStudents} actief
+              </p>
+            </div>
+            <div className="p-3 bg-white bg-opacity-20 rounded-lg">
+              <UserGroupIcon className="h-8 w-8" />
+            </div>
+          </div>
+        </div>
+
+        {/* Slaap */}
+        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-xl text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-indigo-100">Gem. Slaap (30d)</p>
+              <p className="text-3xl font-bold">{groupStats.avgSleep}u</p>
+              <p className="text-sm text-indigo-200 mt-1">
+                {groupStats.avgSleep >= 8 ? 'Uitstekend' : 
+                 groupStats.avgSleep >= 7 ? 'Goed' : 
+                 groupStats.avgSleep >= 6 ? 'Voldoende' : 'Te weinig'}
+              </p>
+            </div>
+            <div className="p-3 bg-white bg-opacity-20 rounded-lg">
+              <ClockIcon className="h-8 w-8" />
+            </div>
+          </div>
+        </div>
+
+        {/* Stappen */}
+        <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-xl text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-100">Gem. Stappen (30d)</p>
+              <p className="text-3xl font-bold">{groupStats.avgSteps.toLocaleString()}</p>
+              <p className="text-sm text-green-200 mt-1">
+                {groupStats.avgSteps >= 10000 ? 'Uitstekend' : 
+                 groupStats.avgSteps >= 7500 ? 'Goed' : 
+                 groupStats.avgSteps >= 5000 ? 'Voldoende' : 'Te weinig'}
+              </p>
+            </div>
+            <div className="p-3 bg-white bg-opacity-20 rounded-lg">
+              <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Log Activiteit Overzicht */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-orange-500 to-red-500 p-6 text-white">
+          <h3 className="text-xl font-bold mb-2">Log Activiteit & Betrokkenheid</h3>
+          <p className="text-orange-100">Hoe actief zijn leerlingen met het bijhouden van hun welzijn?</p>
+        </div>
+        
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg border border-orange-200">
+              <div className="p-3 bg-orange-500 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl font-bold">{Math.round(groupStats.avgLogs7Days * 7)}</span>
+              </div>
+              <p className="text-lg font-semibold text-orange-700">Logs per week</p>
+              <p className="text-sm text-orange-600">(gemiddeld)</p>
+            </div>
+            
+            <div className="text-center p-4 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+              <div className="p-3 bg-yellow-500 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl font-bold">{groupStats.avgLogs7Days}</span>
+              </div>
+              <p className="text-lg font-semibold text-yellow-700">Logs per dag</p>
+              <p className="text-sm text-yellow-600">(laatste 7 dagen)</p>
+            </div>
+            
+            <div className="text-center p-4 bg-gradient-to-br from-amber-50 to-yellow-50 rounded-lg border border-amber-200">
+              <div className="p-3 bg-amber-500 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl font-bold">{groupStats.avgLogs30Days}</span>
+              </div>
+              <p className="text-lg font-semibold text-amber-700">Logs per dag</p>
+              <p className="text-sm text-amber-600">(laatste 30 dagen)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Individuele leerlingen tabel met verbeterde styling */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
+          <h3 className="text-xl font-bold mb-2">Individuele Prestaties</h3>
+          <p className="text-blue-100">Gedetailleerd overzicht per leerling (laatste 30 dagen)</p>
+        </div>
+        
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-50">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Leerling</th>
-                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Score (30d)</th>
-                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Slaap (30d)</th>
-                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Stappen (30d)</th>
-                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Logs (7d)</th>
-                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Logs (30d)</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Leerling
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Welzijnsscore
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Slaap (gem.)
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Stappen (gem.)
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Activiteit (7d)
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Trend (30d)
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
-              {studentData.map(s => (
-                <tr key={s.id}>
-                  <td className="p-4 font-medium">{s.naam}</td>
-                  <td className="p-4">{s.avgScore}%</td>
-                  <td className="p-4">{s.avgSleep}u</td>
-                  <td className="p-4">{s.avgSteps}</td>
-                  <td className="p-4">{s.logs.last7days}</td>
-                  <td className="p-4">{s.logs.last30days}</td>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {studentData.map((student, index) => (
+                <tr key={student.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                        {student.naam.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">{student.naam}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getScoreColor(student.avgScore)}`}>
+                        {student.avgScore}%
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <span className={`text-sm font-medium ${
+                        student.avgSleep >= 8 ? 'text-green-600' :
+                        student.avgSleep >= 7 ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`}>
+                        {student.avgSleep}u
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <span className={`text-sm font-medium ${
+                        student.avgSteps >= 10000 ? 'text-green-600' :
+                        student.avgSteps >= 7500 ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`}>
+                        {student.avgSteps.toLocaleString()}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold ${
+                        student.logs.last7days >= 5 ? 'bg-green-100 text-green-800' :
+                        student.logs.last7days >= 3 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {student.logs.last7days}
+                      </div>
+                      <span className="ml-2 text-sm text-gray-500">/ 7</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold ${
+                        student.logs.last30days >= 20 ? 'bg-green-100 text-green-800' :
+                        student.logs.last30days >= 15 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {student.logs.last30days}
+                      </div>
+                      <span className="ml-2 text-sm text-gray-500">/ 30</span>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Insights en aanbevelingen */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Positieve trends */}
+        <div className="bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200 rounded-xl p-6">
+          <div className="flex items-center mb-4">
+            <TrophyIcon className="h-6 w-6 text-green-600 mr-3" />
+            <h3 className="text-lg font-semibold text-green-800">Positieve Prestaties</h3>
+          </div>
+          <div className="space-y-3">
+            {studentData
+              .filter(s => s.avgScore >= 80 || s.logs.last7days >= 5)
+              .slice(0, 3)
+              .map((student, index) => (
+                <div key={index} className="bg-white rounded-lg p-3 border border-green-200">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-green-900">{student.naam}</span>
+                    <span className="text-sm text-green-600">
+                      {student.avgScore >= 80 ? `${student.avgScore}% welzijn` : `${student.logs.last7days}/7 logs`}
+                    </span>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        {/* Aandachtspunten */}
+        <div className="bg-gradient-to-br from-orange-50 to-red-100 border border-orange-200 rounded-xl p-6">
+          <div className="flex items-center mb-4">
+            <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 mr-3" />
+            <h3 className="text-lg font-semibold text-orange-800">Aandachtspunten</h3>
+          </div>
+          <div className="space-y-3">
+            {studentData
+              .filter(s => s.avgScore < 60 || s.logs.last7days < 3)
+              .slice(0, 3)
+              .map((student, index) => (
+                <div key={index} className="bg-white rounded-lg p-3 border border-orange-200">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-orange-900">{student.naam}</span>
+                    <span className="text-sm text-orange-600">
+                      {student.avgScore < 60 ? `${student.avgScore}% welzijn` : `${student.logs.last7days}/7 logs`}
+                    </span>
+                  </div>
+                </div>
+              ))}
+          </div>
         </div>
       </div>
     </div>
