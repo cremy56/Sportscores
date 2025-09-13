@@ -1374,14 +1374,14 @@ useEffect(() => {
     const nextStepId = selectedOption.nextStepId;
     const isConsequence = String(nextStepId).includes('_consequence');
 
-    if (isConsequence && !selectedOption.correct) {
-      // Fout antwoord leidt naar gevolg -> ga direct door
-      setTimeout(() => goToNextStep(selectedOption), 500);
-    } else {
-      // Normale flow -> toon "Volgende" of "Resultaten" knop
-      setShowNextButton(true);
-      setIsLastStep(nextStepId === null);
-    }
+    if (selectedOption.correct) {
+        // Correct antwoord: toon de "Volgende" knop
+        setShowNextButton(true);
+        setIsLastStep(nextStepId === null);
+      } else {
+        // Fout antwoord: ga automatisch door naar de consequentie-stap
+        setTimeout(() => goToNextStep(selectedOption), 500);
+      }
   };
 
 // Nieuwe functie voor volgende stap
@@ -1693,7 +1693,8 @@ const handleRoleIntroComplete = () => {
     
     const currentStepData = activeScenario.steps[currentStep];
     const selectedAnswer = scenarioResults[currentStepData.id]?.selected;
-    
+    const isCurrentStepConsequence = String(currentStepData.id).includes('_consequence');
+
     return (
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
@@ -1730,8 +1731,9 @@ const handleRoleIntroComplete = () => {
             {/* --- START WIJZIGING --- */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                {(() => {
-                  const vraagNummer = Object.keys(scenarioResults).length + 1;
+               {(() => {
+                  // Tel alleen de antwoorden die niet bij een 'consequence' stap horen
+                  const vraagNummer = Object.keys(scenarioResults).filter(key => !key.includes('_consequence')).length + 1;
                   return <span className="text-lg font-semibold">Vraag {vraagNummer}</span>;
                 })()}
               </div>
@@ -1776,15 +1778,31 @@ const handleRoleIntroComplete = () => {
                         key={option.id}
                         onClick={() => handleAnswer(option, currentStepData)}
                         disabled={selectedAnswer}
-                        className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
-                          selectedAnswer
-                            ? selectedAnswer.id === option.id // Is dit de gekozen optie?
-                              ? option.correct
-                                ? 'border-green-500 bg-green-50 text-green-800 scale-105 shadow-lg' // Gekozen & correct
-                                : 'border-red-500 bg-red-50 text-red-800 scale-105 shadow-lg'   // Gekozen & incorrect
-                              : 'border-gray-200 bg-gray-50 text-gray-500 opacity-70' // Niet gekozen opties
-                            : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50' // Nog geen keuze gemaakt
-                        }`}
+                     className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
+                      (() => {
+                        // Geen antwoord geselecteerd: standaard hover-stijl
+                        if (!selectedAnswer) {
+                          return 'border-gray-200 hover:border-blue-500 hover:bg-blue-50';
+                        }
+
+                        // Is deze optie de geselecteerde optie?
+                        if (selectedAnswer.id === option.id) {
+                          return option.correct
+                            ? 'border-green-500 bg-green-50 text-green-800 scale-105 shadow-lg' // Geselecteerd & correct
+                            : 'border-red-500 bg-red-50 text-red-800 scale-105 shadow-lg';    // Geselecteerd & incorrect
+                        }
+                        
+                        // Deze optie is NIET geselecteerd
+                        // Als we op een consequentie-vraag zitten, het foute antwoord is gekozen, EN deze optie de juiste is...
+                        if (isCurrentStepConsequence && !selectedAnswer.correct && option.correct) {
+                          // ... maak deze dan groen om het juiste antwoord te tonen.
+                          return 'border-green-500 bg-green-50 text-green-800';
+                        }
+
+                        // In alle andere gevallen (niet-geselecteerde opties)
+                        return 'border-gray-200 bg-gray-50 text-gray-500 opacity-70';
+                      })()
+                    }`}
                       >
                         <div className="flex items-center justify-between">
                           <span>{option.text}</span>

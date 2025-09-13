@@ -88,7 +88,6 @@ function getStudentRecommendation(studentStats) {
   return "Regelmatige oefening blijven aanmoedigen.";
 }
 
-// EHBO scenario XP
 exports.awardEHBOXP = onCall(async (request) => {
   if (!request.auth) throw new Error('Authentication required');
   const { userId, scenarioId } = request.data;
@@ -104,8 +103,9 @@ exports.awardEHBOXP = onCall(async (request) => {
     const userData = userDoc.data();
     
     // --- START WIJZIGING: Logica voor afnemende meerwaarde ---
+    const baseScenarioId = scenarioId.split('_enhanced_')[0]; // <-- TOEGEVOEGD
     const completionStats = userData.ehbo_completion_stats || {};
-    const completionCount = completionStats[scenarioId] || 0; // Hoe vaak is dit al voltooid?
+    const completionCount = completionStats[baseScenarioId] || 0; // <-- AANGEPAST
     
     let xpAmount = 1; // Standaard 1 XP voor 4e+ keer
     if (completionCount === 0) { // Dit is de EERSTE keer
