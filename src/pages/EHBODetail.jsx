@@ -45,6 +45,8 @@ const [showRoleIntro, setShowRoleIntro] = useState(false);
 const [showComplication, setShowComplication] = useState(null);
 const [activeChain, setActiveChain] = useState(null);
 const [chainProgress, setChainProgress] = useState(null);
+const [isLastStep, setIsLastStep] = useState(false);
+
 // NIEUW: Enhanced hooks toevoegen
   const {
     enhancedMode,
@@ -1355,50 +1357,32 @@ useEffect(() => {
     }
   };
 
-const handleAnswer = (selectedOption, step) => {
-  setTimeRemaining(null);
-  const newResults = {
-    ...scenarioResults,
-    [step.id]: {
-      selected: selectedOption,
-      correct: selectedOption.correct,
-      timeUsed: accessibilityMode ? 0 : (step.timeLimit - timeRemaining)
+
+  const handleAnswer = (selectedOption, step) => {
+    setTimeRemaining(null);
+    const newResults = {
+      ...scenarioResults,
+      [step.id]: {
+        selected: selectedOption,
+        correct: selectedOption.correct,
+        timeUsed: accessibilityMode ? 0 : (step.timeLimit - timeRemaining),
+        stepId: step.id // Voeg stepId toe voor de resultatenpagina
+      }
+    };
+    setScenarioResults(newResults);
+
+    const nextStepId = selectedOption.nextStepId;
+    const isConsequence = String(nextStepId).includes('_consequence');
+
+    if (isConsequence && !selectedOption.correct) {
+      // Fout antwoord leidt naar gevolg -> ga direct door
+      setTimeout(() => goToNextStep(selectedOption), 500);
+    } else {
+      // Normale flow -> toon "Volgende" of "Resultaten" knop
+      setShowNextButton(true);
+      setIsLastStep(nextStepId === null);
     }
   };
-  setScenarioResults(newResults);
-
-  // Check for complications in enhanced mode
-  if (isEnhanced && gameState.complications.length > 0) {
-    const activeComplications = gameState.complications.filter(
-      comp => comp.triggerStep === currentStep && !comp.resolved
-    );
-
-    if (activeComplications.length > 0) {
-      setShowComplication(activeComplications[0]);
-      return;
-    }
-  }
-
-  // Update resources in enhanced mode
-  if (isEnhanced) {
-    setGameState(prev => ({
-      ...prev,
-      resources: {
-        ...prev.resources,
-        stress: Math.min(100, prev.resources.stress + (selectedOption.correct ? -5 : 10)),
-        effectiveness: selectedOption.correct ? 
-          Math.min(100, prev.resources.effectiveness + 5) :
-          Math.max(0, prev.resources.effectiveness - 10),
-        time: Math.max(0, prev.resources.time - 2)
-      }
-    }));
-  }
-    
-  // Show immediate feedback
-  setTimeout(() => {
-    setShowNextButton(true);
-  }, 500); // Kort genoeg om feedback te tonen, lang genoeg om te lezen
-};
 
 // Nieuwe functie voor volgende stap
 
@@ -1843,10 +1827,10 @@ const handleRoleIntroComplete = () => {
                       {showNextButton && (
                         <div className="mt-4 text-center">
                           <button
-                            onClick={goToNextStep}
-                            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors font-medium"
+                            onClick={() => goToNextStep(scenarioResults[currentStepData.id].selected)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg"
                           >
-                            {currentStep < activeScenario.steps.length - 1 ? 'Volgende Vraag' : 'Toon Resultaten'}
+                            {isLastStep ? 'Toon Resultaten' : 'Volgende Vraag'}
                           </button>
                         </div>
                       )}

@@ -154,14 +154,15 @@ exports.saveEHBOProgress = onCall(async (request) => {
   try {
     const userRef = db.collection('users').doc(userId);
     
-    // --- START CORRECTIE ---
+    
     // Voeg de controle toe om te zien of de gebruiker bestaat en een leerling is.
     const userDoc = await userRef.get();
     if (!userDoc.exists || userDoc.data().rol !== 'leerling') {
       throw new Error('User not found or is not a student');
     }
-    // --- EINDE CORRECTIE ---
-
+  
+   // "bewusteloos_enhanced_12345" wordt "bewusteloos"
+    const baseScenarioId = scenarioId.split('_enhanced_')[0];
     const scenarioKey = `ehbo_completion_stats.${scenarioId}`;
     
     await userRef.update({
