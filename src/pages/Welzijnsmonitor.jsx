@@ -217,15 +217,24 @@ const Welzijnsmonitor = () => {
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">
-                EHBO Voortgang {isAdmin && selectedStudent ? `- ${selectedStudent.naam}` : 'per Leerling'}
+                {selectedStudent ? `EHBO Voortgang - ${selectedStudent.naam}` : 
+                 selectedGroup !== 'all' ? `EHBO Voortgang - ${selectedGroup}` :
+                 'EHBO Voortgang'}
               </h3>
               <button
                 onClick={loadEHBOStats}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                disabled={selectedGroup === 'all' && !selectedStudent}
+                className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                title="Herlaadt de nieuwste gegevens van de geselecteerde groep of leerling"
               >
                 Vernieuwen
               </button>
             </div>
+            {selectedGroup === 'all' && !selectedStudent && (
+              <p className="text-sm text-gray-500 mt-2">
+                Selecteer een groep of leerling om EHBO voortgang te bekijken
+              </p>
+            )}
           </div>
           
           <div className="overflow-x-auto">
