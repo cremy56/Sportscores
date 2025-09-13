@@ -186,35 +186,27 @@ exports.saveEHBOProgress = onCall(async (request) => {
 
 // in ehbo-functions.js
 
+// in ehbo-functions.js
+
 exports.getClassEHBOStats = onCall(async (request) => {
   if (!request.auth) throw new Error('Authentication required');
-
+  
   const { classId, schoolId } = request.data;
-  console.log(`[DEBUG] getClassEHBOStats started for classId: ${classId}, schoolId: ${schoolId}`);
-
   if (!classId || !schoolId || classId === 'all') {
-    console.log('[DEBUG] No specific group selected. Returning empty array.');
+    // Return lege data als er geen specifieke groep is gekozen
     return { success: true, classStats: { totalStudents: 0 }, students: [] };
   }
 
   try {
-    // STAP 1: Haal de leerling-e-mails uit de groep.
+    // STAP 1: Haal de definitieve lijst van leerling-e-mails uit de groep.
     const groupDoc = await db.collection('groepen').doc(classId).get();
-    if (!groupDoc.exists) {
-      console.error(`[DEBUG] Group ${classId} not found.`);
-      throw new Error(`Group ${classId} not found`);
-    }
-
+    if (!groupDoc.exists) throw new Error(`Group ${classId} not found`);
     const leerlingIds = groupDoc.data().leerling_ids || [];
-    console.log(`[DEBUG] Found ${leerlingIds.length} student emails in group doc:`, JSON.stringify(leerlingIds));
-
     if (leerlingIds.length === 0) {
-      console.log('[DEBUG] Group has no students. Returning empty array.');
       return { success: true, classStats: { totalStudents: 0 }, students: [] };
     }
 
-    // STAP 2: Zoek geregistreerde leerlingen in 'users'.
-    console.log('[DEBUG] Querying "users" collection...');
+    // STAP 2: Zoek welke van deze leerlingen al geregistreerd zijn (in 'users').
     const registeredStudentsSnapshot = await db.collection('users')
       .where('rol', '==', 'leerling')
       .where('school_id', '==', schoolId)
@@ -223,45 +215,123 @@ exports.getClassEHBOStats = onCall(async (request) => {
 
     const registeredStudentDocs = registeredStudentsSnapshot.docs;
     const registeredEmails = registeredStudentDocs.map(doc => doc.data().email);
-    console.log(`[DEBUG] Found ${registeredStudentDocs.length} registered students in "users" collection.`);
-    console.log('[DEBUG] Emails of registered students:', JSON.stringify(registeredEmails));
 
-    // STAP 3: Zoek niet-geregistreerde leerlingen in 'toegestane_gebruikers'.
+    // STAP 3: Zoek de overige, nog niet-geregistreerde leerlingen op in 'toegestane_gebruikers'.
     const unregisteredEmails = leerlingIds.filter(email => !registeredEmails.includes(email));
-    console.log(`[DEBUG] Found ${unregisteredEmails.length} emails to search in "toegestane_gebruikers":`, JSON.stringify(unregisteredEmails));
-
     const unregisteredStudentPromises = unregisteredEmails.map(email => 
       db.collection('toegestane_gebruikers').doc(email).get()
     );
     const unregisteredStudentSnapshots = await Promise.all(unregisteredStudentPromises);
-
+    
     const unregisteredStudentDocs = unregisteredStudentSnapshots
       .filter(doc => doc.exists)
-      .map(doc => ({ id: doc.id, data: () => ({ ...doc.data(), email: doc.id, isRegistered: false }) }));
-    console.log(`[DEBUG] Found ${unregisteredStudentDocs.length} unregistered students in "toegestane_gebruikers".`);
+      .map(doc => ({
+        id: doc.id,
+        data: () => ({
+          ...doc.data(),
+          email: doc.id,
+          isRegistered: false,
+          completed_ehbo_scenarios: [],
+          ehbo_total_score: 0
+        })
+      }));
 
-    // STAP 4: Combineer de lijsten.
+    // STAP 4: Combineer de twee lijsten.
     const allStudentDocs = [...registeredStudentDocs, ...unregisteredStudentDocs];
-    console.log(`[DEBUG] Total combined students found: ${allStudentDocs.length}`);
-
-    // STAP 5: Verwerk de gecombineerde lijst (deze code blijft hetzelfde).
+    
+    // STAP 5: Verwerk de gecombineerde lijst om statistieken te genereren.
+    const classStats = {
+      totalStudents: allStudentDocs.length,
+      studentsStarted: 0,
+      studentsCompleted: 0,
+      averageScore: 0,
+      strugglingStudents: [],
+      topPerformers: []
+    };
+    
     const students = [];
-    // ... (de rest van je bestaande verwerkingslogica, zoals de forEach-loop) ...
+    let totalScoreSum = 0;
+    let studentsWithScores = 0;
+
     allStudentDocs.forEach((doc) => {
-        const studentData = doc.data();
-        // ... etc ...
-        students.push({ id: doc.id, name: studentData.naam, isRegistered: studentData.isRegistered !== false });
+      const studentData = doc.data();
+      const isRegistered = studentData.isRegistered !== false;
+
+      const completedScenarios = studentData.completed_ehbo_scenarios || [];
+      const totalScore = studentData.ehbo_total_score || 0;
+      const scenarioCount = completedScenarios.length;
+
+      let progressPercentage = 0;
+      
+      if (isRegistered && scenarioCount > 0) {
+        classStats.studentsStarted++;
+        
+        // De voortgang wordt nu berekend op basis van het aantal voltooide scenario's.
+        const totalScenarioCount = 15; // Totaal aantal scenario's in de app
+        progressPercentage = totalScenarioCount > 0 ? Math.round((scenarioCount / totalScenarioCount) * 100) : 0;
+
+        if (progressPercentage >= 80) {
+          classStats.studentsCompleted++;
+        }
+      }
+      
+      const averageScore = isRegistered && scenarioCount > 0 ? Math.round(totalScore / scenarioCount) : 0;
+      if (isRegistered && totalScore > 0) {
+        totalScoreSum += averageScore;
+        studentsWithScores++;
+      }
+
+      const studentResult = {
+        id: doc.id,
+        name: studentData.naam,
+        email: studentData.email,
+        isRegistered: isRegistered,
+        progressPercentage: progressPercentage,
+        averageScore: averageScore,
+        completedScenarios: scenarioCount,
+        certificationReady: isRegistered && progressPercentage >= 80,
+        lastActivity: studentData.last_activity ? studentData.last_activity.toDate() : null
+      };
+
+      students.push(studentResult);
+      
+      if (isRegistered && (averageScore < 60 && scenarioCount > 0 || isInactive(studentData.last_activity))) {
+          classStats.strugglingStudents.push({
+            name: studentData.naam || 'Onbekend',
+            issue: (averageScore < 60 && scenarioCount > 0) ? 'low_scores' : 'inactive',
+            recommendation: getStudentRecommendation(studentResult)
+          });
+      }
+      if (isRegistered && averageScore > 85 && scenarioCount >= 5) {
+          classStats.topPerformers.push({
+            name: studentData.naam || 'Onbekend',
+            averageScore: averageScore,
+            completedScenarios: scenarioCount
+          });
+      }
     });
 
-    console.log('[DEBUG] Final students array being returned has length:', students.length);
-    console.log('[DEBUG] Final students array content:', JSON.stringify(students));
+    classStats.averageScore = studentsWithScores > 0 ? Math.round(totalScoreSum / studentsWithScores) : 0;
+    
+    students.sort((a, b) => {
+      if (a.isRegistered && !b.isRegistered) return -1;
+      if (!a.isRegistered && b.isRegistered) return 1;
+      return b.progressPercentage - a.progressPercentage;
+    });
+    
+    // Converteer Date objecten naar string voor de return
+    students.forEach(s => {
+      s.lastActivity = s.lastActivity ? s.lastActivity.toLocaleDateString('nl-BE') : 'N.v.t.';
+    });
 
-    // Return de data
-    // ... (de rest van de return-statement met classStats en students) ...
-    return { success: true, classStats: { totalStudents: students.length }, students };
+    return {
+      success: true,
+      classStats,
+      students
+    };
 
   } catch (error) {
-    console.error('[ERROR] in getClassEHBOStats:', error);
+    console.error('Error in getClassEHBOStats:', error);
     return { success: false, error: error.message };
   }
 });
@@ -343,10 +413,9 @@ exports.getSchoolEHBOStats = onCall(async (request) => {
           studentsStarted++;
           
           // Calculate objectives real-time
-          const objectives = calculateEHBOObjectives(completedScenarios, totalScore);
-          const completedObjectives = Object.values(objectives).filter(obj => obj.status === 'completed').length;
-          const totalObjectives = Object.keys(EHBO_OBJECTIVES).length;
-          const progressPercentage = (completedObjectives / totalObjectives) * 100;
+          
+          const totalScenarioCount = 15; // Totaal aantal scenario's in de app
+          progressPercentage = totalScenarioCount > 0 ? Math.round((scenarioCount / totalScenarioCount) * 100) : 0;
           
           if (progressPercentage >= 80) {
             studentsCompleted++;

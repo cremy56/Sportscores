@@ -291,7 +291,7 @@ const loadUserGroups = async () => {
                           <div className="text-sm font-medium text-gray-900">
                             {student.name}
                           </div>
-                          <div className="text-sm text-gray-500">{student.email}</div>
+                      
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
