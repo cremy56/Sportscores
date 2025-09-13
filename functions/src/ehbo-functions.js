@@ -194,23 +194,27 @@ exports.getClassEHBOStats = onCall(async (request) => {
   const { classId, schoolId, studentId } = request.data;
   if (studentId) {
     try {
-      const studentDoc = await db.collection('users').doc(studentId).get();
-      if (!studentDoc.exists) {
-        // Fallback voor niet-geregistreerde gebruikers
-        const toegestaneDoc = await db.collection('toegestane_gebruikers').doc(studentId).get();
-        if (!toegestaneDoc.exists) throw new Error('Student not found');
-        
-        const studentData = toegestaneDoc.data();
-        const studentResult = {
-          id: toegestaneDoc.id,
-          name: studentData.naam,
-          email: studentData.email,
-          isRegistered: false,
-          progressPercentage: 0, averageScore: 0, completedScenarios: 0, certificationReady: false, lastActivity: 'N.v.t.'
-        };
-        return { success: true, classStats: { totalStudents: 1 }, students: [studentResult] };
+      // Zoek op basis van het 'email'-veld in de 'users' collectie
+      const usersQuery = await db.collection('users')
+        .where('email', '==', studentId)
+        .limit(1)
+        .get();
+
+      let studentDoc;
+      let isRegistered = false;
+
+      if (!usersQuery.empty) {
+        // Leerling gevonden in 'users', dus is geregistreerd
+        studentDoc = usersQuery.docs[0];
+        isRegistered = true;
+      } else {
+        // Niet gevonden? Fallback naar 'toegestane_gebruikers'
+        studentDoc = await db.collection('toegestane_gebruikers').doc(studentId).get();
+        isRegistered = false;
       }
       
+      if (!studentDoc.exists) throw new Error('Student not found in any collection');
+
       const studentData = studentDoc.data();
       const scenarioCount = (studentData.completed_ehbo_scenarios || []).length;
       const totalScenarioCount = 15;
@@ -220,17 +224,20 @@ exports.getClassEHBOStats = onCall(async (request) => {
       const studentResult = {
         id: studentDoc.id,
         name: studentData.naam,
-        email: studentData.email,
-        isRegistered: true,
+        email: studentData.email || studentId,
+        isRegistered: isRegistered,
         progressPercentage: progressPercentage,
         averageScore: averageScore,
         completedScenarios: scenarioCount,
-        certificationReady: progressPercentage >= 80,
+        certificationReady: isRegistered && progressPercentage >= 80,
         lastActivity: studentData.last_activity ? new Date(studentData.last_activity.toDate()).toLocaleDateString('nl-BE') : 'N.v.t.'
       };
       
-      // Return de data voor alleen deze leerling
-      return { success: true, classStats: { totalStudents: 1, studentsCompleted: progressPercentage >= 80 ? 1 : 0, averageScore: averageScore }, students: [studentResult] };
+      return { 
+        success: true, 
+        classStats: { totalStudents: 1, studentsCompleted: progressPercentage >= 80 ? 1 : 0, averageScore: averageScore }, 
+        students: [studentResult] 
+      };
 
     } catch (error) {
       console.error('Error fetching single student:', error);

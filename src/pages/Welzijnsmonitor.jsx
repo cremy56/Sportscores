@@ -31,7 +31,7 @@ const Welzijnsmonitor = () => {
   const isAdmin = ['administrator', 'super-administrator'].includes(profile?.rol);
   const [groupsLoading, setGroupsLoading] = useState(true);
   const selectedGroupName = availableGroups.find(g => g.id === selectedGroup)?.originalName || '';
-
+const [welzijnStats, setWelzijnStats] = useState(null);
 
 
   // Load available groups for teachers
@@ -43,28 +43,33 @@ useEffect(() => {
 
   // Load EHBO statistics based on user role
 useEffect(() => {
-    if (!profile?.school_id || !(isTeacher || isAdmin)) {
-      return;
+  if (!profile?.school_id || !(isTeacher || isAdmin)) return;
+
+  const params = {};
+  let shouldLoad = false;
+
+  if (isAdmin && selectedStudent) {
+    params.studentId = selectedStudent.id;
+    shouldLoad = true;
+  } else if ((isTeacher || isAdmin) && selectedGroup !== 'all') {
+    params.groupId = selectedGroup;
+    shouldLoad = true;
+  }
+
+  if (shouldLoad) {
+    if (activeTab === 'ehbo') {
+      loadEHBOStats(params);
+    } else if (activeTab === 'welzijn') {
+      loadWelzijnStats(params);
     }
-    
-    // Prioriteit 1: Een specifieke leerling is geselecteerd via de zoekbalk
-    if (isAdmin && selectedStudent) {
-      loadEHBOStats({ studentId: selectedStudent.id });
-      return; // Stop hier
-    }
-    
-    // Prioriteit 2: Een specifieke groep is geselecteerd
-    if ((isTeacher || isAdmin) && selectedGroup !== 'all') {
-      loadEHBOStats({ groupId: selectedGroup });
-      return; // Stop hier
-    }
-    
-    // Standaard geval: Geen selectie, dus wis de data
+  } else {
+    // Reset data als er geen selectie is
     setClassStats(null);
     setStudents([]);
+    setWelzijnStats(null);
     setLoading(false);
-    
-  }, [profile, selectedGroup, selectedStudent, isTeacher, isAdmin]);
+  }
+}, [profile, selectedGroup, selectedStudent, isTeacher, isAdmin, activeTab]);
 
   // Aangepaste functie die de groupId als argument accepteert
  const loadEHBOStats = async ({ groupId, studentId }) => {
@@ -434,19 +439,72 @@ const loadUserGroups = async () => {
   };
 
   // Welzijn Dashboard Component (placeholder)
-  const WelzijnDashboard = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center mb-4">
-          <HeartIcon className="h-6 w-6 text-blue-600 mr-3" />
-          <h3 className="text-lg font-semibold text-gray-900">Welzijn & Gezondheid Statistieken</h3>
+  const WelzijnDashboard = () => {
+  if (loading) {
+    return <div className="text-center p-12">Laden van welzijn statistieken...</div>;
+  }
+  if (error) {
+    return <div className="text-center p-12 text-red-600">Fout: {error}</div>;
+  }
+  if (!welzijnStats || !welzijnStats.groupStats) {
+    return <div className="text-center p-12 text-slate-500">Selecteer een groep of leerling om de data te zien.</div>;
+  }
+
+  const { groupStats, studentData } = welzijnStats;
+
+  return (
+    <div className="space-y-8">
+      {/* KPI Kaarten */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border"><p className="text-sm text-slate-500">Gem. Welzijnsscore</p><p className="text-3xl font-bold">{groupStats.avgScore}%</p></div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border"><p className="text-sm text-slate-500">Actieve Deelname (7d)</p><p className="text-3xl font-bold">{groupStats.activeParticipation}%</p></div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border"><p className="text-sm text-slate-500">Gem. Slaap (30d)</p><p className="text-3xl font-bold">{groupStats.avgSleep}u</p></div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border"><p className="text-sm text-slate-500">Gem. Stappen (30d)</p><p className="text-3xl font-bold">{groupStats.avgSteps}</p></div>
+      </div>
+      
+      {/* Log Activiteit Kaart */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border">
+        <h3 className="font-bold text-lg mb-4">Log Activiteit</h3>
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div><p className="text-2xl font-bold">{Math.round(groupStats.avgLogs7Days * 7)}</p><p className="text-sm text-slate-500">Logs/week (gem.)</p></div>
+          <div><p className="text-2xl font-bold">{groupStats.avgLogs7Days}</p><p className="text-sm text-slate-500">Logs/dag (gem. 7d)</p></div>
+          <div><p className="text-2xl font-bold">{groupStats.avgLogs30Days}</p><p className="text-sm text-slate-500">Logs/dag (gem. 30d)</p></div>
         </div>
-        <p className="text-gray-600 mb-4">
-          Hier komen de welzijn statistieken zoals BMI, vetpercentage, en andere gezondheidsmetrieken.
-        </p>
+      </div>
+      
+      {/* Leerlingen Tabel */}
+      <div className="bg-white rounded-xl shadow-sm border">
+        <h3 className="font-bold text-lg p-6">Individuele Voortgang</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Leerling</th>
+                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Score (30d)</th>
+                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Slaap (30d)</th>
+                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Stappen (30d)</th>
+                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Logs (7d)</th>
+                <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Logs (30d)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {studentData.map(s => (
+                <tr key={s.id}>
+                  <td className="p-4 font-medium">{s.naam}</td>
+                  <td className="p-4">{s.avgScore}%</td>
+                  <td className="p-4">{s.avgSleep}u</td>
+                  <td className="p-4">{s.avgSteps}</td>
+                  <td className="p-4">{s.logs.last7days}</td>
+                  <td className="p-4">{s.logs.last30days}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
+};
 
 const handleStudentSelection = (student) => {
     setSelectedStudent(student);
@@ -456,7 +514,28 @@ const handleGroupSelection = (groupId) => {
     setSelectedGroup(groupId);
     setSelectedStudent(null); // BELANGRIJK: Reset de leerling-selectie
   };
-
+const loadWelzijnStats = async ({ groupId, studentId }) => {
+  setLoading(true);
+  setError(null);
+  try {
+    const getStats = httpsCallable(functions, 'getClassWelzijnStats');
+    const result = await getStats({
+      schoolId: profile.school_id,
+      classId: groupId,
+      studentId: studentId,
+    });
+    if (result.data.success) {
+      setWelzijnStats(result.data);
+    } else {
+      throw new Error(result.data.error);
+    }
+  } catch (error) {
+    console.error('Error loading welzijn stats:', error);
+    setError(error.message);
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       {/* Header with Role-Based Controls */}

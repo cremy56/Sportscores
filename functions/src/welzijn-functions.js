@@ -582,3 +582,106 @@ async function checkKompasCompletionBonusFixed(userId, dayData, dateString) {
     throw error;
   }
 }
+// in src/welzijn-functions.js
+
+exports.getClassWelzijnStats = onCall(async (request) => {
+  if (!request.auth) throw new Error('Authentication required');
+
+  const { classId, schoolId, studentId } = request.data;
+  if (!schoolId) throw new Error('School ID is required');
+
+  try {
+    let studentEmails = [];
+
+    // Bepaal voor welke leerlingen we data moeten ophalen
+    if (studentId) {
+      // Als er een specifieke leerling is geselecteerd
+      const studentDoc = await db.collection('users').doc(studentId).get();
+      if (studentDoc.exists) {
+        studentEmails.push(studentDoc.data().email);
+      }
+    } else if (classId && classId !== 'all') {
+      // Als er een specifieke groep is geselecteerd
+      const groupDoc = await db.collection('groepen').doc(classId).get();
+      if (groupDoc.exists) {
+        studentEmails = groupDoc.data().leerling_ids || [];
+      }
+    } else {
+      // Geen selectie, dus geen data
+      return { success: true, groupStats: {}, studentData: [] };
+    }
+
+    if (studentEmails.length === 0) {
+      return { success: true, groupStats: {}, studentData: [] };
+    }
+
+    // Haal alle relevante leerling-documenten op
+    const usersSnapshot = await db.collection('users').where('email', 'in', studentEmails).get();
+    const studentDocs = usersSnapshot.docs;
+
+    // Data aggregatie
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const studentDataPromises = studentDocs.map(async (doc) => {
+      const student = doc.data();
+      const welzijnHistorySnapshot = await db.collection('welzijn').doc(doc.id)
+        .collection('dagelijkse_data')
+        .where(admin.firestore.FieldPath.documentId(), '>=', thirtyDaysAgo.toISOString().split('T')[0])
+        .get();
+
+      const history = welzijnHistorySnapshot.docs.map(d => ({...d.data(), id: d.id }));
+      
+      // Bereken stats voor deze ene leerling
+      const logsLast7Days = history.filter(h => new Date(h.id) >= new Date(new Date().setDate(new Date().getDate() - 7))).length;
+      const logsLast30Days = history.length;
+      
+      const avgSleep = history.length > 0 ? history.reduce((sum, h) => sum + (h.slaap_uren || 0), 0) / history.length : 0;
+      const avgSteps = history.length > 0 ? history.reduce((sum, h) => sum + (h.stappen || 0), 0) / history.length : 0;
+      
+      const scores = history.map(h => {
+          const s = {
+              beweging: Math.min(100, (h.stappen || 0) / 10000 * 100),
+              voeding: Math.min(100, (h.water_intake || 0) / 2000 * 100),
+              slaap: ((h.slaap_uren || 0) / 8.5 * 80) + ((h.slaap_kwaliteit || 3) -1) * 5,
+              mentaal: (h.humeur ? ({'Zeer goed':100, 'Goed':80, 'Neutraal':60, 'Minder goed':40, 'Slecht':20}[h.humeur] || 0) : 0),
+              hart: (h.hartslag_rust ? (100 - (Math.abs((h.hartslag_rust || 75) - 75) / 25 * 100)) : 0)
+          };
+          return (s.beweging+s.voeding+s.slaap+s.mentaal+s.hart)/5;
+      });
+      const avgScore = scores.length > 0 ? scores.reduce((a,b) => a+b,0) / scores.length : 0;
+
+
+      return {
+        id: doc.id,
+        naam: student.naam,
+        logs: {
+          last7days: logsLast7Days,
+          last30days: logsLast30Days,
+        },
+        avgSleep: parseFloat(avgSleep.toFixed(1)),
+        avgSteps: Math.round(avgSteps),
+        avgScore: Math.round(avgScore),
+      };
+    });
+
+    const studentData = await Promise.all(studentDataPromises);
+
+    // Bereken groepsgemiddelden
+    const groupStats = {
+      totalStudents: studentData.length,
+      activeParticipation: Math.round((studentData.filter(s => s.logs.last7days > 0).length / studentData.length) * 100) || 0,
+      avgLogs7Days: parseFloat((studentData.reduce((sum, s) => sum + s.logs.last7days, 0) / studentData.length).toFixed(1)) || 0,
+      avgLogs30Days: parseFloat((studentData.reduce((sum, s) => sum + s.logs.last30days, 0) / studentData.length).toFixed(1)) || 0,
+      avgSleep: parseFloat((studentData.reduce((sum, s) => sum + s.avgSleep, 0) / studentData.length).toFixed(1)) || 0,
+      avgSteps: Math.round(studentData.reduce((sum, s) => sum + s.avgSteps, 0) / studentData.length) || 0,
+      avgScore: Math.round(studentData.reduce((sum, s) => sum + s.avgScore, 0) / studentData.length) || 0,
+    };
+
+    return { success: true, groupStats, studentData };
+
+  } catch (error) {
+    console.error('Error in getClassWelzijnStats:', error);
+    return { success: false, error: error.message };
+  }
+});
