@@ -30,6 +30,8 @@ const Welzijnsmonitor = () => {
   const isTeacher = profile?.rol === 'leerkracht';
   const isAdmin = ['administrator', 'super-administrator'].includes(profile?.rol);
   const [groupsLoading, setGroupsLoading] = useState(true);
+  const selectedGroupName = availableGroups.find(g => g.id === selectedGroup)?.originalName || '';
+
 
 
   // Load available groups for teachers
@@ -85,7 +87,7 @@ useEffect(() => {
       setLoading(false);
     }
   };
-  
+
 const loadUserGroups = async () => {
   setGroupsLoading(true);
   
@@ -245,17 +247,10 @@ const loadUserGroups = async () => {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">
                 {selectedStudent ? `EHBO Voortgang - ${selectedStudent.naam}` : 
-                 selectedGroup !== 'all' ? `EHBO Voortgang - ${selectedGroup}` :
-                 'EHBO Voortgang'}
+                selectedGroup !== 'all' ? `EHBO Voortgang - ${selectedGroupName}` :
+                'EHBO Voortgang'}
               </h3>
-              <button
-                onClick={loadEHBOStats}
-                disabled={selectedGroup === 'all' && !selectedStudent}
-                className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                title="Herlaadt de nieuwste gegevens van de geselecteerde groep of leerling"
-              >
-                Vernieuwen
-              </button>
+              
             </div>
             {selectedGroup === 'all' && !selectedStudent && (
               <p className="text-sm text-gray-500 mt-2">
@@ -295,11 +290,6 @@ const loadUserGroups = async () => {
                         <div>
                           <div className="text-sm font-medium text-gray-900">
                             {student.name}
-                            {!student.isRegistered && (
-                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
-                                Niet geregistreerd
-                              </span>
-                            )}
                           </div>
                           <div className="text-sm text-gray-500">{student.email}</div>
                         </div>
