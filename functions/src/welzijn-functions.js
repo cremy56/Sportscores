@@ -595,9 +595,17 @@ exports.getClassWelzijnStats = onCall(async (request) => {
 
     // Bepaal voor welke leerlingen we data moeten ophalen
     if (studentId) {
-      // Als er een specifieke leerling is geselecteerd
-      const studentDoc = await db.collection('users').doc(studentId).get();
-      if (studentDoc.exists) {
+  // Check of studentId een email is of document ID
+      if (studentId.includes('@')) {
+        // Het is een email - gebruik direct
+        studentEmails.push(studentId);
+      } else {
+        // Het is een document ID - haal email op
+        const studentDoc = await db.collection('users').doc(studentId).get();
+        if (studentDoc.exists) {
+          studentEmails.push(studentDoc.data().email);
+        }
+  
         studentEmails.push(studentDoc.data().email);
       }
     } else if (classId && classId !== 'all') {

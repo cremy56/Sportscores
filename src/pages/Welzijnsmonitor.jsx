@@ -836,18 +836,23 @@ const loadWelzijnStats = async ({ groupId, studentId }) => {
   setError(null);
   try {
     const getStats = httpsCallable(functions, 'getClassWelzijnStats');
-    const result = await getStats({
+    
+    // DEBUG: Log wat we versturen
+    console.log('📤 SENDING TO BACKEND:', {
       schoolId: profile.school_id,
       classId: groupId,
       studentId: studentId,
     });
     
-    // DEBUG: Log de volledige response
+    const result = await getStats({
+      schoolId: profile.school_id,
+      classId: groupId,
+      studentId: selectedStudent?.email || selectedStudent?.id,  // ← Dit wordt waarschijnlijk niet goed verwerkt in de backend
+    });
+    
     console.log('🔍 WELZIJN RESPONSE:', JSON.stringify(result.data, null, 2));
     
     if (result.data.success) {
-      console.log('📊 Group Stats:', result.data.groupStats);
-      console.log('👥 Student Data:', result.data.studentData);
       setWelzijnStats(result.data);
     } else {
       throw new Error(result.data.error);
