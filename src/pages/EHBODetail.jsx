@@ -1276,10 +1276,9 @@ useEffect(() => {
     setShowResults(true);
   };
 
- // in EHBODetail.jsx
 
   const startScenario = async (scenario) => {
-    // 1. Maak altijd een diepe kopie en shuffle de antwoorden
+    // 1. Maak een diepe kopie en shuffle de antwoorden (deze logica blijft)
     const scenarioCopy = JSON.parse(JSON.stringify(scenario));
     scenarioCopy.steps.forEach(step => {
       if (step.options) {
@@ -1287,61 +1286,43 @@ useEffect(() => {
       }
     });
 
-    let finalScenario = scenarioCopy;
-    let initialChainState = null;
-
-    // 2. Activeer de 'Enhanced' features als de modus aanstaat
-    if (enhancedMode) {
-      // Bepaal of we een keten starten
-      if (Math.random() < 0.3) { // 30% kans op een keten
-        const chainTypes = Object.keys(ScenarioChainSystem.chains);
-        const chainType = chainTypes[Math.floor(Math.random() * chainTypes.length)];
-        initialChainState = ScenarioChainSystem.initializeChain(chainType, profile);
-        
-        if (initialChainState) {
-          setActiveChain(initialChainState);
-          setChainProgress({
-            current: 1,
-            total: initialChainState.scenarios.length,
-            name: initialChainState.name
-          });
-          const firstScenarioInChain = scenarios.find(s => s.id === initialChainState.scenarios[0].id);
-          // Gebruik het eerste scenario van de keten
-          finalScenario = JSON.parse(JSON.stringify(firstScenarioInChain));
-          // Shuffle de antwoorden van dit nieuwe scenario ook
-          finalScenario.steps.forEach(step => {
-            if (step.options) { step.options = shuffleArray(step.options); }
-          });
-        }
-      }
-
-      // Wijs een rol toe en pas het scenario aan
-      const role = RoleBasedScenarios.assignRole(finalScenario, profile);
-      const roleEnhancedScenario = RoleBasedScenarios.adaptScenarioForRole(finalScenario, role);
-      
-      // Genereer mogelijke complicaties voor het scenario
-      const complications = ComplicationSystem.generateComplications(roleEnhancedScenario, profile, gameState);
-      
-      setGameState({
-        role: role,
-        complications: complications,
-        resources: { time: 100, stress: role.stressLevel, effectiveness: 100 }
-      });
-
-      // Toon de rol-introductie en zet het (mogelijk door de keten aangepaste) scenario klaar
-      setShowRoleIntro(true);
-      setActiveScenario(roleEnhancedScenario);
-
-    } else {
-      // 3. Standaard modus (geen enhanced features)
-      setActiveScenario(finalScenario);
-      setCurrentStep(0);
-      setScenarioResults({});
-      setShowResults(false);
-      setTimeRemaining(accessibilityMode ? null : finalScenario.steps[0].timeLimit);
-    }
-    
+    // --- START WIJZIGING: Reset de state ALTIJD, ongeacht de modus ---
+    setCurrentStep(0);
+    setScenarioResults({});
+    setShowResults(false);
     setShowNextButton(false);
+    // --- EINDE WIJZIGING ---
+
+    // 2. Bepaal de modus en start het scenario
+    if (enhancedMode) {
+      // De 'Enhanced Mode' logica die we eerder hebben besproken
+      const enhanced = await startEnhancedScenario(scenarioCopy);
+      if (enhanced) {
+        const role = RoleBasedScenarios.assignRole(enhanced, profile);
+        const roleEnhanced = RoleBasedScenarios.adaptScenarioForRole(enhanced, role);
+        const complications = ComplicationSystem.generateComplications(enhanced, profile, {});
+        
+        setGameState({
+          role: role,
+          complications: complications,
+          resources: { time: 100, stress: role.stressLevel, effectiveness: 100 }
+        });
+        
+        if (role) {
+          setShowRoleIntro(true);
+          setActiveScenario(roleEnhanced);
+          // Wacht op rol intro, de timer start daarna in handleRoleIntroComplete
+          return;
+        }
+        
+        setActiveScenario(roleEnhanced);
+        setTimeRemaining(accessibilityMode ? null : roleEnhanced.steps[0].timeLimit);
+      }
+    } else {
+      // Standaard modus
+      setActiveScenario(scenarioCopy);
+      setTimeRemaining(accessibilityMode ? null : scenarioCopy.steps[0].timeLimit);
+    }
   };
 
 const handleAnswer = (selectedOption, step) => {
