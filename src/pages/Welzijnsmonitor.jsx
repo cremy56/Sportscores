@@ -334,7 +334,7 @@ const loadUserGroups = async () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {students.map((student) => (
-                <tr key={student.id} className={`hover:bg-gray-50 ${!student.isRegistered ? 'bg-orange-25' : ''}`}>
+                <tr key={student.id} className={`hover:bg-gray-50  'bg-orange-25' : ''}`}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-semibold">
@@ -896,14 +896,7 @@ const loadWelzijnStats = async ({ groupId, studentId }) => {
                       )}
                     </select>
                     
-                    {/* Show group info */}
-                    {selectedGroup !== 'all' && !groupsLoading && (
-                      <div className="mt-1 text-xs text-gray-500">
-                        {availableGroups.find(g => g.id === selectedGroup)?.studentCount 
-                          ? `${availableGroups.find(g => g.id === selectedGroup)?.studentCount} leerlingen`
-                          : 'Groep geselecteerd'}
-                      </div>
-                    )}
+                   
                   </div>
                 )}
               
