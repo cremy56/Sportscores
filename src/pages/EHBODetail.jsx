@@ -1309,53 +1309,55 @@ useEffect(() => {
   };
 
 
-  const startScenario = async (scenario) => {
-    // 1. Maak een diepe kopie en shuffle de antwoorden (deze logica blijft)
-    const scenarioCopy = JSON.parse(JSON.stringify(scenario));
-    scenarioCopy.steps.forEach(step => {
-      if (step.options) {
-        step.options = shuffleArray(step.options);
-      }
-    });
+ 
 
-    // --- START WIJZIGING: Reset de state ALTIJD, ongeacht de modus ---
-    setCurrentStep(0);
-    setScenarioResults({});
-    setShowResults(false);
-    setShowNextButton(false);
-    // --- EINDE WIJZIGING ---
+const startScenario = async (scenario, chain = null) => {
+  // 1. Zorg ervoor dat de functie de 'chain' informatie onthoudt
+  setActiveChain(chain); 
 
-    // 2. Bepaal de modus en start het scenario
-    if (enhancedMode) {
-      // De 'Enhanced Mode' logica die we eerder hebben besproken
-      const enhanced = await startEnhancedScenario(scenarioCopy);
-      if (enhanced) {
-        const role = RoleBasedScenarios.assignRole(enhanced, profile);
-        const roleEnhanced = RoleBasedScenarios.adaptScenarioForRole(enhanced, role);
-        const complications = ComplicationSystem.generateComplications(enhanced, profile, {});
-        
-        setGameState({
-          role: role,
-          complications: complications,
-          resources: { time: 100, stress: role.stressLevel, effectiveness: 100 }
-        });
-        
-        if (role) {
-          setShowRoleIntro(true);
-          setActiveScenario(roleEnhanced);
-          // Wacht op rol intro, de timer start daarna in handleRoleIntroComplete
-          return;
-        }
-        
-        setActiveScenario(roleEnhanced);
-        setTimeRemaining(accessibilityMode ? null : roleEnhanced.steps[0].timeLimit);
-      }
-    } else {
-      // Standaard modus
-      setActiveScenario(scenarioCopy);
-      setTimeRemaining(accessibilityMode ? null : scenarioCopy.steps[0].timeLimit);
+  // 2. Maak een diepe kopie en shuffle de antwoorden (deze logica blijft)
+  const scenarioCopy = JSON.parse(JSON.stringify(scenario));
+  scenarioCopy.steps.forEach(step => {
+    if (step.options) {
+      step.options = shuffleArray(step.options);
     }
-  };
+  });
+
+  // Reset de state ALTIJD, ongeacht de modus
+  setCurrentStep(0);
+  setScenarioResults({});
+  setShowResults(false);
+  setShowNextButton(false);
+
+  // Bepaal de modus en start het scenario
+  if (enhancedMode) {
+    const enhanced = await startEnhancedScenario(scenarioCopy);
+    if (enhanced) {
+      const role = RoleBasedScenarios.assignRole(enhanced, profile);
+      const roleEnhanced = RoleBasedScenarios.adaptScenarioForRole(enhanced, role);
+      const complications = ComplicationSystem.generateComplications(enhanced, profile, {});
+      
+      setGameState({
+        role: role,
+        complications: complications,
+        resources: { time: 100, stress: role.stressLevel, effectiveness: 100 }
+      });
+      
+      if (role) {
+        setShowRoleIntro(true);
+        setActiveScenario(roleEnhanced);
+        return;
+      }
+      
+      setActiveScenario(roleEnhanced);
+      setTimeRemaining(accessibilityMode ? null : roleEnhanced.steps[0].timeLimit);
+    }
+  } else {
+    // Standaard modus
+    setActiveScenario(scenarioCopy);
+    setTimeRemaining(accessibilityMode ? null : scenarioCopy.steps[0].timeLimit);
+  }
+};
 
 
   const handleAnswer = (selectedOption, step) => {
