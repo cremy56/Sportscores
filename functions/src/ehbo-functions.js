@@ -90,52 +90,56 @@ function getStudentRecommendation(studentStats) {
 
 // EHBO scenario XP
 exports.awardEHBOXP = onCall(async (request) => {
-  
-  
   if (!request.auth) throw new Error('Authentication required');
-  
-  const { userId, scenarioId, xpAmount = 30 } = request.data;
+  const { userId, scenarioId } = request.data;
   if (!userId || !scenarioId) throw new Error('userId and scenarioId required');
-  
+
   try {
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
-    
-    if (!userDoc.exists || userDoc.data().rol !== 'leerling') {
+    if (!userDoc.exists() || userDoc.data().rol !== 'leerling') {
       throw new Error('User not found or is not a student');
     }
     
     const userData = userDoc.data();
-    const currentXP = userData.xp || 0;
-    const newXP = currentXP + xpAmount;
     
-    // --- START WIJZIGING: Voeg 'last_activity' toe ---
-    await userRef.update({
-      xp: newXP,
-      sparks: Math.floor(newXP / 100),
-      last_activity: FieldValue.serverTimestamp() // Cruciaal voor streaks
-    });
+    // --- START WIJZIGING: Logica voor afnemende meerwaarde ---
+    const completionStats = userData.ehbo_completion_stats || {};
+    const completionCount = completionStats[scenarioId] || 0; // Hoe vaak is dit al voltooid?
+    
+    let xpAmount = 1; // Standaard 1 XP voor 4e+ keer
+    if (completionCount === 0) { // Dit is de EERSTE keer
+      xpAmount = 30;
+    } else if (completionCount === 1) { // Dit is de TWEEDE keer
+      xpAmount = 10;
+    } else if (completionCount === 2) { // Dit is de DERDE keer
+      xpAmount = 5;
+    }
     // --- EINDE WIJZIGING ---
     
-    await logXPTransaction( {
+    const newXP = (userData.xp || 0) + xpAmount;
+    
+    await userRef.update({
+      xp: newXP,
+      sparks: Math.floor(newXP / 100)
+    });
+    
+    await logXPTransaction({
       user_id: userId,
       user_email: userData.email,
       amount: xpAmount,
-      reason: 'ehbo_scenario_completion',
+      reason: `ehbo_completion_${completionCount + 1}`, // bv. ehbo_completion_1
       source_id: scenarioId
     });
     
-    return {
-      success: true,
-      message: `Awarded ${xpAmount} XP for EHBO scenario`,
-      newTotals: { xp: newXP, sparks: Math.floor(newXP / 100) }
-    };
+    return { success: true, message: `Awarded ${xpAmount} XP` };
     
   } catch (error) {
     console.error('Error awarding EHBO XP:', error);
-    throw new Error('Failed to award EHBO XP: ' + error.message);
+    throw new Error('Failed to award EHBO XP');
   }
 });
+// De nieuwe versie die het aantal voltooiingen telt
 exports.saveEHBOProgress = onCall(async (request) => {
   if (!request.auth) {
     throw new Error('Authentication required');
@@ -148,26 +152,24 @@ exports.saveEHBOProgress = onCall(async (request) => {
   
   try {
     const userRef = db.collection('users').doc(userId);
-    const userDoc = await userRef.get();
     
-    if (!userDoc.exists || userDoc.data().rol !== 'leerling') {
-      throw new Error('User not found or is not a student');
-    }
+    // De controle of het scenario al voltooid is, wordt verwijderd.
+    // We willen juist dat leerlingen kunnen oefenen.
     
-    const userData = userDoc.data();
-    const completedScenarios = userData.completed_ehbo_scenarios || [];
+    // We bouwen de sleutel voor het veld dynamisch op.
+    // Bv: 'ehbo_completion_stats.bewusteloos'
+    const scenarioKey = `ehbo_completion_stats.${scenarioId}`;
     
-    // Check if already completed
-    if (completedScenarios.includes(scenarioId)) {
-      throw new Error('EHBO scenario already completed');
-    }
-    
-    // Update alleen progress data - GEEN XP (dat doet awardEHBOXP al)
+    // Update de voortgangsdata.
     await userRef.update({
-      completed_ehbo_scenarios: FieldValue.arrayUnion(scenarioId),
+      // Gebruik FieldValue.increment om de teller voor dit specifieke scenario met 1 te verhogen.
+      [scenarioKey]: FieldValue.increment(1), 
+      
+      // De totale score wordt nog steeds opgeteld.
       ehbo_total_score: FieldValue.increment(score || 0),
-      ehbo_streak: FieldValue.increment(1),
-      last_activity: FieldValue.serverTimestamp() // Voor streak tracking
+      
+      // De 'last_activity' is belangrijk voor de algemene streak.
+      last_activity: FieldValue.serverTimestamp() 
     });
     
     return { 
