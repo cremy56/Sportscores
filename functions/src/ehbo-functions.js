@@ -140,6 +140,7 @@ exports.awardEHBOXP = onCall(async (request) => {
   }
 });
 // De nieuwe versie die het aantal voltooiingen telt
+
 exports.saveEHBOProgress = onCall(async (request) => {
   if (!request.auth) {
     throw new Error('Authentication required');
@@ -153,22 +154,19 @@ exports.saveEHBOProgress = onCall(async (request) => {
   try {
     const userRef = db.collection('users').doc(userId);
     
-    // De controle of het scenario al voltooid is, wordt verwijderd.
-    // We willen juist dat leerlingen kunnen oefenen.
-    
-    // We bouwen de sleutel voor het veld dynamisch op.
-    // Bv: 'ehbo_completion_stats.bewusteloos'
+    // --- START CORRECTIE ---
+    // Voeg de controle toe om te zien of de gebruiker bestaat en een leerling is.
+    const userDoc = await userRef.get();
+    if (!userDoc.exists || userDoc.data().rol !== 'leerling') {
+      throw new Error('User not found or is not a student');
+    }
+    // --- EINDE CORRECTIE ---
+
     const scenarioKey = `ehbo_completion_stats.${scenarioId}`;
     
-    // Update de voortgangsdata.
     await userRef.update({
-      // Gebruik FieldValue.increment om de teller voor dit specifieke scenario met 1 te verhogen.
       [scenarioKey]: FieldValue.increment(1), 
-      
-      // De totale score wordt nog steeds opgeteld.
       ehbo_total_score: FieldValue.increment(score || 0),
-      
-      // De 'last_activity' is belangrijk voor de algemene streak.
       last_activity: FieldValue.serverTimestamp() 
     });
     

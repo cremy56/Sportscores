@@ -1589,98 +1589,123 @@ const handleRoleIntroComplete = () => {
   );
 
   const Dashboard = () => (
-    <div className="space-y-8">
-        <AccessibilityControls />
-      {/* Progress Overview - Compacter en subtieler */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+  <div className="space-y-6">
+    {/* Compacte progress + controls in één rij */}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Progress - meer compact */}
+      <div className="lg:col-span-2 bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-xl font-bold text-slate-800 mb-1">EHBO Voortgang</h2>
-            <p className="text-slate-600 text-sm">Leer levensreddende vaardigheden</p>
-          </div>
-          <div className="text-right">
+            <h2 className="text-lg font-bold text-slate-800">EHBO Voortgang</h2>
             <div className="text-2xl font-bold text-slate-800">{completedCount}/{totalScenarios}</div>
-            <div className="text-xs text-slate-500">scenario's voltooid</div>
+          </div>
+          <div className="flex gap-4 text-center">
+            <div>
+              <div className="text-lg font-bold text-slate-700">{userProgress.totalScore}</div>
+              <div className="text-xs text-slate-500">Score</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold text-slate-700">{userProgress.streak}</div>
+              <div className="text-xs text-slate-500">Streak</div>
+            </div>
           </div>
         </div>
         
-        <div className="w-full bg-slate-200 rounded-full h-2 mb-4">
+        <div className="w-full bg-slate-200 rounded-full h-2">
           <div 
             className="bg-emerald-500 rounded-full h-2 transition-all duration-1000"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
-        
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center">
-            <div className="text-lg font-bold text-slate-700">{userProgress.totalScore}</div>
-            <div className="text-xs text-slate-500">Totale Score</div>
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-bold text-slate-700">{userProgress.streak}</div>
-            <div className="text-xs text-slate-500">Streak</div>
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-bold text-slate-700">{userProgress.certificates.length}</div>
-            <div className="text-xs text-slate-500">Certificaten</div>
-          </div>
-        </div>
       </div>
 
-      {/* Scenario Grid */}
-      <div>
-        <h3 className="text-xl font-bold mb-6">Interactieve Scenario's</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {scenarios.map(scenario => {
-            const isCompleted = userProgress.completedScenarios.includes(scenario.id);
-            const colorClass = {
-              red: 'from-red-500 to-pink-500',
-              orange: 'from-orange-500 to-amber-500',
-              blue: 'from-blue-500 to-indigo-500',
-              green: 'from-green-500 to-emerald-500',
-              purple: 'from-purple-500 to-violet-500'
-            }[scenario.color];
+      {/* Compacte toegankelijkheids controls */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <h3 className="font-semibold text-blue-800 mb-3">Leer Modi</h3>
+        
+        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <input
+            type="checkbox"
+            checked={accessibilityMode}
+            onChange={(e) => setAccessibilityMode(e.target.checked)}
+            className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
+          />
+          <span className="text-sm text-blue-700">Geen tijdsdruk</span>
+        </label>
 
-            return (
-              <div 
-                key={scenario.id}
-                className={`relative bg-gradient-to-br ${colorClass} rounded-2xl p-6 text-white cursor-pointer transform transition-all hover:scale-105 ${isCompleted ? 'ring-4 ring-yellow-400' : ''}`}
-                onClick={() => startScenario(scenario)}
-              >
-                {isCompleted && (
-                  <div className="absolute -top-3 -right-3 bg-yellow-400 text-yellow-900 rounded-full p-2">
-                    <CheckIcon className="w-6 h-6" />
-                  </div>
-                )}
-                
-                <div className="flex items-start justify-between mb-4">
-                  <div className="text-6xl">{scenario.image}</div>
-                  <div className="text-right">
-                    <div className="text-sm opacity-90">{scenario.difficulty}</div>
-                    <div className="text-sm opacity-90">{scenario.duration}</div>
-                  </div>
-                </div>
-                
-                <h4 className="text-xl font-bold mb-2">{scenario.title}</h4>
-                <p className="text-sm opacity-90 mb-4">{scenario.description}</p>
-                
-                <div className="flex items-center justify-between">
-                  <button className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-white/30 transition-colors">
-                    <PlayIcon className="w-4 h-4" />
-                    {isCompleted ? 'Opnieuw spelen' : 'Start scenario'}
-                  </button>
-                  <div className="flex items-center gap-1">
-                    <ClockIcon className="w-4 h-4" />
-                    <span className="text-sm">{scenario.duration}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={enhancedMode}
+            onChange={(e) => setEnhancedMode(e.target.checked)}
+            className="w-4 h-4 text-purple-600 border-purple-300 rounded focus:ring-purple-500"
+          />
+          <span className="text-sm text-purple-700">Enhanced modus</span>
+        </label>
+
+        {/* Actieve aanpassingen - zeer compact */}
+        {(enhancedMode || accessibilityMode) && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {accessibilityMode && (
+              <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">
+                Uitgebreide tijd
+              </span>
+            )}
+            {enhancedMode && shouldShowHints && (
+              <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">
+                Hints
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
-  );
+
+    {/* Scenario Grid - direct zichtbaar zonder extra headers */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {scenarios.map(scenario => {
+        const isCompleted = userProgress.completedScenarios.includes(scenario.id);
+        const colorClass = {
+          red: 'from-red-500 to-pink-500',
+          orange: 'from-orange-500 to-amber-500',
+          blue: 'from-blue-500 to-indigo-500',
+          green: 'from-green-500 to-emerald-500',
+          purple: 'from-purple-500 to-violet-500'
+        }[scenario.color];
+
+        return (
+          <div 
+            key={scenario.id}
+            className={`relative bg-gradient-to-br ${colorClass} rounded-xl p-4 text-white cursor-pointer transform transition-all hover:scale-105 ${isCompleted ? 'ring-2 ring-yellow-400' : ''}`}
+            onClick={() => startScenario(scenario)}
+          >
+            {isCompleted && (
+              <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 rounded-full p-1">
+                <CheckIcon className="w-4 h-4" />
+              </div>
+            )}
+            
+            <div className="flex items-start justify-between mb-3">
+              <div className="text-4xl">{scenario.image}</div>
+              <div className="text-right text-xs opacity-90">
+                <div>{scenario.difficulty}</div>
+                <div>{scenario.duration}</div>
+              </div>
+            </div>
+            
+            <h4 className="text-lg font-bold mb-2">{scenario.title}</h4>
+            <p className="text-sm opacity-90 mb-3 line-clamp-2">{scenario.description}</p>
+            
+            <button className="bg-white/20 backdrop-blur-sm px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-white/30 transition-colors text-sm">
+              <PlayIcon className="w-4 h-4" />
+              {isCompleted ? 'Opnieuw' : 'Start'}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
 
   const ScenarioView = () => {
     if (!activeScenario) return null;
