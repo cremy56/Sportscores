@@ -42,33 +42,42 @@ useEffect(() => {
 }, [profile, isTeacher, isAdmin]);
 
   // Load EHBO statistics based on user role
-  useEffect(() => {
+useEffect(() => {
     if (!profile?.school_id || !(isTeacher || isAdmin)) {
       return;
     }
-
-    // Wacht op een geldige selectie
-    if ((isTeacher || isAdmin) && selectedGroup !== 'all') {
-      loadEHBOStats(selectedGroup); // Geef de geselecteerde groep direct mee
-    } else {
-      // Reset de data als er geen geldige groep is geselecteerd
-      setClassStats(null);
-      setStudents([]);
-      setLoading(false);
+    
+    // Prioriteit 1: Een specifieke leerling is geselecteerd via de zoekbalk
+    if (isAdmin && selectedStudent) {
+      loadEHBOStats({ studentId: selectedStudent.id });
+      return; // Stop hier
     }
-  }, [profile, selectedGroup]); // We hebben selectedStudent hier niet meer nodig
+    
+    // Prioriteit 2: Een specifieke groep is geselecteerd
+    if ((isTeacher || isAdmin) && selectedGroup !== 'all') {
+      loadEHBOStats({ groupId: selectedGroup });
+      return; // Stop hier
+    }
+    
+    // Standaard geval: Geen selectie, dus wis de data
+    setClassStats(null);
+    setStudents([]);
+    setLoading(false);
+    
+  }, [profile, selectedGroup, selectedStudent, isTeacher, isAdmin]);
 
   // Aangepaste functie die de groupId als argument accepteert
-  const loadEHBOStats = async (groupId) => {
+ const loadEHBOStats = async ({ groupId, studentId }) => {
     setLoading(true);
     setError(null);
-   try {
+    
+    try {
       const getClassEHBOStats = httpsCallable(functions, 'getClassEHBOStats');
       
-      // Bouw de request data met het groupId argument
       const requestData = {
         schoolId: profile.school_id,
-        classId: groupId // Gebruik het argument, niet de state variabele
+        classId: groupId,   // Wordt 'undefined' als niet meegegeven, wat ok is
+        studentId: studentId // Wordt 'undefined' als niet meegegeven, wat ok is
       };
       
       const result = await getClassEHBOStats(requestData);
