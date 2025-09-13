@@ -130,12 +130,25 @@ const Welzijnsmonitor = () => {
 
     if (error) {
       return (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
           <div className="flex items-center">
-            <ExclamationTriangleIcon className="h-8 w-8 text-red-600 mr-3" />
-            <div>
-              <h3 className="text-red-800 font-semibold">Fout bij laden</h3>
-              <p className="text-red-600">{error}</p>
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-blue-800 font-semibold">
+                {error.includes('nog niet geregistreerd') ? 'Student niet geregistreerd' : 
+                 error.includes('niet gevonden') ? 'Student niet gevonden' : 
+                 'Informatie niet beschikbaar'}
+              </h3>
+              <p className="text-blue-700 mt-1">{error}</p>
+              {error.includes('nog niet geregistreerd') && (
+                <div className="mt-3 text-sm text-blue-600 bg-blue-100 rounded-md p-3">
+                  <strong>Wat te doen:</strong> De student moet eerst inloggen op het platform. Na de eerste login worden de EHBO gegevens automatisch beschikbaar.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -396,12 +409,21 @@ const Welzijnsmonitor = () => {
                     onChange={(e) => setSelectedGroup(e.target.value)}
                     className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-red-500 focus:ring-red-500"
                   >
-                    {availableGroups.map(group => (
-                      <option key={group.id} value={group.id}>
-                        {group.naam}
-                      </option>
-                    ))}
+                    {availableGroups.length > 0 ? (
+                      availableGroups.map(group => (
+                        <option key={group.id} value={group.id}>
+                          {group.naam}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="all">Geen groepen gevonden</option>
+                    )}
                   </select>
+                  {availableGroups.length <= 1 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Debug: Controleer profile.groepen of profile.klas in console
+                    </p>
+                  )}
                 </div>
               )}
               
