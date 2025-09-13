@@ -191,7 +191,52 @@ exports.saveEHBOProgress = onCall(async (request) => {
 exports.getClassEHBOStats = onCall(async (request) => {
   if (!request.auth) throw new Error('Authentication required');
   
-  const { classId, schoolId } = request.data;
+  const { classId, schoolId, studentId } = request.data;
+  if (studentId) {
+    try {
+      const studentDoc = await db.collection('users').doc(studentId).get();
+      if (!studentDoc.exists) {
+        // Fallback voor niet-geregistreerde gebruikers
+        const toegestaneDoc = await db.collection('toegestane_gebruikers').doc(studentId).get();
+        if (!toegestaneDoc.exists) throw new Error('Student not found');
+        
+        const studentData = toegestaneDoc.data();
+        const studentResult = {
+          id: toegestaneDoc.id,
+          name: studentData.naam,
+          email: studentData.email,
+          isRegistered: false,
+          progressPercentage: 0, averageScore: 0, completedScenarios: 0, certificationReady: false, lastActivity: 'N.v.t.'
+        };
+        return { success: true, classStats: { totalStudents: 1 }, students: [studentResult] };
+      }
+      
+      const studentData = studentDoc.data();
+      const scenarioCount = (studentData.completed_ehbo_scenarios || []).length;
+      const totalScenarioCount = 15;
+      const progressPercentage = totalScenarioCount > 0 ? Math.round((scenarioCount / totalScenarioCount) * 100) : 0;
+      const averageScore = scenarioCount > 0 ? Math.round((studentData.ehbo_total_score || 0) / scenarioCount) : 0;
+      
+      const studentResult = {
+        id: studentDoc.id,
+        name: studentData.naam,
+        email: studentData.email,
+        isRegistered: true,
+        progressPercentage: progressPercentage,
+        averageScore: averageScore,
+        completedScenarios: scenarioCount,
+        certificationReady: progressPercentage >= 80,
+        lastActivity: studentData.last_activity ? new Date(studentData.last_activity.toDate()).toLocaleDateString('nl-BE') : 'N.v.t.'
+      };
+      
+      // Return de data voor alleen deze leerling
+      return { success: true, classStats: { totalStudents: 1, studentsCompleted: progressPercentage >= 80 ? 1 : 0, averageScore: averageScore }, students: [studentResult] };
+
+    } catch (error) {
+      console.error('Error fetching single student:', error);
+      return { success: false, error: error.message };
+    }
+  }
   if (!classId || !schoolId || classId === 'all') {
     // Return lege data als er geen specifieke groep is gekozen
     return { success: true, classStats: { totalStudents: 0 }, students: [] };

@@ -439,6 +439,11 @@ const loadUserGroups = async () => {
     </div>
   );
 
+const handleStudentSelection = (student) => {
+    setSelectedStudent(student);
+    setSelectedGroup('all'); // Reset de groep-selectie
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       {/* Header with Role-Based Controls */}
@@ -503,7 +508,7 @@ const loadUserGroups = async () => {
                     Specifieke Leerling (Optioneel)
                   </label>
                   <StudentSearch 
-                    onStudentSelect={setSelectedStudent}
+                    onStudentSelect={handleStudentSelection}
                     schoolId={profile?.school_id}
                     initialStudent={selectedStudent}
                     placeholder="Extra filter op leerling"
