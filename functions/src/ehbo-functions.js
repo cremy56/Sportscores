@@ -97,7 +97,7 @@ exports.awardEHBOXP = onCall(async (request) => {
   try {
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
-    if (!userDoc.exists() || userDoc.data().rol !== 'leerling') {
+    if (!userDoc.exists || userDoc.data().rol !== 'leerling') {
       throw new Error('User not found or is not a student');
     }
     
