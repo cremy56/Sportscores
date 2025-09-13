@@ -337,63 +337,85 @@ const loadUserGroups = async () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {students.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{student.name}</div>
-                        <div className="text-sm text-gray-500">{student.email}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-16 bg-gray-200 rounded-full h-2.5 mr-3">
-                          <div
-                            className="bg-red-600 h-2.5 rounded-full transition-all duration-300"
-                            style={{ width: `${student.progressPercentage}%` }}
-                          />
+                  {students.map((student) => (
+                    <tr key={student.id} className={`hover:bg-gray-50 ${!student.isRegistered ? 'bg-orange-25' : ''}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {student.name}
+                            {!student.isRegistered && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                Niet geregistreerd
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-500">{student.email}</div>
                         </div>
-                        <span className="text-sm font-medium text-gray-700">{student.progressPercentage}%</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        student.averageScore >= 80 ? 'bg-green-100 text-green-800' :
-                        student.averageScore >= 60 ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {student.averageScore}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {student.completedScenarios}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {student.certificationReady ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <CheckCircleIcon className="w-4 h-4 mr-1" />
-                          Competent
-                        </span>
-                      ) : student.progressPercentage > 50 ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          <ClockIcon className="w-4 h-4 mr-1" />
-                          Bezig
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          Niet gestart
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {student.lastActivity ? 
-                        new Date(student.lastActivity).toLocaleDateString('nl-NL') : 
-                        'Nooit'
-                      }
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {student.isRegistered ? (
+                          <div className="flex items-center">
+                            <div className="w-16 bg-gray-200 rounded-full h-2.5 mr-3">
+                              <div
+                                className="bg-red-600 h-2.5 rounded-full transition-all duration-300"
+                                style={{ width: `${student.progressPercentage}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium text-gray-700">{student.progressPercentage}%</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {student.isRegistered ? (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            student.averageScore >= 80 ? 'bg-green-100 text-green-800' :
+                            student.averageScore >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {student.averageScore}%
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {student.isRegistered ? student.completedScenarios : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {!student.isRegistered ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            Niet geregistreerd
+                          </span>
+                        ) : student.certificationReady ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircleIcon className="w-4 h-4 mr-1" />
+                            Competent
+                          </span>
+                        ) : student.progressPercentage > 50 ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <ClockIcon className="w-4 h-4 mr-1" />
+                            Bezig
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            Niet gestart
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {student.isRegistered ? (
+                          student.lastActivity ? 
+                            new Date(student.lastActivity).toLocaleDateString('nl-NL') : 
+                            'Nooit'
+                        ) : (
+                          'Moet nog registreren'
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
             </table>
           </div>
         </div>

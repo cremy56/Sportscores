@@ -157,7 +157,6 @@ exports.saveEHBOProgress = onCall(async (request) => {
 });
 
 // Replace your getClassEHBOStats function with this clean version
-// Replace your getClassEHBOStats function with this clean version
 exports.getClassEHBOStats = onCall(async (request) => {
   console.log('=== getClassEHBOStats START ===');
   
@@ -314,14 +313,67 @@ exports.getClassEHBOStats = onCall(async (request) => {
     studentsSnapshot.docs.forEach((doc) => {
       try {
         const studentData = doc.data();
+        const isRegistered = studentData.registered !== false; // Default to true unless explicitly false
+        
+        console.log(`Processing student: ${studentData.naam}, registered: ${isRegistered}`);
+        
+        if (!isRegistered) {
+          // Handle unregistered students
+          const unregisteredStudent = {
+            id: doc.id,
+            name: studentData.naam || 'Onbekend',
+            email: studentData.email || doc.id,
+            completedScenarios: 0,
+            totalScore: 0,
+            averageScore: 0,
+            progressPercentage: 0,
+            objectives: {},
+            lastActivity: null,
+            certificationReady: false,
+            strugglingAreas: [],
+            isRegistered: false,
+            status: 'unregistered'
+          };
+          
+          students.push(unregisteredStudent);
+          
+          // Count unregistered students separately
+          classStats.totalStudents++;
+          // Don't count as "started" since they can't access EHBO yet
+          
+          return; // Skip EHBO processing for unregistered students
+        }
+        
+        // Continue with regular processing for registered students
         const completedScenarios = studentData.completed_ehbo_scenarios || [];
         const totalScore = studentData.ehbo_total_score || 0;
         const scenarioCount = completedScenarios.length;
 
-        // Skip students with no activity
-        if (scenarioCount === 0) return;
-
+        // Skip students with no activity (but still count them)
         classStats.totalStudents++;
+        
+        if (scenarioCount === 0) {
+          // Student is registered but hasn't started EHBO
+          const inactiveStudent = {
+            id: doc.id,
+            name: studentData.naam || 'Onbekend',
+            email: studentData.email || doc.id,
+            completedScenarios: 0,
+            totalScore: 0,
+            averageScore: 0,
+            progressPercentage: 0,
+            objectives: {},
+            lastActivity: studentData.last_activity,
+            certificationReady: false,
+            strugglingAreas: [],
+            isRegistered: true,
+            status: 'not_started'
+          };
+          
+          students.push(inactiveStudent);
+          return;
+        }
+
         classStats.studentsStarted++;
 
         // Calculate objectives
@@ -364,12 +416,14 @@ exports.getClassEHBOStats = onCall(async (request) => {
           objectives: objectives,
           lastActivity: studentData.last_activity,
           certificationReady: progressPercentage >= 80 && averageScore >= 75,
-          strugglingAreas: identifyStrugglingAreas(objectives)
+          strugglingAreas: identifyStrugglingAreas(objectives),
+          isRegistered: true,
+          status: 'active'
         };
 
         students.push(studentStats);
 
-        // Check for struggling students
+        // Check for struggling students (only registered students)
         if (averageScore < 60 || isInactive(studentData.last_activity)) {
           classStats.strugglingStudents.push({
             name: studentData.naam || 'Onbekend',
@@ -379,7 +433,7 @@ exports.getClassEHBOStats = onCall(async (request) => {
           });
         }
 
-        // Check for top performers
+        // Check for top performers (only registered students)
         if (averageScore > 85 && scenarioCount >= 5) {
           classStats.topPerformers.push({
             name: studentData.naam || 'Onbekend',
