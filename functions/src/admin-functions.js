@@ -191,3 +191,114 @@ exports.onUserRegistration = onCall(async (request) => {
     throw error;
   }
 });
+
+// Add this to a new file or to your existing functions file (e.g., admin-functions.js)
+
+
+exports.getUserGroups = onCall(async (request) => {
+  console.log('=== getUserGroups FUNCTION START ===');
+  
+  if (!request.auth) {
+    throw new Error('Authentication required');
+  }
+  
+  try {
+    const userId = request.auth.uid;
+    console.log('Getting groups for user:', userId);
+    
+    // Get user info
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      throw new Error('User not found');
+    }
+    
+    const userData = userDoc.data();
+    console.log('User role:', userData.rol);
+    
+    // Verify user is teacher or admin
+    if (!['leerkracht', 'administrator', 'super-administrator'].includes(userData.rol)) {
+      throw new Error('Access denied - only teachers and admins can access groups');
+    }
+    
+    const groups = [];
+    
+    // Query groups based on user role
+    if (userData.rol === 'leerkracht') {
+      // Teachers: get groups where they are the leerkracht
+      console.log('Fetching groups for teacher...');
+      const groepenQuery = await db.collection('groepen')
+        .where('leerkracht_id', '==', userId)
+        .get();
+      
+      groepenQuery.docs.forEach(doc => {
+        const groupData = doc.data();
+        groups.push({
+          id: doc.id,
+          naam: groupData.naam || `Groep ${doc.id}`,
+          leerling_count: groupData.leerling_ids ? groupData.leerling_ids.length : 0
+        });
+      });
+      
+    } else if (['administrator', 'super-administrator'].includes(userData.rol)) {
+      // Admins: get all groups in their school, OR groups they teach
+      console.log('Fetching groups for admin...');
+      
+      // First try to get groups they teach
+      const teacherGroupsQuery = await db.collection('groepen')
+        .where('leerkracht_id', '==', userId)
+        .get();
+      
+      teacherGroupsQuery.docs.forEach(doc => {
+        const groupData = doc.data();
+        groups.push({
+          id: doc.id,
+          naam: groupData.naam || `Groep ${doc.id}`,
+          leerling_count: groupData.leerling_ids ? groupData.leerling_ids.length : 0,
+          role: 'teacher' // They teach this group
+        });
+      });
+      
+      // Also get all groups from their school (for admin overview)
+      const schoolGroupsQuery = await db.collection('groepen')
+        .where('school_id', '==', userData.school_id)
+        .get();
+      
+      schoolGroupsQuery.docs.forEach(doc => {
+        // Don't duplicate groups they already teach
+        if (!groups.find(g => g.id === doc.id)) {
+          const groupData = doc.data();
+          groups.push({
+            id: doc.id,
+            naam: groupData.naam || `Groep ${doc.id}`,
+            leerling_count: groupData.leerling_ids ? groupData.leerling_ids.length : 0,
+            role: 'admin', // They can view as admin
+            leerkracht_naam: groupData.leerkracht_naam || 'Onbekend'
+          });
+        }
+      });
+    }
+    
+    // Sort groups by name
+    groups.sort((a, b) => a.naam.localeCompare(b.naam));
+    
+    console.log(`Found ${groups.length} groups for user ${userData.naam}`);
+    
+    return {
+      success: true,
+      groups: groups,
+      user: {
+        name: userData.naam,
+        role: userData.rol,
+        school_id: userData.school_id
+      }
+    };
+    
+  } catch (error) {
+    console.error('Error getting user groups:', error);
+    return {
+      success: false,
+      error: error.message,
+      groups: []
+    };
+  }
+});

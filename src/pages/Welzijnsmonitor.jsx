@@ -29,39 +29,13 @@ const Welzijnsmonitor = () => {
 
   const isTeacher = profile?.rol === 'leerkracht';
   const isAdmin = ['administrator', 'super-administrator'].includes(profile?.rol);
+  const [groupsLoading, setGroupsLoading] = useState(true);
+
 
   // Load available groups for teachers
 useEffect(() => {
-  console.log('=== DEBUG: Loading groups ===');
-  console.log('profile:', profile);
-  console.log('Full profile:', JSON.stringify(profile, null, 2));
-  
   if (profile && (isTeacher || isAdmin)) {
-    let groups = [];
-    
-    // Add placeholder as first option
-    groups.push({ id: 'all', naam: 'Selecteer een groep...' });
-    
-    // Check multiple possible sources for groups/classes
-    if (profile.groepen && Array.isArray(profile.groepen)) {
-      const groepenList = profile.groepen.map(groepId => ({ 
-        id: groepId, 
-        naam: `Groep: ${groepId}` 
-      }));
-      groups = [...groups, ...groepenList];
-    } else if (profile.leerling_ids && Array.isArray(profile.leerling_ids)) {
-      groups.push({ id: 'my_students', naam: 'Mijn Leerlingen' });
-    } else if (profile.klas) {
-      groups.push({ id: profile.klas, naam: `Klas: ${profile.klas}` });
-    } else {
-      // Fallback for admins - add some default groups
-      if (isAdmin) {
-        groups.push({ id: 'school_all', naam: 'Alle Leerlingen School' });
-      }
-    }
-    
-    console.log('Available groups set to:', groups);
-    setAvailableGroups(groups);
+    loadUserGroups();
   }
 }, [profile, isTeacher, isAdmin]);
 
@@ -160,7 +134,64 @@ useEffect(() => {
       setLoading(false);
     }
   };
-
+const loadUserGroups = async () => {
+  setGroupsLoading(true);
+  
+  try {
+    console.log('Loading groups for user...');
+    const getUserGroups = httpsCallable(functions, 'getUserGroups');
+    const result = await getUserGroups();
+    
+    if (result.data.success) {
+      const groups = result.data.groups;
+      console.log('Loaded groups:', groups);
+      
+      // Prepare groups for dropdown
+      const dropdownGroups = [
+        { id: 'all', naam: 'Selecteer een groep...' }
+      ];
+      
+      // Add user's groups
+      groups.forEach(group => {
+        let displayName = group.naam;
+        
+        // Add extra info for admins
+        if (isAdmin && group.role === 'admin') {
+          displayName += ` (${group.leerkracht_naam}) - ${group.leerling_count} leerlingen`;
+        } else if (group.leerling_count) {
+          displayName += ` - ${group.leerling_count} leerlingen`;
+        }
+        
+        dropdownGroups.push({
+          id: group.id,
+          naam: displayName,
+          originalName: group.naam,
+          role: group.role,
+          studentCount: group.leerling_count
+        });
+      });
+      
+      setAvailableGroups(dropdownGroups);
+      
+    } else {
+      console.error('Failed to load groups:', result.data.error);
+      // Fallback
+      setAvailableGroups([
+        { id: 'all', naam: 'Selecteer een groep...' },
+        { id: 'error', naam: 'Fout bij laden groepen' }
+      ]);
+    }
+    
+  } catch (error) {
+    console.error('Error loading groups:', error);
+    setAvailableGroups([
+      { id: 'all', naam: 'Selecteer een groep...' },
+      { id: 'error', naam: 'Kan groepen niet laden' }
+    ]);
+  } finally {
+    setGroupsLoading(false);
+  }
+};
   // EHBO Dashboard Component with role-based controls
   const EHBODashboard = () => {
     if (loading) {
@@ -452,25 +483,42 @@ useEffect(() => {
           <div className="lg:flex-shrink-0 lg:w-[600px]">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               
-              {/* Everyone gets group selection if they have groups */}
-              {(isTeacher || isAdmin) && availableGroups.length > 1 && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Groep Selecteren
-                  </label>
-                  <select
-                    value={selectedGroup}
-                    onChange={(e) => setSelectedGroup(e.target.value)}
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-red-500 focus:ring-red-500"
-                  >
-                    {availableGroups.map(group => (
-                      <option key={group.id} value={group.id}>
-                        {group.naam}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {/* Everyone gets group selection if they are teacher or admin */}
+                {(isTeacher || isAdmin) && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Groep Selecteren
+                      {groupsLoading && <span className="text-xs text-gray-500 ml-2">(Laden...)</span>}
+                    </label>
+                    <select
+                      value={selectedGroup}
+                      onChange={(e) => setSelectedGroup(e.target.value)}
+                      disabled={groupsLoading}
+                      className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-red-500 focus:ring-red-500 disabled:bg-gray-100"
+                    >
+                      {groupsLoading ? (
+                        <option value="all">Groepen laden...</option>
+                      ) : availableGroups.length > 0 ? (
+                        availableGroups.map(group => (
+                          <option key={group.id} value={group.id}>
+                            {group.naam}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="all">Geen groepen gevonden</option>
+                      )}
+                    </select>
+                    
+                    {/* Show group info */}
+                    {selectedGroup !== 'all' && !groupsLoading && (
+                      <div className="mt-1 text-xs text-gray-500">
+                        {availableGroups.find(g => g.id === selectedGroup)?.studentCount 
+                          ? `${availableGroups.find(g => g.id === selectedGroup)?.studentCount} leerlingen`
+                          : 'Groep geselecteerd'}
+                      </div>
+                    )}
+                  </div>
+                )}
               
               {/* Admin: Student Search (optional, additional filter) */}
               {isAdmin && (
