@@ -41,99 +41,51 @@ useEffect(() => {
 
   // Load EHBO statistics based on user role
   useEffect(() => {
-  if (!profile?.school_id || !(isTeacher || isAdmin)) {
-    return;
-  }
+    if (!profile?.school_id || !(isTeacher || isAdmin)) {
+      return;
+    }
 
-  // Don't load automatically - wait for user selection
-  if (isAdmin && !selectedStudent && selectedGroup === 'all') {
-    // Admin hasn't selected anything yet - don't load
-    setLoading(false);
-    setClassStats(null);
-    setStudents([]);
-    return;
-  }
+    // Wacht op een geldige selectie
+    if ((isTeacher || isAdmin) && selectedGroup !== 'all') {
+      loadEHBOStats(selectedGroup); // Geef de geselecteerde groep direct mee
+    } else {
+      // Reset de data als er geen geldige groep is geselecteerd
+      setClassStats(null);
+      setStudents([]);
+      setLoading(false);
+    }
+  }, [profile, selectedGroup]); // We hebben selectedStudent hier niet meer nodig
 
-  if (isTeacher && selectedGroup === 'all') {
-    // Teacher hasn't selected a specific group - don't load
-    setLoading(false);
-    setClassStats(null);
-    setStudents([]);
-    return;
-  }
-
-  // Only load when there's an actual selection
-  loadEHBOStats();
-}, [profile, selectedGroup, selectedStudent]);
-
-  const loadEHBOStats = async () => {
+  // Aangepaste functie die de groupId als argument accepteert
+  const loadEHBOStats = async (groupId) => {
     setLoading(true);
     setError(null);
-    
-    const timeoutId = setTimeout(() => {
-      setLoading(false);
-      setError('Het laden van de gegevens duurt te lang. Probeer het later opnieuw.');
-    }, 30000);
-    
-    try {
+   try {
       const getClassEHBOStats = httpsCallable(functions, 'getClassEHBOStats');
       
-      let requestData = {
-        schoolId: profile.school_id
+      // Bouw de request data met het groupId argument
+      const requestData = {
+        schoolId: profile.school_id,
+        classId: groupId // Gebruik het argument, niet de state variabele
       };
-
-      // For teachers: filter by selected group
-      if (isTeacher) {
-        if (selectedGroup && selectedGroup !== 'all') {
-          requestData.classId = selectedGroup;
-        }
-      }
-
-      // For admins: if a specific student is selected, filter to show just that student
-      if (isAdmin && selectedStudent) {
-        requestData.studentId = selectedStudent.id; // We'll need to modify the backend for this
-      }
       
-      const result = await Promise.race([
-        getClassEHBOStats(requestData),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Firebase function timeout')), 25000)
-        )
-      ]);
-      
-      clearTimeout(timeoutId);
+      const result = await getClassEHBOStats(requestData);
       
       if (result.data && result.data.success) {
         setClassStats(result.data.classStats);
         setStudents(result.data.students || []);
       } else {
-        // Handle specific error cases for better user feedback
-        if (result.data?.studentStatus === 'unregistered') {
-          setError(`${result.data.studentName} is nog niet geregistreerd. De student moet eerst inloggen om EHBO gegevens te kunnen bekijken.`);
-        } else if (result.data?.studentStatus === 'not_found') {
-          setError(result.data.error);
-        } else {
-          throw new Error(result.data?.error || 'Onbekende fout bij laden van statistieken');
-        }
+        throw new Error(result.data?.error || 'Onbekende fout bij laden van statistieken');
       }
       
     } catch (error) {
       console.error('Error loading EHBO stats:', error);
-      clearTimeout(timeoutId);
-      
-      if (error.code === 'functions/unauthenticated') {
-        setError('U bent niet geautoriseerd. Log opnieuw in.');
-      } else if (error.code === 'functions/permission-denied') {
-        setError('Geen toegang tot deze gegevens. Controleer uw rechten.');
-      } else if (error.message.includes('timeout')) {
-        setError('De verbinding is verlopen. Controleer uw internetverbinding en probeer opnieuw.');
-      } else {
-        setError(`Fout bij laden: ${error.message || 'Onbekende fout'}`);
-      }
+      setError(`Fout bij laden: ${error.message || 'Onbekende fout'}`);
     } finally {
       setLoading(false);
     }
   };
+  
 const loadUserGroups = async () => {
   setGroupsLoading(true);
   
