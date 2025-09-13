@@ -1887,10 +1887,15 @@ const handleRoleIntroComplete = () => {
     );
   };
 
+
   const ScenarioResults = () => {
+    // --- START WIJZIGING ---
     const correctAnswers = Object.values(scenarioResults).filter(r => r.correct).length;
-    const totalQuestions = activeScenario.steps.length;
-    const score = Math.round((correctAnswers / totalQuestions) * 100);
+    // Gebruik het aantal opgeslagen resultaten als het totaal, niet de lengte van de steps-array
+    const totalAnswered = Object.keys(scenarioResults).length;
+    
+    const score = totalAnswered > 0 ? Math.round((correctAnswers / totalAnswered) * 100) : 0;
+    // --- EINDE WIJZIGING ---
     
     return (
       <div className="text-center">
@@ -1899,7 +1904,8 @@ const handleRoleIntroComplete = () => {
             {score >= 80 ? '🏆' : score >= 60 ? '🥉' : '📚'}
           </div>
           <h3 className="text-2xl font-bold mb-2">Scenario Voltooid!</h3>
-          <p className="text-gray-600 mb-4">Je hebt {correctAnswers} van de {totalQuestions} vragen correct beantwoord</p>
+          {/* Gebruik hier ook de correcte totalen */}
+          <p className="text-gray-600 mb-4">Je hebt {correctAnswers} van de {totalAnswered} vragen correct beantwoord</p>
           
           <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl p-6 mb-6">
             <div className="text-4xl font-bold mb-2">{score}%</div>
@@ -1913,13 +1919,20 @@ const handleRoleIntroComplete = () => {
         </div>
         
         <div className="space-y-4 mb-8">
-          <h4 className="font-bold text-lg">Resultaten per vraag:</h4>
-          {activeScenario.steps.map((step, index) => {
-            const result = scenarioResults[step.id];
+          <h4 className="font-bold text-lg">Jouw Pad door het Scenario:</h4>
+          {/* We gebruiken hier Object.entries om de volgorde te behouden */}
+          {Object.entries(scenarioResults).map(([stepId, result], index) => {
+            const step = activeScenario.steps.find(s => s.id.toString() === stepId.toString());
+            if (!step) return null;
+
+            const isConsequence = String(step.id).includes('_consequence');
+            
             return (
-              <div key={step.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span>Vraag {index + 1}</span>
-               <div className="flex items-center gap-2">
+              <div key={step.id} className={`flex items-center justify-between p-3 rounded-lg ${isConsequence ? 'bg-yellow-50' : 'bg-gray-50'}`}>
+                <span className={`font-medium ${isConsequence ? 'pl-4 text-yellow-800' : 'text-gray-700'}`}>
+                  {isConsequence && '↪ '}Vraag {index + 1}
+                </span>
+                <div className="flex items-center gap-2">
                     {!accessibilityMode && (
                         <span className="text-sm text-gray-600">{result?.timeUsed}s</span>
                     )}
@@ -1928,18 +1941,12 @@ const handleRoleIntroComplete = () => {
                     ) : (
                         <XMarkIcon className="w-5 h-5 text-red-600" />
                     )}
-                    </div>
+                </div>
               </div>
             );
           })}
         </div>
-        {/* NIEUW: Enhanced insights */}
-        {isEnhanced && insights && insights.length > 0 && (
-          <div className="mb-8">
-            <EnhancedUIComponents.PerformanceInsights insights={insights} />
-          </div>
-        )}
-        {/* Je bestaande action buttons */}
+
         <div className="flex gap-4 justify-center">
           <button
             onClick={() => startScenario(activeScenario)}
