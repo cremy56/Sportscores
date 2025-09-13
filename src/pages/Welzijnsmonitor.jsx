@@ -399,7 +399,7 @@ const Welzijnsmonitor = () => {
           <div className="lg:flex-shrink-0 lg:w-[600px]">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
               {/* Teacher OR Admin with groups: Group Selection */}
-              {(isTeacher || (isAdmin && hasGroups)) && (
+              {(isTeacher || (isAdmin && (profile?.groepen || profile?.leerling_ids || profile?.leerkracht_id))) && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     {isTeacher ? 'Mijn Groepen' : 'Groep Filter'}
