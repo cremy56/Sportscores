@@ -1683,46 +1683,22 @@ const handleRoleIntroComplete = () => {
           {/* Header */}
           <div className={`bg-gradient-to-r from-${activeScenario.color}-500 to-${activeScenario.color}-600 p-6 text-white`}>
             <div className="flex items-center justify-between mb-4">
-             <h2 className="text-2xl font-bold">
+              <h2 className="text-2xl font-bold">
                 {activeScenario.title}
-                {/* NIEUW: Enhanced indicator */}
-                {isEnhanced && (
-                  <span className="ml-2 text-sm bg-white/20 px-2 py-1 rounded">
-                    Enhanced
-                  </span>
-                )}
+                {/* ... enhanced indicator ... */}
               </h2>
-             <button 
-                onClick={resetScenario}
-                className="bg-white/20 hover:bg-white/30 rounded-lg p-2 transition-colors"
-              >
+              <button onClick={resetScenario} /*...*/ >
                 <XMarkIcon className="w-6 h-6" />
               </button>
             </div>
             
-            {/* NIEUW: Context beschrijving voor enhanced scenarios */}
-            {isEnhanced && activeScenario.contextDescription && (
-              <div className="mb-4 p-3 bg-white/10 rounded-lg">
-                <p className="text-sm">{activeScenario.contextDescription}</p>
-              </div>
-            )}
-            {/* Role context */}
-            {isEnhanced && gameState.role && (
-              <div className="mb-4 p-3 bg-white/10 rounded-lg">
-                <p className="text-sm font-medium">{gameState.role.description}</p>
-              </div>
-            )}
+            {/* --- START WIJZIGING --- */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <span className="text-lg">Stap {currentStep + 1} van {activeScenario.steps.length}</span>
-                <div className="flex gap-1">
-                  {activeScenario.steps.map((_, index) => (
-                    <div 
-                      key={index}
-                      className={`w-3 h-3 rounded-full ${index <= currentStep ? 'bg-white' : 'bg-white/30'}`}
-                    />
-                  ))}
-                </div>
+                {(() => {
+                  const vraagNummer = Object.keys(scenarioResults).length + 1;
+                  return <span className="text-lg font-semibold">Vraag {vraagNummer}</span>;
+                })()}
               </div>
               
               {/* TIMER ALLEEN TONEN ALS ACCESSIBILITY MODE UIT STAAT */}
