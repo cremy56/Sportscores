@@ -161,7 +161,7 @@ const loadUserGroups = async () => {
   }
 };
   // EHBO Dashboard Component with role-based controls
-  const EHBODashboard = () => {
+const EHBODashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -334,7 +334,7 @@ const loadUserGroups = async () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {students.map((student) => (
-                <tr key={student.id} className={`hover:bg-gray-50  'bg-orange-25' : ''}`}>
+                <tr key={student.id} className={`hover:bg-gray-50 'bg-orange-25' : ''}`}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-semibold">
@@ -473,6 +473,7 @@ const loadUserGroups = async () => {
     </div>
   );
 };
+     
 
 // Verbeterd Welzijn Dashboard Component met subtielere kleuren
 const WelzijnDashboard = () => {
@@ -715,11 +716,11 @@ const WelzijnDashboard = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`text-sm font-medium ${
-                      student.avgSleep >= 8 ? 'text-green-600' :
-                      student.avgSleep >= 7 ? 'text-amber-600' :
+                      (student.avgSleep || 0) >= 8 ? 'text-green-600' :
+                      (student.avgSleep || 0) >= 7 ? 'text-amber-600' :
                       'text-red-600'
                     }`}>
-                      {student.avgSleep}u
+                      {(student.avgSleep || 0)}u
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
