@@ -334,7 +334,7 @@ const EHBODashboard = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {students.map((student) => (
-                <tr key={student.id} className={`hover:bg-gray-50 'bg-orange-25' : ''}`}>
+                <tr key={student.id} className={`hover:bg-gray-50 ${!student.isRegistered ? 'bg-orange-25' : ''}`}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-semibold">
@@ -473,7 +473,9 @@ const EHBODashboard = () => {
     </div>
   );
 };
-     
+   
+
+
 
 // Verbeterd Welzijn Dashboard Component met subtielere kleuren
 const WelzijnDashboard = () => {
@@ -839,7 +841,13 @@ const loadWelzijnStats = async ({ groupId, studentId }) => {
       classId: groupId,
       studentId: studentId,
     });
+    
+    // DEBUG: Log de volledige response
+    console.log('🔍 WELZIJN RESPONSE:', JSON.stringify(result.data, null, 2));
+    
     if (result.data.success) {
+      console.log('📊 Group Stats:', result.data.groupStats);
+      console.log('👥 Student Data:', result.data.studentData);
       setWelzijnStats(result.data);
     } else {
       throw new Error(result.data.error);
