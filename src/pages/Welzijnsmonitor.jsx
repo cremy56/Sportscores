@@ -200,21 +200,33 @@ const loadUserGroups = async () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg">
+         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center">
+    
+            <div className={`p-3 rounded-lg ${
+              (classStats?.studentsCompleted || 0) > 0 ? 'bg-green-100' : 'bg-gray-100'
+            }`}>
+              {(classStats?.studentsCompleted || 0) > 0 ? (
                 <CheckCircleIcon className="h-8 w-8 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">EHBO Competent</p>
-                <p className="text-3xl font-bold text-gray-900">{classStats?.studentsCompleted || 0}</p>
+              ) : (
+                <AcademicCapIcon className="h-8 w-8 text-gray-500" />
+              )}
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">EHBO Competent</p>
+              <p className={`text-3xl font-bold ${
+                (classStats?.studentsCompleted || 0) > 0 ? 'text-gray-900' : 'text-gray-500'
+              }`}>{classStats?.studentsCompleted || 0}</p>
+             {/* Toon de percentagelijn alleen als er daadwerkelijk competente leerlingen zijn */}
+              {(classStats?.studentsCompleted || 0) > 0 && (
                 <p className="text-sm text-gray-500">
                   {classStats?.totalStudents > 0 ? 
                     Math.round((classStats.studentsCompleted / classStats.totalStudents) * 100) : 0}%
                 </p>
-              </div>
+              )}
             </div>
           </div>
+        </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center">
