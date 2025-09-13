@@ -1386,41 +1386,38 @@ useEffect(() => {
 
 // Nieuwe functie voor volgende stap
 
-  const goToNextStep = () => {
-    setShowNextButton(false);
+const goToNextStep = (selectedOption) => {
+  setShowNextButton(false);
 
-    // Haal de data van de huidige stap en het gegeven antwoord op
+  // Als er geen 'selectedOption' is meegegeven, haal het als fallback uit de state.
+  // Dit zorgt ervoor dat de "Volgende" knop ook blijft werken.
+  if (!selectedOption) {
     const currentStepData = activeScenario.steps[currentStep];
     const resultForCurrentStep = scenarioResults[currentStepData.id];
-
     if (!resultForCurrentStep) {
-      // Fallback als er iets misgaat
-      console.error("Kon het resultaat voor de huidige stap niet vinden.");
+      console.error("Kon het resultaat voor de huidige stap niet vinden bij fallback.");
       resetScenario();
       return;
     }
-    
-    // Haal de ID van de volgende stap uit de gekozen optie
-    const nextStepId = resultForCurrentStep.selected.nextStepId;
+    selectedOption = resultForCurrentStep.selected;
+  }
 
-    if (nextStepId) {
-      // Zoek de index van de volgende stap in de array
-      const nextStepIndex = activeScenario.steps.findIndex(step => step.id === nextStepId);
+  const nextStepId = selectedOption.nextStepId;
 
-      if (nextStepIndex !== -1) {
-        // Ga naar de volgende stap
-        setCurrentStep(nextStepIndex);
-        const nextStep = activeScenario.steps[nextStepIndex];
-        setTimeRemaining(accessibilityMode ? null : nextStep.timeLimit);
-      } else {
-        // Volgende stap niet gevonden, beëindig het scenario
-        completeScenario(scenarioResults);
-      }
+  if (nextStepId) {
+    const nextStepIndex = activeScenario.steps.findIndex(step => step.id === nextStepId);
+
+    if (nextStepIndex !== -1) {
+      setCurrentStep(nextStepIndex);
+      const nextStep = activeScenario.steps[nextStepIndex];
+      setTimeRemaining(accessibilityMode ? null : nextStep.timeLimit);
     } else {
-      // Geen nextStepId gedefinieerd (bv. `null`), dus het scenario is voorbij
       completeScenario(scenarioResults);
     }
-  };
+  } else {
+    completeScenario(scenarioResults);
+  }
+};
 
 // Role intro completion handler (voeg toe na je goToNextStep functie)
 const handleRoleIntroComplete = () => {

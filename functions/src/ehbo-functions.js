@@ -163,7 +163,7 @@ exports.saveEHBOProgress = onCall(async (request) => {
   
    // "bewusteloos_enhanced_12345" wordt "bewusteloos"
     const baseScenarioId = scenarioId.split('_enhanced_')[0];
-    const scenarioKey = `ehbo_completion_stats.${scenarioId}`;
+    const scenarioKey = `ehbo_completion_stats.${baseScenarioId}`;
     
     await userRef.update({
       [scenarioKey]: FieldValue.increment(1), 
