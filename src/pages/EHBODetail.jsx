@@ -10,6 +10,13 @@ import { EnhancedUIComponents } from '../utils/enhancedEHBO.jsx';
 import { RoleBasedScenarios, ComplicationSystem } from '../utils/advancedEnhancedEHBO';
 import { Phase3UIComponents } from '../components/EHBO/EnhancedScenarioManager';
 
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
 
 const EHBODetail = () => {
   const { profile } = useOutletContext();
@@ -87,6 +94,7 @@ const [showComplication, setShowComplication] = useState(null);
   
   // Scenario data - Uitgebreid met meer leerplandoel-relevante scenario's
  const scenarios = [
+   
     {
       id: 'bewusteloos',
       title: 'Bewusteloze persoon',
@@ -96,41 +104,52 @@ const [showComplication, setShowComplication] = useState(null);
       image: '🚨',
       color: 'red',
       steps: [
-        {
-          id: 1,
-          question: 'Je ziet een persoon roerloos op de grond liggen. Wat doe je EERST?',
+        { 
+          id: 1, 
+          question: 'Je ziet een persoon roerloos op de grond liggen. Wat doe je EERST?', 
           options: [
-            { id: 'a', text: 'Schudden aan de persoon om te zien of hij/zij reageert', correct: false, feedback: 'Voorzichtig! Eerst zorgen voor je eigen veiligheid.' },
-            { id: 'b', text: 'Controleren of de omgeving veilig is', correct: true, feedback: 'Correct! Eigen veiligheid eerst, anders heb je straks twee slachtoffers.' },
-            { id: 'c', text: 'Meteen 112 bellen', correct: false, feedback: 'Te vroeg. Eerst controleren wat er aan de hand is.' },
-            { id: 'd', text: 'Naar ademhaling luisteren', correct: false, feedback: 'Eerst veiligheid controleren voordat je dichterbij komt.' }
+            { id: 'b', text: 'Controleren of de omgeving veilig is', correct: true, feedback: 'Correct! Eigen veiligheid eerst.', nextStepId: 2 },
+            { id: 'a', text: 'Schudden aan de persoon', correct: false, feedback: 'Voorzichtig! Eerst zorgen voor je eigen veiligheid.', nextStepId: 2 },
+            { id: 'c', text: 'Meteen 112 bellen', correct: false, feedback: 'Te vroeg. Eerst de situatie inschatten.', nextStepId: 2 },
+            { id: 'd', text: 'Naar ademhaling luisteren', correct: false, feedback: 'Eerst veiligheid controleren.', nextStepId: 2 }
+          ], 
+          timeLimit: 15, 
+          explanation: 'Bij elke noodsituatie geldt: EIGEN VEILIGHEID EERST. Zonder dit te doen, kun je zelf slachtoffer worden.' 
+        },
+        { 
+          id: 2, 
+          question: 'De omgeving is veilig. De persoon reageert niet op aanspreken. Wat nu?', 
+          options: [
+            { id: 'a', text: 'Voorzichtig schudden aan de schouders en luid roepen', correct: true, feedback: 'Correct! Probeer bewustzijn te controleren.', nextStepId: 3 },
+            { id: 'b', text: 'Meteen beginnen met hartmassage', correct: false, feedback: 'Te vroeg! Controleer eerst de ademhaling.', nextStepId: '3_consequence' }, // <-- GAAT NAAR EEN GEVOLG-STAP
+            { id: 'c', text: 'In stabiele zijligging leggen', correct: false, feedback: 'Eerst de ademhaling controleren.', nextStepId: 3 },
+            { id: 'd', text: 'Water in het gezicht gooien', correct: false, feedback: 'Dit helpt niet en kan gevaarlijk zijn.', nextStepId: 3 }
+          ], 
+          timeLimit: 10, 
+          explanation: 'Controleer het bewustzijn door de persoon aan te spreken en zachtjes aan de schouders te schudden.' 
+        },
+        { 
+          id: 3, 
+          question: 'Geen reactie. Je controleert de ademhaling. De persoon ademt normaal. Wat doe je?', 
+          options: [
+            { id: 'b', text: 'In stabiele zijligging leggen en 112 bellen', correct: true, feedback: 'Perfect! Stabiele zijligging voorkomt verstikking.', nextStepId: null }, // Einde scenario
+            { id: 'a', text: 'Laten liggen en 112 bellen', correct: false, feedback: 'Risico op verstikking door tong of braaksel!', nextStepId: null }, // Einde scenario
+            { id: 'c', text: 'Rechtop zetten tegen een muur', correct: false, feedback: 'Gevaarlijk voor een bewusteloze persoon.', nextStepId: null }, // Einde scenario
+            { id: 'd', text: 'Hartmassage beginnen', correct: false, feedback: 'Niet nodig als iemand normaal ademt.', nextStepId: '3_consequence' } // <-- GAAT NAAR EEN GEVOLG-STAP
+          ], 
+          timeLimit: 12, 
+          explanation: 'Een bewusteloos slachtoffer dat normaal ademt, moet in stabiele zijligging worden gelegd om de luchtweg vrij te houden.' 
+        },
+        // --- NIEUWE GEVOLG-STAP ---
+        {
+          id: '3_consequence',
+          question: 'Je bent onnodig met hartmassage begonnen. Het slachtoffer kreunt en reageert met pijn. Je hebt een cruciale stap overgeslagen. Wat doe je nu om je fout te herstellen?',
+          options: [
+              { id: 'a', text: 'Stoppen en de ademhaling opnieuw controleren', correct: true, feedback: 'Correct. Herken je fout en ga terug naar de basis: controleer de vitale functies.', nextStepId: 3 }, // Gaat terug naar de juiste stap
+              { id: 'b', text: 'Doorgaan met hartmassage', correct: false, feedback: 'Niet doen! Je kunt letsel veroorzaken bij iemand wiens hart klopt.', nextStepId: null } // Einde scenario
           ],
           timeLimit: 15,
-          explanation: 'Bij elke noodsituatie geldt: EIGEN VEILIGHEID EERST. Kijk rond: verkeer, brand, instortingsgevaar, agressieve personen?'
-        },
-        {
-          id: 2,
-          question: 'De omgeving is veilig. De persoon reageert niet op aanspreken. Wat nu?',
-          options: [
-            { id: 'a', text: 'Voorzichtig schudden aan de schouders en luid roepen', correct: true, feedback: 'Correct! Probeer bewustzijn te controleren.' },
-            { id: 'b', text: 'Meteen beginnen met hartmassage', correct: false, feedback: 'Te vroeg! Eerst ademhaling controleren.' },
-            { id: 'c', text: 'In stabiele zijligging leggen', correct: false, feedback: 'Eerst checken of de persoon ademt.' },
-            { id: 'd', text: 'Water in het gezicht gooien', correct: false, feedback: 'Dit kan gevaarlijk zijn en helpt niet bij bewusteloosheid.' }
-          ],
-          timeLimit: 10,
-          explanation: 'Bewustzijn controleren door luid te roepen: "Gaat het? Kun je me horen?" en voorzichtig schudden.'
-        },
-        {
-          id: 3,
-          question: 'Geen reactie. Je controleert de ademhaling. De persoon ademt normaal. Wat doe je?',
-          options: [
-            { id: 'a', text: 'Laten liggen en 112 bellen', correct: false, feedback: 'Risico op verstikking door tong of braaksel!' },
-            { id: 'b', text: 'In stabiele zijligging leggen en 112 bellen', correct: true, feedback: 'Perfect! Stabiele zijligging voorkomt verstikking.' },
-            { id: 'c', text: 'Rechtop zetten tegen een muur', correct: false, feedback: 'Gevaarlijk voor bewusteloze persoon.' },
-            { id: 'd', text: 'Hartmassage beginnen', correct: false, feedback: 'Niet nodig als iemand normaal ademt.' }
-          ],
-          timeLimit: 12,
-          explanation: 'Bewusteloos maar ademend = stabiele zijligging. Dit houdt de luchtwegen vrij.'
+          explanation: 'Een fout maken kan gebeuren. Het is cruciaal om de fout te herkennen, te stoppen en de juiste procedure te hervatten. In dit geval: stop de reanimatie en controleer de ademhaling opnieuw.'
         }
       ]
     },
@@ -828,9 +847,19 @@ useEffect(() => {
   };
 
   const startScenario = async (scenario) => {
+    // 1. Maak een diepe kopie om de originele data niet te wijzigen.
+    const scenarioCopy = JSON.parse(JSON.stringify(scenario));
+    
+    // 2. Shuffle de antwoordopties voor elke stap in de kopie.
+    scenarioCopy.steps.forEach(step => {
+      if (step.options) { // Controleer of er opties zijn om te shuffelen
+        step.options = shuffleArray(step.options);
+      }
+    });
+    // 3. De rest van de functie gebruikt nu de 'scenarioCopy'
     if (enhancedMode) {
       // Gebruik enhanced system
-      const enhanced = await startEnhancedScenario(scenario);
+      const enhanced = await startEnhancedScenario(scenarioCopy);
       if (enhanced) {
         const role = RoleBasedScenarios.assignRole(enhanced, profile);
       const roleEnhanced = RoleBasedScenarios.adaptScenarioForRole(enhanced, role);
@@ -861,7 +890,7 @@ useEffect(() => {
       }
     } else {
       // Je bestaande logica blijft hetzelfde
-      setActiveScenario(scenario);
+      setActiveScenario(scenarioCopy);
       setCurrentStep(0);
       setScenarioResults({});
       setShowResults(false);
@@ -916,17 +945,43 @@ const handleAnswer = (selectedOption, step) => {
 };
 
 // Nieuwe functie voor volgende stap
-const goToNextStep = () => {
-  setShowNextButton(false);
-  
-  if (currentStep < activeScenario.steps.length - 1) {
-    setCurrentStep(currentStep + 1);
-    const nextStep = activeScenario.steps[currentStep + 1];
-    setTimeRemaining(accessibilityMode ? null : nextStep.timeLimit);
-  } else {
-    completeScenario(scenarioResults);
-  }
-};
+// in EHBODetail.jsx
+
+  const goToNextStep = () => {
+    setShowNextButton(false);
+
+    // Haal de data van de huidige stap en het gegeven antwoord op
+    const currentStepData = activeScenario.steps[currentStep];
+    const resultForCurrentStep = scenarioResults[currentStepData.id];
+
+    if (!resultForCurrentStep) {
+      // Fallback als er iets misgaat
+      console.error("Kon het resultaat voor de huidige stap niet vinden.");
+      resetScenario();
+      return;
+    }
+    
+    // Haal de ID van de volgende stap uit de gekozen optie
+    const nextStepId = resultForCurrentStep.selected.nextStepId;
+
+    if (nextStepId) {
+      // Zoek de index van de volgende stap in de array
+      const nextStepIndex = activeScenario.steps.findIndex(step => step.id === nextStepId);
+
+      if (nextStepIndex !== -1) {
+        // Ga naar de volgende stap
+        setCurrentStep(nextStepIndex);
+        const nextStep = activeScenario.steps[nextStepIndex];
+        setTimeRemaining(accessibilityMode ? null : nextStep.timeLimit);
+      } else {
+        // Volgende stap niet gevonden, beëindig het scenario
+        completeScenario(scenarioResults);
+      }
+    } else {
+      // Geen nextStepId gedefinieerd (bv. `null`), dus het scenario is voorbij
+      completeScenario(scenarioResults);
+    }
+  };
 
 // Role intro completion handler (voeg toe na je goToNextStep functie)
 const handleRoleIntroComplete = () => {
