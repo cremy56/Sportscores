@@ -31,19 +31,16 @@ const Welzijnsmonitor = () => {
   const isAdmin = ['administrator', 'super-administrator'].includes(profile?.rol);
 
   // Load available groups for teachers
- useEffect(() => {
+useEffect(() => {
   console.log('=== DEBUG: Loading groups ===');
   console.log('profile:', profile);
-  console.log('profile.groepen:', profile?.groepen);
-  console.log('profile.leerling_ids:', profile?.leerling_ids);
-  console.log('profile.leerkracht_id:', profile?.leerkracht_id);
+  console.log('Full profile:', JSON.stringify(profile, null, 2));
   
-  const userHasGroups = profile?.groepen || profile?.leerling_ids || profile?.leerkracht_id;
-  
-  if (profile && (isTeacher || (isAdmin && userHasGroups))) {
+  if (profile && (isTeacher || isAdmin)) {
     let groups = [];
     
-    // NO "Alle groepen" option - force selection
+    // Add placeholder as first option
+    groups.push({ id: 'all', naam: 'Selecteer een groep...' });
     
     // Check multiple possible sources for groups/classes
     if (profile.groepen && Array.isArray(profile.groepen)) {
@@ -53,14 +50,15 @@ const Welzijnsmonitor = () => {
       }));
       groups = [...groups, ...groepenList];
     } else if (profile.leerling_ids && Array.isArray(profile.leerling_ids)) {
-      // If using leerling_ids, create a group from the groepen collection
       groups.push({ id: 'my_students', naam: 'Mijn Leerlingen' });
     } else if (profile.klas) {
       groups.push({ id: profile.klas, naam: `Klas: ${profile.klas}` });
+    } else {
+      // Fallback for admins - add some default groups
+      if (isAdmin) {
+        groups.push({ id: 'school_all', naam: 'Alle Leerlingen School' });
+      }
     }
-    
-    // Add placeholder as first option
-    groups.unshift({ id: 'all', naam: 'Selecteer een groep...' });
     
     console.log('Available groups set to:', groups);
     setAvailableGroups(groups);
