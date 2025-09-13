@@ -157,6 +157,7 @@ exports.saveEHBOProgress = onCall(async (request) => {
 });
 
 // Replace your getClassEHBOStats function with this clean version
+// Replace your getClassEHBOStats function with this clean version
 exports.getClassEHBOStats = onCall(async (request) => {
   console.log('=== getClassEHBOStats START ===');
   
@@ -262,8 +263,21 @@ exports.getClassEHBOStats = onCall(async (request) => {
         .where('school_id', '==', schoolId);
       
       if (classId && classId !== 'all') {
-        console.log('Filtering by class:', classId);
-        query = query.where('klas', '==', classId);
+        console.log('Filtering by class/group:', classId);
+        
+        if (classId === 'my_students') {
+          // For admins with leerling_ids, filter by specific student IDs
+          const userData = await db.collection('users').doc(request.auth.uid).get();
+          const userProfile = userData.data();
+          
+          if (userProfile.leerling_ids && userProfile.leerling_ids.length > 0) {
+            console.log('Filtering by leerling_ids:', userProfile.leerling_ids);
+            query = query.where('email', 'in', userProfile.leerling_ids.slice(0, 10)); // Firestore 'in' limit
+          }
+        } else {
+          // Regular class filtering
+          query = query.where('klas', '==', classId);
+        }
       }
       
       console.log('Executing query...');

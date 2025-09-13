@@ -396,13 +396,13 @@ const Welzijnsmonitor = () => {
           </div>
           
           {/* Role-Based Controls */}
-          <div className="lg:flex-shrink-0 lg:w-[400px]">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-              {/* Teacher: Group Selection */}
-              {isTeacher && (
+          <div className="lg:flex-shrink-0 lg:w-[600px]">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+              {/* Teacher OR Admin with groups: Group Selection */}
+              {(isTeacher || (isAdmin && hasGroups)) && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Selecteer Groep
+                    {isTeacher ? 'Mijn Groepen' : 'Groep Filter'}
                   </label>
                   <select
                     value={selectedGroup}
@@ -419,11 +419,6 @@ const Welzijnsmonitor = () => {
                       <option value="all">Geen groepen gevonden</option>
                     )}
                   </select>
-                  {availableGroups.length <= 1 && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Debug: Controleer profile.groepen of profile.klas in console
-                    </p>
-                  )}
                 </div>
               )}
               
@@ -431,13 +426,13 @@ const Welzijnsmonitor = () => {
               {isAdmin && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Zoek Leerling (Optioneel)
+                    Zoek Specifieke Leerling
                   </label>
                   <StudentSearch 
                     onStudentSelect={setSelectedStudent}
                     schoolId={profile?.school_id}
                     initialStudent={selectedStudent}
-                    placeholder="Alle leerlingen"
+                    placeholder="Optioneel - zoek student"
                   />
                 </div>
               )}
