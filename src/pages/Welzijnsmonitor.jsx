@@ -569,19 +569,6 @@ const loadUserGroups = async () => {
                 </div>
               )}
             </div>
-            
-            {/* Show status of current selection */}
-            {(isTeacher || isAdmin) && (
-              <div className="mt-2 text-xs text-gray-600">
-                {selectedGroup === 'all' ? (
-                  <span>Selecteer een groep om gegevens te bekijken</span>
-                ) : selectedStudent ? (
-                  <span>Toont: {selectedStudent.naam} uit groep {selectedGroup}</span>
-                ) : (
-                  <span>Toont: Groep {selectedGroup}</span>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>

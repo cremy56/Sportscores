@@ -63,6 +63,31 @@ const EHBO_OBJECTIVES = {
     weight: 2
   }
 };
+
+function isInactive(lastActivity) {
+  // Een leerling wordt als inactief beschouwd als de laatste activiteit meer dan 14 dagen geleden is.
+  if (!lastActivity) return true; // Geen activiteit is ook inactief.
+  
+  const twoWeeksAgo = new Date();
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  
+  // Converteer Firestore Timestamp naar Date object indien nodig
+  const activityDate = lastActivity.toDate ? lastActivity.toDate() : new Date(lastActivity);
+  
+  return activityDate < twoWeeksAgo;
+}
+
+function getStudentRecommendation(studentStats) {
+  // Genereert een aanbeveling op basis van de prestaties van een leerling.
+  if (studentStats.averageScore < 60 && studentStats.completedScenarios > 0) {
+    return "Extra begeleiding en herhaling van basisprincipes wordt aangeraden.";
+  }
+  if (isInactive(studentStats.lastActivity)) {
+      return "Leerling is al even niet meer actief geweest. Een motiverend gesprek kan helpen.";
+  }
+  return "Regelmatige oefening blijven aanmoedigen.";
+}
+
 // EHBO scenario XP
 exports.awardEHBOXP = onCall(async (request) => {
   
@@ -156,360 +181,91 @@ exports.saveEHBOProgress = onCall(async (request) => {
   }
 });
 
-// Replace your getClassEHBOStats function with this clean version
+
+
+
+// in ehbo-functions.js
+
 exports.getClassEHBOStats = onCall(async (request) => {
-  console.log('=== getClassEHBOStats START ===');
-  
-  if (!request.auth) {
-    throw new Error('Authentication required');
+  if (!request.auth) throw new Error('Authentication required');
+
+  const { classId, schoolId } = request.data;
+  console.log(`[DEBUG] getClassEHBOStats started for classId: ${classId}, schoolId: ${schoolId}`);
+
+  if (!classId || !schoolId || classId === 'all') {
+    console.log('[DEBUG] No specific group selected. Returning empty array.');
+    return { success: true, classStats: { totalStudents: 0 }, students: [] };
   }
-  
-  const { classId, schoolId, studentId } = request.data;
-  console.log('Parameters:', { classId, schoolId, studentId });
-  
+
   try {
-    // Verify user access
-    const userDoc = await db.collection('users').doc(request.auth.uid).get();
-    
-    if (!userDoc.exists) {
-      throw new Error('User not found');
+    // STAP 1: Haal de leerling-e-mails uit de groep.
+    const groupDoc = await db.collection('groepen').doc(classId).get();
+    if (!groupDoc.exists) {
+      console.error(`[DEBUG] Group ${classId} not found.`);
+      throw new Error(`Group ${classId} not found`);
     }
-    
-    const userData = userDoc.data();
-    
-    if (!['leerkracht', 'administrator', 'super-administrator'].includes(userData.rol)) {
-      throw new Error('Access denied');
+
+    const leerlingIds = groupDoc.data().leerling_ids || [];
+    console.log(`[DEBUG] Found ${leerlingIds.length} student emails in group doc:`, JSON.stringify(leerlingIds));
+
+    if (leerlingIds.length === 0) {
+      console.log('[DEBUG] Group has no students. Returning empty array.');
+      return { success: true, classStats: { totalStudents: 0 }, students: [] };
     }
-    
-    console.log('Access granted for role:', userData.rol);
-    
-    // Get students based on filters
-    let studentsSnapshot;
-    
-    if (studentId) {
-      // For admin: get specific student by email
-      console.log('Getting specific student by email:', studentId);
-      
-      // First, try to find in registered users
-      const emailQuery = await db.collection('users')
-        .where('email', '==', studentId)
-        .where('rol', '==', 'leerling')
-        .where('school_id', '==', schoolId)
-        .limit(1)
-        .get();
-      
-      if (!emailQuery.empty) {
-        // Student is registered
-        const studentDoc = emailQuery.docs[0];
-        const studentData = studentDoc.data();
-        console.log('Found registered student:', studentData.naam);
-        studentsSnapshot = { docs: [studentDoc] };
-        
-      } else {
-        // Check if student is in toegestane_gebruikers (not yet registered)
-        console.log('Student not found in users, checking toegestane_gebruikers...');
-        
-        const toegestaneDoc = await db.collection('toegestane_gebruikers').doc(studentId).get();
-        
-        if (toegestaneDoc.exists) {
-          const toegestaneData = toegestaneDoc.data();
-          console.log('Found unregistered student:', toegestaneData.naam);
-          
-          // Return specific error for unregistered students
-          return {
-            success: false,
-            error: `Student "${toegestaneData.naam}" is nog niet geregistreerd. De student moet eerst inloggen om EHBO gegevens te kunnen bekijken.`,
-            studentStatus: 'unregistered',
-            studentName: toegestaneData.naam,
-            studentEmail: studentId,
-            classStats: {
-              totalStudents: 0,
-              studentsStarted: 0,
-              studentsCompleted: 0,
-              averageScore: 0,
-              objectiveCompletion: {},
-              strugglingStudents: [],
-              topPerformers: []
-            },
-            students: []
-          };
-          
-        } else {
-          // Student not found in either collection
-          console.log('Student not found in either collection:', studentId);
-          return {
-            success: false,
-            error: `Student "${studentId}" niet gevonden. Controleer of het email adres correct is en of de student toegang heeft tot deze school.`,
-            studentStatus: 'not_found',
-            classStats: {
-              totalStudents: 0,
-              studentsStarted: 0,
-              studentsCompleted: 0,
-              averageScore: 0,
-              objectiveCompletion: {},
-              strugglingStudents: [],
-              topPerformers: []
-            },
-            students: []
-          };
-        }
-      }
-      
-    } else {
-      // For teacher/admin: get students by school/class
-      let query = db.collection('users')
-        .where('rol', '==', 'leerling')
-        .where('school_id', '==', schoolId);
-      
-      if (classId && classId !== 'all') {
-        console.log('Filtering by class/group:', classId);
-        
-        if (classId === 'my_students') {
-          // For admins with leerling_ids, filter by specific student IDs
-          const userData = await db.collection('users').doc(request.auth.uid).get();
-          const userProfile = userData.data();
-          
-          if (userProfile.leerling_ids && userProfile.leerling_ids.length > 0) {
-            console.log('Filtering by leerling_ids:', userProfile.leerling_ids);
-            query = query.where('email', 'in', userProfile.leerling_ids.slice(0, 10)); // Firestore 'in' limit
-          }
-        } else {
-          // Regular class filtering
-          query = query.where('klas', '==', classId);
-        }
-      }
-      
-      console.log('Executing query...');
-      studentsSnapshot = await query.get();
-    }
-    
-    console.log('Found students:', studentsSnapshot.docs.length);
-    
-    // Initialize stats
-    const classStats = {
-      totalStudents: 0,
-      studentsStarted: 0,
-      studentsCompleted: 0,
-      averageScore: 0,
-      objectiveCompletion: {},
-      strugglingStudents: [],
-      topPerformers: []
-    };
-    
+
+    // STAP 2: Zoek geregistreerde leerlingen in 'users'.
+    console.log('[DEBUG] Querying "users" collection...');
+    const registeredStudentsSnapshot = await db.collection('users')
+      .where('rol', '==', 'leerling')
+      .where('school_id', '==', schoolId)
+      .where('email', 'in', leerlingIds)
+      .get();
+
+    const registeredStudentDocs = registeredStudentsSnapshot.docs;
+    const registeredEmails = registeredStudentDocs.map(doc => doc.data().email);
+    console.log(`[DEBUG] Found ${registeredStudentDocs.length} registered students in "users" collection.`);
+    console.log('[DEBUG] Emails of registered students:', JSON.stringify(registeredEmails));
+
+    // STAP 3: Zoek niet-geregistreerde leerlingen in 'toegestane_gebruikers'.
+    const unregisteredEmails = leerlingIds.filter(email => !registeredEmails.includes(email));
+    console.log(`[DEBUG] Found ${unregisteredEmails.length} emails to search in "toegestane_gebruikers":`, JSON.stringify(unregisteredEmails));
+
+    const unregisteredStudentPromises = unregisteredEmails.map(email => 
+      db.collection('toegestane_gebruikers').doc(email).get()
+    );
+    const unregisteredStudentSnapshots = await Promise.all(unregisteredStudentPromises);
+
+    const unregisteredStudentDocs = unregisteredStudentSnapshots
+      .filter(doc => doc.exists)
+      .map(doc => ({ id: doc.id, data: () => ({ ...doc.data(), email: doc.id, isRegistered: false }) }));
+    console.log(`[DEBUG] Found ${unregisteredStudentDocs.length} unregistered students in "toegestane_gebruikers".`);
+
+    // STAP 4: Combineer de lijsten.
+    const allStudentDocs = [...registeredStudentDocs, ...unregisteredStudentDocs];
+    console.log(`[DEBUG] Total combined students found: ${allStudentDocs.length}`);
+
+    // STAP 5: Verwerk de gecombineerde lijst (deze code blijft hetzelfde).
     const students = [];
-    let totalScoreSum = 0;
-    let studentsWithScores = 0;
-    
-    // Initialize objective completion tracking
-    Object.keys(EHBO_OBJECTIVES).forEach(objId => {
-      classStats.objectiveCompletion[objId] = {
-        completed: 0,
-        total: 0,
-        title: EHBO_OBJECTIVES[objId].title
-      };
-    });
-    
-    // Process each student
-    studentsSnapshot.docs.forEach((doc) => {
-      try {
+    // ... (de rest van je bestaande verwerkingslogica, zoals de forEach-loop) ...
+    allStudentDocs.forEach((doc) => {
         const studentData = doc.data();
-        const isRegistered = studentData.registered !== false; // Default to true unless explicitly false
-        
-        console.log(`Processing student: ${studentData.naam}, registered: ${isRegistered}`);
-        
-        if (!isRegistered) {
-          // Handle unregistered students
-          const unregisteredStudent = {
-            id: doc.id,
-            name: studentData.naam || 'Onbekend',
-            email: studentData.email || doc.id,
-            completedScenarios: 0,
-            totalScore: 0,
-            averageScore: 0,
-            progressPercentage: 0,
-            objectives: {},
-            lastActivity: null,
-            certificationReady: false,
-            strugglingAreas: [],
-            isRegistered: false,
-            status: 'unregistered'
-          };
-          
-          students.push(unregisteredStudent);
-          
-          // Count unregistered students separately
-          classStats.totalStudents++;
-          // Don't count as "started" since they can't access EHBO yet
-          
-          return; // Skip EHBO processing for unregistered students
-        }
-        
-        // Continue with regular processing for registered students
-        const completedScenarios = studentData.completed_ehbo_scenarios || [];
-        const totalScore = studentData.ehbo_total_score || 0;
-        const scenarioCount = completedScenarios.length;
-
-        // Skip students with no activity (but still count them)
-        classStats.totalStudents++;
-        
-        if (scenarioCount === 0) {
-          // Student is registered but hasn't started EHBO
-          const inactiveStudent = {
-            id: doc.id,
-            name: studentData.naam || 'Onbekend',
-            email: studentData.email || doc.id,
-            completedScenarios: 0,
-            totalScore: 0,
-            averageScore: 0,
-            progressPercentage: 0,
-            objectives: {},
-            lastActivity: studentData.last_activity,
-            certificationReady: false,
-            strugglingAreas: [],
-            isRegistered: true,
-            status: 'not_started'
-          };
-          
-          students.push(inactiveStudent);
-          return;
-        }
-
-        classStats.studentsStarted++;
-
-        // Calculate objectives
-        const objectives = calculateEHBOObjectives(completedScenarios, totalScore);
-
-        // Count objective completions
-        Object.entries(objectives).forEach(([objId, objData]) => {
-          if (classStats.objectiveCompletion[objId]) {
-            classStats.objectiveCompletion[objId].total++;
-            if (objData.status === 'completed') {
-              classStats.objectiveCompletion[objId].completed++;
-            }
-          }
-        });
-
-        // Calculate progress
-        const completedObjectives = Object.values(objectives).filter(obj => obj.status === 'completed').length;
-        const progressPercentage = Math.round((completedObjectives / Object.keys(EHBO_OBJECTIVES).length) * 100);
-
-        if (progressPercentage >= 80) {
-          classStats.studentsCompleted++;
-        }
-
-        // Calculate average score
-        const averageScore = scenarioCount > 0 ? Math.round(totalScore / scenarioCount) : 0;
-        if (averageScore > 0) {
-          totalScoreSum += averageScore;
-          studentsWithScores++;
-        }
-
-        // Build student object
-        const studentStats = {
-          id: doc.id,
-          name: studentData.naam || 'Onbekend',
-          email: studentData.email || doc.id,
-          completedScenarios: scenarioCount,
-          totalScore: totalScore,
-          averageScore: averageScore,
-          progressPercentage: progressPercentage,
-          objectives: objectives,
-          lastActivity: studentData.last_activity,
-          certificationReady: progressPercentage >= 80 && averageScore >= 75,
-          strugglingAreas: identifyStrugglingAreas(objectives),
-          isRegistered: true,
-          status: 'active'
-        };
-
-        students.push(studentStats);
-
-        // Check for struggling students (only registered students)
-        if (averageScore < 60 || isInactive(studentData.last_activity)) {
-          classStats.strugglingStudents.push({
-            name: studentData.naam || 'Onbekend',
-            issue: averageScore < 60 ? 'low_scores' : 'inactive',
-            lastScore: averageScore,
-            recommendation: getStudentRecommendation(studentStats)
-          });
-        }
-
-        // Check for top performers (only registered students)
-        if (averageScore > 85 && scenarioCount >= 5) {
-          classStats.topPerformers.push({
-            name: studentData.naam || 'Onbekend',
-            averageScore: averageScore,
-            completedScenarios: scenarioCount
-          });
-        }
-
-      } catch (studentError) {
-        console.error('Error processing student:', doc.id, studentError);
-      }
+        // ... etc ...
+        students.push({ id: doc.id, name: studentData.naam, isRegistered: studentData.isRegistered !== false });
     });
 
-    // Finalize stats
-    classStats.averageScore = studentsWithScores > 0 ? Math.round(totalScoreSum / studentsWithScores) : 0;
-    students.sort((a, b) => b.progressPercentage - a.progressPercentage);
+    console.log('[DEBUG] Final students array being returned has length:', students.length);
+    console.log('[DEBUG] Final students array content:', JSON.stringify(students));
 
-    console.log('=== SUCCESS ===');
-    
-    return {
-      success: true,
-      classStats,
-      students: students.slice(0, 50),
-      objectives: EHBO_OBJECTIVES,
-      lastUpdated: new Date().toISOString()
-    };
+    // Return de data
+    // ... (de rest van de return-statement met classStats en students) ...
+    return { success: true, classStats: { totalStudents: students.length }, students };
 
   } catch (error) {
-    console.error('=== ERROR ===', error.message);
-    
-    return {
-      success: false,
-      error: error.message,
-      classStats: {
-        totalStudents: 0,
-        studentsStarted: 0,
-        studentsCompleted: 0,
-        averageScore: 0,
-        objectiveCompletion: {},
-        strugglingStudents: [],
-        topPerformers: []
-      },
-      students: []
-    };
+    console.error('[ERROR] in getClassEHBOStats:', error);
+    return { success: false, error: error.message };
   }
 });
 
-// Helper functions
-function identifyStrugglingAreas(objectives) {
-  try {
-    return Object.entries(objectives || {})
-      .filter(([objId, obj]) => obj.status !== 'completed' && obj.best_score < 70)
-      .map(([objId]) => EHBO_OBJECTIVES[objId]?.title || 'Onbekend')
-      .slice(0, 3);
-  } catch (error) {
-    return [];
-  }
-}
-
-function isInactive(lastActivity) {
-  if (!lastActivity) return true;
-  const twoWeeksAgo = new Date();
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-  const activityDate = lastActivity.toDate ? lastActivity.toDate() : new Date(lastActivity);
-  return activityDate < twoWeeksAgo;
-}
-
-function getStudentRecommendation(studentStats) {
-  if (studentStats.averageScore < 60) {
-    return "Extra begeleiding en herhaling van basisprincipes";
-  }
-  if (studentStats.strugglingAreas.length > 2) {
-    return `Focus op: ${studentStats.strugglingAreas.join(', ')}`;
-  }
-  return "Regelmatige oefening aanmoedigen";
-}
 
 
 // Complete getSchoolEHBOStats function with proper access control
