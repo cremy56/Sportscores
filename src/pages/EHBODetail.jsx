@@ -1708,8 +1708,8 @@ const handleRoleIntroComplete = () => {
                   </span>
                 )}
               </h2>
-              <button 
-                onClick={() => setActiveTab('dashboard')}
+             <button 
+                onClick={resetScenario}
                 className="bg-white/20 hover:bg-white/30 rounded-lg p-2 transition-colors"
               >
                 <XMarkIcon className="w-6 h-6" />
