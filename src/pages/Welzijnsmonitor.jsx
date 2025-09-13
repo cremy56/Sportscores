@@ -452,6 +452,10 @@ const handleStudentSelection = (student) => {
     setSelectedStudent(student);
     setSelectedGroup('all'); // Reset de groep-selectie
   };
+const handleGroupSelection = (groupId) => {
+    setSelectedGroup(groupId);
+    setSelectedStudent(null); // BELANGRIJK: Reset de leerling-selectie
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -482,7 +486,7 @@ const handleStudentSelection = (student) => {
                     </label>
                     <select
                       value={selectedGroup}
-                      onChange={(e) => setSelectedGroup(e.target.value)}
+                      onChange={(e) => handleGroupSelection(e.target.value)}
                       disabled={groupsLoading}
                       className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-red-500 focus:ring-red-500 disabled:bg-gray-100"
                     >
