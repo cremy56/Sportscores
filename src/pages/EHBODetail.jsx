@@ -1726,6 +1726,8 @@ const startChain = (chain) => {
         )}
       </div>
     </div>
+    {/* --- START WIJZIGING: Toon dit blok alleen als enhancedMode aan staat --- */}
+{enhancedMode && (
 <div className="mb-8">
       <h2 className="text-xl font-bold text-slate-800 mb-4">Kettingreacties</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1760,6 +1762,7 @@ const startChain = (chain) => {
         })}
       </div>
     </div>
+    )}
     {/* Scenario Grid - direct zichtbaar zonder extra headers */}
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {scenarios.map(scenario => {
