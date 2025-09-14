@@ -1278,28 +1278,63 @@ const [isLastStep, setIsLastStep] = useState(false);
       
 const scenarioChains = [
   {
-    id: 'chain_reanimatie',
+   id: 'chain_reanimatie',
     title: 'Keten van Overleving: Reanimatie',
     description: 'Een realistische reeks die begint bij het vinden van een slachtoffer tot het gebruik van een AED.',
     image: '🔗',
     color: 'blue',
-    scenarioIds: ['bewusteloos', 'reanimatie', 'aed_gebruik'],
-    progress: {
-      totalSteps: 3,
-      currentStep: 1,
-    }
+    // HERNOEM 'scenarioIds' naar 'scenarios' en maak er objecten van
+    scenarios: [
+      { id: 'bewusteloos', triggerNext: 'reanimatie' },
+      { id: 'reanimatie',  triggerNext: 'aed_gebruik' },
+      { id: 'aed_gebruik', triggerNext: null } // De laatste stap wijst naar 'null'
+    ],
+    currentScenario: 0, // Voeg een startpunt toe
+    results: [], // Een lege array om resultaten op te slaan
+    isComplete: false
+  },
+{
+    id: 'chain_circulatie',
+    title: 'Hart & Bloedsomloop Noodgeval',
+    description: 'Een slachtoffer wordt onwel en de situatie escaleert. Herken de stappen van hartaanval tot reanimatie.',
+    image: '❤️‍🩹',
+    color: 'red',
+    scenarios: [
+      { id: 'hartaanval', triggerNext: 'reanimatie' },
+      { id: 'reanimatie',  triggerNext: 'aed_gebruik' },
+      { id: 'aed_gebruik', triggerNext: null }
+    ],
+    currentScenario: 0,
+    results: [],
+    isComplete: false
   },
   {
-    id: 'chain_ongeval',
-    title: 'Keten van Hulp: Ongeval',
-    description: 'Behandel een slachtoffer met een ernstige bloeding en communiceer effectief met de hulpdiensten.',
-    image: ' ambulance ',
-    color: 'red',
-    scenarioIds: ['bloeding', 'communicatie_hulpdiensten'],
-    progress: {
-      totalSteps: 2,
-      currentStep: 1,
-    }
+    id: 'chain_luchtweg',
+    title: 'Luchtwegproblemen',
+    description: 'Wat begint als een verslikking kan snel erger worden. Weet jij wat je moet doen als het slachtoffer het bewustzijn verliest?',
+    image: '😮‍💨',
+    color: 'orange',
+    scenarios: [
+      { id: 'choking', triggerNext: 'reanimatie' },
+      { id: 'reanimatie', triggerNext: null }
+    ],
+    currentScenario: 0,
+    results: [],
+    isComplete: false
+  },
+  {
+    id: 'chain_trauma',
+    title: 'Ernstig Trauma & Communicatie',
+    description: 'Na een val is er een ernstige bloeding. Stop de bloeding en alarmeer de hulpdiensten op de juiste manier.',
+    image: '🩸',
+    color: 'purple',
+    scenarios: [
+      { id: 'bloeding', triggerNext: 'communicatie_hulpdiensten' },
+      { id: 'communicatie_hulpdiensten', triggerNext: null }
+    ],
+    currentScenario: 0,
+    results: [],
+    isComplete: false
   }
 ];
 
@@ -1599,19 +1634,23 @@ const handleRoleIntroComplete = () => {
   );
 
 const startChain = (chain) => {
-  if (!chain || !chain.scenarioIds || chain.scenarioIds.length === 0) {
+  // Controleert nu op 'chain.scenarios'
+  if (!chain || !chain.scenarios || chain.scenarios.length === 0) {
     console.error("Ongeldige keten geselecteerd", chain);
     return;
   }
 
-  // Zoek het allereerste scenario object dat bij de keten hoort
-  const firstScenario = scenarios.find(s => s.id === chain.scenarioIds[0]);
+  // Haalt de ID op uit het EERSTE OBJECT in de 'scenarios' array
+  const firstScenarioId = chain.scenarios[0].id;
+
+  // Zoekt het volledige scenario-object op in de hoofdlijst met scenarios
+  const firstScenario = scenarios.find(s => s.id === firstScenarioId);
 
   if (firstScenario) {
     // Start het scenario en geef de volledige keten-informatie mee
     startScenario(firstScenario, chain);
   } else {
-    console.error("Eerste scenario in de keten niet gevonden:", chain.scenarioIds[0]);
+    console.error("Eerste scenario in de keten niet gevonden:", firstScenarioId);
   }
 };
 

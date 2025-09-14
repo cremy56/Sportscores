@@ -453,29 +453,22 @@ export const ScenarioChainSystem = {
     };
   },
 
- getNextScenario(chainState, previousResult = null) {
-  // Controleer of de keten voltooid is of dat de huidige stap buiten de grenzen van de array valt.
-  // GEBRUIK NU 'scenarioIds' in plaats van 'scenarios'.
-  if (chainState.isComplete || chainState.currentScenario >= chainState.scenarioIds.length) {
+getNextScenario(chainState, previousResult = null) {
+  if (chainState.isComplete || chainState.currentScenario >= chainState.scenarios.length) {
     return null;
   }
 
-  // Haal het huidige scenario op. GEBRUIK 'scenarioIds'.
-  const currentScenarioDef = chainState.scenarioIds[chainState.currentScenario];
-
-  // Bepaal het volgende scenario gebaseerd op de prestatie (deze logica blijft hetzelfde)
+  const currentScenario = chainState.scenarios[chainState.currentScenario];
+  
+  // Bepaal volgend scenario gebaseerd op prestatie
   let nextScenarioId = null;
-  if (typeof currentScenarioDef.triggerNext === 'function') {
-    nextScenarioId = currentScenarioDef.triggerNext(previousResult);
+  if (typeof currentScenario.triggerNext === 'function') {
+    nextScenarioId = currentScenario.triggerNext(previousResult);
   } else {
-    // In jouw eenvoudige datastructuur is dit het pad dat wordt gevolgd.
-    // We moeten de volgende ID uit de array halen.
-    if (chainState.currentScenario < chainState.scenarioIds.length - 1) {
-        nextScenarioId = chainState.scenarioIds[chainState.currentScenario + 1];
-    }
+    nextScenarioId = currentScenario.triggerNext;
   }
 
-  // Update de status van de keten
+  // Update chain state
   chainState.currentScenario++;
   if (previousResult) {
     chainState.results.push(previousResult);
@@ -486,13 +479,12 @@ export const ScenarioChainSystem = {
   }
 
   return {
-    // We geven de ID van het huidige scenario terug, niet het hele object.
-    scenarioId: currentScenarioDef,
+    scenario: currentScenario,
     nextScenarioId: nextScenarioId,
     chainProgress: {
       current: chainState.currentScenario,
-      total: chainState.scenarioIds.length, // GEBRUIK 'scenarioIds'
-      completion: (chainState.currentScenario / chainState.scenarioIds.length) * 100 // GEBRUIK 'scenarioIds'
+      total: chainState.scenarios.length,
+      completion: (chainState.currentScenario / chainState.scenarios.length) * 100
     }
   };
 },
