@@ -48,6 +48,7 @@ const [activeChain, setActiveChain] = useState(null);
 const [chainProgress, setChainProgress] = useState(null);
 const [isLastStep, setIsLastStep] = useState(false);
 const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
+const [chainQuestionOffset, setChainQuestionOffset] = useState(0);
 
 // NIEUW: Enhanced hooks toevoegen
   const {
@@ -1375,52 +1376,57 @@ useEffect(() => {
  
 
 const startScenario = async (scenario, chain = null) => {
-  // 1. Zorg ervoor dat de functie de 'chain' informatie onthoudt
-  setActiveChain(chain); 
-
-  // 2. Maak een diepe kopie en shuffle de antwoorden (deze logica blijft)
-  const scenarioCopy = JSON.parse(JSON.stringify(scenario));
-  scenarioCopy.steps.forEach(step => {
-    if (step.options) {
-      step.options = shuffleArray(step.options);
-    }
-  });
-
-  // Reset de state ALTIJD, ongeacht de modus
-  setCurrentStep(0);
-  setScenarioResults({});
-  setShowResults(false);
-  setShowNextButton(false);
-
-  // Bepaal de modus en start het scenario
-  if (enhancedMode) {
-    const enhanced = await startEnhancedScenario(scenarioCopy);
-    if (enhanced) {
-      const role = RoleBasedScenarios.assignRole(enhanced, profile);
-      const roleEnhanced = RoleBasedScenarios.adaptScenarioForRole(enhanced, role);
-      const complications = ComplicationSystem.generateComplications(enhanced, profile, {});
-      
-      setGameState({
-        role: role,
-        complications: complications,
-        resources: { time: 100, stress: role.stressLevel, effectiveness: 100 }
-      });
-      
-      if (role) {
-        setShowRoleIntro(true);
-        setActiveScenario(roleEnhanced);
-        return;
+    setActiveChain(chain);
+    const scenarioCopy = JSON.parse(JSON.stringify(scenario));
+    scenarioCopy.steps.forEach(step => {
+      if (step.options) {
+        step.options = shuffleArray(step.options);
       }
-      
-      setActiveScenario(roleEnhanced);
-      setTimeRemaining(accessibilityMode ? null : roleEnhanced.steps[0].timeLimit);
+    });
+  
+    setCurrentStep(0);
+    setScenarioResults({});
+    setShowResults(false);
+    setShowNextButton(false);
+  
+    if (enhancedMode) {
+      const enhanced = await startEnhancedScenario(scenarioCopy);
+      if (enhanced) {
+        // Controleer of we in een doorlopende keten zitten (rol is al toegewezen)
+        const isOngoingChain = chain && gameState.role;
+  
+        if (isOngoingChain) {
+          // Rol bestaat al, sla de introductie over
+          setActiveScenario(enhanced);
+          setTimeRemaining(accessibilityMode ? null : enhanced.steps[0].timeLimit);
+          setShowRoleIntro(false);
+        } else {
+          // Nieuwe keten of los scenario: reset de offset en wijs een rol toe
+          setChainQuestionOffset(0);
+          const role = RoleBasedScenarios.assignRole(enhanced, profile);
+          const roleEnhanced = RoleBasedScenarios.adaptScenarioForRole(enhanced, role);
+          const complications = ComplicationSystem.generateComplications(enhanced, profile, {});
+          
+          setGameState({
+            role: role,
+            complications: complications,
+            resources: { time: 100, stress: role.stressLevel, effectiveness: 100 }
+          });
+          
+          if (role) {
+            setShowRoleIntro(true); // Toon de rol-introductie
+          }
+          setActiveScenario(roleEnhanced);
+          setTimeRemaining(accessibilityMode ? null : roleEnhanced.steps[0].timeLimit);
+        }
+      }
+    } else {
+      // Standaard modus, reset altijd de offset
+      setChainQuestionOffset(0);
+      setActiveScenario(scenarioCopy);
+      setTimeRemaining(accessibilityMode ? null : scenarioCopy.steps[0].timeLimit);
     }
-  } else {
-    // Standaard modus
-    setActiveScenario(scenarioCopy);
-    setTimeRemaining(accessibilityMode ? null : scenarioCopy.steps[0].timeLimit);
-  }
-};
+  };
 
 
  
@@ -1515,19 +1521,21 @@ const handleRoleIntroComplete = () => {
 
   // in EHBODetail.jsx
 
- const completeScenario = async (results) => {
-  // Check of er een actieve keten is
+const completeScenario = async (results) => {
     if (activeChain) {
       const scenarioResult = { score: Math.round((Object.values(results).filter(r => r.correct).length / activeScenario.steps.length) * 100) };
-      const nextChainStep = ScenarioChainSystem.getNextScenario(activeChain, scenarioResult);
-
+      const nextChainStep = ScenarioChainSystem.getNextScenario(activeChain, activeScenario.id);
+  
       if (nextChainStep && nextChainStep.nextScenarioId) {
-        // Er is een volgend scenario in de keten, laad dit
         const nextScenario = scenarios.find(s => s.id === nextChainStep.nextScenarioId);
         if (nextScenario) {
+          // Update de vraag-offset met het aantal vragen in het voltooide scenario
+          const answeredQuestionsInStep = Object.keys(results).filter(key => !key.includes('_consequence')).length;
+          setChainQuestionOffset(prevOffset => prevOffset + answeredQuestionsInStep);
+          
           setChainProgress(nextChainStep.chainProgress);
-          startScenario(nextScenario, activeChain); // Herstart met het volgende scenario
-          return; // Stop hier, toon nog geen resultaten
+          startScenario(nextScenario, activeChain);
+          return;
         }
       }
     }
@@ -1651,25 +1659,19 @@ const handleRoleIntroComplete = () => {
   );
 
 const startChain = (chain) => {
-  // Controleert nu op 'chain.scenarios'
-  if (!chain || !chain.scenarios || chain.scenarios.length === 0) {
-    console.error("Ongeldige keten geselecteerd", chain);
-    return;
-  }
-
-  // Haalt de ID op uit het EERSTE OBJECT in de 'scenarios' array
-  const firstScenarioId = chain.scenarios[0].id;
-
-  // Zoekt het volledige scenario-object op in de hoofdlijst met scenarios
-  const firstScenario = scenarios.find(s => s.id === firstScenarioId);
-
-  if (firstScenario) {
-    // Start het scenario en geef de volledige keten-informatie mee
-    startScenario(firstScenario, chain);
-  } else {
-    console.error("Eerste scenario in de keten niet gevonden:", firstScenarioId);
-  }
-};
+    setChainQuestionOffset(0); // Reset de teller bij het starten van een nieuwe keten
+    if (!chain || !chain.scenarios || chain.scenarios.length === 0) {
+      console.error("Ongeldige keten geselecteerd", chain);
+      return;
+    }
+    const firstScenarioId = chain.scenarios[0].id;
+    const firstScenario = scenarios.find(s => s.id === firstScenarioId);
+    if (firstScenario) {
+      startScenario(firstScenario, chain);
+    } else {
+      console.error("Eerste scenario in de keten niet gevonden:", firstScenarioId);
+    }
+  };
 
   const Dashboard = () => (
     <div className="space-y-6">
@@ -1830,10 +1832,11 @@ const startChain = (chain) => {
             
             {/* --- START WIJZIGING --- */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+             <div className="flex items-center gap-4">
                {(() => {
-                  // Tel alleen de antwoorden die niet bij een 'consequence' stap horen
-                  const vraagNummer = Object.keys(scenarioResults).filter(key => !key.includes('_consequence')).length + 1;
+                  const questionsInCurrentStep = Object.keys(scenarioResults).filter(key => !key.includes('_consequence')).length;
+                  // Nieuwe, doorlopende vraagnummering
+                  const vraagNummer = chainQuestionOffset + questionsInCurrentStep + 1;
                   return <span className="text-lg font-semibold">Vraag {vraagNummer}</span>;
                 })()}
               </div>
@@ -2426,6 +2429,45 @@ const TheoryTab = () => (
         </div>
       </div>
 
+        {/* --- NIEUWE THEORIEKAART --- */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">😴</div>
+        <h3 className="text-lg font-bold mb-3">Bewusteloosheid</h3>
+        <p className="text-gray-600 text-sm mb-3">Een bewusteloos slachtoffer dat ademt, leg je in stabiele zijligging.</p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Controleer:</strong> Veiligheid -- Bewustzijn -- Ademhaling.</p>
+          <p><strong>Ademt Normaal:</strong> Leg in stabiele zijligging.</p>
+          <p><strong>Zijligging:</strong> Houdt de luchtweg vrij en voorkomt verstikking.</p>
+          <p><strong>Alarmeer:</strong> Bel 112 en blijf het slachtoffer controleren.</p>
+        </div>
+      </div>
+      
+      {/* --- NIEUWE THEORIEKAART --- */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">🫀</div>
+        <h3 className="text-lg font-bold mb-3">Reanimatie (BLS)</h3>
+        <p className="text-gray-600 text-sm mb-3">Geen normale ademhaling? Start direct met 30 borstcompressies en 2 beademingen.</p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Cyclus:</strong> 30 borstcompressies, 2 beademingen.</p>
+          <p><strong>Diepte:</strong> 5-6 cm diep voor een volwassene.</p>
+          <p><strong>Snelheid:</strong> 100-120 compressies per minuut.</p>
+          <p><strong>Niet Stoppen:</strong> Ga door tot professionele hulp het overneemt.</p>
+        </div>
+      </div>
+
+      {/* --- NIEUWE THEORIEKAART --- */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">⚡️</div>
+        <h3 className="text-lg font-bold mb-3">AED Gebruik</h3>
+        <p className="text-gray-600 text-sm mb-3">Een AED kan een hartritme herstellen. Volg altijd de instructies van het apparaat.</p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Aanzetten:</strong> De eerste stap is altijd het toestel aanzetten.</p>
+          <p><strong>Elektroden:</strong> Plak op ontblote borstkas (rechtsboven, linksonder).</p>
+          <p><strong>Veiligheid:</strong> Raak slachtoffer niet aan tijdens analyse en schok.</p>
+          <p><strong>Doorgaan:</strong> Hervat direct de reanimatie na de schok.</p>
+        </div>
+      </div>
+
       {/* --- NIEUWE THEORIEKAART --- */}
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <div className="text-4xl mb-4">👃</div>
@@ -2440,6 +2482,18 @@ const TheoryTab = () => (
           <p><strong>Geen:</strong> Watten in de neus stoppen.</p>
         </div>
       </div>
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">☎️</div>
+        <h3 className="text-lg font-bold mb-3">Communicatie met 112</h3>
+        <p className="text-gray-600 text-sm mb-3">Blijf kalm. Geef eerst je locatie, dan pas de situatie.</p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Prioriteit 1:</strong> Exacte locatie.</p>
+          <p><strong>Prioriteit 2:</strong> Wat is er gebeurd? Aantal slachtoffers?</p>
+          <p><strong>Luister:</strong> Volg de instructies van de operator.</p>
+          <p><strong>Niet Inhaken:</strong> Verbreek pas als de operator het zegt.</p>
+        </div>
+      </div>
+
     </div>
 
     {/* 112 Prioriteiten */}
