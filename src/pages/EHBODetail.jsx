@@ -119,7 +119,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Meteen 112 bellen', correct: false, feedback: 'Te vroeg. Eerst de situatie inschatten.', nextStepId: 2 },
             { id: 'd', text: 'Naar ademhaling luisteren', correct: false, feedback: 'Eerst veiligheid controleren.', nextStepId: '1_consequence' }
           ], 
-          timeLimit: 15, 
+          timeLimit: 17, 
           explanation: 'Bij elke noodsituatie geldt: EIGEN VEILIGHEID EERST.' 
         },
         {
@@ -129,7 +129,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: 'Eerst de omgeving controleren op gevaren', correct: true, feedback: 'Precies. Laten we opnieuw beginnen, met veiligheid als prioriteit.', nextStepId: 2 },
             { id: 'b', text: 'Meteen 112 bellen', correct: false, feedback: 'Hoewel belangrijk, is het inschatten van direct gevaar voor jezelf nog belangrijker.', nextStepId: 2 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Een onveilige omgeving kan van één slachtoffer twee maken. Controleer altijd eerst op gevaren.'
         },
         { 
@@ -140,7 +140,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Meteen beginnen met hartmassage', correct: false, feedback: 'Te vroeg! Controleer eerst de ademhaling.', nextStepId: '2_consequence' },
             { id: 'c', text: 'In stabiele zijligging leggen', correct: false, feedback: 'Eerst de ademhaling controleren.', nextStepId: 3 }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Controleer het bewustzijn door aan te spreken en zachtjes aan de schouders te schudden.' 
         },
         {
@@ -150,7 +150,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'a', text: 'Stoppen en de ademhaling opnieuw controleren', correct: true, feedback: 'Correct. Herken je fout en ga terug naar de basis.', nextStepId: 3 },
               { id: 'b', text: 'Doorgaan, het kreunen kan een reflex zijn', correct: false, feedback: 'Fout, een reactie op pijn is een duidelijk teken dat het hart klopt.', nextStepId: 3 }
           ],
-          timeLimit: 15,
+          timeLimit: 17,
           explanation: 'Een fout maken kan gebeuren. Het is cruciaal om de fout te herkennen, te stoppen en de juiste procedure te hervatten.'
         },
         { 
@@ -160,7 +160,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'In stabiele zijligging leggen en 112 bellen', correct: true, feedback: 'Perfect! Stabiele zijligging voorkomt verstikking.', nextStepId: null },
             { id: 'a', text: 'Laten liggen en 112 bellen', correct: false, feedback: 'Risico op verstikking door tong of braaksel!', nextStepId: '3b_consequence' }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'Een bewusteloos slachtoffer dat normaal ademt, moet in stabiele zijligging worden gelegd om de luchtweg vrij te houden.' 
         },
         {
@@ -170,7 +170,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'a', text: 'De persoon in stabiele zijligging leggen', correct: true, feedback: 'Inderdaad. Deze houding houdt de luchtweg vrij.', nextStepId: null },
               { id: 'b', text: 'Het hoofd verder naar achteren kantelen', correct: false, feedback: 'Dit helpt niet als de persoon op zijn rug ligt en kan de blokkade verergeren.', nextStepId: null }
             ],           
-             timeLimit: 10,
+             timeLimit: 12,
             explanation: 'De stabiele zijligging is een cruciale, levensreddende handeling bij een bewusteloos slachtoffer dat nog ademt.'
         }
       ]
@@ -192,7 +192,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Totale verslikking - luchtwegen zijn geblokkeerd', correct: true, feedback: 'Correct! Geen geluid = complete blokkering!', nextStepId: 2 },
             { id: 'd', text: 'Geef wat water te drinken', correct: false, feedback: 'Gevaarlijk! Water kan de blokkade erger maken.', nextStepId: '1_consequence' }
           ], 
-          timeLimit: 8, 
+          timeLimit: 10, 
           explanation: 'Universeel teken van verslikking: handen aan de keel, geen geluid kunnen maken.' 
         },
         {
@@ -202,7 +202,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: '5 klappen tussen de schouderbladen geven', correct: true, feedback: 'Juist, dat is de eerste stap.', nextStepId: 2 },
             { id: 'b', text: 'De persoon laten hoesten', correct: false, feedback: 'Bij een totale verslikking kan het slachtoffer niet meer hoesten.', nextStepId: 2 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Geef nooit drinken bij een verslikking. De eerste stap is altijd rugklappen.'
         },
         { 
@@ -212,7 +212,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: '5 ferme klappen tussen de schouderbladen', correct: true, feedback: 'Juist! Begin altijd met rugklappen.', nextStepId: 3 },
             { id: 'b', text: 'Meteen de Heimlich manoeuvre', correct: false, feedback: 'Eerst proberen met rugklappen.', nextStepId: '2_consequence' }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Bij een staande, bewuste persoon: begin met 5 ferme klappen tussen de schouderbladen.' 
         },
         {
@@ -222,7 +222,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: 'Rugklappen', correct: true, feedback: 'Inderdaad. Hoewel je keuze effectief kan zijn, volgen we de richtlijnen.', nextStepId: 3 },
             { id: 'b', text: 'Niets, de Heimlich manoeuvre is altijd de beste keuze', correct: false, feedback: 'Fout, de richtlijnen schrijven voor om met de minst ingrijpende techniek te beginnen.', nextStepId: 3 }
           ],
-            timeLimit: 10,
+            timeLimit: 12,
             explanation: 'De officiële richtlijn is: eerst 5 rugklappen, en als dat niet werkt, dan pas 5 buikstoten (Heimlich).'
         },
         { 
@@ -232,7 +232,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Heimlich manoeuvre (buikstoten)', correct: true, feedback: 'Correct! Dit is de volgende stap als rugklappen falen.', nextStepId: null },
             { id: 'a', text: 'Blijven proberen met rugklappen', correct: false, feedback: 'Je ziet dat het niet werkt, je moet escaleren naar de volgende techniek.', nextStepId: '3_consequence' }
           ], 
-          timeLimit: 15, 
+          timeLimit: 17, 
           explanation: 'Als rugklappen niet werken, pas je 5 buikstoten toe (Heimlich manoeuvre).' 
         },
         {
@@ -242,7 +242,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'a', text: 'Start de reanimatie en bel 112', correct: true, feedback: 'Correct. Een bewusteloos slachtoffer met geblokkeerde luchtweg behandel je als een reanimatie.', nextStepId: null },
               { id: 'b', text: 'Proberen het voorwerp uit de keel te halen met je vingers', correct: false, feedback: 'Gevaarlijk! Je kunt het voorwerp dieper duwen en de keel beschadigen.', nextStepId: null }
             ],
-            timeLimit: 10,
+            timeLimit: 12,
             explanation: 'Als een slachtoffer van verslikking het bewustzijn verliest, alarmeer je onmiddellijk 112 en start je de reanimatie.'
         }
       ]
@@ -265,7 +265,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Gewoon indigestie van het eten', correct: false, feedback: 'Hoewel mogelijk, is de combinatie van symptomen te alarmerend om dit aan te nemen.', nextStepId: 2 },
             { id: 'd', text: 'Spierpijn van sporten', correct: false, feedback: 'Spierpijn gaat zelden gepaard met zweten en misselijkheid.', nextStepId: 2 }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'De combinatie van drukkende borstpijn, uitstraling naar de arm, zweten en misselijkheid zijn alarmbellen voor een mogelijke hartaanval.' 
         },
         {
@@ -275,7 +275,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: 'De combinatie van symptomen als een noodgeval behandelen', correct: true, feedback: 'Precies. Bij twijfel, behandel het altijd als het ergste scenario.', nextStepId: 2 },
             { id: 'b', text: 'Een pijnstiller geven en afwachten', correct: false, feedback: 'Dit maskeert de symptomen en verspilt kostbare tijd.', nextStepId: 2 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Bij een hartaanval telt elke minuut. Het verkeerd inschatten van de symptomen kan leiden tot onherstelbare schade aan de hartspier.'
         },
         { 
@@ -287,7 +287,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Een glas water geven', correct: false, feedback: 'Dit helpt niet en verspilt kostbare tijd.', nextStepId: 3 },
             { id: 'd', text: 'Zelf naar het ziekenhuis rijden', correct: false, feedback: 'Niet doen. De ambulance heeft medische apparatuur aan boord en is sneller ter plaatse.', nextStepId: 3 }
           ], 
-          timeLimit: 8, 
+          timeLimit: 10, 
           explanation: 'Bij een vermoeden van een hartaanval is de eerste en enige juiste stap: ONMIDDELLIJK 112 bellen.' 
         },
         {
@@ -297,7 +297,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'a', text: '112 bellen en de persoon in rust houden', correct: true, feedback: 'Inderdaad. Rust is essentieel om het hart niet verder te belasten.', nextStepId: 3 },
               { id: 'b', text: 'De persoon snel naar de dichtstbijzijnde stoel helpen', correct: false, feedback: 'Elke inspanning, hoe klein ook, is een extra last voor het hart.', nextStepId: 3 }
             ],
-            timeLimit: 10,
+            timeLimit: 12,
             explanation: 'Elke vorm van fysieke inspanning moet vermeden worden tijdens een hartaanval.'
         },
         { 
@@ -309,7 +309,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Laten rondlopen om de bloedsomloop te stimuleren', correct: false, feedback: 'Beweging belast het hart extra!', nextStepId: '2_consequence' },
             { id: 'd', text: 'De persoon koud water in het gezicht gooien', correct: false, feedback: 'Dit veroorzaakt een schrikreactie die het hart extra kan belasten.', nextStepId: null }
           ], 
-          timeLimit: 15, 
+          timeLimit: 17, 
           explanation: 'De \'harthouding\' (half rechtop, knieën gebogen) is de meest comfortabele en veilige positie voor iemand met hartklachten.'
         },
         {
@@ -319,7 +319,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'a', text: 'Half rechtop zitten met gebogen knieën', correct: true, feedback: 'Correct, deze houding vermindert de druk op het hart.', nextStepId: null },
               { id: 'b', text: 'De persoon plat op de buik leggen', correct: false, feedback: 'Dit bemoeilijkt de ademhaling en is geen comfortabele houding.', nextStepId: null }
             ],
-            timeLimit: 12,
+            timeLimit: 14,
             explanation: 'Plat liggen kan bij hartproblemen de ademhaling bemoeilijken. Een halfzittende houding is altijd beter.'
         }
       ]
@@ -343,7 +343,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'De arm omhoog houden', correct: false, feedback: 'Dit helpt, maar is niet de allereerste prioriteit. Veiligheid eerst.', nextStepId: 2 },
             { id: 'd', text: 'Een schoon verband zoeken', correct: false, feedback: 'Goed idee, maar eerst je handschoenen aan.', nextStepId: 2 }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Eigen veiligheid is altijd de eerste stap. Draag handschoenen om jezelf te beschermen tegen bloedoverdraagbare aandoeningen.' 
         },
         {
@@ -353,7 +353,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: 'Handschoenen aantrekken', correct: true, feedback: 'Precies. Laten we verdergaan alsof je dat gedaan hebt.', nextStepId: 2 },
             { id: 'b', text: 'Je handen wassen na het helpen', correct: false, feedback: 'Hoewel belangrijk, is het voorkomen van contact de eerste stap.', nextStepId: 2 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Zelfs in een noodgeval is je eigen veiligheid cruciaal. Gebruik handschoenen of, indien niet beschikbaar, een plastic zak als barrière.'
         },
         { 
@@ -364,7 +364,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: 'Een tourniquet (knelverband) aanleggen boven de wond', correct: false, feedback: 'Dit is een extreme maatregel voor catastrofale bloedingen en vereist training.', nextStepId: '2_consequence' },
             { id: 'c', text: 'De wond deppen met ontsmettingsmiddel', correct: false, feedback: 'Ontsmetten is voor later, nu telt het stoppen van het bloedverlies.', nextStepId: 3 }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'Oefen stevige, directe druk uit op de wond. Dit helpt de bloedvaten samen te drukken en bevordert de stolling.' 
         },
         {
@@ -374,7 +374,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: 'Directe druk uitoefenen op de wond', correct: true, feedback: 'Inderdaad, dat is de juiste eerste stap.', nextStepId: 3 },
             { id: 'b', text: 'Een riem gebruiken als knelverband', correct: false, feedback: 'Improviseren is goed, maar een tourniquet is een laatste redmiddel, niet de eerste stap.', nextStepId: 3 }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'Een tourniquet is een laatste redmiddel. Begin altijd met directe druk, tenzij de situatie catastrofaal is (bv. afgerukte ledemaat).'
         },
         { 
@@ -385,7 +385,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Het doorweekte verband weghalen en een nieuw, schoon verband aanleggen', correct: false, feedback: 'Fout! Hiermee trek je de beginnende bloedprop los.', nextStepId: '3_consequence' },
             { id: 'c', text: 'De druk wegnemen en de wond aan de lucht laten drogen', correct: false, feedback: 'Absoluut niet, de bloeding zal onmiddellijk verergeren.', nextStepId: null }
           ], 
-          timeLimit: 15, 
+          timeLimit: 17, 
           explanation: 'Verwijder nooit het eerste verband. Leg extra verbanden bovenop het eerste en blijf druk uitoefenen.' 
         },
         {
@@ -395,7 +395,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: 'Het eerste verband laten zitten en er een nieuw overheen leggen', correct: true, feedback: 'Juist. Dit is een cruciale regel bij wondzorg.', nextStepId: null },
             { id: 'b', text: 'Het verband vervangen door een schone handdoek', correct: false, feedback: 'Ook hierbij verstoor je de beginnende stolling. Niet verwijderen!', nextStepId: null }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Het eerste verband fungeert als een basis voor de bloedstolling. Verwijder het nooit.'
         }
       ]
@@ -418,7 +418,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Eerst beademen, dan pas hartmassage', correct: false, feedback: 'Bij volwassenen is de bloedsomloop (hartmassage) de absolute prioriteit.', nextStepId: 2 },
             { id: 'd', text: 'De persoon in stabiele zijligging leggen', correct: false, feedback: 'Niet doen! Dit is alleen voor mensen die wél normaal ademen.', nextStepId: null }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'De overlevingsketen: Alarmeren (112) -> Starten met reanimatie (compressies) -> AED gebruiken.' 
         },
         {
@@ -428,7 +428,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: 'De hulpdiensten alarmeren (112)', correct: true, feedback: 'Inderdaad. Zelfs de beste reanimatie is een overbrugging naar professionele hulp.', nextStepId: 2 },
             { id: 'b', text: 'Eerst een AED zoeken voordat je belt', correct: false, feedback: 'De operator van 112 kan je vertellen waar de dichtstbijzijnde AED is. Eerst bellen!', nextStepId: 2 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Zonder 112 te bellen, komt er geen ambulance. Alarmeren is een levensreddende stap.'
         },
         { 
@@ -440,7 +440,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Op de maag duwen om het hart te stimuleren', correct: false, feedback: 'Extreem gevaarlijk en nutteloos. Dit kan interne organen beschadigen.', nextStepId: 3 },
             { id: 'd', text: 'Eén hand gebruiken en ongeveer 2 cm diep duwen', correct: false, feedback: 'Dit is de techniek voor een baby, niet voor een volwassene.', nextStepId: 3 }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'Effectieve borstcompressies zijn snel (bijna 2x per seconde) en diep (5-6 cm) om het bloed krachtig rond te pompen.' 
         },
         {
@@ -450,7 +450,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: 'Ongeveer 5 tot 6 centimeter diep', correct: true, feedback: 'Correct. Wees niet bang om kracht te gebruiken, het is levensnoodzakelijk.', nextStepId: 3 },
             { id: 'b', text: 'Net hard genoeg om de borstkas te zien bewegen', correct: false, feedback: 'Dit is te ondiep. Een diepte van 5-6 cm is de richtlijn voor effectieve compressies.', nextStepId: 3 }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'Ondiepe compressies zijn ineffectief. Een diepte van 5-6 cm is nodig om het hart voldoende samen te drukken.'
         },
         { 
@@ -461,7 +461,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Zo hard en snel mogelijk lucht inblazen', correct: false, feedback: 'Te veel lucht kan in de maag belanden en braken veroorzaken.', nextStepId: '3_consequence' },
             { id: 'c', text: 'Beademen zonder de neus dicht te knijpen', correct: false, feedback: 'De lucht zal via de neus ontsnappen en niet in de longen komen.', nextStepId: null }
           ], 
-          timeLimit: 15, 
+          timeLimit: 17, 
           explanation: 'Een correcte beademing is rustig (1 seconde) en zorgt ervoor dat de borstkas net zichtbaar omhoog komt.'
         },
         {
@@ -471,7 +471,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: 'Rustig blazen over 1 seconde, net tot de borstkas omhoog komt', correct: true, feedback: 'Precies. Het gaat om de techniek, niet om de kracht.', nextStepId: null },
             { id: 'b', text: 'Beademen en tegelijkertijd de pols controleren', correct: false, feedback: 'Focus op de cyclus van 30:2. Onderbreek zo min mogelijk.', nextStepId: null }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Te veel of te hard blazen is een veelgemaakte fout. Een rustige, beheerste beademing is effectiever en veiliger.'
         }
       ]
@@ -494,7 +494,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Een paniekaanval door de schrik van de steek', correct: false, feedback: 'Hoewel de symptomen kunnen overlappen, verklaart dit de wijdverspreide uitslag en zwelling niet.', nextStepId: 2 },
             { id: 'd', text: 'Een zonnesteek', correct: false, feedback: 'Niet waarschijnlijk, de symptomen zijn te specifiek en direct gelinkt aan de steek.', nextStepId: 2 }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'Anafylaxie is een ernstige, systemische allergische reactie die fataal kan zijn als ze niet onmiddellijk wordt behandeld.' 
         },
         {
@@ -505,7 +505,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Een astma-aanval, uitgelokt door de steek', correct: false, feedback: 'Hoewel het piepen lijkt op astma, verklaart dit de zwelling en uitslag niet.', nextStepId: 2 },
             { id: 'c', text: 'Hyperventilatie door de pijn', correct: false, feedback: 'Hyperventilatie veroorzaakt geen zwelling van het gezicht.', nextStepId: 2 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Het negeren van systemische symptomen (ademnood, wijdverspreide uitslag) kan fatale gevolgen hebben.'
         },
         { 
@@ -517,7 +517,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'De angel van de bij proberen te verwijderen', correct: false, feedback: 'Dit is niet de prioriteit wanneer iemands leven in gevaar is.', nextStepId: 3 },
             { id: 'd', text: 'De persoon laten liggen en geruststellen', correct: false, feedback: 'Geruststellen is goed, maar actie ondernemen is nu levensnoodzakelijk.', nextStepId: 3 }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Bij tekenen van anafylaxie (vooral ademhalingsproblemen) is de eerste stap altijd 112 alarmeren.' 
         },
         {
@@ -528,7 +528,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'b', text: 'Een koud washandje op het gezicht leggen', correct: false, feedback: 'Dit helpt niet tegen de interne zwelling en lage bloeddruk.', nextStepId: 3 },
               { id: 'c', text: 'Een glas water aanbieden', correct: false, feedback: 'Dit helpt niet en kan gevaarlijk zijn bij zwelling in de keel.', nextStepId: 3 }
             ],
-            timeLimit: 10,
+            timeLimit: 12,
             explanation: 'Antihistaminica zijn nuttig voor milde allergieën, maar bij anafylaxie is snellere en krachtigere medicatie (adrenaline) nodig.'
         },
         { 
@@ -540,7 +540,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'De EpiPen in de arm injecteren', correct: false, feedback: 'Verkeerde plaats! Altijd in de grote dijspier voor snelle opname.', nextStepId: null },
             { id: 'd', text: 'De pen aan de persoon geven zodat hij het zelf kan doen', correct: false, feedback: 'Onverstandig. De persoon kan te verward of zwak zijn om het correct te doen. Help hem.', nextStepId: null }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'Een EpiPen toedienen: dop eraf, oranje kant tegen de buitenkant van de dij (mag door kleding), duwen tot je een klik hoort, en 10 seconden vasthouden.' 
         },
         {
@@ -551,7 +551,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'b', text: 'In de borst injecteren, dicht bij het hart', correct: false, feedback: 'Extreem gevaarlijk en absoluut niet de bedoeling!', nextStepId: null },
               { id: 'c', text: 'Het is nu te laat, de pen heeft geen zin meer', correct: false, feedback: 'Fout, adrenaline kan de reactie nog steeds omkeren. Geef het altijd.', nextStepId: null }
             ],
-            timeLimit: 12,
+            timeLimit: 14,
             explanation: 'Een adrenaline auto-injector is ontworpen om de effecten van anafylaxie snel tegen te gaan en is cruciaal om de tijd tot de ambulance arriveert te overbruggen.'
         }
       ]
@@ -574,7 +574,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Zalf of boter smeren op de wond', correct: false, feedback: 'Een gevaarlijk fabeltje! Dit sluit de hitte op.', nextStepId: '1_consequence' },
             { id: 'd', text: 'De natte kledij zo snel mogelijk uittrekken', correct: false, feedback: 'Koelen heeft voorrang. Trek kledij alleen uit als het niet aan de wond kleeft.', nextStepId: 2 }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Bij brandwonden is de eerste en belangrijkste stap altijd koelen met lauw, zacht stromend water om de verbranding te stoppen.' 
         },
         {
@@ -585,7 +585,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'De zalf afvegen met een droge doek', correct: false, feedback: 'Dit kan pijnlijk zijn en de huid beschadigen. Spoelen met water is beter.', nextStepId: 2 },
             { id: 'c', text: 'Een nat verband over de zalf aanleggen', correct: false, feedback: 'De zalf blokkeert nog steeds de warmteafgifte. Het moet eraf.', nextStepId: 2 }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'Smeer nooit iets op een brandwond voordat deze grondig is gekoeld. Water is het enige juiste middel.'
         },
         { 
@@ -597,7 +597,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'De wond open laten aan de lucht om te drogen', correct: false, feedback: 'Een onbedekte brandwond is pijnlijk en zeer vatbaar voor infecties.', nextStepId: 3 },
             { id: 'd', text: 'Een strak, droog verband aanleggen', correct: false, feedback: 'Een vochtig verband is beter om afkoeling te behouden en vastkleven te voorkomen.', nextStepId: 3 }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'Na het koelen, dek je een brandwond af om deze schoon te houden. Grote brandwonden moeten door een dokter worden gezien.'
         },
         {
@@ -608,7 +608,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'De blaren voorzichtig afknippen met een schaartje', correct: false, feedback: 'Dit creëert een open wond en verhoogt het infectierisico.', nextStepId: 3 },
             { id: 'c', text: 'De blaren insmeren met ontsmettingsmiddel', correct: false, feedback: 'Dit is onnodig en pijnlijk als de blaar nog intact is.', nextStepId: 3 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Prik blaren nooit door. Ze beschermen de onderliggende, nieuwe huid. Als ze vanzelf springen, dek je de wond af.'
         },
         { 
@@ -620,7 +620,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Je hoeft nooit 112 te bellen voor een brandwond', correct: false, feedback: 'Zeer onjuist. Ernstige brandwonden kunnen levensbedreigend zijn.', nextStepId: '3_consequence' },
             { id: 'd', text: 'Alleen als de persoon het bewustzijn verliest', correct: false, feedback: 'Je moet bellen voordat dit gebeurt om shock te voorkomen.', nextStepId: null }
           ], 
-          timeLimit: 15, 
+          timeLimit: 17, 
           explanation: 'Alarmeer 112 bij grote (derdegraads) brandwonden, brandwonden door chemicaliën of elektriciteit, of als de luchtwegen zijn aangetast.' 
         },
         {
@@ -631,7 +631,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'b', text: 'Zodra er blaren verschijnen', correct: false, feedback: 'Niet per se, kleine blaren kunnen thuis behandeld worden na doktersadvies.', nextStepId: null },
               { id: 'c', text: 'Onmiddellijk na het koelen, bij elke brandwond', correct: false, feedback: 'Dat is niet nodig voor kleine, eerstegraads brandwonden.', nextStepId: null }
             ],
-            timeLimit: 12,
+            timeLimit: 14,
             explanation: 'Groot vochtverlies door ernstige brandwonden kan snel leiden tot shock, een levensbedreigende toestand.'
         }
       ]
@@ -654,7 +654,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Een beroerte', correct: false, feedback: 'Een beroerte heeft andere symptomen zoals een scheve mond of verlamming, meestal zonder de hevige, symmetrische schokken.', nextStepId: 2 },
             { id: 'd', text: 'De persoon stelt zich aan', correct: false, feedback: 'Dit is een gevaarlijke aanname. Een epileptische aanval is een serieuze medische gebeurtenis.', nextStepId: '1_consequence' }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Een epileptische aanval (tonisch-clonisch) wordt gekenmerkt door een fase van verstijving, gevolgd door ritmische schokken.' 
         },
         {
@@ -664,7 +664,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'a', text: 'Het is een epileptische aanval en de persoon heeft hulp nodig', correct: true, feedback: 'Precies. Ga er altijd van uit dat het echt is en bied hulp.', nextStepId: 2 },
             { id: 'b', text: 'Het is waarschijnlijk flauwvallen', correct: false, feedback: 'Bij flauwvallen zijn er geen aanhoudende, schokkende bewegingen.', nextStepId: 2 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Behandel een mogelijke aanval altijd als een echte medische situatie. Je eerste rol is om de persoon te beschermen tegen verwondingen.'
         },
         { 
@@ -676,7 +676,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Gevaarlijke voorwerpen (stoelen, tafels) wegschuiven', correct: false, feedback: 'Dit moet je juist wél doen om de persoon te beschermen.', nextStepId: 3 },
             { id: 'd', text: 'Proberen de bewegingen tegen te houden', correct: false, feedback: 'Dit is ook iets wat je NOOIT moet doen. De kracht is te groot en je kunt letsel veroorzaken.', nextStepId: '2_consequence_neg' }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'De gouden regels bij een aanval: NIETS in de mond stoppen en de bewegingen NIET tegenhouden. Je belangrijkste taak is de omgeving veilig maken.'
         },
         {
@@ -686,7 +686,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'a', text: 'Ok, ga verder', correct: true, feedback: 'Goed begrepen.', nextStepId: 3 },
               { id: 'b', text: 'Ik begrijp het niet', correct: false, feedback: 'De regel is: nooit iets in de mond stoppen en bewegingen niet tegenhouden.', nextStepId: 3 }
             ],
-            timeLimit: 5,
+            timeLimit: 7,
             explanation: 'Het herkennen van foute handelingen is even belangrijk als het kennen van de juiste.'
         },
         { 
@@ -698,7 +698,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Weglopen, want het gevaar is geweken', correct: false, feedback: 'Niet doen. De persoon is verward en heeft toezicht nodig tot hij/zij volledig bij bewustzijn is.', nextStepId: null },
             { id: 'd', text: 'Veel vragen stellen om te zien of hij/zij helder is', correct: false, feedback: 'Te veel prikkels kunnen de verwarring vergroten. Blijf rustig en stel simpele, geruststellende vragen.', nextStepId: null }
           ], 
-          timeLimit: 15, 
+          timeLimit: 17, 
           explanation: 'Na een aanval is de persoon vaak uitgeput en verward (de post-ictale fase). Stabiele zijligging en een rustige benadering zijn dan het beste.' 
         },
         {
@@ -709,7 +709,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'b', text: 'Op de rug kloppen', correct: false, feedback: 'Dit is voor een actieve verslikking, niet voor een verstoorde slikreflex.', nextStepId: null },
               { id: 'c', text: 'Proberen hem te laten braken', correct: false, feedback: 'Dit kan de situatie verergeren.', nextStepId: null }
             ],
-            timeLimit: 12,
+            timeLimit: 14,
             explanation: 'Geef nooit eten of drinken aan iemand die niet volledig bij bewustzijn en alert is.'
         }
       ]
@@ -732,7 +732,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'De persoon in stabiele zijligging leggen en wachten', correct: false, feedback: 'Gevaarlijk! Zonder ademhaling zal het hart snel stoppen. Je moet ingrijpen.', nextStepId: 2 },
             { id: 'd', text: 'Een AED halen', correct: false, feedback: 'Een AED is voor een hartstilstand. Op dit moment is er geen hartstilstand.', nextStepId: 2 }
           ], 
-          timeLimit: 15, 
+          timeLimit: 17, 
           explanation: 'Geen ademhaling maar wel een hartslag is een ademhalingsstilstand. De behandeling is enkel beademing om zuurstof in het bloed te krijgen.' 
         },
         {
@@ -743,7 +743,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'De buik masseren', correct: false, feedback: 'Dit heeft geen enkel effect op de zuurstofopname.', nextStepId: 2 },
             { id: 'c', text: 'De persoon met water besprenkelen', correct: false, feedback: 'Dit zal de ademhaling niet herstarten.', nextStepId: 2 }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'Het is cruciaal om het verschil te kennen tussen een ademhalingsstilstand (wel pols, geen ademhaling -> beademen) en een hartstilstand (geen pols, geen ademhaling -> reanimeren).'
         },
         { 
@@ -755,7 +755,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', 'text': 'Je voelt dat de polsslag sterker wordt', correct: false, feedback: 'Dit kan een gevolg zijn, maar het is geen directe, betrouwbare indicator voor een effectieve beademing.', nextStepId: 3 },
             { id: 'd', 'text': 'De persoon begint te hoesten', correct: false, feedback: 'Hoesten is een teken van leven, maar geen maatstaf voor jouw beademingstechniek.', nextStepId: 3 }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'Een effectieve beademing duurt ongeveer 1 seconde en zorgt ervoor dat de borstkas zichtbaar en rustig omhoog komt.' 
         },
         {
@@ -766,7 +766,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Kortere, krachtigere pufjes geven', correct: false, feedback: 'Dit verhoogt de kans op lucht in de maag nog meer.', nextStepId: 3 },
             { id: 'c', text: 'De neus niet meer dichthouden', correct: false, feedback: 'Dan ontsnapt de lucht via de neus. De neus moet dicht.', nextStepId: 3 }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'Zorg voor een goede kinlift om de luchtweg te openen en blaas rustig en gelijkmatig tot je de borstkas ziet rijzen.'
         },
         { 
@@ -778,7 +778,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Stoppen en wachten op de ambulance', correct: false, feedback: 'Niet doen! De overlevingskans daalt nu elke seconde exponentieel.', nextStepId: null },
             { id: 'd', text: 'De persoon in stabiele zijligging leggen', correct: false, feedback: 'Dit is voor een bewusteloos slachtoffer dat NORMAAL ademt.', nextStepId: null }
           ], 
-          timeLimit: 15, 
+          timeLimit: 17, 
           explanation: 'Als de pols wegvalt, is onmiddellijk starten met borstcompressies (reanimatie) cruciaal om de bloedcirculatie naar de hersenen op gang te houden.'
         },
         {
@@ -789,7 +789,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'b', text: 'Een AED zoeken', correct: false, feedback: 'Goed idee, maar start eerst met compressies. Laat iemand anders een AED halen.', nextStepId: null },
               { id: 'c', text: 'Controleren of de persoon koud aanvoelt', correct: false, feedback: 'Dit is niet relevant voor de acute behandeling.', nextStepId: null }
             ],
-            timeLimit: 12,
+            timeLimit: 14,
             explanation: 'Zodra de hartslag wegvalt, zijn borstcompressies de enige manier om de vitale organen van zuurstofrijk bloed te voorzien.'
         }
       ]
@@ -813,7 +813,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Proberen water uit de longen te duwen door op de buik te drukken', correct: false, feedback: 'Gevaarlijk en verouderd advies! Dit veroorzaakt braken en verspilt kostbare tijd.', nextStepId: '1_consequence' },
             { id: 'd', text: 'De persoon opwarmen met dekens', correct: false, feedback: 'Opwarmen is belangrijk, maar reanimatie heeft absolute voorrang.', nextStepId: 2 }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'De reanimatierichtlijnen voor drenkelingen schrijven voor om te starten met 5 initiële beademingen voordat je met borstcompressies begint.' 
         },
         {
@@ -824,7 +824,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Hem in stabiele zijligging leggen', correct: false, feedback: 'Niet correct, de persoon ademt niet zelfstandig.', nextStepId: 2 },
             { id: 'c', text: 'Zijn benen omhoog houden', correct: false, feedback: 'Dit heeft geen effect op de ademhaling.', nextStepId: 2 }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'Forceer nooit water uit de longen. De hoeveelheid is vaak klein en de tijd is te kostbaar. Begin met beademen.'
         },
         { 
@@ -836,7 +836,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'De persoon in stabiele zijligging leggen', correct: false, feedback: 'Dit is alleen voor slachtoffers die zelfstandig en normaal ademen.', nextStepId: 3 },
             { id: 'd', text: 'Controleren op onderkoeling', correct: false, feedback: 'Reanimatie is levensreddend en heeft altijd voorrang op alles.', nextStepId: 3 }
           ], 
-          timeLimit: 15, 
+          timeLimit: 17, 
           explanation: 'Na de 5 initiële beademingen bij een drenkeling, schakel je onmiddellijk over op de standaard reanimatieverhouding van 30 borstcompressies en 2 beademingen.' 
         },
         {
@@ -847,7 +847,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'b', text: 'Een AED zoeken', correct: false, feedback: 'Een AED is belangrijk, maar borstcompressies mogen niet worden uitgesteld.', nextStepId: 3 },
               { id: 'c', text: '112 bellen', correct: false, feedback: 'Dit had al moeten gebeuren. De reanimatiecyclus is nu de prioriteit.', nextStepId: 3 }
             ],
-            timeLimit: 12,
+            timeLimit: 14,
             explanation: 'De initiële 5 beademingen zijn een eenmalige actie bij verdrinking. Daarna is de 30:2 cyclus leidend.'
         },
         { 
@@ -859,7 +859,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Stoppen met de reanimatie', correct: false, feedback: 'Niet stoppen! De hersenen hebben zuurstof nodig, onderbrekingen moeten minimaal zijn.', nextStepId: null },
             { id: 'd', text: 'Proberen alles uit de mond te vegen met je vingers', correct: false, feedback: 'Wees voorzichtig. Het hoofd kantelen is de snelste en veiligste manier.', nextStepId: null }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'Als de luchtweg geblokkeerd raakt, draai je het hoofd snel opzij om de mondholte vrij te maken. Hervat de reanimatie onmiddellijk.' 
         },
         {
@@ -870,7 +870,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'b', text: 'Alleen doorgaan met compressies', correct: false, feedback: 'De luchtweg moet eerst vrij zijn, anders heeft beademen geen zin.', nextStepId: null },
               { id: 'c', text: 'Harder blazen bij de beademing', correct: false, feedback: 'Dit zal de blokkade alleen maar dieper duwen.', nextStepId: null }
             ],
-            timeLimit: 12,
+            timeLimit: 14,
             explanation: 'Een vrije luchtweg (Airway) is de eerste prioriteit in de ABC-methode van eerste hulp.'
         }
       ]
@@ -893,7 +893,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Ontsmettingsalcohol erop gieten', correct: false, feedback: 'Alcohol kan pijnlijk zijn en weefsel beschadigen. Eerst spoelen met water.', nextStepId: 2 },
             { id: 'd', text: 'De wond laten drogen aan de lucht', correct: false, feedback: 'Eerst moet de wond proper gemaakt worden.', nextStepId: 2 }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Een vuile wond moet altijd eerst grondig gespoeld worden met proper, lauw water om infecties te voorkomen.' 
         },
         {
@@ -904,7 +904,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Povidonjood (isobetadine) op de pleister doen', correct: false, feedback: 'Het vuil zit nog in de wond, dit helpt niet.', nextStepId: 2 },
             { id: 'c', text: 'Een grotere pleister gebruiken', correct: false, feedback: 'De grootte van de pleister lost het probleem van het vuil niet op.', nextStepId: 2 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Sluit nooit vuil op in een wond. Reinigen onder stromend water is de gouden standaard.'
         },
         { 
@@ -916,7 +916,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'De wond droogdeppen met wat keukenpapier', correct: false, feedback: 'Keukenpapier kan pluizen en vezels achterlaten in de wond.', nextStepId: '2_consequence' },
             { id: 'd', text: 'De wond insmeren met een hydraterende crème', correct: false, feedback: 'Nee, een open wond moet ontsmet worden, niet gehydrateerd.', nextStepId: 3 }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'Na het spoelen van de wond, is het belangrijk om deze te ontsmetten met een geschikt product.' 
         },
         {
@@ -927,7 +927,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Droogblazen met een haardroger', correct: false, feedback: 'Dit kan bacteriën in de wond blazen en is pijnlijk.', nextStepId: 3 },
             { id: 'c', text: 'Voorzichtig droogdeppen met een steriel gaasje', correct: true, feedback: 'Dit is ook een goede optie. Een steriel gaasje laat geen vezels achter.', nextStepId: 3 }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'Gebruik altijd schoon, niet-pluizend materiaal zoals een steriel gaasje om een wond droog te deppen.'
         },
         { 
@@ -939,7 +939,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'De wond bedekken met wat watten', correct: false, feedback: 'Watten kunnen vastkleven in de wond en zijn moeilijk te verwijderen.', nextStepId: null },
             { id: 'd', text: 'De wond inpoederen met talkpoeder', correct: false, feedback: 'Dit kan de wond irriteren en infecties veroorzaken.', nextStepId: null }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Een propere, ontsmette wond wordt best afgedekt met een steriel verband of pleister om deze te beschermen.' 
         },
         {
@@ -950,7 +950,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'b', text: 'Een schone broek eroverheen doen', correct: false, feedback: 'Kleding kan tegen de wond schuren en is niet steriel.', nextStepId: null },
               { id: 'c', text: 'De wond constant blijven wassen', correct: false, feedback: 'Te veel wassen kan de genezing juist vertragen.', nextStepId: null }
             ],
-            timeLimit: 10,
+            timeLimit: 12,
             explanation: 'Een wond afdekken creëert een beschermde, vochtige omgeving die ideaal is voor een snelle en nette genezing.'
         }
       ]
@@ -973,7 +973,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Proberen verder te stappen om de spieren los te maken', correct: false, feedback: 'Gevaarlijk! Dit kan de blessure veel erger maken.', nextStepId: 2 },
             { id: 'd', text: 'Een warm kompres aanbrengen om de pijn te verlichten', correct: false, feedback: 'Warmte verhoogt de bloedtoevoer en dus de zwelling.', nextStepId: '1_consequence' }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'Bij een verstuiking pas je de RICE-regel toe: Rust, IJs (koelen), Compressie (drukverband) en Elevatie (omhoog leggen).' 
         },
         {
@@ -984,7 +984,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Een pijnstillende zalf', correct: false, feedback: 'Zalf kan de pijn maskeren, maar doet niets tegen de zwelling. Koelen is de prioriteit.', nextStepId: 2 },
             { id: 'c', text: 'Niets, gewoon laten rusten', correct: false, feedback: 'Rust is goed, maar actief koelen is veel effectiever in de eerste fase.', nextStepId: 2 }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'Gebruik bij een acute zwelling altijd koude, nooit warmte. Warmte is pas nuttig in een latere fase van herstel om de spieren te ontspannen.'
         },
         { 
@@ -996,7 +996,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Koud water uit een fles erover gieten', correct: false, feedback: 'Dit is minder effectief dan een ijspack omdat het niet constant koud blijft.', nextStepId: 3 },
             { id: 'd', text: 'Een zak diepvrieserwten rechtstreeks op de enkel leggen', correct: false, feedback: 'Beter dan niets, maar nog steeds te koud voor direct huidcontact. Wikkel het in een doek.', nextStepId: 3 }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'Koel een verstuiking altijd met een ijspack dat in een handdoek of T-shirt is gewikkeld, gedurende maximaal 15 tot 20 minuten per keer.' 
         },
         {
@@ -1007,7 +1007,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Het ijs in kleinere stukjes breken', correct: false, feedback: 'Dit verandert niets aan de temperatuur en het risico op vrieswonden.', nextStepId: 3 },
             { id: 'c', text: 'Het ijs snel over de huid bewegen', correct: false, feedback: 'Dit is nog steeds te koud en minder effectief dan constant koelen op één plek.', nextStepId: 3 }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'Plaats ijs nooit rechtstreeks op de huid om bevriezing van de huid te voorkomen.'
         },
         { 
@@ -1019,7 +1019,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Je hoeft nooit naar de dokter voor een verstuiking', correct: false, feedback: 'Onverstandig. Soms is een verstuiking eigenlijk een breuk.', nextStepId: '3_consequence' },
             { id: 'd', text: 'Als de pijn na een uur nog niet weg is', correct: false, feedback: 'De pijn zal zeker langer dan een uur duren. De onmogelijkheid om te steunen is de belangrijkste indicator.', nextStepId: null }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Raadpleeg een arts als je niet meer op de enkel kan steunen, er een duidelijke misvorming is, je een "knak" hebt gehoord, of de pijn extreem is.' 
         },
         {
@@ -1030,7 +1030,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'De kleur van de blauwe plek', correct: false, feedback: 'Blauwe plekken zijn normaal bij zowel verstuikingen als breuken.', nextStepId: null },
             { id: 'c', text: 'Het feit dat de zwelling niet direct wegging', correct: false, feedback: 'Zwelling kan dagen tot weken aanhouden, zelfs bij een simpele verstuiking.', nextStepId: null }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'De "4-stappen regel" is een goede indicator: als je na de blessure geen 4 stappen kan zetten, is medisch advies nodig.'
         }
       ]
@@ -1053,7 +1053,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Plat op de rug gaan liggen', correct: false, feedback: 'Gevaarlijk, het bloed kan de luchtwegen instromen.', nextStepId: '1_consequence' },
             { id: 'd', text: 'Het hoofd tussen de knieën brengen', correct: false, feedback: 'Dit verhoogt de druk op het hoofd en kan de bloeding verergeren.', nextStepId: 2 }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'De juiste houding bij een bloedneus is rechtop zitten en het hoofd licht naar voren buigen.' 
         },
         {
@@ -1064,7 +1064,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'De neus spoelen met water', correct: false, feedback: 'Dit kan de bloedstolling verstoren.', nextStepId: 2 },
             { id: 'c', text: 'Een ijsblokje in de nek leggen', correct: false, feedback: 'Dit is een mythe en heeft weinig effect op de bloeding in de neus.', nextStepId: 2 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Voorkom dat bloed de keel inloopt door het hoofd altijd voorover te buigen.'
         },
         { 
@@ -1076,7 +1076,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Het harde, benige gedeelte bovenaan de neus dichtknijpen', correct: false, feedback: 'Dit heeft geen effect, de bloeding zit meestal lager in het zachte deel.', nextStepId: 3 },
             { id: 'd', text: 'Niets, gewoon het bloed laten druppen op een doekje', correct: false, feedback: 'Door de neus dicht te knijpen help je de bloeding actief te stoppen.', nextStepId: 3 }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Knijp het zachte gedeelte van de neus (de neusvleugels) stevig dicht met duim en wijsvinger.' 
         },
         {
@@ -1087,7 +1087,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Een kleiner watje gebruiken', correct: false, feedback: 'Het probleem is het watje zelf, niet de grootte.', nextStepId: 3 },
             { id: 'c', text: 'Het watje nat maken voor je het erin stopt', correct: false, feedback: 'Dit helpt niet en kan onhygiënisch zijn.', nextStepId: 3 }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'Vermijd het stoppen van objecten in de neus. Druk van buitenaf is veiliger en effectiever.'
         },
         { 
@@ -1099,7 +1099,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Elke minuut even loslaten om te controleren', correct: false, feedback: 'Niet doen! Elke keer dat je loslaat, verstoor je de stolling.', nextStepId: '3_consequence' },
             { id: 'd', text: 'Tot de persoon zich beter voelt', correct: false, feedback: 'Dit is niet specifiek genoeg. Een vaste tijd is een betere richtlijn.', nextStepId: null }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Houd de druk constant aan gedurende 10 minuten. Controleer pas daarna of de bloeding gestopt is.' 
         },
         {
@@ -1110,7 +1110,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: '5 minuten zou genoeg moeten zijn', correct: false, feedback: 'De aanbeveling is 10 minuten om zeker te zijn van een goede stolling.', nextStepId: null },
             { id: 'c', text: 'Zo lang als je het volhoudt', correct: false, feedback: 'Probeer de 10 minuten aan te houden voor het beste resultaat.', nextStepId: null }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Het onderbreken van de druk is de meest gemaakte fout bij het stelpen van een bloedneus. Houd minstens 10 minuten constant druk.'
         }
       ]
@@ -1133,7 +1133,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'De schokknop alvast indrukken om te testen', correct: false, feedback: 'Extreem gevaarlijk! De AED moet eerst het hartritme analyseren.', nextStepId: 2 },
             { id: 'd', text: 'De reanimatie stoppen en wachten op de instructies', correct: false, feedback: 'Ga door met reanimeren terwijl de AED wordt klaargemaakt en aangezet.', nextStepId: 2 }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Zodra een AED beschikbaar is, is de eerste stap altijd het toestel aanzetten. Onderbreek de reanimatie zo kort mogelijk.' 
         },
         {
@@ -1144,7 +1144,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'De batterij controleren', correct: false, feedback: 'Een goede gedachte, maar de eerste stap is altijd aanzetten.', nextStepId: 2 },
             { id: 'c', text: 'De elektroden opnieuw plakken', correct: false, feedback: 'Het probleem is niet de positie, maar het feit dat het toestel uit staat.', nextStepId: 2 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Een AED is ontworpen om je door het proces te leiden, maar daarvoor moet het wel eerst aangezet worden.'
         },
         { 
@@ -1179,7 +1179,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'Doorgaan met borstcompressies tijdens de schok', correct: false, feedback: 'Extreem gevaarlijk! Je zou zelf een elektrische schok krijgen.', nextStepId: '3_consequence' },
             { id: 'c', text: 'De kinlift toepassen om de luchtweg open te houden', correct: false, feedback: 'Dan raak je de patiënt aan. Je moet nu afstand houden.', nextStepId: null }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Voordat je een schok toedient, moet je er absoluut zeker van zijn dat niemand (inclusief jijzelf) het slachtoffer aanraakt.'
         },
         {
@@ -1190,7 +1190,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'b', text: 'De patiënt goed vasthouden', correct: false, feedback: 'Absoluut niet, dit is levensgevaarlijk.', nextStepId: null },
               { id: 'c', text: 'De ogen van het slachtoffer bedekken', correct: false, feedback: 'Dit is niet relevant en gevaarlijk omdat je het slachtoffer aanraakt.', nextStepId: null }
             ],
-            timeLimit: 12,
+            timeLimit: 14,
             explanation: 'Het aanraken van een slachtoffer tijdens een defibrillatieschok is levensgevaarlijk. Houd altijd afstand.'
         }
       ]
@@ -1213,7 +1213,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Wat er precies gebeurd is', correct: false, feedback: 'Dit is de tweede belangrijkste vraag, maar de locatie komt eerst.', nextStepId: '1_consequence' },
             { id: 'd', text: 'Het aantal slachtoffers', correct: false, feedback: 'Ook heel belangrijk, maar komt na de locatie.', nextStepId: 2 }
           ], 
-          timeLimit: 12, 
+          timeLimit: 14, 
           explanation: 'De gouden regel bij een noodoproep: begin altijd met de exacte locatie (adres, gemeente, herkenningspunten).' 
         },
         {
@@ -1224,7 +1224,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'De naam van het slachtoffer', correct: false, feedback: 'Niet de prioriteit. De ambulance moet eerst weten waarheen.', nextStepId: 2 },
             { id: 'c', text: 'Je telefoonnummer', correct: false, feedback: 'De operator ziet je nummer al. Locatie is belangrijker.', nextStepId: 2 }
           ],
-          timeLimit: 10,
+          timeLimit: 12,
           explanation: 'Professionele hulpdiensten kunnen niets doen als ze de locatie niet weten. Dit is altijd stap 1.'
         },
         { 
@@ -1236,7 +1236,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Je persoonlijke mening over wie er in fout was', correct: false, feedback: 'Blijf bij de feiten. De operator heeft objectieve informatie nodig.', nextStepId: '2_consequence' },
             { id: 'd', text: 'Of je een EHBO-diploma hebt', correct: false, feedback: 'Dit kan later nuttig zijn, maar de toestand van het slachtoffer is belangrijker.', nextStepId: 3 }
           ], 
-          timeLimit: 15, 
+          timeLimit: 17, 
           explanation: 'Na de locatie, geef je de aard van het noodgeval (ongeval, medisch?), het aantal slachtoffers en hun toestand.' 
         },
         {
@@ -1247,7 +1247,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'b', text: 'De nummerplaat van de betrokken voertuigen', correct: false, feedback: 'Dat is informatie voor de politie later, niet voor de medische hulp nu.', nextStepId: 3 },
             { id: 'c', text: 'Een schatting van de kosten van de schade', correct: false, feedback: 'Totaal irrelevant voor de noodcentrale.', nextStepId: 3 }
           ],
-          timeLimit: 12,
+          timeLimit: 14,
           explanation: 'In een noodoproep is het essentieel om kalm te blijven en enkel de feitelijke, relevante informatie te geven die de operator vraagt.'
         },
         { 
@@ -1259,7 +1259,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
             { id: 'c', text: 'Na ongeveer 3 minuten, want dan hebben ze genoeg informatie', correct: false, feedback: 'De operator bepaalt wanneer het gesprek eindigt, niet jij.', nextStepId: null },
             { id: 'd', text: 'Zodra je het te eng vindt worden', correct: false, feedback: 'Probeer kalm te blijven. De operator is er om je te helpen en te begeleiden.', nextStepId: null }
           ], 
-          timeLimit: 10, 
+          timeLimit: 12, 
           explanation: 'Verbreek nooit de verbinding met de noodcentrale totdat de operator je daarvoor de toestemming geeft.' 
         },
         {
@@ -1270,7 +1270,7 @@ const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
               { id: 'b', text: 'Ophangen als de ambulance in zicht is', correct: false, feedback: 'Zelfs dan kan de operator nog cruciale info doorgeven.', nextStepId: null },
               { id: 'c', text: 'Ophangen en terugbellen als de situatie verergert', correct: false, feedback: 'Blijf aan de lijn. Het is sneller dan opnieuw bellen.', nextStepId: null }
             ],
-            timeLimit: 12,
+            timeLimit: 14,
             explanation: 'De operator kan je tot de aankomst van de hulpdiensten begeleiden met levensreddende instructies. Blijf dus altijd aan de lijn.'
         }
       ]
