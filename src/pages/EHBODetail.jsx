@@ -1368,9 +1368,24 @@ useEffect(() => {
   }, [timeRemaining, activeScenario, showResults, accessibilityMode]);
 
 
-  const handleTimeUp = () => {
-    setShowResults(true);
+ const handleTimeUp = () => {
+  const currentStepData = activeScenario.steps[currentStep];
+
+  // Zoek de weg die een fout antwoord normaal zou nemen om de 'nextStepId' te bepalen.
+  const incorrectPath = currentStepData.options.find(opt => !opt.correct);
+  const nextStepIdForConsequence = incorrectPath ? incorrectPath.nextStepId : null;
+
+  // Creëer een "virtueel" antwoord voor de time-out.
+  const timeoutAnswer = {
+    id: 'timeout',
+    correct: false,
+    feedback: 'Je was te laat. In een noodgeval telt elke seconde.',
+    nextStepId: nextStepIdForConsequence
   };
+
+  // Geef dit virtuele antwoord door aan de handleAnswer functie, met een extra 'isTimeout' vlag.
+  handleAnswer(timeoutAnswer, currentStepData, true);
+};
 
 
  
@@ -1431,15 +1446,16 @@ const startScenario = async (scenario, chain = null) => {
 
  
 
-const handleAnswer = (selectedOption, step) => {
+const handleAnswer = (selectedOption, step, isTimeout = false) => {
   setTimeRemaining(null);
   const newResults = {
     ...scenarioResults,
     [step.id]: {
       selected: selectedOption,
       correct: selectedOption.correct,
-      timeUsed: accessibilityMode ? 0 : (step.timeLimit - timeRemaining),
-      stepId: step.id
+      timeUsed: isTimeout ? step.timeLimit : (step.timeLimit - timeRemaining),
+      stepId: step.id,
+      timedOut: isTimeout
     }
   };
   setScenarioResults(newResults);
@@ -1934,21 +1950,28 @@ const startChain = (chain) => {
                 
                 {selectedAnswer && (
                     <div className={`p-4 rounded-xl ${
-                      showIntermediateFeedback 
-                        ? 'bg-orange-50 border border-orange-200' 
-                        : selectedAnswer.correct 
-                          ? 'bg-green-50 border border-green-200' 
-                          : 'bg-red-50 border border-red-200'
+                      selectedAnswer.timedOut
+                        ? 'bg-yellow-50 border border-yellow-200'
+                        : showIntermediateFeedback 
+                          ? 'bg-orange-50 border border-orange-200' 
+                          : selectedAnswer.correct 
+                            ? 'bg-green-50 border border-green-200' 
+                            : 'bg-red-50 border border-red-200'
                     }`}>
 
-                      {/* --- NIEUWE CONDITIONELE FEEDBACK --- */}
-                      {showIntermediateFeedback ? (
-                        // Toon alleen de simpele "fout" melding in de tussenfase
+                      {/* --- AANGEPASTE CONDITIONELE FEEDBACK --- */}
+                      {selectedAnswer.timedOut ? (
+                        // Speciale melding voor time-out
+                        <p className="font-medium text-yellow-800">
+                          Je kon de vraag niet op tijd beantwoorden.
+                        </p>
+                      ) : showIntermediateFeedback ? (
+                        // Melding voor een 'normaal' fout antwoord
                         <p className="font-medium text-orange-800">
                           Dat antwoord is helaas niet correct. Denk goed na over wat de gevolgen zijn.
                         </p>
                       ) : (
-                        // Toon de volledige feedback in alle andere gevallen
+                        // Volledige feedback bij een correct antwoord of 2e foute antwoord
                         <>
                           <p className={`font-medium ${selectedAnswer.correct ? 'text-green-800' : 'text-red-800'}`}>
                             {selectedAnswer.feedback}
@@ -1960,13 +1983,13 @@ const startChain = (chain) => {
                         </>
                       )}
 
-                      {/* --- NIEUWE CONDITIONELE KNOPPEN --- */}
+                      {/* --- AANGEPASTE CONDITIONELE KNOPPEN --- */}
                       <div className="mt-4 text-center">
-                        {showIntermediateFeedback ? (
-                          // Toon de "Verder" knop in de tussenfase
+                        {/* Toon "Verder" knop bij time-out OF bij een eerste foute antwoord */}
+                        {(selectedAnswer.timedOut || showIntermediateFeedback) ? (
                           <button
                             onClick={() => goToNextStep(selectedAnswer)}
-                            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg"
+                            className={`text-white px-6 py-2 rounded-lg ${selectedAnswer.timedOut ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-orange-500 hover:bg-orange-600'}`}
                           >
                             Verder
                           </button>
