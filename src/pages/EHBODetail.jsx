@@ -7,8 +7,9 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useEnhancedScenario, useAdaptiveAnalysis, useAccessibilityFeatures } from '../hooks/useEnhancedEHBO';
 import { EnhancedUIComponents } from '../utils/enhancedEHBO.jsx';
-import { RoleBasedScenarios, ComplicationSystem } from '../utils/advancedEnhancedEHBO';
+import { RoleBasedScenarios, ComplicationSystem, ScenarioChainSystem } from '../utils/advancedEnhancedEHBO';
 import { Phase3UIComponents } from '../components/EHBO/EnhancedScenarioManager';
+
 
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
