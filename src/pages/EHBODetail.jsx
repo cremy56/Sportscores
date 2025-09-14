@@ -1744,7 +1744,7 @@ const startChain = (chain) => {
               <div className="flex items-start justify-between mb-3">
                 <div className="text-4xl">{chain.image}</div>
                 <div className="text-right text-xs opacity-90">
-                  <div>{chain.scenarioIds.length} Scenario's</div>
+                  <div>{chain.scenarios.length} Scenario's</div>
                 </div>
               </div>
               <h4 className="text-lg font-bold mb-2">{chain.title}</h4>
