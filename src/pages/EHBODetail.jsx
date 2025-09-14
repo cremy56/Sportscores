@@ -1672,77 +1672,60 @@ const startChain = (chain) => {
 };
 
   const Dashboard = () => (
-  <div className="space-y-6">
-    {/* Compacte progress + controls in één rij */}
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      {/* Progress - meer compact */}
-      <div className="lg:col-span-2 bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">EHBO Voortgang</h2>
-            <div className="text-2xl font-bold text-slate-800">{completedCount}/{totalScenarios}</div>
+    <div className="space-y-6">
+      {/* OPTIMALISATIE: Status en controls samengevoegd in één compacte balk */}
+      <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        {/* Linkergedeelte: Voortgang */}
+        <div className="flex-grow min-w-[250px]">
+          <h2 className="text-base font-bold text-slate-800">EHBO Voortgang ({completedCount}/{totalScenarios})</h2>
+          <div className="w-full bg-slate-200 rounded-full h-2 mt-2">
+            <div 
+              className="bg-emerald-500 rounded-full h-2 transition-all duration-1000"
+              style={{ width: `${progressPercentage}%` }}
+            />
           </div>
+        </div>
+        
+        {/* Rechtergedeelte: Stats en Knoppen */}
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Stats */}
           <div className="flex gap-4 text-center">
             <div>
-              <div className="text-lg font-bold text-slate-700">{userProgress.totalScore}</div>
+              <div className="text-base font-bold text-slate-700">{userProgress.totalScore}</div>
               <div className="text-xs text-slate-500">Score</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-slate-700">{userProgress.streak}</div>
+              <div className="text-base font-bold text-slate-700">{userProgress.streak}</div>
               <div className="text-xs text-slate-500">Streak</div>
             </div>
           </div>
-        </div>
-        
-        <div className="w-full bg-slate-200 rounded-full h-2">
-          <div 
-            className="bg-emerald-500 rounded-full h-2 transition-all duration-1000"
-            style={{ width: `${progressPercentage}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Compacte toegankelijkheids controls */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-        <h3 className="font-semibold text-blue-800 mb-3">Leer Modi</h3>
-        
-        <label className="flex items-center gap-2 cursor-pointer mb-2">
-          <input
-            type="checkbox"
-            checked={accessibilityMode}
-            onChange={(e) => setAccessibilityMode(e.target.checked)}
-            className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
-          />
-          <span className="text-sm text-blue-700">Geen tijdsdruk</span>
-        </label>
-
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={enhancedMode}
-            onChange={(e) => setEnhancedMode(e.target.checked)}
-            className="w-4 h-4 text-purple-600 border-purple-300 rounded focus:ring-purple-500"
-          />
-          <span className="text-sm text-purple-700">Enhanced modus</span>
-        </label>
-
-        {/* Actieve aanpassingen - zeer compact */}
-        {(enhancedMode || accessibilityMode) && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {accessibilityMode && (
-              <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">
-                Uitgebreide tijd
-              </span>
-            )}
-            {enhancedMode && shouldShowHints && (
-              <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">
-                Hints
-              </span>
-            )}
+          
+          {/* Leer Modi */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+            <h3 className="font-semibold text-blue-800 text-xs mb-2">Leer Modi</h3>
+            <div className="flex gap-3">
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={accessibilityMode}
+                  onChange={(e) => setAccessibilityMode(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-xs text-blue-700">Geen tijdsdruk</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enhancedMode}
+                  onChange={(e) => setEnhancedMode(e.target.checked)}
+                  className="w-4 h-4 text-purple-600 border-purple-300 rounded focus:ring-purple-500"
+                />
+                <span className="text-xs text-purple-700">Enhanced</span>
+              </label>
+            </div>
           </div>
-        )}
+        </div>
       </div>
-    </div>
     {/* --- START WIJZIGING: Toon dit blok alleen als enhancedMode aan staat --- */}
 {enhancedMode && (
 <div className="mb-8">
@@ -1835,35 +1818,14 @@ const startChain = (chain) => {
 
     return (
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          <Phase3UIComponents.ChainProgressDisplay chainProgress={chainProgress} />
-          {/* Enhanced status display */}
-            {isEnhanced && (
-              <EnhancedUIComponents.ResourceStatusDisplay 
-                adaptations={activeScenario.adaptations}
-                timeRemaining={timeRemaining}
-              />
-            )}
-
-            {/* Enhanced resource display */}
-            {isEnhanced && (
-              <Phase3UIComponents.EnhancedResourceDisplay 
-                resources={gameState.resources}
-                role={gameState.role}
-                complications={gameState.complications}
-              />
-            )}
-
+        {/* OPTIMALISATIE: Minder padding en kleinere schaduw voor een compacter gevoel */}
+        <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
           {/* Header */}
-          <div className={`bg-gradient-to-r from-${activeScenario.color}-500 to-${activeScenario.color}-600 p-6 text-white`}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">
-                {activeScenario.title}
-                {/* ... enhanced indicator ... */}
-              </h2>
-              <button onClick={resetScenario} /*...*/ >
-                <XMarkIcon className="w-6 h-6" />
-              </button>
+          {/* OPTIMALISATIE: Minder padding (p-4), kleinere titel op mobiel (text-xl) */}
+          <div className={`bg-gradient-to-r from-${activeScenario.color}-500 to-${activeScenario.color}-600 p-4 text-white`}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl md:text-2xl font-bold">{activeScenario.title}</h2>
+              <button onClick={resetScenario} className="p-1 rounded-full hover:bg-white/20"><XMarkIcon className="w-6 h-6" /></button>
             </div>
             
             {/* --- START WIJZIGING --- */}
@@ -1894,11 +1856,11 @@ const startChain = (chain) => {
           </div>
           
           {/* Question Content */}
-          <div className="p-8">
+          <div className="p-4 md:p-6">
             {!showResults ? (
               <>
-                <div className="mb-8">
-                  <h3 className="text-xl font-bold mb-4">{currentStepData.question}</h3>
+                <div className="mb-6">
+                  <h3 className="text-lg md:text-xl font-bold mb-4">{currentStepData.question}</h3>
                   {/* Role considerations */}
                   {isEnhanced && currentStepData.roleConsiderations && currentStepData.roleConsiderations.length > 0 && (
                     <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
@@ -2454,7 +2416,7 @@ const TheoryTab = () => (
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex gap-2 mb-8 bg-white rounded-xl p-2 shadow-sm border border-gray-200">
+        <div className="flex flex-wrap gap-1 mb-8 bg-white rounded-xl p-1 shadow-sm border border-gray-200">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: AcademicCapIcon },
             { id: 'emergency', label: 'Noodcontacten', icon: PhoneIcon },
@@ -2463,7 +2425,7 @@ const TheoryTab = () => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
+              className={`flex-grow md:flex-grow-0 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
                 activeTab === tab.id 
                   ? 'bg-emerald-500 text-white' 
                   : 'text-slate-600 hover:bg-slate-100'
