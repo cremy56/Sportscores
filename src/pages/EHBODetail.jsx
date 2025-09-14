@@ -47,6 +47,7 @@ const [showComplication, setShowComplication] = useState(null);
 const [activeChain, setActiveChain] = useState(null);
 const [chainProgress, setChainProgress] = useState(null);
 const [isLastStep, setIsLastStep] = useState(false);
+const [showIntermediateFeedback, setShowIntermediateFeedback] = useState(false);
 
 // NIEUW: Enhanced hooks toevoegen
   const {
@@ -1422,31 +1423,47 @@ const startScenario = async (scenario, chain = null) => {
 };
 
 
-  const handleAnswer = (selectedOption, step) => {
-    setTimeRemaining(null);
-    const newResults = {
-      ...scenarioResults,
-      [step.id]: {
-        selected: selectedOption,
-        correct: selectedOption.correct,
-        timeUsed: accessibilityMode ? 0 : (step.timeLimit - timeRemaining),
-        stepId: step.id // Voeg stepId toe voor de resultatenpagina
-      }
-    };
-    setScenarioResults(newResults);
+ 
 
-    const nextStepId = selectedOption.nextStepId;
-    const isConsequence = String(nextStepId).includes('_consequence');
-
-    if (selectedOption.correct) {
-        // Correct antwoord: toon de "Volgende" knop
-        setShowNextButton(true);
-        setIsLastStep(nextStepId === null);
-      } else {
-        // Fout antwoord: ga automatisch door naar de consequentie-stap
-        setTimeout(() => goToNextStep(selectedOption), 500);
-      }
+const handleAnswer = (selectedOption, step) => {
+  setTimeRemaining(null);
+  const newResults = {
+    ...scenarioResults,
+    [step.id]: {
+      selected: selectedOption,
+      correct: selectedOption.correct,
+      timeUsed: accessibilityMode ? 0 : (step.timeLimit - timeRemaining),
+      stepId: step.id
+    }
   };
+  setScenarioResults(newResults);
+
+  // Bepaal of we op een normale vraag of een vervolgvraag zitten
+  const isCurrentStepConsequence = String(step.id).includes('_consequence');
+
+  // Reset de 'tussenfase' en knoppen
+  setShowIntermediateFeedback(false);
+  setShowNextButton(false);
+
+  if (selectedOption.correct) {
+    // ---- CORRECT ANTWOORD ----
+    // Toon de "Volgende" knop zoals voorheen.
+    setShowNextButton(true);
+    setIsLastStep(selectedOption.nextStepId === null);
+  } else {
+    // ---- FOUT ANTWOORD ----
+    if (!isCurrentStepConsequence) {
+      // Dit is de EERSTE fout op een normale vraag.
+      // Activeer de 'tussenfase' met de "Verder" knop.
+      setShowIntermediateFeedback(true);
+    } else {
+      // Dit is de TWEEDE fout, op een vervolgvraag.
+      // Toon direct de "Volgende Vraag" knop, de JSX zorgt voor de oplichtende antwoorden.
+      setShowNextButton(true);
+      setIsLastStep(selectedOption.nextStepId === null);
+    }
+  }
+};
 
 // Nieuwe functie voor volgende stap
 
@@ -1951,27 +1968,55 @@ const startChain = (chain) => {
                 </div>
                 
                 {selectedAnswer && (
-                  <div className={`p-4 rounded-xl ${selectedAnswer.correct ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                    <p className={`font-medium ${selectedAnswer.correct ? 'text-green-800' : 'text-red-800'}`}>
-                      {selectedAnswer.feedback}
-                    </p>
-                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h4 className="font-semibold text-blue-800 mb-1">Uitleg:</h4>
-                      <p className="text-blue-700 text-sm">{currentStepData.explanation}</p>
-                    </div>
-                    {/* NIEUW: Volgende knop */}
-                      {showNextButton && (
-                        <div className="mt-4 text-center">
+                    <div className={`p-4 rounded-xl ${
+                      showIntermediateFeedback 
+                        ? 'bg-orange-50 border border-orange-200' 
+                        : selectedAnswer.correct 
+                          ? 'bg-green-50 border border-green-200' 
+                          : 'bg-red-50 border border-red-200'
+                    }`}>
+
+                      {/* --- NIEUWE CONDITIONELE FEEDBACK --- */}
+                      {showIntermediateFeedback ? (
+                        // Toon alleen de simpele "fout" melding in de tussenfase
+                        <p className="font-medium text-orange-800">
+                          Dat antwoord is helaas niet correct. Denk goed na over wat de gevolgen zijn.
+                        </p>
+                      ) : (
+                        // Toon de volledige feedback in alle andere gevallen
+                        <>
+                          <p className={`font-medium ${selectedAnswer.correct ? 'text-green-800' : 'text-red-800'}`}>
+                            {selectedAnswer.feedback}
+                          </p>
+                          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <h4 className="font-semibold text-blue-800 mb-1">Uitleg:</h4>
+                            <p className="text-blue-700 text-sm">{currentStepData.explanation}</p>
+                          </div>
+                        </>
+                      )}
+
+                      {/* --- NIEUWE CONDITIONELE KNOPPEN --- */}
+                      <div className="mt-4 text-center">
+                        {showIntermediateFeedback ? (
+                          // Toon de "Verder" knop in de tussenfase
                           <button
-                            onClick={() => goToNextStep(scenarioResults[currentStepData.id].selected)}
+                            onClick={() => goToNextStep(selectedAnswer)}
+                            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg"
+                          >
+                            Verder
+                          </button>
+                        ) : showNextButton ? (
+                          // Toon de "Volgende Vraag" / "Resultaten" knop
+                          <button
+                            onClick={() => goToNextStep(selectedAnswer)}
                             className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg"
                           >
                             {isLastStep ? 'Toon Resultaten' : 'Volgende Vraag'}
                           </button>
-                        </div>
-                      )}
-                  </div>
-                )}
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
               </>
             ) : (
               <ScenarioResults />
