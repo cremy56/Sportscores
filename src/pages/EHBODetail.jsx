@@ -1275,6 +1275,32 @@ const [isLastStep, setIsLastStep] = useState(false);
     }
   ];
       
+const scenarioChains = [
+  {
+    id: 'chain_reanimatie',
+    title: 'Keten van Overleving: Reanimatie',
+    description: 'Een realistische reeks die begint bij het vinden van een slachtoffer tot het gebruik van een AED.',
+    image: '🔗',
+    color: 'blue',
+    scenarioIds: ['bewusteloos', 'reanimatie', 'aed_gebruik'],
+    progress: {
+      totalSteps: 3,
+      currentStep: 1,
+    }
+  },
+  {
+    id: 'chain_ongeval',
+    title: 'Keten van Hulp: Ongeval',
+    description: 'Behandel een slachtoffer met een ernstige bloeding en communiceer effectief met de hulpdiensten.',
+    image: ' ambulance ',
+    color: 'red',
+    scenarioIds: ['bloeding', 'communicatie_hulpdiensten'],
+    progress: {
+      totalSteps: 2,
+      currentStep: 1,
+    }
+  }
+];
 
   // Emergency contacts data
   const emergencyContacts = [
@@ -1571,6 +1597,23 @@ const handleRoleIntroComplete = () => {
     </div>
   );
 
+const startChain = (chain) => {
+  if (!chain || !chain.scenarioIds || chain.scenarioIds.length === 0) {
+    console.error("Ongeldige keten geselecteerd", chain);
+    return;
+  }
+
+  // Zoek het allereerste scenario object dat bij de keten hoort
+  const firstScenario = scenarios.find(s => s.id === chain.scenarioIds[0]);
+
+  if (firstScenario) {
+    // Start het scenario en geef de volledige keten-informatie mee
+    startScenario(firstScenario, chain);
+  } else {
+    console.error("Eerste scenario in de keten niet gevonden:", chain.scenarioIds[0]);
+  }
+};
+
   const Dashboard = () => (
   <div className="space-y-6">
     {/* Compacte progress + controls in één rij */}
@@ -1643,7 +1686,38 @@ const handleRoleIntroComplete = () => {
         )}
       </div>
     </div>
+<div className="mb-8">
+      <h2 className="text-xl font-bold text-slate-800 mb-4">Kettingreacties</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {scenarioChains.map(chain => {
+          const colorClass = {
+            red: 'from-red-500 to-pink-500',
+            blue: 'from-blue-500 to-indigo-500',
+          }[chain.color];
 
+          return (
+            <div
+              key={chain.id}
+              className={`relative bg-gradient-to-br ${colorClass} rounded-xl p-4 text-white cursor-pointer transform transition-all hover:scale-105`}
+              onClick={() => startChain(chain)} // Gebruik de nieuwe startChain functie
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="text-4xl">{chain.image}</div>
+                <div className="text-right text-xs opacity-90">
+                  <div>{chain.scenarioIds.length} Scenario's</div>
+                </div>
+              </div>
+              <h4 className="text-lg font-bold mb-2">{chain.title}</h4>
+              <p className="text-sm opacity-90 mb-3 line-clamp-2">{chain.description}</p>
+              <button className="bg-white/20 backdrop-blur-sm px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-white/30 transition-colors text-sm">
+                <PlayIcon className="w-4 h-4" />
+                Start Keten
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
     {/* Scenario Grid - direct zichtbaar zonder extra headers */}
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {scenarios.map(scenario => {
