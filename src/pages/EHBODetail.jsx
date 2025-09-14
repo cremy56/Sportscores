@@ -2366,6 +2366,80 @@ const TheoryTab = () => (
           <p><strong>Niet:</strong> Laten bewegen, aspirine zonder toestemming</p>
         </div>
       </div>
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">🌬️</div>
+        <h3 className="text-lg font-bold mb-3">Ademstilstand</h3>
+        <p className="text-gray-600 text-sm mb-3">
+          Geen ademhaling maar wél een pols? De focus ligt volledig op beademen.
+        </p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Herkenning:</strong> Bewusteloos, geen ademhaling, wel hartslag.</p>
+          <p><strong>Actie:</strong> Start enkel beademing (1x per 5-6 sec).</p>
+          <p><strong>Geen:</strong> Borstcompressies geven op een kloppend hart.</p>
+          <p><strong>Alert:</strong> Wordt snel een hartstilstand. Controleer pols elke 2 min.</p>
+        </div>
+      </div>
+
+      {/* --- NIEUWE THEORIEKAART --- */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">🌊</div>
+        <h3 className="text-lg font-bold mb-3">Verdrinking</h3>
+        <p className="text-gray-600 text-sm mb-3">
+          Protocol wijkt af: start met 5 beademingen om het zuurstoftekort op te heffen.
+        </p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Start:</strong> Altijd met 5 beademingen.</p>
+          <p><strong>Daarna:</strong> Normale cyclus van 30:2 reanimatie.</p>
+          <p><strong>Water:</strong> Probeer niet water uit de longen te duwen.</p>
+          <p><strong>Luchtweg:</strong> Houd luchtweg vrij (braaksel).</p>
+        </div>
+      </div>
+
+      {/* --- NIEUWE THEORIEKAART --- */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">🩹</div>
+        <h3 className="text-lg font-bold mb-3">Wondverzorging</h3>
+        <p className="text-gray-600 text-sm mb-3">
+          Reinigen, ontsmetten, afdekken. Houd het simpel en proper voor (schaaf)wonden.
+        </p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Stap 1:</strong> Spoel vuil weg met stromend water.</p>
+          <p><strong>Stap 2:</strong> Ontsmet met een niet-prikkend middel.</p>
+          <p><strong>Stap 3:</strong> Dek af met een pleister of steriel gaas.</p>
+          <p><strong>Nooit:</strong> Vuil opsluiten of blaren doorprikken.</p>
+        </div>
+      </div>
+
+      {/* --- NIEUWE THEORIEKAART --- */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">🦶</div>
+        <h3 className="text-lg font-bold mb-3">Verstuiking (Enkel)</h3>
+        <p className="text-gray-600 text-sm mb-3">
+          Gebruik de RICE-methode om zwelling en pijn te beperken.
+        </p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>R:</strong> Rust (niet op steunen).</p>
+          <p><strong>I:</strong> IJs (15-20 min, met doek ertussen).</p>
+          <p><strong>C:</strong> Compressie (drukverband).</p>
+          <p><strong>E:</strong> Elevatie (been omhoog).</p>
+          <p><strong>Dokter bij:</strong> Onmogelijk om te steunen of "knak" gehoord.</p>
+        </div>
+      </div>
+
+      {/* --- NIEUWE THEORIEKAART --- */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="text-4xl mb-4">👃</div>
+        <h3 className="text-lg font-bold mb-3">Bloedneus</h3>
+        <p className="text-gray-600 text-sm mb-3">
+          Hoofd voorover, neus dichtknijpen. Blijf 10 minuten rustig zitten.
+        </p>
+        <div className="space-y-2 text-xs text-gray-600">
+          <p><strong>Houding:</strong> Hoofd licht voorover (nooit achterover).</p>
+          <p><strong>Actie:</strong> Knijp zachte deel van neus 10 min dicht.</p>
+          <p><strong>Niet doen:</strong> Tussendoor controleren.</p>
+          <p><strong>Geen:</strong> Watten in de neus stoppen.</p>
+        </div>
+      </div>
     </div>
 
     {/* 112 Prioriteiten */}
