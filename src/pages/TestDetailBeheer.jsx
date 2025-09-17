@@ -277,6 +277,7 @@ export default function TestDetailBeheer() {
         setShowMobileMenu(prev => ({ ...prev, [normId]: !prev[normId] }));
     };
 const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
+
    if (loading || !test) {
         return (
             <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
@@ -292,9 +293,9 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                         <div>
                             <h3 className="text-xl font-bold text-gray-800 mb-2">Test niet gevonden</h3>
                             <p className="text-gray-600 mb-4">De opgevraagde test bestaat niet of u heeft geen toegang.</p>
-                            <Link to="/testbeheer" className="inline-flex items-center text-purple-600 hover:text-purple-700">
+                            <Link to="/sporttesten" className="inline-flex items-center text-purple-600 hover:text-purple-700">
                                 <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                                Terug naar {isAdmin ? 'testbeheer' : 'sporttesten'}
+                                Terug naar Sporttesten
                             </Link>
                         </div>
                     )}
@@ -317,9 +318,9 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                     <div className="lg:hidden mb-8">
                         <div className="flex justify-between items-center">
                             <div className="flex-1 min-w-0">
-                                <Link to="/testbeheer" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
+                               <Link to="/sporttesten" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
                                     <ArrowLeftIcon className="h-4 w-4 mr-1 transition-transform group-hover:-translate-x-1" />
-                                    <span className="text-sm">Terug</span>
+                                    <span className="text-sm">Terug naar Sporttesten</span>
                                 </Link>
                                 <h1 className="text-2xl font-bold text-gray-800 truncate">{test?.naam}</h1>
                             </div>
@@ -337,9 +338,9 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
 
                     {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
                     <div className="hidden lg:block mb-12">
-                        <Link to="/testbeheer" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
+                       <Link to="/sporttesten" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
                             <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
-                            Terug naar {isAdmin ? 'testbeheer' : 'sporttesten'}
+                            Terug naar Sporttesten
                         </Link>
                         <div className="flex justify-between items-center">
                             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{test?.naam}</h1>
