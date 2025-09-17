@@ -28,7 +28,8 @@ import UserFormModal from '../components/UserFormModal';
 import ConfirmModal from '../components/ConfirmModal';
 
 export default function Gebruikersbeheer() {
-    const { profile } = useOutletContext();
+    const context = useOutletContext();
+    const { profile } = context || {};
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -199,13 +200,10 @@ export default function Gebruikersbeheer() {
     };
 
     const handleUserSaved = () => {
-        // Als modal.data niet bestaat, betekent dit dat we een NIEUWE gebruiker hebben toegevoegd.
-        // In het geval van een bewerking, bevat modal.data de gegevens van de gebruiker en hoeft de telling niet te veranderen.
         if (!modal.data) {
             setTotalCount(prev => (prev !== null ? prev + 1 : 1));
         }
 
-        // Voer de zoekopdracht opnieuw uit om de lijst bij te werken
         if (searchTerm.length >= 2) {
             searchUsers(searchTerm);
         }
@@ -248,135 +246,101 @@ export default function Gebruikersbeheer() {
         return <span className={`capitalize text-xs font-semibold px-2 py-1 rounded-full ${styles[role] || 'bg-gray-100 text-gray-800'}`}>{role}</span>;
     };
 
-
     return (
-        <>
+        <div className="bg-white p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200">
             <Toaster position="top-center" />
-            <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-                <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
-                    
-                    {/* --- AANGEPAST: Mobiele header zoals in Testbeheer --- */}
-                    <div className="lg:hidden mb-8">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-800">Gebruikersbeheer</h1>
-                                <p className="text-sm text-gray-600">
-                                    {totalCount !== null ? `Totaal ${totalCount} gebruikers` : ''}
-                                </p>
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setModal({ type: 'form', data: null, role: 'leerkracht' })}
-                                    className="flex items-center justify-center bg-gradient-to-r from-blue-600 to-sky-600 text-white p-3 rounded-full shadow-lg"
-                                    title="Nieuwe Leerkracht"
-                                >
-                                    <UserPlusIcon className="h-6 w-6" />
-                                </button>
-                                <button
-                                    onClick={() => setModal({ type: 'form', data: null, role: 'leerling' })}
-                                    className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg"
-                                    title="Nieuwe Leerling"
-                                >
-                                    <PlusIcon className="h-6 w-6" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* --- AANGEPAST: Desktop header, titel links en knoppen rechts --- */}
-                    <div className="hidden lg:block mb-12">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Gebruikersbeheer</h1>
-                                <p className="text-gray-600">
-                                    {totalCount !== null ? `Totaal ${totalCount} gebruikers` : 'Gebruikers beheren'}
-                                </p>
-                            </div>
-                            
-                            <div className="flex gap-4">
-                                <button 
-                                    onClick={() => setModal({ type: 'form', data: null, role: 'leerkracht' })}
-                                    className="flex items-center bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
-                                >
-                                    <UserPlusIcon className="h-5 w-5 mr-2" />
-                                    Nieuwe Leerkracht
-                                </button>
-                                <button
-                                    onClick={() => setModal({ type: 'form', data: null, role: 'leerling' })}
-                                    className="flex items-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
-                                >
-                                    <PlusIcon className="h-5 w-5 mr-2" />
-                                    Nieuwe Leerling
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* --- De rest van de pagina (zoekbalk, resultaten, etc.) blijft ongewijzigd --- */}
-                    <div className="relative mb-8">
-                        <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
-                        <input
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Zoek gebruikers op naam of e-mail..."
-                            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300"
-                        />
-                        {loading && (
-                            <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        {searchTerm.length < 2 ? (
-                            <div className="text-center p-12">
-                                <UsersIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                <h3 className="text-xl font-bold text-gray-800 mb-2">Zoek naar gebruikers</h3>
-                                <p className="text-gray-600">Gebruik de zoekbalk hierboven om gebruikers te vinden.</p>
-                            </div>
-                        ) : loading ? (
-                           <div className="text-center p-12 text-gray-600">Laden...</div>
-                        ) : users.length === 0 ? (
-                            <div className="text-center p-12">
-                                <MagnifyingGlassIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                <h3 className="text-xl font-bold text-gray-800 mb-2">Geen resultaten</h3>
-                                <p className="text-gray-600">Probeer een andere zoekterm.</p>
-                            </div>
-                        ) : (
-                            <ul className="divide-y divide-slate-200">
-                                {users.map(user => (
-                                    <li key={user.id}>
-                                        <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-slate-50 transition-colors">
-                                            <div className="flex items-center gap-4">
-                                                <RoleBadge role={user.rol} />
-                                                <div>
-                                                    <p className="text-lg font-bold text-gray-900">{user.naam}</p>
-                                                    <p className="text-sm text-gray-600">{user.email}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => setModal({ type: 'form', data: user })}
-                                                    className="p-2 text-gray-500 rounded-full hover:bg-blue-100 hover:text-blue-600 transition-all duration-200"
-                                                >
-                                                    <PencilIcon className="h-5 w-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => setModal({ type: 'confirm', data: user })}
-                                                    className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-all duration-200"
-                                                >
-                                                    <TrashIcon className="h-5 w-5" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
+            
+            {/* Header */}
+            <div className="flex justify-between items-start mb-8">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Gebruikersbeheer</h2>
+                    <p className="text-gray-600">
+                        {totalCount !== null ? `Totaal ${totalCount} gebruikers` : 'Gebruikers beheren'}
+                    </p>
                 </div>
+                
+                <div className="flex gap-4">
+                    <button 
+                        onClick={() => setModal({ type: 'form', data: null, role: 'leerkracht' })}
+                        className="flex items-center bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                    >
+                        <UserPlusIcon className="h-4 w-4 mr-2" />
+                        <span className="hidden sm:inline">Nieuwe </span>Leerkracht
+                    </button>
+                    <button
+                        onClick={() => setModal({ type: 'form', data: null, role: 'leerling' })}
+                        className="flex items-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                    >
+                        <PlusIcon className="h-4 w-4 mr-2" />
+                        <span className="hidden sm:inline">Nieuwe </span>Leerling
+                    </button>
+                </div>
+            </div>
+
+            {/* Zoekbalk */}
+            <div className="relative mb-8">
+                <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Zoek gebruikers op naam of e-mail..."
+                    className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300"
+                />
+                {loading && (
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                    </div>
+                )}
+            </div>
+
+            {/* Resultaten */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+                {searchTerm.length < 2 ? (
+                    <div className="text-center p-12">
+                        <UsersIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">Zoek naar gebruikers</h3>
+                        <p className="text-gray-600">Gebruik de zoekbalk hierboven om gebruikers te vinden.</p>
+                    </div>
+                ) : loading ? (
+                   <div className="text-center p-12 text-gray-600">Laden...</div>
+                ) : users.length === 0 ? (
+                    <div className="text-center p-12">
+                        <MagnifyingGlassIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">Geen resultaten</h3>
+                        <p className="text-gray-600">Probeer een andere zoekterm.</p>
+                    </div>
+                ) : (
+                    <ul className="divide-y divide-slate-200">
+                        {users.map(user => (
+                            <li key={user.id}>
+                                <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-slate-50 transition-colors">
+                                    <div className="flex items-center gap-4">
+                                        <RoleBadge role={user.rol} />
+                                        <div>
+                                            <p className="text-lg font-bold text-gray-900">{user.naam}</p>
+                                            <p className="text-sm text-gray-600">{user.email}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setModal({ type: 'form', data: user })}
+                                            className="p-2 text-gray-500 rounded-full hover:bg-blue-100 hover:text-blue-600 transition-all duration-200"
+                                        >
+                                            <PencilIcon className="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            onClick={() => setModal({ type: 'confirm', data: user })}
+                                            className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-all duration-200"
+                                        >
+                                            <TrashIcon className="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </div>
 
             <UserFormModal
@@ -396,6 +360,6 @@ export default function Gebruikersbeheer() {
             >
                 Weet u zeker dat u "{modal.data?.naam}" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
             </ConfirmModal>
-        </>
+        </div>
     );
 }
