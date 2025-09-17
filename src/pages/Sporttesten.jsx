@@ -266,37 +266,44 @@ useEffect(() => {
 
     // Component voor "Testen Beheer" tab
     const TestenBeheerTab = () => (
-        <>
-            {testen.length === 0 ? (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto">
-                     <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4"><BeakerIcon className="w-8 h-8 text-purple-600" /></div>
-                    <h3 className="text-2xl font-bold text-gray-800 mb-2">Geen Testen Gevonden</h3>
-                    {isAdmin && <p className="text-gray-600">Klik op "Nieuwe Test" om te beginnen.</p>}
-                </div>
-            ) : (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <ul className="divide-y divide-gray-200/70">
-                        {testen.map(test => (
-                            <li key={test.id} className="group">
-                                <div onClick={() => navigate(`/testbeheer/${test.id}`)} className="flex items-center justify-between p-4 sm:p-6 cursor-pointer hover:bg-purple-50/50 transition-colors">
-                                    <div>
-                                        <p className="text-lg font-semibold text-gray-900 group-hover:text-purple-700">{test.naam}</p>
-                                        <p className="text-sm text-gray-500">{test.categorie}</p>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        {isAdmin && (
-                                            <button onClick={(e) => { e.stopPropagation(); setModal({ type: 'confirmDeleteTest', data: test }); }} className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600"><TrashIcon className="h-5 w-5" /></button>
-                                        )}
-                                        <ChevronRightIcon className="h-6 w-6 text-gray-400 group-hover:text-purple-700 transition-transform group-hover:translate-x-1" />
-                                    </div>
+       <>
+        {testen.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4"><BeakerIcon className="w-8 h-8 text-purple-600" /></div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">Geen Testen Gevonden</h3>
+                <p className="text-gray-600">
+                    {/* Gebruik hier 'canManage' */}
+                    {canManage 
+                        ? "Klik op \"Nieuwe Test\" om te beginnen."
+                        : "Er zijn nog geen testen beschikbaar voor uw school."
+                    }
+                </p>
+            </div>
+        ) : (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <ul className="divide-y divide-gray-200/70">
+                    {testen.map(test => (
+                        <li key={test.id} className="group">
+                            <div onClick={() => navigate(`/testbeheer/${test.id}`)} className="flex items-center justify-between p-4 sm:p-6 cursor-pointer hover:bg-purple-50/50 transition-colors">
+                                <div>
+                                    <p className="text-lg font-semibold text-gray-900 group-hover:text-purple-700">{test.naam}</p>
+                                    <p className="text-sm text-gray-500">{test.categorie}</p>
                                 </div>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-        </>
-    );
+                                <div className="flex items-center gap-4">
+                                    {/* Gebruik hier 'canManage' */}
+                                    {canManage && (
+                                        <button onClick={(e) => { e.stopPropagation(); setModal({ type: 'confirmDeleteTest', data: test }); }} className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600"><TrashIcon className="h-5 w-5" /></button>
+                                    )}
+                                    <ChevronRightIcon className="h-6 w-6 text-gray-400 group-hover:text-purple-700 transition-transform group-hover:translate-x-1" />
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        )}
+    </>
+);
 
     if (loading) return <div>Loading...</div>;
 
@@ -331,7 +338,7 @@ useEffect(() => {
 
                     {/* Content Area */}
                     {activeTab === 'testafnames' && <TestafnamesTab />}
-                    {activeTab === 'testenbeheer' && <TestenBeheerTab />}
+                    {activeTab === 'testenbeheer' && <TestenBeheerTab canManage={canManage} />}
                 </div>
             </div>
 
