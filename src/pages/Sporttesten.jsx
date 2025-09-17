@@ -90,7 +90,8 @@ export default function Sporttesten() {
     const [modal, setModal] = useState({ type: null, data: null });
     const [filters, setFilters] = useState({ search: '', groep: '', test: '' });
 
-    const isAdmin = profile?.rol?.toLowerCase() === 'administrator';
+    const canManage = ['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol);
+
 
 
 // Stap 1: Introduceer een nieuwe state voor de 'ruwe' scoredata
@@ -310,7 +311,8 @@ useEffect(() => {
                             <h1 className="text-3xl font-bold text-gray-800">{activeTab === 'testafnames' ? 'Testafnames' : 'Sporttesten Beheer'}</h1>
                             <p className="text-gray-600 mt-1">{activeTab === 'testafnames' ? 'Beheer en bekijk alle testresultaten' : 'Beheer de beschikbare sporttesten voor je school'}</p>
                         </div>
-                        {isAdmin && (
+                        {/* --- START WIJZIGING: Gebruik 'canManage' ipv 'isAdmin' --- */}
+                        {canManage && (
                             <button
                                 onClick={() => activeTab === 'testafnames' ? navigate('/nieuwe-testafname') : setModal({ type: 'testForm', data: null })}
                                 className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:scale-105"
@@ -324,7 +326,7 @@ useEffect(() => {
                     {/* Tab Navigatie */}
                     <div className="flex gap-2 border-b border-gray-200 mb-6">
                         <button onClick={() => setActiveTab('testafnames')} className={`px-4 py-2 font-medium text-sm ${activeTab === 'testafnames' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'}`}>Testafnames</button>
-                        <button onClick={() => setActiveTab('testenbeheer')} className={`px-4 py-2 font-medium text-sm ${activeTab === 'testenbeheer' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'}`}>Testen Beheer</button>
+                        <button onClick={() => setActiveTab('testenbeheer')} className={`px-4 py-2 font-medium text-sm ${activeTab === 'testenbeheer' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'}`}>Testinfo en normen</button>
                     </div>
 
                     {/* Content Area */}
