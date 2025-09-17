@@ -92,75 +92,87 @@ export default function Sporttesten() {
 
     const isAdmin = profile?.rol?.toLowerCase() === 'administrator';
 
-    // Gecombineerde Data Fetching
-    useEffect(() => {
-        if (!profile?.school_id) {
-            setLoading(false);
-            return;
-        }
 
-        const currentUser = auth.currentUser;
-        if (!currentUser) return;
-        
-        setLoading(true);
+// Stap 1: Introduceer een nieuwe state voor de 'ruwe' scoredata
+const [rawScores, setRawScores] = useState([]);
 
-        const groepenRef = collection(db, 'groepen');
-        const qGroepen = query(groepenRef, where('school_id', '==', profile.school_id));
-        const unsubscribeGroepen = onSnapshot(qGroepen, (snapshot) => {
-            setGroepen(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+// Hook 1: Haalt alle data op en zet de listeners op
+useEffect(() => {
+    if (!profile?.school_id) {
+        setLoading(false);
+        return;
+    }
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    setLoading(true);
+
+    const groepenRef = collection(db, 'groepen');
+    const qGroepen = query(groepenRef, where('school_id', '==', profile.school_id));
+    const unsubscribeGroepen = onSnapshot(qGroepen, (snapshot) => {
+        setGroepen(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    const testenRef = collection(db, 'testen');
+    const qTesten = query(testenRef, where('school_id', '==', profile.school_id));
+    const unsubscribeTesten = onSnapshot(qTesten, (snapshot) => {
+        const testenData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        testenData.sort((a, b) => a.naam.localeCompare(b.naam));
+        setTesten(testenData);
+    });
+
+    const scoresRef = collection(db, 'scores');
+    const qScores = query(scoresRef, where('school_id', '==', profile.school_id), where('leerkracht_id', '==', currentUser.uid));
+    const unsubscribeScores = onSnapshot(qScores, (scoresSnapshot) => {
+        const scoresData = scoresSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return { id: doc.id, ...data, datum: data.datum.toDate() };
         });
+        setRawScores(scoresData); // Sla de ruwe scores op
+    });
 
-        const testenRef = collection(db, 'testen');
-        const qTesten = query(testenRef, where('school_id', '==', profile.school_id));
-        const unsubscribeTesten = onSnapshot(qTesten, (snapshot) => {
-            const testenData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            testenData.sort((a, b) => a.naam.localeCompare(b.naam));
-            setTesten(testenData);
-        });
+    return () => {
+        unsubscribeGroepen();
+        unsubscribeTesten();
+        unsubscribeScores();
+    };
+}, [profile]);
 
-        const scoresRef = collection(db, 'scores');
-        const qScores = query(scoresRef, where('school_id', '==', profile.school_id), where('leerkracht_id', '==', currentUser.uid));
-        const unsubscribeScores = onSnapshot(qScores, (scoresSnapshot) => {
-            const scoresData = scoresSnapshot.docs.map(doc => {
-                const data = doc.data();
-                return { id: doc.id, ...data, datum: data.datum.toDate() };
-            });
+// Hook 2: Verwerkt en groepeert de data pas als alles binnen is
+useEffect(() => {
+    // Draai deze logica alleen als we alle benodigde data hebben
+    if (rawScores.length > 0 && groepen.length > 0 && testen.length > 0) {
+        const grouped = rawScores.reduce((acc, score) => {
+            const key = `${score.groep_id}-${score.test_id}-${score.datum.toISOString()}`;
+            if (!acc[key]) {
+                const groep = groepen.find(g => g.id === score.groep_id);
+                const test = testen.find(t => t.id === score.test_id);
+                acc[key] = {
+                    groep_id: score.groep_id,
+                    test_id: score.test_id,
+                    datum: score.datum,
+                    groep_naam: groep?.naam || 'Onbekende Groep',
+                    test_naam: test?.naam || 'Onbekende Test',
+                    score_ids: [],
+                    leerling_count: 0
+                };
+            }
+            acc[key].score_ids.push(score.id);
+            acc[key].leerling_count++;
+            return acc;
+        }, {});
 
-            const grouped = scoresData.reduce((acc, score) => {
-                const key = `${score.groep_id}-${score.test_id}-${score.datum.toISOString()}`;
-                if (!acc[key]) {
-                    const groep = groepen.find(g => g.id === score.groep_id);
-                    const test = testen.find(t => t.id === score.test_id);
-                    acc[key] = {
-                        groep_id: score.groep_id,
-                        test_id: score.test_id,
-                        datum: score.datum,
-                        groep_naam: groep?.naam || 'Onbekende Groep',
-                        test_naam: test?.naam || 'Onbekende Test',
-                        score_ids: [],
-                        leerling_count: 0
-                    };
-                }
-                acc[key].score_ids.push(score.id);
-                acc[key].leerling_count++;
-                return acc;
-            }, {});
+        const uniekeEvaluaties = Object.values(grouped);
+        uniekeEvaluaties.sort((a, b) => b.datum - a.datum);
+        setEvaluaties(uniekeEvaluaties);
+        setLoading(false); // Zet loading pas op false als alles verwerkt is
+    } else if (profile) {
+        // Zorg ervoor dat de loading state uitgaat als er geen scores zijn
+        setLoading(false);
+    }
+}, [rawScores, groepen, testen, profile]);
 
-            const uniekeEvaluaties = Object.values(grouped);
-            uniekeEvaluaties.sort((a, b) => b.datum - a.datum);
-            setEvaluaties(uniekeEvaluaties);
-            setLoading(false);
-        }, (error) => {
-            toast.error("Kon de testafnames niet laden.");
-            setLoading(false);
-        });
-
-        return () => {
-            unsubscribeGroepen();
-            unsubscribeTesten();
-            unsubscribeScores();
-        };
-    }, [profile]); // Afhankelijkheid van groepen en testen toegevoegd
+// --- EINDE WIJZIGING ---
 
     // Gecombineerde Handlers
     const handleCloseModal = () => setModal({ type: null, data: null });
