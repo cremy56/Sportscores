@@ -231,7 +231,7 @@ function App() {
                         )}
                         
                         {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
-                           <Route path="/instellingen" element={<Instellingen />}>
+                          <Route path="/instellingen" element={<Instellingen />}>
                             <Route index element={<AlgemeenInstellingen />} />
                             <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
                             <Route path="gebruikersbeheer" element={<Gebruikersbeheer />} />
