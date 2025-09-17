@@ -114,38 +114,41 @@ function App() {
       });
     };
 
-    const checkAndCreateProfile = async () => {
-      try {
-        const docSnap = await getDoc(profileRef);
-        if (!docSnap.exists()) {
-          const allowedUserRef = doc(db, 'toegestane_gebruikers', user.email);
-          const allowedUserSnap = await getDoc(allowedUserRef);
-          if (allowedUserSnap.exists()) {
-            const initialProfileData = {
-              ...allowedUserSnap.data(),
-              email: user.email,
-              onboarding_complete: false,
-              // NIEUW: Initiële rewards data
-              xp: 0,
-              sparks: 0,
-              streak_days: 0,
-              weekly_stats: {
-                kompas: 0,
-                trainingen: 0,
-                perfectWeek: false
-              },
-              personal_records_count: 0
-            };
-            await setDoc(profileRef, initialProfileData);
-          } else {
-            console.error("Gebruiker niet gevonden in toegestane_gebruikers.");
-          }
-        }
-        setupListener();
-      } catch (error) {
-        console.error("Fout bij het controleren/aanmaken van profiel:", error);
+   const checkAndCreateProfile = async () => {
+  try {
+    const docSnap = await getDoc(profileRef);
+    if (!docSnap.exists()) {
+      const allowedUserRef = doc(db, 'toegestane_gebruikers', user.email);
+      const allowedUserSnap = await getDoc(allowedUserRef);
+      if (allowedUserSnap.exists()) {
+        const initialProfileData = {
+          ...allowedUserSnap.data(),
+          email: user.email,
+          onboarding_complete: false,
+          // --- START CORRECTIE ---
+          // Initialiseer hier de nieuwe XP-velden. Sparks is niet meer nodig.
+          xp: 0,
+          xp_current_period: 0,
+          xp_current_school_year: 0,
+          streak_days: 0,
+          // --- EINDE CORRECTIE ---
+          weekly_stats: {
+            kompas: 0,
+            trainingen: 0,
+            perfectWeek: false
+          },
+          personal_records_count: 0
+        };
+        await setDoc(profileRef, initialProfileData);
+      } else {
+        console.error("Gebruiker niet gevonden in toegestane_gebruikers.");
       }
-    };
+    }
+    setupListener();
+  } catch (error) {
+    console.error("Fout bij het controleren/aanmaken van profiel:", error);
+  }
+};
 
     checkAndCreateProfile();
 
@@ -198,9 +201,8 @@ function App() {
 
               <Route element={<ProtectedRoute profile={profile} school={school} />}>
                     
-                    {/* De Instellingen-route moet BINNEN de Layout-route staan */}
-                    <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} activeRole={activeRole} setActiveRole={setActiveRole} />}>
-                        <Route path="/" element={<AdValvas />} />
+                        <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} activeRole={activeRole} setActiveRole={setActiveRole} />}>
+                         <Route path="/" element={<AdValvas />} />
                         <Route path="/highscores" element={<Highscores />} />
                         <Route path="/evolutie" element={<Evolutie />} />
                         <Route path="/groeiplan" element={<Groeiplan />} />
@@ -238,13 +240,14 @@ function App() {
                             {activeRole === 'super-administrator' && (
                               <Route path="schoolbeheer" element={<SchoolBeheer />} />
                             )}
-                          </Route>
-                        )}
+                        </Route>
+                      )}
+
                     </Route>
-                </Route>
+                  </Route>
                 <Route path="/login" element={<Navigate to="/" />} />
                 <Route path="/register" element={<Navigate to="/" />} />
-            </>
+           </>
         )}
       </Routes>
     </BrowserRouter>

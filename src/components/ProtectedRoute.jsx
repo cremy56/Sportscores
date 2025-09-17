@@ -2,7 +2,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 // De component ontvangt nu OOK de school-gegevens als prop
-export default function ProtectedRoute({ profile, school }) {
+export default function ProtectedRoute({ profile, school, activeRole  }) {
   const location = useLocation();
 
   // Als het profiel nog niet geladen is, stuur de gebruiker terug.
@@ -24,5 +24,5 @@ export default function ProtectedRoute({ profile, school }) {
 
   // ✅ Geef ZOWEL profiel als school door aan de geneste routes (zoals Layout).
   // De Layout component kan deze nu ophalen met useOutletContext().
-  return <Outlet context={{ profile, school }} />;
+  return <Outlet context={{ profile, school, activeRole }} />;
 }
