@@ -18,47 +18,48 @@ exports.awardTestScore = onCall({
   if (!userDoc.exists || !testDoc.exists) throw new Error('User or test not found');
 
   const userData = userDoc.data();
-  const testData = testDoc.data();
   const batch = db.batch();
 
   // 1. ATTITUDE BELONING: Deelname
   const participationXP = 50;
   batch.update(userRef, {
-  xp: FieldValue.increment(participationXP),
-  xp_current_period: FieldValue.increment(participationXP),
-  xp_current_school_year: FieldValue.increment(participationXP), // <-- HIER TOEVOEGEN
-  last_activity: FieldValue.serverTimestamp()
-});
+    xp: FieldValue.increment(participationXP),
+    xp_current_period: FieldValue.increment(participationXP),
+    xp_current_school_year: FieldValue.increment(participationXP),
+    last_activity: FieldValue.serverTimestamp()
+  });
   await logXPTransaction({ user_id: userId, amount: participationXP, reason: 'test_participation', source_id: testId });
 
-  // 2. PRESTATIE BELONING: Records (alleen als er een score is)
+  // 2. PRESTATIE BELONING: Records
   if (newScore !== null && newScore !== undefined) {
     // A. Persoonlijk Record
-    const prInfo = await checkPersonalRecord(userId, testId, newScore, testData);
+    const prInfo = await checkPersonalRecord(userId, testId, newScore, testDoc.data());
     if (prInfo.isPersonalRecord) {
-      const prXP = 500; // Grote bonus voor persoonlijke groei
+      const prXP = 500;
+      // --- START CORRECTIE ---
       batch.update(userRef, {
-  xp: FieldValue.increment(recordXP),
-  xp_current_school_year: FieldValue.increment(recordXP) // <-- HIER TOEVOEGEN
-});
-      await logXPTransaction({ user_id: userId, amount: prXP, reason: 'personal_record', source_id: testId, metadata: { improvement: prInfo.improvement } });
+        xp: FieldValue.increment(prXP),
+        xp_current_school_year: FieldValue.increment(prXP),
+        personal_records_count: FieldValue.increment(1) // Deze was je vergeten hier te updaten
+      });
+      // --- EINDE CORRECTIE ---
+      await logXPTransaction({ user_id: userId, amount: prXP, reason: 'personal_record', source_id: testId });
     }
 
     // B. School- en Leeftijdsrecords
     const leaderboardInfo = await checkLeaderboardPositions(userId, testId, newScore, userData);
     if (leaderboardInfo.totalRecordXP > 0) {
       batch.update(userRef, {
-        xp: FieldValue.increment(leaderboardInfo.totalRecordXP) // Alleen Carrièrescore!
+        xp: FieldValue.increment(leaderboardInfo.totalRecordXP),
+        xp_current_school_year: FieldValue.increment(leaderboardInfo.totalRecordXP)
       });
-      // Log de prestaties
       for (const achievement of leaderboardInfo.achievements) {
-        await logXPTransaction({ user_id: userId, amount: achievement.xp, reason: achievement.type, source_id: testId, metadata: { position: achievement.position } });
+        await logXPTransaction({ user_id: userId, amount: achievement.xp, reason: achievement.type, source_id: testId });
       }
     }
   }
 
   await batch.commit();
-
   await updateClassChallengeProgressInternal(userId, participationXP, 'xp');
   
   return { success: true, message: 'Test score verwerkt!' };
