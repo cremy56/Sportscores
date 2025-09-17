@@ -38,6 +38,7 @@ import VoedingDetail from './pages/VoedingDetail';
 import SlaapDetail from './pages/SlaapDetail';
 import HartDetail from './pages/HartDetail';
 import EHBODetail from './pages/EHBODetail';
+import Instellingen from './pages/Instellingen';
 import AlgemeenInstellingen from './pages/AlgemeenInstellingen';
 
 function HandleAuthRedirect() {
