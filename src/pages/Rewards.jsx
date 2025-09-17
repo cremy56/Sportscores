@@ -96,30 +96,87 @@ const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "H
     );
   };
 
-  const EarningsTab = () => (
+ const EarningsTab = () => (
     <div className="bg-white rounded-xl shadow-lg p-6 border">
       <h3 className="text-lg font-semibold mb-4">Hoe Verdien Ik Punten?</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        {/* Kolom 1: Inzet & Attitude */}
         <div>
-          <h4 className="font-bold text-emerald-700 mb-2">Inzet & Attitude</h4>
-          <p className="text-xs text-gray-500 mb-3">Deze acties verhogen je Periodescore, Jaarscore en Carrièrescore.</p>
-          <ul className="space-y-2 text-sm">
-            <li className="flex justify-between p-2 bg-emerald-50 rounded-md"><span>Dagelijks Welzijn Kompas</span> <span className="font-bold">+100 XP</span></li>
-            <li className="flex justify-between p-2 bg-emerald-50 rounded-md"><span>EHBO Scenario (1e keer)</span> <span className="font-bold">+200 XP</span></li>
-            <li className="flex justify-between p-2 bg-emerald-50 rounded-md"><span>Training Loggen</span> <span className="font-bold">+25 XP</span></li>
-            <li className="flex justify-between p-2 bg-emerald-50 rounded-md"><span>Wekelijkse "Perfect Week"</span> <span className="font-bold">+500 XP</span></li>
-            <li className="flex justify-between p-2 bg-emerald-50 rounded-md"><span>Klas Challenge</span> <span className="font-bold">+500-1000 XP</span></li>
-            <li className="flex justify-between p-2 bg-emerald-50 rounded-md"><span>Streak Beloningen</span> <span className="font-bold">+300-4000 XP</span></li>
-            <li className="flex justify-between p-2 bg-emerald-50 rounded-md"><span>Deelname Sporttest</span> <span className="font-bold">+50 XP</span></li>
-          </ul>
+          <h4 className="font-bold text-emerald-700 mb-3 border-b-2 border-emerald-200 pb-2">Inzet & Attitude</h4>
+          <p className="text-xs text-gray-500 mb-4">Deze acties verhogen je Periodescore, Jaarscore en Carrièrescore.</p>
+          
+          <div className="space-y-4">
+            <div>
+              <p className="font-semibold">EHBO Scenario's</p>
+              <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
+                <li>1e keer voltooid: <span className="font-bold">+30 XP</span></li>
+                <li>2e keer voltooid: <span className="font-bold">+10 XP</span></li>
+                <li>3e keer voltooid: <span className="font-bold">+5 XP</span></li>
+                <li>4e+ keer voltooid: <span className="font-bold">+1 XP</span></li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-semibold">Consistentie Bonussen (Streaks)</p>
+              <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
+                <li>7 Dagen Streak: <span className="font-bold">+300 XP</span></li>
+                <li>30 Dagen Streak: <span className="font-bold">+1200 XP</span></li>
+                <li>100 Dagen Streak: <span className="font-bold">+4000 XP</span></li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-semibold">Wekelijkse "Perfect Week"</p>
+              <p className="text-sm text-gray-600 mt-1">
+                Verdien <span className="font-bold">+500 XP</span> door in één week minstens 5x je Kompas te voltooien én 2 trainingen te loggen.
+              </p>
+            </div>
+            
+            <div>
+              <p className="font-semibold">Dagelijkse Inzet</p>
+               <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
+                <li>Welzijn Kompas Voltooid: <span className="font-bold">+100 XP</span></li>
+                <li>Training Loggen: <span className="font-bold">+25 XP</span></li>
+                <li>Deelname Sporttest: <span className="font-bold">+50 XP</span></li>
+              </ul>
+            </div>
+          </div>
         </div>
+
+        {/* Kolom 2: Sportprestaties & Teamwork */}
         <div>
-          <h4 className="font-bold text-blue-700 mb-2">Uitzonderlijke Sportprestaties</h4>
-          <p className="text-xs text-gray-500 mb-3">Deze bonussen tellen mee voor je Jaarscore en Carrièrescore, maar niet voor je Periodescore.</p>
-          <ul className="space-y-2 text-sm">
-            <li className="flex justify-between p-2 bg-blue-50 rounded-md"><span>Persoonlijk Record (PR)</span> <span className="font-bold">+500 XP</span></li>
-            <li className="flex justify-between p-2 bg-blue-50 rounded-md"><span>School-/Leeftijdsrecord (Top 3)</span> <span className="font-bold">+500-1000 XP</span></li>
-          </ul>
+          <h4 className="font-bold text-blue-700 mb-3 border-b-2 border-blue-200 pb-2">Sportprestaties & Teamwork</h4>
+          <p className="text-xs text-gray-500 mb-4">Deze bonussen tellen mee voor je Jaarscore en Carrièrescore, maar niet voor je Periodescore.</p>
+
+          <div className="space-y-4">
+            <div>
+              <p className="font-semibold">School- & Leeftijdsrecords (Top 5)</p>
+              <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
+                <li>1e Plaats: <span className="font-bold">+1000 XP</span></li>
+                <li>2e Plaats: <span className="font-bold">+750 XP</span></li>
+                <li>3e Plaats: <span className="font-bold">+500 XP</span></li>
+                <li>4e Plaats: <span className="font-bold">+250 XP</span></li>
+                <li>5e Plaats: <span className="font-bold">+100 XP</span></li>
+              </ul>
+            </div>
+            
+            <div>
+              <p className="font-semibold">Persoonlijk Record (PR) Verbreken</p>
+              <p className="text-sm text-gray-600 mt-1">
+                Verdien een bonus van <span className="font-bold">+500 XP</span> elke keer dat je je eigen beste score op een test verbetert.
+              </p>
+            </div>
+
+            <div className="mt-6">
+              <h4 className="font-bold text-green-700 mb-3 border-b-2 border-green-200 pb-2">Teamwork</h4>
+              <p className="text-xs text-gray-500 mb-3">Deze bonus telt mee voor alle scores (Periode, Jaar en Carrière).</p>
+               <p className="font-semibold">Klas Challenge Behalen</p>
+              <p className="text-sm text-gray-600 mt-1">
+                Werk samen met je klas om wekelijkse doelen te behalen en verdien een teambonus van <span className="font-bold">+500 tot +1000 XP</span>.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

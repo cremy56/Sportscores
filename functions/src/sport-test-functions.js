@@ -77,18 +77,26 @@ async function checkLeaderboardPositions(userId, testId, newScore, userData) {
   let totalRecordXP = 0;
   const achievements = [];
 
-  const recordTiers = { 1: 1000, 2: 750, 3: 500 };
+  // --- START WIJZIGING: Beloningen uitgebreid naar Top 5 ---
+  const recordTiers = { 
+    1: 1000, 
+    2: 750, 
+    3: 500,
+    4: 250, // Nieuwe beloning voor 4e plaats
+    5: 100  // Nieuwe beloning voor 5e plaats
+  };
 
-  if (schoolPosition <= 3) {
+  if (schoolPosition <= 5) { // Voorwaarde aangepast van 3 naar 5
     const xp = recordTiers[schoolPosition];
     totalRecordXP += xp;
     achievements.push({ type: 'school_record', position: schoolPosition, xp });
   }
-  if (agePosition <= 3) {
+  if (agePosition <= 5) { // Voorwaarde aangepast van 3 naar 5
     const xp = recordTiers[agePosition];
     totalRecordXP += xp;
     achievements.push({ type: 'age_record', position: agePosition, xp });
   }
+  // --- EINDE WIJZIGING ---
 
   return { totalRecordXP, achievements };
 }
