@@ -380,7 +380,7 @@ useEffect(() => {
             {(activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
                <>
               <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
-             <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
+             <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Sporttesten</NavLink></li>
              </>
             )}
 

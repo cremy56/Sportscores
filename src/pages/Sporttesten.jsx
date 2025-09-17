@@ -160,7 +160,7 @@ export default function Sporttesten() {
             unsubscribeTesten();
             unsubscribeScores();
         };
-    }, [profile, groepen, testen]); // Afhankelijkheid van groepen en testen toegevoegd
+    }, [profile]); // Afhankelijkheid van groepen en testen toegevoegd
 
     // Gecombineerde Handlers
     const handleCloseModal = () => setModal({ type: null, data: null });
