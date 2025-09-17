@@ -11,7 +11,10 @@ const settingsMenu = [
 
 export default function Instellingen() {
     const location = useLocation();
-    const { profile } = useOutletContext(); // Om te checken voor super-admin
+    
+    // Get the context from Layout and provide a fallback
+    const context = useOutletContext();
+    const { profile } = context || {}; // Add fallback to prevent destructuring error
 
     // Bepaal de titel op basis van de actieve route
     const activeItem = settingsMenu.find(item => location.pathname === item.to);
@@ -52,12 +55,9 @@ export default function Instellingen() {
             {/* Rechter Content Area */}
             <main className="flex-1 min-w-0">
                  <h2 className="text-2xl font-bold text-gray-800 mb-6 lg:hidden">{pageTitle}</h2>
-                {/* De geselecteerde component wordt hier geladen */}
-                <Outlet />
+                {/* Pass the context down to nested routes */}
+                <Outlet context={context} />
             </main>
         </div>
     );
 }
-
-// BELANGRIJK: Je moet nog een simpele component maken voor het "Algemeen" tabblad,
-// bijvoorbeeld AlgemeenInstellingen.jsx, die je als standaard kunt tonen.
