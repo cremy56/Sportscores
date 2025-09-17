@@ -37,33 +37,31 @@ const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "H
   }
 
   const OverviewTab = () => {
-   const currentPeriodXP = studentData.xp_current_period || 0;
-  const targetXP = classTarget.doel_xp || 20000; // Was targetSparks
+  const currentPeriodXP = studentData.xp_current_period || 0;
+  const targetXP = classTarget.doel_xp || 20000;
   const progressPercentage = Math.min((currentPeriodXP / targetXP) * 100, 100);
 
-
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Period Score Card */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-purple-500">
-          <h3 className="text-lg font-semibold mb-2 text-purple-700">Jouw Inzet deze Periode</h3>
-          <p className="text-sm text-gray-500 mb-4">Dit is de score die telt voor je rapport. Blijf consistent werken!</p>
-          <div className="text-center mb-4">
-           <span className="text-5xl font-bold text-purple-600">{currentPeriodXP.toLocaleString('nl-BE')}</span>
-      <span className="text-xl text-gray-500"> / {targetXP.toLocaleString('nl-BE')} XP</span>
-
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-4">
-            <div
-              className="bg-gradient-to-r from-purple-400 to-purple-600 h-4 rounded-full transition-all duration-500"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
-          <div className="text-center mt-3">
-            <p className="text-xs text-gray-500">{classTarget.period_name}</p>
-            <p className="font-bold text-purple-600 text-lg mt-1">{currentSparks} Sparks Verdiend</p>
-          </div>
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Period Score Card */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-purple-500">
+        <h3 className="text-lg font-semibold mb-2 text-purple-700">Jouw Inzet deze Periode</h3>
+        <p className="text-sm text-gray-500 mb-4">Dit is de score die telt voor je rapport. Blijf consistent werken!</p>
+        <div className="text-center mb-4">
+          <span className="text-5xl font-bold text-purple-600">{currentPeriodXP.toLocaleString('nl-BE')}</span>
+          <span className="text-xl text-gray-500"> / {targetXP.toLocaleString('nl-BE')} XP</span>
         </div>
+        <div className="w-full bg-gray-200 rounded-full h-4">
+          <div
+            className="bg-gradient-to-r from-purple-400 to-purple-600 h-4 rounded-full transition-all duration-500"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+        <div className="text-center mt-3">
+          <p className="text-xs text-gray-500">{classTarget.period_name}</p>
+          {/* De foute regel is hier nu verwijderd */}
+        </div>
+      </div>
 
         {/* Lifetime Stats Card */}
         <div className="bg-white rounded-xl shadow-lg p-6 border">
