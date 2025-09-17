@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useOutletContext } from 'react-router-dom';
 import { Cog6ToothIcon, WrenchScrewdriverIcon, UsersIcon, BuildingLibraryIcon } from '@heroicons/react/24/outline';
 
 const settingsMenu = [
