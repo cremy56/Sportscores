@@ -438,7 +438,7 @@ export default function NieuweTestafname() {
                     
                    {/* --- AANGEPAST: MOBIELVRIENDELIJKE HEADER (mb verwijderd) --- */}
                         <div className="lg:hidden"> {/* mb-6 verwijderd */}
-                            <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
+                            <Link to="/sporttesten" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
                                 <ArrowLeftIcon className="h-4 w-4 mr-1 transition-transform group-hover:-translate-x-1" />
                                 <span className="text-sm">Terug</span>
                             </Link>
@@ -447,7 +447,7 @@ export default function NieuweTestafname() {
 
                         {/* --- AANGEPAST: DESKTOP HEADER (mb verwijderd) --- */}
                         <div className="hidden lg:block"> {/* mb-8 verwijderd */}
-                            <Link to="/scores" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
+                            <Link to="/sporttesten" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
                                 <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
                                 Annuleren en terug naar scores
                             </Link>
