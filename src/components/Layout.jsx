@@ -368,43 +368,28 @@ useEffect(() => {
             <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
             <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
-            <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
             
-           
-            {/* Gezondheid voor leerlingen en super-admin */}
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
             )}
             
-            {/* Welzijnsmonitor voor leerkrachten en admins */}
-            {(activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
-               <>
+            {isTeacherOrAdmin && (
               <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
-             <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Sporttesten</NavLink></li>
-             </>
             )}
 
-            {/* ALLEEN Scores voor leerkrachten */}
-            {activeRole === 'leerkracht' && (
-               <>
-               <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+            {/* --- START WIJZIGING --- */}
+            {isTeacherOrAdmin && (
+              <>
+                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+                <li><NavLink to="/sporttesten" className={({ isActive }) => location.pathname.startsWith('/sporttesten') || location.pathname.startsWith('/testbeheer') ? activeLinkStyle : inactiveLinkStyle}>Sporttesten</NavLink></li>
               </>
             )}
 
-            {/* Beheer Dropdown voor admins */}
             {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
-              <DropdownMenu title="Beheer" isActive={isAdminDropdownActive}>
-                <DropdownItem to="/groepsbeheer">Groepsbeheer</DropdownItem>
-                
-                <DropdownItem to="/trainingsbeheer">Trainingsbeheer</DropdownItem>
-                <DropdownItem to="/gebruikersbeheer">Gebruikersbeheer</DropdownItem>
-    
-                {activeRole === 'super-administrator' && (
-                  <DropdownItem to="/schoolbeheer">Schoolbeheer</DropdownItem>
-                )}
-              </DropdownMenu>
+                <li><NavLink to="/instellingen" className={({ isActive }) => (isActive ? 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1' : inactiveLinkStyle)}>Instellingen</NavLink></li>
             )}
-          </ul>
+            {/* --- EINDE WIJZIGING --- */}
+        </ul>
 
           {/* MIDDEN (Mobiel): Gecentreerde paginatitel + Mobile Rewards */}
           <div className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
@@ -433,41 +418,28 @@ useEffect(() => {
             `}
             onClick={() => setMobileMenuOpen(false)}
           >
+            {/* Basis Links */}
             <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
             <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
-            <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
-            
-          
+
+            {/* Links voor leerlingen */}
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
             )}
             
-            {(activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
-              <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
-            )}
-            
-            {/* Alle items voor mobiel - geen dropdown op mobiel */}
+            {/* Links voor leerkrachten en hoger */}
             {isTeacherOrAdmin && (
               <>
-                <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
-                {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
-                  <>
-                    <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
-                    
-                  </>
-                )}
+                <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
+                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+                <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Sporttesten</NavLink></li>
               </>
             )}
-
+            
+            {/* Links voor administrators en hoger */}
             {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
-              <>
-                <li><NavLink to="/gebruikersbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gebruikersbeheer</NavLink></li>
-                <li><NavLink to="/trainingsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Trainingsbeheer</NavLink></li>
-                {activeRole === 'super-administrator' && (
-                  <li><NavLink to="/schoolbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Schoolbeheer</NavLink></li>
-                )}
-              </>
+              <li><NavLink to="/instellingen" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Instellingen</NavLink></li>
             )}
           </ul>
         </nav>

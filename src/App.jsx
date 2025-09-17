@@ -38,6 +38,7 @@ import VoedingDetail from './pages/VoedingDetail';
 import SlaapDetail from './pages/SlaapDetail';
 import HartDetail from './pages/HartDetail';
 import EHBODetail from './pages/EHBODetail';
+import AlgemeenInstellingen from './pages/AlgemeenInstellingen';
 
 function HandleAuthRedirect() {
     const navigate = useNavigate();
@@ -227,13 +228,25 @@ function App() {
                         
                         {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
                           <>
-                            <Route path="/gebruikersbeheer" element={<Gebruikersbeheer />} />
-                            <Route path="/trainingsbeheer" element={<Trainingsbeheer />} /> 
+                           <Route path="/gebruikersbeheer" element={<Navigate to="/instellingen/gebruikersbeheer" />} />
+                            <Route path="/trainingsbeheer" element={<Navigate to="/instellingen/trainingsbeheer" />} /> 
+                            
+                            <Route path="/instellingen" element={<Instellingen />}>
+                              {/* Standaard route voor de instellingen pagina */}
+                              <Route index element={<AlgemeenInstellingen />} /> 
+                              <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
+                              <Route path="gebruikersbeheer" element={<Gebruikersbeheer />} />
+                              
+                              {/* Schoolbeheer is een aparte route binnen instellingen voor super-admins */}
+                              {activeRole === 'super-administrator' && (
+                                <Route path="schoolbeheer" element={<SchoolBeheer />} />
+                              )}
+                            </Route>
                           </>
                         )}
                         
                         {activeRole === 'super-administrator' && (
-                            <Route path="/schoolbeheer" element={<SchoolBeheer />} />
+                            <Route path="/schoolbeheer" element={<Navigate to="/instellingen/schoolbeheer" />} />
                         )}
                     </Route>
                 </Route>
