@@ -20,7 +20,7 @@ import AdValvas from './pages/adValvas';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
 import Groeiplan from './pages/Groeiplan';
-import Rewards from './pages/Rewards'; // NIEUW: Rewards pagina
+import Rewards from './pages/Rewards'; 
 import Gebruikersbeheer from './pages/Gebruikersbeheer';
 import Groepsbeheer from './pages/Groepsbeheer';
 import GroupDetail from './pages/GroupDetail';
@@ -196,13 +196,15 @@ function App() {
                 <Route path="/setup-account" element={<SetupAccount />} />
                 <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
 
-               <Route element={<ProtectedRoute profile={profile} school={school} />}>
+              <Route element={<ProtectedRoute profile={profile} school={school} />}>
+                    
+                    {/* De Instellingen-route moet BINNEN de Layout-route staan */}
                     <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} activeRole={activeRole} setActiveRole={setActiveRole} />}>
                         <Route path="/" element={<AdValvas />} />
                         <Route path="/highscores" element={<Highscores />} />
                         <Route path="/evolutie" element={<Evolutie />} />
                         <Route path="/groeiplan" element={<Groeiplan />} />
-                        <Route path="/rewards" element={<Rewards />} /> {/* Rewards beschikbaar voor alle rollen, maar component checkt zelf */}
+                        <Route path="/rewards" element={<Rewards />} />
                         <Route path="/groepsbeheer" element={<Groepsbeheer />} />
                         <Route path="/groep/:groepId" element={<GroupDetail />} />
                         <Route path="/sporttesten" element={<Sporttesten />} />
@@ -210,6 +212,7 @@ function App() {
                         <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
                         <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
                         <Route path="/groeiplan/schema" element={<SchemaDetail />} />
+
 
                         {(activeRole === 'leerling' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
                           <>
@@ -228,26 +231,14 @@ function App() {
                         )}
                         
                         {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
-                          <>
-                           <Route path="/gebruikersbeheer" element={<Navigate to="/instellingen/gebruikersbeheer" />} />
-                            <Route path="/trainingsbeheer" element={<Navigate to="/instellingen/trainingsbeheer" />} /> 
-                            
-                            <Route path="/instellingen" element={<Instellingen />}>
-                              {/* Standaard route voor de instellingen pagina */}
-                              <Route index element={<AlgemeenInstellingen />} /> 
-                              <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
-                              <Route path="gebruikersbeheer" element={<Gebruikersbeheer />} />
-                              
-                              {/* Schoolbeheer is een aparte route binnen instellingen voor super-admins */}
-                              {activeRole === 'super-administrator' && (
-                                <Route path="schoolbeheer" element={<SchoolBeheer />} />
-                              )}
-                            </Route>
-                          </>
-                        )}
-                        
-                        {activeRole === 'super-administrator' && (
-                            <Route path="/schoolbeheer" element={<Navigate to="/instellingen/schoolbeheer" />} />
+                           <Route path="/instellingen" element={<Instellingen />}>
+                            <Route index element={<AlgemeenInstellingen />} />
+                            <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
+                            <Route path="gebruikersbeheer" element={<Gebruikersbeheer />} />
+                            {activeRole === 'super-administrator' && (
+                              <Route path="schoolbeheer" element={<SchoolBeheer />} />
+                            )}
+                          </Route>
                         )}
                     </Route>
                 </Route>
