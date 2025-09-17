@@ -259,7 +259,34 @@ export default function Gebruikersbeheer() {
                     </p>
                 </div>
                 
-                <div className="flex gap-4">
+                <div className="flex gap-3">
+                    {/* CSV Import knop */}
+                    <div className="relative">
+                        <input
+                            type="file"
+                            accept=".csv"
+                            onChange={handleFileChange}
+                            ref={fileInputRef}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            title="Importeer CSV"
+                        />
+                        <button className="flex items-center bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105">
+                            <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
+                            <span className="hidden sm:inline">CSV </span>Import
+                        </button>
+                    </div>
+
+                    {/* Export knop - alleen zichtbaar als er resultaten zijn */}
+                    {users.length > 0 && (
+                        <button
+                            onClick={exportToCSV}
+                            className="flex items-center bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700 text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                        >
+                            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                            <span className="hidden sm:inline">CSV </span>Export
+                        </button>
+                    )}
+
                     <button 
                         onClick={() => setModal({ type: 'form', data: null, role: 'leerkracht' })}
                         className="flex items-center bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
