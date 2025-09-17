@@ -7,7 +7,7 @@ import { Trophy, Star, TrendingUp, Zap, HelpCircle, ListChecks } from 'lucide-re
 const Rewards = () => {
   const { profile } = useOutletContext();
   const [studentData, setStudentData] = useState({ xp: 0, xp_current_period: 0, xp_current_school_year: 0, streak_days: 0, personal_records_count: 0 });
-  const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "Huidige Periode" }); // Default in XP
+const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "Huidige Periode" });
   const [activeTab, setActiveTab] = useState('overzicht');
 
   useEffect(() => {
@@ -25,8 +25,8 @@ const Rewards = () => {
       const classRef = doc(db, 'groepen', profile.groepen[0]);
       const classSnap = await getDoc(classRef);
       // OPMERKING: Zorg ervoor dat de leerkracht-tool 'doel_xp' opslaat ipv 'doel_sparks'
-      if (classSnap.exists() && classSnap.data().doel_xp_current_period) {
-        setClassTarget(classSnap.data().doel_xp_current_period);
+     if (classSnap.exists() && classSnap.data().doel_xp_current_period) { // Was doel_sparks...
+      setClassTarget(classSnap.data().doel_xp_current_period);
       }
     };
     fetchClassTarget();
@@ -37,10 +37,10 @@ const Rewards = () => {
   }
 
   const OverviewTab = () => {
-    const currentPeriodXP = studentData.xp_current_period || 0;
-    const targetXP = classTarget.doel_xp || 20000;
-    const currentSparks = Math.floor(currentPeriodXP / 100);
-    const progressPercentage = Math.min((currentPeriodXP / targetXP) * 100, 100);
+   const currentPeriodXP = studentData.xp_current_period || 0;
+  const targetXP = classTarget.doel_xp || 20000; // Was targetSparks
+  const progressPercentage = Math.min((currentPeriodXP / targetXP) * 100, 100);
+
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -49,8 +49,9 @@ const Rewards = () => {
           <h3 className="text-lg font-semibold mb-2 text-purple-700">Jouw Inzet deze Periode</h3>
           <p className="text-sm text-gray-500 mb-4">Dit is de score die telt voor je rapport. Blijf consistent werken!</p>
           <div className="text-center mb-4">
-            <span className="text-5xl font-bold text-purple-600">{currentPeriodXP.toLocaleString('nl-BE')}</span>
-            <span className="text-xl text-gray-500"> / {targetXP.toLocaleString('nl-BE')} XP</span>
+           <span className="text-5xl font-bold text-purple-600">{currentPeriodXP.toLocaleString('nl-BE')}</span>
+      <span className="text-xl text-gray-500"> / {targetXP.toLocaleString('nl-BE')} XP</span>
+
           </div>
           <div className="w-full bg-gray-200 rounded-full h-4">
             <div
