@@ -134,9 +134,8 @@ function getPositionInArray(newScore, existingScores, scoreRichting) {
   return position;
 }
 // Helper functie voor streak milestone checks
+// in utils.js
 async function checkStreakMilestonesInternal(userId) {
- 
-  
   try {
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
@@ -153,38 +152,31 @@ async function checkStreakMilestonesInternal(userId) {
       { days: 100, sparks: 40, description: '100 dagen streak' }
     ];
     
-    let newRewards = [];
-    
     for (const milestone of milestones) {
       if (currentStreak >= milestone.days && !rewardedMilestones.includes(milestone.days)) {
-        // Award Sparks
-        const currentSparks = userData.sparks || 0;
-        const newSparks = currentSparks + milestone.sparks;
+        // --- START CORRECTIE ---
+        const xpAmount = milestone.sparks * 100; // CONVERTEER SPARKS NAAR XP
         
         await userRef.update({
-          sparks: newSparks,
-          [`streak_milestones_rewarded`]: [...rewardedMilestones, milestone.days]
+          xp: FieldValue.increment(xpAmount),
+          xp_current_period: FieldValue.increment(xpAmount),
+          xp_current_school_year: FieldValue.increment(xpAmount),
+          streak_milestones_rewarded: FieldValue.arrayUnion(milestone.days)
         });
+        // --- EINDE CORRECTIE ---
         
-        // Log streak reward
         await db.collection('users').doc(userId).collection('streak_rewards').add({
           streak_days: milestone.days,
-          sparks_awarded: milestone.sparks,
+          xp_awarded: xpAmount, // Log de XP, niet de Sparks
           description: milestone.description,
           awarded_at: FieldValue.serverTimestamp()
         });
         
-        newRewards.push(milestone);
-        console.log(`Awarded ${milestone.sparks} Sparks for ${milestone.days} day streak to ${userData.naam || userId}`);
+        console.log(`Awarded ${xpAmount} XP for ${milestone.days} day streak to ${userData.naam || userId}`);
       }
     }
-    
-    if (newRewards.length > 0) {
-      console.log(`User ${userId} achieved ${newRewards.length} new streak milestones`);
-    }
-    
   } catch (error) {
-    console.error('Error checking streak milestones:', error);
+    console.error('Error checking internal streak milestones:', error);
   }
 }
 module.exports = {

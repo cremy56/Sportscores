@@ -179,10 +179,10 @@ async function awardClassChallengeReward(userId, xpAmount, challengeData) {
     const newSparks = Math.floor(newXP / 100);
     
     await userRef.update({
-      xp: newXP,
-      sparks: newSparks,
-      last_class_challenge_reward: FieldValue.serverTimestamp()
-    });
+  xp: FieldValue.increment(xpAmount),                // Carrièrescore
+  xp_current_period: FieldValue.increment(xpAmount),  // Periodescore
+  xp_current_school_year: FieldValue.increment(xpAmount) // Jaarscore
+});
     
     // Log the reward
     await logXPTransaction( {

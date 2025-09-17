@@ -120,9 +120,10 @@ exports.awardEHBOXP = onCall(async (request) => {
     const newXP = (userData.xp || 0) + xpAmount;
     
     await userRef.update({
-      xp: newXP,
-      sparks: Math.floor(newXP / 100)
-    });
+  xp: FieldValue.increment(xpAmount),                // Carrièrescore
+  xp_current_period: FieldValue.increment(xpAmount),  // Periodescore
+  xp_current_school_year: FieldValue.increment(xpAmount) // Jaarscore
+});
     
     await logXPTransaction({
       user_id: userId,
@@ -166,10 +167,10 @@ exports.saveEHBOProgress = onCall(async (request) => {
     const scenarioKey = `ehbo_completion_stats.${baseScenarioId}`;
     
     await userRef.update({
-      [scenarioKey]: FieldValue.increment(1), 
-      ehbo_total_score: FieldValue.increment(score || 0),
-      last_activity: FieldValue.serverTimestamp() 
-    });
+  xp: FieldValue.increment(totalXP), // Verhoog Carrièrescore
+  xp_current_period: FieldValue.increment(totalXP), // Verhoog Periodescore
+  last_activity: FieldValue.serverTimestamp()
+});
     
     return { 
       success: true, 

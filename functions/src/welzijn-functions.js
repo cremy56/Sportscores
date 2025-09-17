@@ -202,10 +202,11 @@ async function awardWeeklyBonus(userDoc, userData, bonusXP, reason) {
   const newXP = currentXP + bonusXP;
   const newSparks = Math.floor(newXP / 100);
   
-  await userDoc.ref.update({
-    xp: newXP,
-    sparks: newSparks
-  });
+  await userRef.update({
+  xp: FieldValue.increment(xpAmount),                // Carrièrescore
+  xp_current_period: FieldValue.increment(xpAmount),  // Periodescore
+  xp_current_school_year: FieldValue.increment(xpAmount) // Jaarscore
+});
   
   await logXPTransaction({
     user_id: userDoc.id,
@@ -241,9 +242,8 @@ exports.testWelzijnXP = onCall(async (request) => {
     newXP: currentXP + 10
   };
 });
+// in welzijn-functions.js
 exports.checkStreakMilestones = onCall(async (request) => {
-  
-  
   if (!request.auth) {
     throw new Error('Authentication required');
   }
@@ -272,26 +272,25 @@ exports.checkStreakMilestones = onCall(async (request) => {
     
     for (const milestone of milestones) {
       if (currentStreak >= milestone.days && !rewardedMilestones.includes(milestone.days)) {
-        // Award Sparks
-        const currentSparks = userData.sparks || 0;
-        const newSparks = currentSparks + milestone.sparks;
-        
+        // --- START CORRECTIE ---
+        const xpAmount = milestone.sparks * 100; // CONVERTEER SPARKS NAAR XP
+
         await userRef.update({
-          sparks: newSparks,
-          [`streak_milestones_rewarded`]: [...rewardedMilestones, milestone.days]
+          xp: FieldValue.increment(xpAmount),
+          xp_current_period: FieldValue.increment(xpAmount),
+          xp_current_school_year: FieldValue.increment(xpAmount),
+          streak_milestones_rewarded: FieldValue.arrayUnion(milestone.days)
         });
+        // --- EINDE CORRECTIE ---
         
-        // Log the reward
         await logStreakReward({
           user_id: userId,
-          user_email: userData.email,
           streak_days: milestone.days,
-          sparks_awarded: milestone.sparks,
+          xp_awarded: xpAmount, // Log de XP, niet de Sparks
           description: milestone.description
         });
         
         newRewards.push(milestone);
-        console.log(`Awarded ${milestone.sparks} Sparks for ${milestone.days} day streak to ${userData.naam}`);
       }
     }
     
@@ -508,10 +507,10 @@ async function awardWelzijnXPFixed(userId, completedSegments, dateString) {
     console.log(`Updating XP: ${currentXP} + ${totalXP} = ${newXP}`);
 
     await userRef.update({
-      xp: newXP,
-      sparks: Math.floor(newXP / 100),
-      last_activity: FieldValue.serverTimestamp()
-    });
+  xp: FieldValue.increment(xpAmount),                // Carrièrescore
+  xp_current_period: FieldValue.increment(xpAmount),  // Periodescore
+  xp_current_school_year: FieldValue.increment(xpAmount) // Jaarscore
+});
 
     // Log transaction with error handling
     try {
@@ -563,10 +562,10 @@ async function checkKompasCompletionBonusFixed(userId, dayData, dateString) {
         const updatedWeeklyStats = { ...weeklyStats, kompas_days: (weeklyStats.kompas_days || 0) + 1 };
 
         await userRef.update({
-          xp: newXP,
-          sparks: Math.floor(newXP / 100),
-          weekly_stats: updatedWeeklyStats
-        });
+  xp: FieldValue.increment(xpAmount),                // Carrièrescore
+  xp_current_period: FieldValue.increment(xpAmount),  // Periodescore
+  xp_current_school_year: FieldValue.increment(xpAmount) // Jaarscore
+});
 
         const dayRef = db.collection('welzijn').doc(userId).collection('dagelijkse_data').doc(dateString);
         await dayRef.update({

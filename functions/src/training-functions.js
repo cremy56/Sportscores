@@ -75,11 +75,10 @@ exports.onTrainingWeekValidated = onDocumentUpdated('leerling_schemas/{schemaId}
 });
 
 // Functie om XP toe te kennen aan een leerling
-async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
+// In training-functions.js
 
-  
+async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
   try {
-    // Zoek de user op basis van email
     const usersRef = db.collection('users');
     const userQuery = await usersRef.where('email', '==', leerlingEmail).get();
     
@@ -91,85 +90,43 @@ async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
     const userDoc = userQuery.docs[0];
     const userData = userDoc.data();
     
-    // Check of dit een leerling is
     if (userData.rol !== 'leerling') {
       console.error(`User ${leerlingEmail} is not a student, skipping XP award`);
       return;
     }
-     // --- LOGICA VOOR STREAKS & WEKELIJKSE STATS ---
-    const newTrainingCount = validatedWeeks.reduce((count, week) => {
-        return count + (week.weekData?.trainingen ? Object.keys(week.weekData.trainingen).length : 0);
-    }, 0);
 
-    const weeklyStats = userData.weekly_stats || { kompas: 0, trainingen: 0 };
-    const currentStreak = userData.streak_days || 0;
-    const lastActivityDate = userData.last_activity?.toDate();
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
-    
-    let newStreak = currentStreak;
-    if (lastActivityDate && lastActivityDate.toDateString() === yesterday.toDateString()) {
-        newStreak++;
-    } else if (!lastActivityDate || lastActivityDate.toDateString() !== today.toDateString()) {
-        newStreak = 1;
-    }
-    
-    const updatedWeeklyStats = {
-      ...weeklyStats,
-      trainingen: (weeklyStats.trainingen || 0) + newTrainingCount
-    };
-
-    // --- LOGICA VOOR XP BEREKENING & LOGGING DETAILS (jouw stuk code) ---
     let totalXP = 0;
-    const weekDetails = [];
     validatedWeeks.forEach(week => {
-      const weekXP = week.trainingsXP || 0;
-      totalXP += weekXP;
-      weekDetails.push({
-        week: week.weekKey,
-        xp: weekXP
-      });
+      totalXP += week.trainingsXP || 0;
     });
     
-    if (totalXP <= 0 && newTrainingCount <= 0) {
-      console.log('No XP to award and no new trainings logged.');
+    if (totalXP <= 0) {
+      console.log('No XP to award for training validation.');
       return;
     }
     
-    // Update user document met nieuwe XP en Sparks
-   const currentXP = userData.xp || 0;
-    const newXP = currentXP + totalXP;
-    const newSparks = Math.floor(newXP / 100);
+    // --- START CORRECTIE ---
+    // Update beide XP-scores (Carrière en Periode)
+    await userRef.update({
+  xp: FieldValue.increment(xpAmount),                // Carrièrescore
+  xp_current_period: FieldValue.increment(xpAmount),  // Periodescore
+  xp_current_school_year: FieldValue.increment(xpAmount) // Jaarscore
+});
+    // --- EINDE CORRECTIE ---
     
-    await userDoc.ref.update({
-      xp: newXP,
-      sparks: newSparks,
-      weekly_stats: updatedWeeklyStats,
-      streak_days: newStreak,
-      last_activity: FieldValue.serverTimestamp()
+    console.log(`Successfully awarded ${totalXP} XP to ${userData.naam || leerlingEmail} for training.`);
+    
+    // Log de transactie (zonder balance_after, tenzij je die apart ophaalt)
+    await logXPTransaction({
+      user_id: userDoc.id,
+      user_email: leerlingEmail,
+      amount: totalXP,
+      reason: 'training_validation',
+      source_id: schemaId,
+      metadata: { schema_id: schemaId, validated_weeks_count: validatedWeeks.length }
     });
     
-    console.log(`Successfully updated stats for ${userData.naam || leerlingEmail}`);
-    
-    if (totalXP > 0) {
-      await logXPTransaction( {
-        user_id: userDoc.id,
-        user_email: leerlingEmail,
-        transaction_type: 'earn',
-        reward_type: 'xp',
-        amount: totalXP,
-        reason: 'training_validation',
-        source_id: schemaId,
-        balance_after: { xp: newXP, sparks: newSparks },
-        metadata: {
-          schema_id: schemaId,
-          validated_weeks: weekDetails // Hier worden de details gebruikt
-        }
-      });
-    }
-    
-    await updateClassChallengeProgressInternal( userDoc.id, totalXP, 'training');
+    await updateClassChallengeProgressInternal(userDoc.id, totalXP, 'xp');
     
   } catch (error) {
     console.error('Error awarding training XP:', error);
@@ -282,10 +239,8 @@ function checkIfProgramFullyCompleted(schemaData) {
 }
 
 async function awardProgramCompletionReward(leerlingEmail, schemaId, schemaData) {
-
-  
   try {
-    // Find user
+    // Zoek de gebruiker op
     const usersQuery = await db.collection('users')
       .where('email', '==', leerlingEmail)
       .where('rol', '==', 'leerling')
@@ -299,37 +254,31 @@ async function awardProgramCompletionReward(leerlingEmail, schemaId, schemaData)
     const userDoc = usersQuery.docs[0];
     const userData = userDoc.data();
     
-    // Award 8 Sparks for program completion
-    const completionSparks = 8;
-    const currentSparks = userData.sparks || 0;
-    const newSparks = currentSparks + completionSparks;
+    // CORRECT: Ken een XP-bonus toe in plaats van Sparks
+    const completionXP = 800; // 8 Sparks * 100 XP/Spark
     
-    await userDoc.ref.update({
-      sparks: newSparks,
-      completed_programs: (userData.completed_programs || 0) + 1,
-      last_program_completion: FieldValue.serverTimestamp()
-    });
+    await userRef.update({
+  xp: FieldValue.increment(xpAmount),                // Carrièrescore
+  xp_current_period: FieldValue.increment(xpAmount),  // Periodescore
+  xp_current_school_year: FieldValue.increment(xpAmount) // Jaarscore
+});
     
-    // Mark reward as awarded in schema
+    // Markeer de beloning als toegekend in het schema
     await db.collection('leerling_schemas').doc(schemaId).update({
       completion_reward_awarded: true,
-      completion_reward_sparks: completionSparks,
+      completion_reward_xp: completionXP, // Log de XP-bonus
       completion_reward_date: FieldValue.serverTimestamp()
     });
     
-    // Log the achievement
-    await logTrainingCompletion( {
-      user_id: userDoc.id,
-      user_email: leerlingEmail,
-      schema_id: schemaId,
-      sparks_awarded: completionSparks,
-      program_name: schemaData.naam || 'Training Program'
+    // Log de XP-transactie (niet de Sparks)
+    await logXPTransaction({
+        user_id: userDoc.id,
+        amount: completionXP,
+        reason: 'training_program_completion',
+        source_id: schemaId
     });
     
-    console.log(`Awarded ${completionSparks} Sparks to ${userData.naam} for completing training program`);
-    
-    // Optional: Create notification for student
-    await createCompletionNotification( userDoc.id, userData.naam, completionSparks);
+    console.log(`Awarded ${completionXP} XP to ${userData.naam} for completing training program`);
     
   } catch (error) {
     console.error('Error awarding training program completion reward:', error);
