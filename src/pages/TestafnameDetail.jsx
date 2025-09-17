@@ -645,7 +645,7 @@ const handleUpdateScore = async () => {
         <div>
             {/* AANGEPAST: padding (py, lg:py) en margin (mb) aangepast voor minder witruimte */}
             <div className="max-w-6xl mx-auto px-4 lg:px-8 pt-2 pb-16 space-y-6">
-                <Link to="/scores" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 font-medium transition-colors">
+                <Link to="/sporttesten" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 font-medium transition-colors">
                     <ArrowLeftIcon className="h-4 w-4 mr-2" />
                     Terug naar overzicht
                 </Link>
