@@ -173,30 +173,30 @@ const ClickableRewardsDisplay = ({ profile, activeRole }) => {
   
   if (activeRole !== 'leerling') return null;
 
-  const xp = profile?.xp || 0;
-  const sparks = profile?.sparks || 0;
+const yearXP = profile?.xp_current_school_year || 0;
+  const sparks = Math.floor((profile?.xp_current_period || 0) / 100);
   const streak = profile?.streak_days || 0;
 
   const handleClick = () => {
     navigate('/rewards');
   };
   return (
-    <div className="hidden md:flex items-center mr-3">
+   <div className="hidden md:flex items-center mr-3">
       <button
-        onClick={handleClick}
-        className="bg-gradient-to-r from-purple-50 to-yellow-50 hover:from-purple-100 hover:to-yellow-100 px-3 py-1.5 rounded-full border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:shadow-md cursor-pointer"
+        onClick={() => navigate('/rewards')}
+        className="bg-gradient-to-r from-purple-50 to-yellow-50 hover:from-purple-100 hover:to-yellow-100 px-3 py-1.5 rounded-full border border-gray-200 transition-all"
         title="Klik om naar Rewards te gaan"
       >
         <div className="flex items-center space-x-2 text-xs">
-          <div className="flex items-center space-x-1">
-            <Star className="w-3 h-3 text-purple-600" />
-            <span className="font-semibold text-purple-700">{xp}</span>
+          <div className="flex items-center space-x-1" title="XP dit Schooljaar">
+            <Star className="w-3 h-3 text-orange-500" />
+            <span className="font-semibold text-orange-700">{yearXP}</span>
           </div>
-          <div className="flex items-center space-x-1">
-            <Zap className="w-3 h-3 text-yellow-600" />
-            <span className="font-semibold text-yellow-700">{sparks}</span>
+          <div className="flex items-center space-x-1" title="Sparks deze Periode">
+            <Zap className="w-3 h-3 text-purple-600" />
+            <span className="font-semibold text-purple-700">{sparks}</span>
           </div>
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-1" title="Dagen Streak">
             <TrendingUp className="w-3 h-3 text-green-600" />
             <span className="font-semibold text-green-700">{streak}</span>
           </div>
@@ -208,32 +208,27 @@ const ClickableRewardsDisplay = ({ profile, activeRole }) => {
 // Mobiele versie - ook klikbaar
 const MobileClickableRewardsDisplay = ({ profile, activeRole }) => {
   const navigate = useNavigate();
-  
   if (activeRole !== 'leerling') return null;
 
-  const xp = profile?.xp || 0;
-  const sparks = profile?.sparks || 0;
+  const yearXP = profile?.xp_current_school_year || 0;
+  const sparks = Math.floor((profile?.xp_current_period || 0) / 100);
   const streak = profile?.streak_days || 0;
-
-  const handleClick = () => {
-    navigate('/rewards');
-  };
 
   return (
     <button
-      onClick={handleClick}
-      className="md:hidden mt-1 px-2 py-1 bg-gradient-to-r from-purple-50 to-yellow-50 rounded-full border border-gray-200 hover:border-gray-300 transition-all"
+      onClick={() => navigate('/rewards')}
+      className="md:hidden mt-1 px-2 py-1 bg-gradient-to-r from-purple-50 to-yellow-50 rounded-full border border-gray-200"
       title="Bekijk je rewards"
     >
       <div className="flex items-center space-x-1">
         <div className="flex items-center space-x-0.5">
-          <Star className="w-2.5 h-2.5 text-purple-600" />
-          <span className="text-[10px] font-semibold text-purple-700">{xp}</span>
+          <Star className="w-2.5 h-2.5 text-orange-500" />
+          <span className="text-[10px] font-semibold text-orange-700">{yearXP}</span>
         </div>
         <span className="text-gray-300 text-[8px]">•</span>
         <div className="flex items-center space-x-0.5">
-          <Zap className="w-2.5 h-2.5 text-yellow-600" />
-          <span className="text-[10px] font-semibold text-yellow-700">{sparks}</span>
+          <Zap className="w-2.5 h-2.5 text-purple-600" />
+          <span className="text-[10px] font-semibold text-purple-700">{sparks}</span>
         </div>
         <span className="text-gray-300 text-[8px]">•</span>
         <div className="flex items-center space-x-0.5">
@@ -255,43 +250,40 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef();
   const [realtimeProfile, setRealtimeProfile] = useState(profile);
-useEffect(() => {
-  if (!profile?.id || activeRole !== 'leerling') {
-    setRealtimeProfile(profile);
-    return;
-  }
 
-  // Set up real-time listener voor de ingelogde leerling
-  const userRef = doc(db, 'users', profile.id);
-  const unsubscribe = onSnapshot(userRef, (docSnap) => {
-    if (docSnap.exists()) {
-      const userData = docSnap.data();
-      setRealtimeProfile(prev => ({
-        ...prev,
-        xp: userData.xp || 0,
-        sparks: userData.sparks || 0,
-        streak_days: userData.streak_days || 0,
-        personal_records_count: userData.personal_records_count || 0
-      }));
-    }
-  }, (error) => {
-    console.error('Layout real-time listener error:', error);
-  });
-
-  return () => unsubscribe();
-}, [profile?.id, activeRole]);
-
+  // Real-time listener voor de rewards-data
   useEffect(() => {
+    if (!profile?.id) {
+      setRealtimeProfile(profile);
+      return;
+    }
+    const userRef = doc(db, 'users', profile.id);
+    const unsubscribe = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        setRealtimeProfile(prev => ({
+          ...prev,
+          xp: userData.xp || 0,
+          xp_current_period: userData.xp_current_period || 0,
+          xp_current_school_year: userData.xp_current_school_year || 0,
+          streak_days: userData.streak_days || 0,
+        }));
+      }
+    });
+    return () => unsubscribe();
+  }, [profile?.id]);
+
+useEffect(() => {
     if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
       setSelectedStudent(impersonatedStudent);
     }
   }, [impersonatedStudent, activeRole, profile?.rol, setSelectedStudent]);
 
   useEffect(() => {
-    if (profile?.rol) {
+    if (profile?.rol && !activeRole) {
       setActiveRole(profile.rol);
     }
-  }, [profile?.rol]);
+  }, [profile?.rol, activeRole, setActiveRole]);
 
   const toggleMenu = () => {
     if (menuButtonRef.current) {
@@ -337,8 +329,7 @@ useEffect(() => {
     '/gezondheid': 'Mijn Gezondheid',
     '/welzijnsmonitor': 'Welzijnsmonitor',
     '/groepsbeheer': 'Groepsbeheer',
-    '/scores': 'Scores',
-    '/testbeheer': testbeheerLinkText,
+    '/sporttesten': 'Sporttesten', // Was /testbeheer
     '/gebruikersbeheer': 'Gebruikersbeheer',
     '/trainingsbeheer': 'Trainingsbeheer',
     '/schoolbeheer': 'Schoolbeheer',
@@ -346,7 +337,8 @@ useEffect(() => {
     '/rewards': 'Rewards',
   };
 
-  const currentTitle = routeTitles[location.pathname] || '';
+  const currentTitle = Object.entries(routeTitles).find(([path, title]) => location.pathname.startsWith(path))?.[1] || 'SportScores';
+
 
   return (
     <div>
@@ -388,7 +380,7 @@ useEffect(() => {
             {(activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
                <>
               <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
-             <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
+             <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
              </>
             )}
 
@@ -396,7 +388,6 @@ useEffect(() => {
             {activeRole === 'leerkracht' && (
                <>
                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
-                <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
               </>
             )}
 
@@ -404,7 +395,7 @@ useEffect(() => {
             {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
               <DropdownMenu title="Beheer" isActive={isAdminDropdownActive}>
                 <DropdownItem to="/groepsbeheer">Groepsbeheer</DropdownItem>
-                <DropdownItem to="/testbeheer">{testbeheerLinkText}</DropdownItem>
+                
                 <DropdownItem to="/trainingsbeheer">Trainingsbeheer</DropdownItem>
                 <DropdownItem to="/gebruikersbeheer">Gebruikersbeheer</DropdownItem>
     
@@ -459,11 +450,11 @@ useEffect(() => {
             {/* Alle items voor mobiel - geen dropdown op mobiel */}
             {isTeacherOrAdmin && (
               <>
-                <li><NavLink to="/scores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
+                <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Scores</NavLink></li>
                 {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
                   <>
                     <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
-                    <li><NavLink to="/testbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{testbeheerLinkText}</NavLink></li>
+                    
                   </>
                 )}
               </>

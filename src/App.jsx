@@ -24,9 +24,8 @@ import Rewards from './pages/Rewards'; // NIEUW: Rewards pagina
 import Gebruikersbeheer from './pages/Gebruikersbeheer';
 import Groepsbeheer from './pages/Groepsbeheer';
 import GroupDetail from './pages/GroupDetail';
-import Testbeheer from './pages/Testbeheer';
 import TestDetailBeheer from './pages/TestDetailBeheer';
-import ScoresOverzicht from './pages/ScoresOverzicht';
+import Sporttesten from './pages/Sporttesten';
 import TestafnameDetail from './pages/TestafnameDetail';
 import NieuweTestafname from './pages/NieuweTestafname';
 import SchemaDetail from './pages/SchemaDetail'; 
@@ -204,10 +203,9 @@ function App() {
                         <Route path="/rewards" element={<Rewards />} /> {/* Rewards beschikbaar voor alle rollen, maar component checkt zelf */}
                         <Route path="/groepsbeheer" element={<Groepsbeheer />} />
                         <Route path="/groep/:groepId" element={<GroupDetail />} />
-                        <Route path="/scores" element={<ScoresOverzicht />} />
+                        <Route path="/sporttesten" element={<Sporttesten />} />
                         <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
                         <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
-                        <Route path="/testbeheer" element={<Testbeheer />} />
                         <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
                         <Route path="/groeiplan/schema" element={<SchemaDetail />} />
 
