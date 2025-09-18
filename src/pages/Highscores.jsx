@@ -124,12 +124,7 @@ export default function Highscores() {
                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
                                 {/* Logo en titel links */}
                                 <div className="flex items-center space-x-4">
-                                    <img 
-                                        src={school?.logo_url || "/logo.png"} 
-                                        alt={`${school?.naam} logo`} 
-                                        className="h-16 w-auto object-contain" 
-                                        onError={(e) => { e.target.src = '/logo.png'; }} 
-                                    />
+                                   
                                     <div>
                                         <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">
                                             {school?.naam} Highscores
