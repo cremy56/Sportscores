@@ -154,11 +154,6 @@ export default function Highscores() {
                                     </div>
                                 </div>
                             </div>
-                        
-                {/* Decoratieve lijn */}
-                    <div className="flex justify-center">
-                        <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                    </div>
                     </>
                 
 )}
