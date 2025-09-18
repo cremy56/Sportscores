@@ -200,9 +200,6 @@ const ClickableRewardsDisplay = ({ profile, activeRole }) => {
   const sparks = Math.floor((profile?.xp_current_period || 0) / 100);
   const streak = profile?.streak_days || 0;
 
-  const handleClick = () => {
-    navigate('/rewards');
-  };
   return (
    <div className="hidden md:flex items-center mr-3">
       <button
@@ -309,6 +306,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
       if (docSnap.exists()) {
         const schoolData = docSnap.data();
         setSchoolSettings(schoolData.instellingen || {});
+        console.log('School settings updated:', schoolData.instellingen); // Debug log
       } else {
         setSchoolSettings(null);
       }
@@ -375,7 +373,6 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
 
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator';
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
-  const testbeheerLinkText = (activeRole === 'administrator' || activeRole === 'super-administrator') ? 'Testbeheer' : 'Sporttesten';
   const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan';
 
   // Bepaal de home link text gebaseerd op school instellingen
@@ -401,7 +398,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     '/rewards': 'Rewards',
   };
 
-  const currentTitle = Object.entries(routeTitles).find(([path, title]) => location.pathname.startsWith(path))?.[1] || 'SportScores';
+  const currentTitle = Object.entries(routeTitles).find(([path]) => location.pathname.startsWith(path))?.[1] || 'SportScores';
 
   return (
     <div>
@@ -516,33 +513,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
               <li><NavLink to="/instellingen" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Instellingen</NavLink></li>
             )}
-          </ul> 
-            {isTeacherOrAdmin && (
-              <>
-                <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
-                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
-                <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Sporttesten</NavLink></li>
-              </>
-            )}
-            
-            {/* Links voor administrators en hoger */}
-            {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
-              <li><NavLink to="/instellingen" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Instellingen</NavLink></li>
-            )}
-          
-            {isTeacherOrAdmin && (
-              <>
-                <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
-                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
-                <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Sporttesten</NavLink></li>
-              </>
-            )}
-            
-            {/* Links voor administrators en hoger */}
-            {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
-              <li><NavLink to="/instellingen" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Instellingen</NavLink></li>
-            )}
-          
+          </ul>
         </nav>
       </header>
       
