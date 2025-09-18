@@ -14,26 +14,32 @@ const evaluationOptions = [
 ];
 
 // Mobile-vriendelijke Toggle Component
-const MobileToggle = ({ id, name, checked, onChange, label, description }) => (
-    <div className="flex items-start justify-between py-4">
-        <div className="flex-1 mr-4">
-            <label htmlFor={id} className="font-semibold text-gray-800 block cursor-pointer">{label}</label>
-            <p className="text-sm text-gray-500 mt-1">{description}</p>
+const MobileToggle = ({ id, name, checked, onChange, label, description }) => {
+    console.log(`🔘 Toggle ${name}: ${checked}`); // Debug log
+    
+    return (
+        <div className="flex items-start justify-between py-4">
+            <div className="flex-1 mr-4">
+                <label htmlFor={id} className="font-semibold text-gray-800 block cursor-pointer">{label}</label>
+                <p className="text-sm text-gray-500 mt-1">{description}</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                <input
+                    type="checkbox"
+                    id={id}
+                    name={name}
+                    checked={checked}
+                    onChange={(e) => {
+                        console.log(`🔄 Toggle change for ${name}: ${e.target.checked}`); // Debug log
+                        onChange(e);
+                    }}
+                    className="sr-only peer"
+                />
+                <div className="w-14 h-8 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-purple-300 peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600 touch-manipulation"></div>
+            </label>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-            <input
-                type="checkbox"
-                id={id}
-                name={name}
-                checked={checked}
-                onChange={onChange}
-                className="sr-only peer"
-            />
-            {/* Groter toggle voor mobile - 14x8 i.p.v. 11x6 */}
-            <div className="w-14 h-8 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-purple-300 peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600 touch-manipulation"></div>
-        </label>
-    </div>
-);
+    );
+};
 
 export default function AlgemeenInstellingen() {
     const context = useOutletContext();
@@ -47,19 +53,50 @@ export default function AlgemeenInstellingen() {
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
+    // Debug log settings changes
+    useEffect(() => {
+        console.log('⚙️ Settings state updated:', settings);
+    }, [settings]);
+
     // Haal de huidige instellingen op
     const fetchSettings = useCallback(async () => {
         if (!profile?.school_id) return;
+        console.log('📥 Fetching settings for school:', profile.school_id);
+        
         setLoading(true);
         try {
             const schoolRef = doc(db, 'scholen', profile.school_id);
             const schoolSnap = await getDoc(schoolRef);
-            if (schoolSnap.exists() && schoolSnap.data().instellingen) {
-                const fetchedSettings = schoolSnap.data().instellingen;
-                setSettings(fetchedSettings);
-                setInitialSettings(fetchedSettings);
+            
+            if (schoolSnap.exists()) {
+                const schoolData = schoolSnap.data();
+                console.log('🏫 School data:', schoolData);
+                
+                if (schoolData.instellingen) {
+                    const fetchedSettings = schoolData.instellingen;
+                    console.log('⚙️ Fetched settings:', fetchedSettings);
+                    setSettings(fetchedSettings);
+                    setInitialSettings(fetchedSettings);
+                } else {
+                    console.log('⚠️ No settings found, creating defaults');
+                    const defaultSettings = {
+                        sportdashboardAsHomepage: false,
+                        teachersCanPostAnnouncements: true,
+                        evaluationMethod: 'punten',
+                    };
+                    
+                    // Sla defaults op in database
+                    await updateDoc(schoolRef, {
+                        instellingen: defaultSettings
+                    });
+                    
+                    setSettings(defaultSettings);
+                    setInitialSettings(defaultSettings);
+                    console.log('✅ Default settings created and saved');
+                }
             }
         } catch (error) {
+            console.error('❌ Error fetching settings:', error);
             toast.error("Kon de schoolinstellingen niet laden.");
         } finally {
             setLoading(false);
@@ -72,24 +109,47 @@ export default function AlgemeenInstellingen() {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setSettings(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value,
-        }));
+        const newValue = type === 'checkbox' ? checked : value;
+        
+        console.log(`🔄 Handle change - ${name}: ${newValue}`);
+        
+        setSettings(prev => {
+            const newSettings = {
+                ...prev,
+                [name]: newValue,
+            };
+            console.log('📝 New settings state will be:', newSettings);
+            return newSettings;
+        });
     };
 
     const handleSave = async () => {
-        if (!profile?.school_id) return toast.error("Geen school gevonden.");
+        if (!profile?.school_id) {
+            console.error('❌ No school_id found');
+            return toast.error("Geen school gevonden.");
+        }
+        
+        console.log('💾 Starting save process...');
+        console.log('💾 Settings to save:', settings);
+        
         setIsSaving(true);
         const loadingToast = toast.loading("Instellingen opslaan...");
+        
         try {
             const schoolRef = doc(db, 'scholen', profile.school_id);
+            
+            console.log('📤 Updating document with settings:', settings);
+            
             await updateDoc(schoolRef, {
                 instellingen: settings
             });
+            
             setInitialSettings(settings);
+            console.log('✅ Settings saved successfully');
             toast.success("Instellingen succesvol opgeslagen!");
+            
         } catch (error) {
+            console.error('❌ Save error:', error);
             toast.error("Fout bij het opslaan van de instellingen.");
         } finally {
             setIsSaving(false);
@@ -99,6 +159,10 @@ export default function AlgemeenInstellingen() {
     
     // Controleer of er wijzigingen zijn
     const isDirty = JSON.stringify(settings) !== JSON.stringify(initialSettings);
+    
+    console.log('🔍 isDirty:', isDirty);
+    console.log('🔍 Current settings:', settings);
+    console.log('🔍 Initial settings:', initialSettings);
 
     if (loading) {
         return (
@@ -145,7 +209,6 @@ export default function AlgemeenInstellingen() {
                     <h3 className="font-semibold text-gray-800 mb-2">Evaluatiemethode</h3>
                     <p className="text-sm text-gray-500 mb-4 sm:mb-6">Kies de standaardmethode voor het evalueren van testen en opdrachten.</p>
                     
-                    {/* Mobile-first: Verticale lijst i.p.v. grid */}
                     <fieldset className="space-y-3 sm:space-y-4">
                         {evaluationOptions.map((option) => (
                             <label 
@@ -158,7 +221,6 @@ export default function AlgemeenInstellingen() {
                                     value={option.id}
                                     checked={settings.evaluationMethod === option.id}
                                     onChange={handleChange}
-                                    // Groter radio button voor mobile
                                     className="h-5 w-5 mt-0.5 border-gray-300 text-purple-600 focus:ring-purple-500 flex-shrink-0 touch-manipulation"
                                 />
                                 <div className="ml-3 sm:ml-4 text-sm">
