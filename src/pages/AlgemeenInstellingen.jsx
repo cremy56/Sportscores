@@ -15,7 +15,7 @@ const evaluationOptions = [
 
 // Mobile-vriendelijke Toggle Component
 const MobileToggle = ({ id, name, checked, onChange, label, description }) => {
-    console.log(`🔘 Toggle ${name}: ${checked}`); // Debug log
+    console.log(`📘 Toggle ${name}: ${checked}`); // Debug log
     
     return (
         <div className="flex items-start justify-between py-4">
@@ -47,6 +47,7 @@ export default function AlgemeenInstellingen() {
     const [settings, setSettings] = useState({
         sportdashboardAsHomepage: false,
         teachersCanPostAnnouncements: true,
+        disableSportLiveFeed: false,
         evaluationMethod: 'punten',
     });
     const [initialSettings, setInitialSettings] = useState(settings);
@@ -61,7 +62,7 @@ export default function AlgemeenInstellingen() {
     // Haal de huidige instellingen op
     const fetchSettings = useCallback(async () => {
         if (!profile?.school_id) return;
-        console.log('📥 Fetching settings for school:', profile.school_id);
+        console.log('🔥 Fetching settings for school:', profile.school_id);
         
         setLoading(true);
         try {
@@ -82,6 +83,7 @@ export default function AlgemeenInstellingen() {
                     const defaultSettings = {
                         sportdashboardAsHomepage: false,
                         teachersCanPostAnnouncements: true,
+                        disableSportLiveFeed: false,
                         evaluationMethod: 'punten',
                     };
                     
@@ -160,9 +162,9 @@ export default function AlgemeenInstellingen() {
     // Controleer of er wijzigingen zijn
     const isDirty = JSON.stringify(settings) !== JSON.stringify(initialSettings);
     
-    console.log('🔍 isDirty:', isDirty);
-    console.log('🔍 Current settings:', settings);
-    console.log('🔍 Initial settings:', initialSettings);
+    console.log('📝 isDirty:', isDirty);
+    console.log('📝 Current settings:', settings);
+    console.log('📝 Initial settings:', initialSettings);
 
     if (loading) {
         return (
@@ -219,12 +221,24 @@ export default function AlgemeenInstellingen() {
                     checked={settings.teachersCanPostAnnouncements}
                     onChange={handleChange}
                     label="Leerkrachten mogen mededelingen plaatsen"
-                    description="Geef leerkrachten de mogelijkheid om berichten op het Ad Valvas-bord te plaatsen."
+                    description="Geef leerkrachten de mogelijkheid om berichten op het Sport dashboard te plaatsen."
                 />
 
                 <hr className="border-gray-200" />
 
-                {/* --- Instelling 3: Evaluatiemethode --- */}
+                {/* --- Instelling 3: Sport Live Feed Uitschakelen --- */}
+                <MobileToggle
+                    id="disableSportLiveFeed"
+                    name="disableSportLiveFeed"
+                    checked={settings.disableSportLiveFeed}
+                    onChange={handleChange}
+                    label="Sport live feed uitschakelen"
+                    description="Schakel de live sportnieuws ticker onderaan het scherm uit voor deze school."
+                />
+
+                <hr className="border-gray-200" />
+
+                {/* --- Instelling 4: Evaluatiemethode --- */}
                 <div>
                     <h3 className="font-semibold text-gray-800 mb-2">Evaluatiemethode</h3>
                     <p className="text-sm text-gray-500 mb-4 sm:mb-6">Kies de standaardmethode voor het evalueren van testen en opdrachten.</p>
