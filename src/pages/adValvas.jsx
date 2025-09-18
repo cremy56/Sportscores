@@ -688,6 +688,7 @@ const [activeTests, setActiveTests] = useState([]);
 const [contentPattern, setContentPattern] = useState([]); // Alternerend patroon
 const [patternIndex, setPatternIndex] = useState(0);
 const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
+ const [schoolSettings, setSchoolSettings] = useState(null);
 
 // Functie om de content te vernieuwen (belangrijk voor na het toevoegen)
   const refreshContent = async () => {
@@ -855,7 +856,25 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
   return finalPattern;
 };
 
- 
+ useEffect(() => {
+    if (!school?.id) {
+      setSchoolSettings(null);
+      return;
+    }
+    
+    const schoolRef = doc(db, 'scholen', school.id);
+    const unsubscribe = onSnapshot(schoolRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const schoolData = docSnap.data();
+        setSchoolSettings(schoolData.instellingen || {});
+        console.log('School settings in AdValvas:', schoolData.instellingen);
+      } else {
+        setSchoolSettings(null);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [school?.id]);
 
   // Live sport feed ophalen met 5 minuten interval  
   useEffect(() => {
@@ -1075,6 +1094,21 @@ const fetchTodaysScores = async (school_id) => {
     return [];
   }
 };
+
+const canPostMessages = () => {
+    // Administrators en super-administrators mogen altijd posten
+    if (profile?.rol === 'administrator' || profile?.rol === 'super-administrator') {
+      return true;
+    }
+    
+    // Leerkrachten mogen alleen posten als de school policy dit toestaat
+    if (profile?.rol === 'leerkracht') {
+      return schoolSettings?.teachersCanPostAnnouncements === true;
+    }
+    
+    // Andere rollen mogen niet posten
+    return false;
+  };
 
 const fetchMededelingen = async (school_id) => {
   if (!school_id) return [];
@@ -1541,15 +1575,15 @@ case CONTENT_TYPES.BREAKING_NEWS:
             </div>
             
             {/* --- KNOP HIER TOEGEVOEGD (MOBIELE VERSIE) --- */}
-            {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator') && (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold px-3 py-1 rounded-lg shadow-md hover:scale-105 transition-transform text-sm"
-              >
-                <PlusCircle className="h-4 w-4" />
-                <span>Bericht</span>
-              </button>
-            )}
+            {canPostMessages() && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold px-3 py-1 rounded-lg shadow-md hover:scale-105 transition-transform text-sm"
+          >
+            <PlusCircle className="h-4 w-4" />
+            <span>Bericht</span>
+          </button>
+        )}
 
             <div className="text-right">
               <div className="text-xl font-bold text-gray-800 font-mono">
@@ -1581,15 +1615,15 @@ case CONTENT_TYPES.BREAKING_NEWS:
             </div>
 
             {/* --- KNOP HIER TOEGEVOEGD (DESKTOP VERSIE) --- */}
-            {(profile?.rol === 'leerkracht' || profile?.rol === 'administrator') && (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-lg hover:scale-105 transition-transform"
-              >
-                <PlusCircle className="h-5 w-5" />
-                <span>Bericht maken</span>
-              </button>
-            )}
+            {canPostMessages() && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-lg hover:scale-105 transition-transform"
+          >
+            <PlusCircle className="h-5 w-5" />
+            <span>Bericht maken</span>
+          </button>
+        )}
 
             <div className="text-right">
               <div className="text-4xl font-bold text-gray-800 font-mono">
