@@ -103,7 +103,7 @@ export default function Highscores() {
         <div className="fixed inset-0 bg-slate-50 overflow-y-auto pt-20">
             <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8">
                 
-                <div className="text-center mb-8">
+                <div className="mb-8">
                     {/* --- START VAN WIJZIGING (Header voor leerlingen) --- */}
                     {profile?.rol === 'leerling' ? (
                         <>
@@ -156,6 +156,10 @@ export default function Highscores() {
                                 </div>
                             </div>
                         )}
+                {/* Decoratieve lijn */}
+                    <div className="flex justify-center">
+                        <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                    </div>
                 </div>
 
                 {loading && (
