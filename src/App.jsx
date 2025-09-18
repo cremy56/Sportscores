@@ -41,6 +41,15 @@ import EHBODetail from './pages/EHBODetail';
 import Instellingen from './pages/Instellingen';
 import AlgemeenInstellingen from './pages/AlgemeenInstellingen';
 
+// Component om de dynamische homepage te bepalen
+function DynamicHomepage({ schoolSettings }) {
+  // Als de instelling aanstaat, toon Highscores, anders Ad Valvas
+  if (schoolSettings?.sportdashboardAsHomepage) {
+    return <Highscores />;
+  }
+  return <AdValvas />;
+}
+
 function HandleAuthRedirect() {
     const navigate = useNavigate();
     useEffect(() => {
@@ -70,6 +79,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [school, setSchool] = useState(null);
+  const [schoolSettings, setSchoolSettings] = useState(null); // Nieuwe state voor schoolinstellingen
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [activeRole, setActiveRole] = useState(null);
@@ -80,6 +90,7 @@ function App() {
       if (!currentUser) {
         setProfile(null);
         setSchool(null);
+        setSchoolSettings(null); // Reset schoolinstellingen
         setActiveRole(null);
         setLoading(false);
       }
@@ -125,13 +136,10 @@ function App() {
           ...allowedUserSnap.data(),
           email: user.email,
           onboarding_complete: false,
-          // --- START CORRECTIE ---
-          // Initialiseer hier de nieuwe XP-velden. Sparks is niet meer nodig.
           xp: 0,
           xp_current_period: 0,
           xp_current_school_year: 0,
           streak_days: 0,
-          // --- EINDE CORRECTIE ---
           weekly_stats: {
             kompas: 0,
             trainingen: 0,
@@ -159,11 +167,21 @@ function App() {
     };
   }, [user, activeRole]);
 
+  // School listener - nu met schoolinstellingen
   useEffect(() => {
     if (profile?.school_id) {
       const schoolRef = doc(db, 'scholen', profile.school_id);
       const unsubscribeSchool = onSnapshot(schoolRef, (schoolSnap) => {
-        setSchool(schoolSnap.exists() ? { id: schoolSnap.id, ...schoolSnap.data() } : null);
+        if (schoolSnap.exists()) {
+          const schoolData = { id: schoolSnap.id, ...schoolSnap.data() };
+          setSchool(schoolData);
+          
+          // Extract schoolinstellingen uit de school data
+          setSchoolSettings(schoolData.instellingen || {});
+        } else {
+          setSchool(null);
+          setSchoolSettings(null);
+        }
         setLoading(false);
       });
       return () => unsubscribeSchool;
@@ -202,8 +220,13 @@ function App() {
               <Route element={<ProtectedRoute profile={profile} school={school} />}>
                     
                         <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} activeRole={activeRole} setActiveRole={setActiveRole} />}>
-                         <Route path="/" element={<AdValvas />} />
-                        <Route path="/highscores" element={<Highscores />} />
+                         {/* Dynamische homepage route */}
+                         <Route path="/" element={<DynamicHomepage schoolSettings={schoolSettings} />} />
+                         
+                         {/* Directe routes naar beide pagina's (voor navigatie) */}
+                         <Route path="/advalvas" element={<AdValvas />} />
+                         <Route path="/highscores" element={<Highscores />} />
+                         
                         <Route path="/evolutie" element={<Evolutie />} />
                         <Route path="/groeiplan" element={<Groeiplan />} />
                         <Route path="/rewards" element={<Rewards />} />
@@ -214,7 +237,6 @@ function App() {
                         <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
                         <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
                         <Route path="/groeiplan/schema" element={<SchemaDetail />} />
-
 
                         {(activeRole === 'leerling' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
                           <>

@@ -273,6 +273,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef();
   const [realtimeProfile, setRealtimeProfile] = useState(profile);
+  const [schoolSettings, setSchoolSettings] = useState(null);
 
   // Real-time listener voor de rewards-data
   useEffect(() => {
@@ -295,6 +296,26 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     });
     return () => unsubscribe();
   }, [profile?.id]);
+
+  // School settings listener
+  useEffect(() => {
+    if (!school?.id) {
+      setSchoolSettings(null);
+      return;
+    }
+    
+    const schoolRef = doc(db, 'scholen', school.id);
+    const unsubscribe = onSnapshot(schoolRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const schoolData = docSnap.data();
+        setSchoolSettings(schoolData.instellingen || {});
+      } else {
+        setSchoolSettings(null);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [school?.id]);
 
   useEffect(() => {
     if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
@@ -357,11 +378,15 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const testbeheerLinkText = (activeRole === 'administrator' || activeRole === 'super-administrator') ? 'Testbeheer' : 'Sporttesten';
   const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan';
 
+  // Bepaal de home link text gebaseerd op school instellingen
+  const homeLinkText = schoolSettings?.sportdashboardAsHomepage ? 'Highscores' : 'Home';
+
   const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
   const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
   
   const routeTitles = {
-    '/': 'Home',
+    '/': schoolSettings?.sportdashboardAsHomepage ? 'Highscores' : 'Home',
+    '/advalvas': 'Ad Valvas',
     '/highscores': 'Highscores',
     '/evolutie': evolutieLinkText,
     '/groeiplan': groeiplanLinkText,
@@ -403,8 +428,15 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
 
           {/* MIDDEN (Desktop): Navigatie-items */}
           <ul className="hidden md:flex items-center space-x-6 flex-grow justify-center">
-            <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
-            <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
+            <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{homeLinkText}</NavLink></li>
+            
+            {/* Conditionele link naar de andere pagina */}
+            {schoolSettings?.sportdashboardAsHomepage ? (
+              <li><NavLink to="/advalvas" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Ad Valvas</NavLink></li>
+            ) : (
+              <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
+            )}
+            
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
@@ -455,8 +487,15 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             onClick={() => setMobileMenuOpen(false)}
           >
             {/* Basis Links */}
-            <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Home</NavLink></li>
-            <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
+            <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{homeLinkText}</NavLink></li>
+            
+            {/* Conditionele link naar de andere pagina */}
+            {schoolSettings?.sportdashboardAsHomepage ? (
+              <li><NavLink to="/advalvas" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Ad Valvas</NavLink></li>
+            ) : (
+              <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
+            )}
+            
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
 
             {/* Links voor leerlingen */}
@@ -477,7 +516,33 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
               <li><NavLink to="/instellingen" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Instellingen</NavLink></li>
             )}
-          </ul>
+          </ul> 
+            {isTeacherOrAdmin && (
+              <>
+                <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
+                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+                <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Sporttesten</NavLink></li>
+              </>
+            )}
+            
+            {/* Links voor administrators en hoger */}
+            {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
+              <li><NavLink to="/instellingen" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Instellingen</NavLink></li>
+            )}
+          
+            {isTeacherOrAdmin && (
+              <>
+                <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
+                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+                <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Sporttesten</NavLink></li>
+              </>
+            )}
+            
+            {/* Links voor administrators en hoger */}
+            {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
+              <li><NavLink to="/instellingen" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Instellingen</NavLink></li>
+            )}
+          
         </nav>
       </header>
       
