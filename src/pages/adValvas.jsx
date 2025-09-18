@@ -1682,6 +1682,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
       </div>
 
       {/* Enhanced Live Sport News Ticker - Desktop only */}
+      {!schoolSettings?.disableSportLiveFeed && (
       <div className="hidden lg:block bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-t border-slate-700 fixed bottom-0 left-0 right-0 z-50 shadow-2xl">
         <div className="flex items-center h-18 overflow-hidden">
           {/* Status indicator */}
@@ -1756,6 +1757,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
           </div>
         </div>
       </div>
+      )}
 
       <style>{`
         @keyframes marquee {
