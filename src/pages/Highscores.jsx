@@ -120,7 +120,7 @@ export default function Highscores() {
                         </div>
                     ) : (
                         // Oude header voor leerkrachten/admins (met logo en algemene tekst)
-                        
+                        <>
                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
                                 {/* Logo en titel links */}
                                 <div className="flex items-center space-x-4">
@@ -159,13 +159,15 @@ export default function Highscores() {
                                     </div>
                                 </div>
                             </div>
-                        )}
+                        
                 {/* Decoratieve lijn */}
                     <div className="flex justify-center">
                         <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
                     </div>
-                </div>
-
+                    </>
+                
+)}
+</div>
                 {loading && (
                     <div className="text-center text-slate-500">Laden van highscores...</div>
                 )}
