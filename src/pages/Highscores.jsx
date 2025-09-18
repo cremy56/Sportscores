@@ -116,46 +116,46 @@ export default function Highscores() {
                         </>
                     ) : (
                         // Oude header voor leerkrachten/admins (met logo en algemene tekst)
-                        <>
-                            <div className="flex justify-center mb-4 pt-8">
-                                <img src={school?.logo} alt={`${school?.naam} logo`} className="h-24 w-auto" />
-                            </div>
-                            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-2">
-                                {school?.naam} Highscores
-                            </h1>
-                            <p className="text-slate-600 mb-4">
-                                De beste tijden van onze school!
-                            </p>
-                        </>
-                    )}
-                    {/* --- EINDE VAN WIJZIGING (Header voor leerlingen) --- */}
-                    
-                    <div className="flex justify-center mb-6">
-                        <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                    </div>
-
-                    {/* Age Filter Controls - Enkel voor niet-leerlingen */}
-                    {profile?.rol !== 'leerling' && (
-                        <div className="flex justify-center mb-6">
-                            <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4">
+                        
+                           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
+                                {/* Logo en titel links */}
                                 <div className="flex items-center space-x-4">
-                                    <span className="text-sm font-medium text-slate-700">Filter op leeftijd:</span>
-                                    <select
-                                        value={teacherSelectedAge || ''}
-                                        onChange={(e) => setTeacherSelectedAge(e.target.value ? parseInt(e.target.value) : null)}
-                                        className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    >
-                                        <option value="">Alle leeftijden</option>
-                                        {[12, 13, 14, 15, 16, 17].map(age => (
-                                            <option key={age} value={age}>
-                                                {age} jaar
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <img 
+                                        src={school?.logo_url || "/logo.png"} 
+                                        alt={`${school?.naam} logo`} 
+                                        className="h-16 w-auto object-contain" 
+                                        onError={(e) => { e.target.src = '/logo.png'; }} 
+                                    />
+                                    <div>
+                                        <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">
+                                            {school?.naam} Highscores
+                                        </h1>
+                                        <p className="text-slate-600">
+                                            De beste tijden van onze school!
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                {/* Filter rechts */}
+                                <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4">
+                                    <div className="flex items-center space-x-4">
+                                        <span className="text-sm font-medium text-slate-700">Filter op leeftijd:</span>
+                                        <select
+                                            value={teacherSelectedAge || ''}
+                                            onChange={(e) => setTeacherSelectedAge(e.target.value ? parseInt(e.target.value) : null)}
+                                            className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        >
+                                            <option value="">Alle leeftijden</option>
+                                            {[12, 13, 14, 15, 16, 17].map(age => (
+                                                <option key={age} value={age}>
+                                                    {age} jaar
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
                 </div>
 
                 {loading && (
