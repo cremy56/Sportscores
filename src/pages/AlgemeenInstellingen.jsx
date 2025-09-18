@@ -206,8 +206,8 @@ export default function AlgemeenInstellingen() {
                     name="sportdashboardAsHomepage"
                     checked={settings.sportdashboardAsHomepage}
                     onChange={handleChange}
-                    label="Sportdashboard als homepagina"
-                    description="Indien aangevinkt, wordt het sportdashboard de standaard startpagina i.p.v. Ad Valvas."
+                    label="Highscores als homepagina"
+                    description="Indien aangevinkt, wordt de Highscores pagina de standaard startpagina i.p.v. Sport dashboard."
                 />
 
                 <hr className="border-gray-200" />
