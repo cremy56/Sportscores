@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, Timestamp, onSnapshot } from 'firebase/firestore';
 import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity, Quote, Flame, BookOpen, BarChart3, TrendingDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { formatScoreWithUnit } from '../utils/formatters.js';
 import { PlusCircle, X } from 'lucide-react'; // Voeg PlusCircle en X toe
