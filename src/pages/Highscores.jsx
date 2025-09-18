@@ -106,7 +106,7 @@ export default function Highscores() {
                 <div className="mb-8">
                     {/* --- START VAN WIJZIGING (Header voor leerlingen) --- */}
                     {profile?.rol === 'leerling' ? (
-                        <div className="text-center">
+                        <div className="text-left">
                             <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
                                 {profile?.naam || 'Leerling'}
                             </h1>
