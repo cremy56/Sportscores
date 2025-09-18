@@ -179,6 +179,26 @@ export default function AlgemeenInstellingen() {
                 <p className="text-sm sm:text-base text-gray-600">Beheer hier de algemene configuratie voor de hele school.</p>
             </div>
 
+            {/* Sticky Save Button - alleen zichtbaar als er wijzigingen zijn */}
+            {isDirty && (
+                <div className="sticky top-4 z-10 mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 text-purple-700">
+                            <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                            <span className="text-sm font-medium">Er zijn niet-opgeslagen wijzigingen</span>
+                        </div>
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="flex items-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg shadow-lg disabled:opacity-50 hover:scale-105 transition-all duration-200 touch-manipulation text-sm font-medium"
+                        >
+                            <CheckCircleIcon className="h-4 w-4 mr-2" />
+                            {isSaving ? 'Opslaan...' : 'Wijzigingen Opslaan'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="space-y-6 sm:space-y-8">
                 {/* --- Instelling 1: Sportdashboard als Homepagina --- */}
                 <MobileToggle
@@ -233,7 +253,7 @@ export default function AlgemeenInstellingen() {
                 </div>
             </div>
 
-            {/* --- Opslaan Knop --- */}
+            {/* Fallback Save Button (altijd zichtbaar onderaan) */}
             <div className="mt-8 sm:mt-10 pt-6 border-t border-gray-200 flex justify-end">
                 <button
                     onClick={handleSave}
