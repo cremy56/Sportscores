@@ -1,5 +1,5 @@
 // src/components/Layout.jsx
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
@@ -7,7 +7,6 @@ import { Toaster } from 'react-hot-toast';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { UserCircleIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { Zap, Star, TrendingUp } from 'lucide-react';
-import { useNavigate } from 'react-router-dom'; // Voeg deze toe
 import { Bars3Icon } from '@heroicons/react/24/solid';
 import logoSrc from '../assets/logo.png';
 import StudentSearch from './StudentSearch';
@@ -86,6 +85,9 @@ const ProfileMenu = ({
   setSelectedStudent,
   onClose,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -96,6 +98,34 @@ const ProfileMenu = ({
 
   const handleImpersonatedStudentSelect = (student) => {
     setImpersonatedStudent(student);
+    onClose();
+  };
+
+  const handleRoleChange = (newRole) => {
+    const currentPath = location.pathname;
+    
+    // Check if current path is restricted for the new role
+    const restrictedPaths = {
+      'leerling': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer', '/welzijnsmonitor', '/groepsbeheer', '/sporttesten'],
+      'leerkracht': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'],
+      'administrator': ['/schoolbeheer'],
+      'super-administrator': []
+    };
+
+    const isPathRestricted = restrictedPaths[newRole]?.some(path => currentPath.startsWith(path));
+    
+    setActiveRole(newRole);
+    
+    if (newRole !== 'leerling') {
+      setImpersonatedStudent(null);
+      setSelectedStudent(null);
+    }
+    
+    // Redirect if current path is not accessible for new role
+    if (isPathRestricted) {
+      navigate('/');
+    }
+    
     onClose();
   };
 
@@ -119,15 +149,7 @@ const ProfileMenu = ({
             id="role-switcher"
             className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
             value={activeRole}
-            onChange={(e) => {
-              const newRole = e.target.value;
-              setActiveRole(newRole);
-              if (newRole !== 'leerling') {
-                setImpersonatedStudent(null);
-                setSelectedStudent(null);
-                onClose();
-              }
-            }}
+            onChange={(e) => handleRoleChange(e.target.value)}
             title="Switch rol"
           >
             {profile?.rol === 'super-administrator' && (
@@ -168,12 +190,13 @@ const ProfileMenu = ({
     </div>
   );
 };
+
 const ClickableRewardsDisplay = ({ profile, activeRole }) => {
   const navigate = useNavigate();
   
   if (activeRole !== 'leerling') return null;
 
-const yearXP = profile?.xp_current_school_year || 0;
+  const yearXP = profile?.xp_current_school_year || 0;
   const sparks = Math.floor((profile?.xp_current_period || 0) / 100);
   const streak = profile?.streak_days || 0;
 
@@ -205,6 +228,7 @@ const yearXP = profile?.xp_current_school_year || 0;
     </div>
   );
 };
+
 // Mobiele versie - ook klikbaar
 const MobileClickableRewardsDisplay = ({ profile, activeRole }) => {
   const navigate = useNavigate();
@@ -240,10 +264,9 @@ const MobileClickableRewardsDisplay = ({ profile, activeRole }) => {
   );
 };
 
-
 export default function Layout({ profile, school, selectedStudent, setSelectedStudent, activeRole, setActiveRole }) {
-
   const location = useLocation();
+  const navigate = useNavigate();
   const [impersonatedStudent, setImpersonatedStudent] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -273,7 +296,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     return () => unsubscribe();
   }, [profile?.id]);
 
-useEffect(() => {
+  useEffect(() => {
     if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
       setSelectedStudent(impersonatedStudent);
     }
@@ -284,6 +307,25 @@ useEffect(() => {
       setActiveRole(profile.rol);
     }
   }, [profile?.rol, activeRole, setActiveRole]);
+
+  // Effect to handle redirects when role changes and current path becomes inaccessible
+  useEffect(() => {
+    if (!activeRole) return;
+    
+    const currentPath = location.pathname;
+    const restrictedPaths = {
+      'leerling': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer', '/welzijnsmonitor', '/groepsbeheer', '/sporttesten'],
+      'leerkracht': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'],
+      'administrator': ['/schoolbeheer'],
+      'super-administrator': []
+    };
+
+    const isPathRestricted = restrictedPaths[activeRole]?.some(path => currentPath.startsWith(path));
+    
+    if (isPathRestricted) {
+      navigate('/');
+    }
+  }, [activeRole, location.pathname, navigate]);
 
   const toggleMenu = () => {
     if (menuButtonRef.current) {
@@ -297,18 +339,18 @@ useEffect(() => {
   };
 
   const simulatedProfile = useMemo(() => {
-  if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
+    if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
+      return {
+        ...impersonatedStudent,
+        rol: 'leerling',
+        originalProfile: profile
+      };
+    }
     return {
-      ...impersonatedStudent,
-      rol: 'leerling',
-      originalProfile: profile
+      ...realtimeProfile,
+      rol: activeRole,
     };
-  }
-  return {
-    ...realtimeProfile, // Gebruik realtimeProfile in plaats van profile
-    rol: activeRole,
-  };
-}, [realtimeProfile, activeRole, impersonatedStudent]);
+  }, [realtimeProfile, activeRole, impersonatedStudent]);
 
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator';
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
@@ -318,9 +360,6 @@ useEffect(() => {
   const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
   const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
   
-  // Check if any admin routes are active for dropdown highlighting
-  const isAdminDropdownActive = ['/groepsbeheer', '/testbeheer', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'].includes(location.pathname);
-  
   const routeTitles = {
     '/': 'Home',
     '/highscores': 'Highscores',
@@ -329,7 +368,7 @@ useEffect(() => {
     '/gezondheid': 'Mijn Gezondheid',
     '/welzijnsmonitor': 'Welzijnsmonitor',
     '/groepsbeheer': 'Groepsbeheer',
-    '/sporttesten': 'Sporttesten', // Was /testbeheer
+    '/sporttesten': 'Sporttesten',
     '/gebruikersbeheer': 'Gebruikersbeheer',
     '/trainingsbeheer': 'Trainingsbeheer',
     '/schoolbeheer': 'Schoolbeheer',
@@ -338,7 +377,6 @@ useEffect(() => {
   };
 
   const currentTitle = Object.entries(routeTitles).find(([path, title]) => location.pathname.startsWith(path))?.[1] || 'SportScores';
-
 
   return (
     <div>
@@ -377,7 +415,6 @@ useEffect(() => {
               <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
             )}
 
-            {/* --- START WIJZIGING --- */}
             {isTeacherOrAdmin && (
               <>
                 <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
@@ -388,8 +425,7 @@ useEffect(() => {
             {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
                 <li><NavLink to="/instellingen" className={({ isActive }) => (isActive ? 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1' : inactiveLinkStyle)}>Instellingen</NavLink></li>
             )}
-            {/* --- EINDE WIJZIGING --- */}
-        </ul>
+          </ul>
 
           {/* MIDDEN (Mobiel): Gecentreerde paginatitel + Mobile Rewards */}
           <div className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
