@@ -27,6 +27,26 @@ import {
 import UserFormModal from '../components/UserFormModal'; 
 import ConfirmModal from '../components/ConfirmModal';
 
+// Mobile-vriendelijke Action Buttons Component
+const MobileActionButtons = ({ onEdit, onDelete, user }) => (
+    <div className="flex items-center gap-2">
+        <button
+            onClick={onEdit}
+            className="p-3 sm:p-2 text-gray-500 rounded-full hover:bg-blue-100 hover:text-blue-600 transition-all duration-200 touch-manipulation"
+            aria-label={`Bewerk ${user.naam}`}
+        >
+            <PencilIcon className="h-5 w-5" />
+        </button>
+        <button
+            onClick={onDelete}
+            className="p-3 sm:p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-all duration-200 touch-manipulation"
+            aria-label={`Verwijder ${user.naam}`}
+        >
+            <TrashIcon className="h-5 w-5" />
+        </button>
+    </div>
+);
+
 export default function Gebruikersbeheer() {
     const context = useOutletContext();
     const { profile } = context || {};
@@ -247,19 +267,20 @@ export default function Gebruikersbeheer() {
     };
 
     return (
-        <div className="bg-white p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200">
+        <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200">
             <Toaster position="top-center" />
             
             {/* Header */}
-            <div className="flex justify-between items-start mb-8">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 sm:mb-8 space-y-4 sm:space-y-0">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Gebruikersbeheer</h2>
-                    <p className="text-gray-600">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Gebruikersbeheer</h2>
+                    <p className="text-sm sm:text-base text-gray-600">
                         {totalCount !== null ? `Totaal ${totalCount} gebruikers` : 'Gebruikers beheren'}
                     </p>
                 </div>
                 
-                <div className="flex gap-3">
+                {/* Mobile-first button layout */}
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                     {/* CSV Import knop */}
                     <div className="relative">
                         <input
@@ -270,9 +291,11 @@ export default function Gebruikersbeheer() {
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             title="Importeer CSV"
                         />
-                        <button className="flex items-center bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105">
+                        <button className="flex items-center justify-center sm:justify-start bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto">
                             <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-                            <span className="hidden sm:inline">CSV </span>Import
+                            <span className="sm:hidden">CSV Import</span>
+                            <span className="hidden sm:inline">CSV </span>
+                            <span className="hidden sm:inline">Import</span>
                         </button>
                     </div>
 
@@ -280,39 +303,45 @@ export default function Gebruikersbeheer() {
                     {users.length > 0 && (
                         <button
                             onClick={exportToCSV}
-                            className="flex items-center bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700 text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                            className="flex items-center justify-center sm:justify-start bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
                         >
                             <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-                            <span className="hidden sm:inline">CSV </span>Export
+                            <span className="sm:hidden">CSV Export</span>
+                            <span className="hidden sm:inline">CSV </span>
+                            <span className="hidden sm:inline">Export</span>
                         </button>
                     )}
 
                     <button 
                         onClick={() => setModal({ type: 'form', data: null, role: 'leerkracht' })}
-                        className="flex items-center bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                        className="flex items-center justify-center sm:justify-start bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
                     >
                         <UserPlusIcon className="h-4 w-4 mr-2" />
-                        <span className="hidden sm:inline">Nieuwe </span>Leerkracht
+                        <span className="sm:hidden">Nieuwe Leerkracht</span>
+                        <span className="hidden sm:inline">Nieuwe </span>
+                        <span className="hidden sm:inline">Leerkracht</span>
                     </button>
                     <button
                         onClick={() => setModal({ type: 'form', data: null, role: 'leerling' })}
-                        className="flex items-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
+                        className="flex items-center justify-center sm:justify-start bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
                     >
                         <PlusIcon className="h-4 w-4 mr-2" />
-                        <span className="hidden sm:inline">Nieuwe </span>Leerling
+                        <span className="sm:hidden">Nieuwe Leerling</span>
+                        <span className="hidden sm:inline">Nieuwe </span>
+                        <span className="hidden sm:inline">Leerling</span>
                     </button>
                 </div>
             </div>
 
             {/* Zoekbalk */}
-            <div className="relative mb-8">
+            <div className="relative mb-6 sm:mb-8">
                 <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
                 <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Zoek gebruikers op naam of e-mail..."
-                    className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300"
+                    className="w-full pl-12 pr-4 py-3 sm:py-4 bg-white border border-slate-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-base"
                 />
                 {loading && (
                     <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
@@ -324,45 +353,38 @@ export default function Gebruikersbeheer() {
             {/* Resultaten */}
             <div className="border border-slate-200 rounded-xl overflow-hidden">
                 {searchTerm.length < 2 ? (
-                    <div className="text-center p-12">
+                    <div className="text-center p-8 sm:p-12">
                         <UsersIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-bold text-gray-800 mb-2">Zoek naar gebruikers</h3>
-                        <p className="text-gray-600">Gebruik de zoekbalk hierboven om gebruikers te vinden.</p>
+                        <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Zoek naar gebruikers</h3>
+                        <p className="text-sm sm:text-base text-gray-600">Gebruik de zoekbalk hierboven om gebruikers te vinden.</p>
                     </div>
                 ) : loading ? (
-                   <div className="text-center p-12 text-gray-600">Laden...</div>
+                   <div className="text-center p-8 sm:p-12 text-gray-600">Laden...</div>
                 ) : users.length === 0 ? (
-                    <div className="text-center p-12">
+                    <div className="text-center p-8 sm:p-12">
                         <MagnifyingGlassIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-bold text-gray-800 mb-2">Geen resultaten</h3>
-                        <p className="text-gray-600">Probeer een andere zoekterm.</p>
+                        <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Geen resultaten</h3>
+                        <p className="text-sm sm:text-base text-gray-600">Probeer een andere zoekterm.</p>
                     </div>
                 ) : (
                     <ul className="divide-y divide-slate-200">
                         {users.map(user => (
                             <li key={user.id}>
-                                <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-slate-50 transition-colors">
-                                    <div className="flex items-center gap-4">
-                                        <RoleBadge role={user.rol} />
-                                        <div>
-                                            <p className="text-lg font-bold text-gray-900">{user.naam}</p>
-                                            <p className="text-sm text-gray-600">{user.email}</p>
+                                <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-slate-50 transition-colors touch-manipulation">
+                                    <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                                        <div className="flex-shrink-0">
+                                            <RoleBadge role={user.rol} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-base sm:text-lg font-bold text-gray-900 truncate">{user.naam}</p>
+                                            <p className="text-sm text-gray-600 truncate">{user.email}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => setModal({ type: 'form', data: user })}
-                                            className="p-2 text-gray-500 rounded-full hover:bg-blue-100 hover:text-blue-600 transition-all duration-200"
-                                        >
-                                            <PencilIcon className="h-5 w-5" />
-                                        </button>
-                                        <button
-                                            onClick={() => setModal({ type: 'confirm', data: user })}
-                                            className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-all duration-200"
-                                        >
-                                            <TrashIcon className="h-5 w-5" />
-                                        </button>
-                                    </div>
+                                    <MobileActionButtons
+                                        user={user}
+                                        onEdit={() => setModal({ type: 'form', data: user })}
+                                        onDelete={() => setModal({ type: 'confirm', data: user })}
+                                    />
                                 </div>
                             </li>
                         ))}
