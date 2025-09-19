@@ -865,14 +865,15 @@ const loadWelzijnStats = async ({ groupId, studentId }) => {
   }
 };
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="fixed inset-0 bg-slate-50 overflow-y-auto pt-20">
+    <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8">
      {/* Header with Role-Based Controls */}
 <div className="mb-8">
   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
     {/* Titel links */}
     <div>
       <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">
-        {school?.naam} Welzijnsmonitor
+        Welzijnsmonitor
       </h1>
       <p className="text-slate-600">
         {isTeacher ? 'Overzicht van EHBO competenties voor uw groepen' : 
@@ -973,6 +974,7 @@ const loadWelzijnStats = async ({ groupId, studentId }) => {
       {/* Tab Content */}
       {activeTab === 'ehbo' && <EHBODashboard />}
       {activeTab === 'welzijn' && <WelzijnDashboard />}
+    </div>
     </div>
   );
 };
