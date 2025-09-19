@@ -247,6 +247,7 @@ export default function SchoolBeheer() {
     }, [isSuperAdmin]);
 
     useEffect(() => {
+        setLoading(true);
         const scholenRef = collection(db, 'scholen');
         const q = query(scholenRef);
 
