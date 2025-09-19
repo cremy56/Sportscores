@@ -370,27 +370,27 @@ return (
         <Toaster position="top-center" />
         
         {/* Algemene header - ALTIJD zichtbaar */}
-        <div className="mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
-                {isSuperAdmin ? 'Schoolbeheer' : 'Rapportperioden Beheer'}
-            </h2>
-            <p className="text-gray-600">
-                {isSuperAdmin ? 'Beheer alle scholen in het systeem' : 'Beheer rapportperioden voor jouw school'}
-            </p>
-        </div>
-
-        {/* Super-admin: School lijst en selectie */}
-{isSuperAdmin && (
-    <>
-        <div className="flex justify-end mb-6">
-            <button
-                onClick={() => setModal({ type: 'form', data: null })}
-                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation"
-            >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                <span>Nieuwe School</span>
-            </button>
-        </div>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 space-y-4 sm:space-y-0">
+                <div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
+                        {isSuperAdmin ? 'Schoolbeheer' : 'Rapportperioden Beheer'}
+                    </h2>
+                    <p className="text-gray-600">
+                        {isSuperAdmin ? 'Beheer alle scholen in het systeem' : 'Beheer rapportperioden voor jouw school'}
+                    </p>
+                </div>
+                
+                {/* Button alleen voor super-admins */}
+                {isSuperAdmin && (
+                    <button
+                        onClick={() => setModal({ type: 'form', data: null })}
+                        className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
+                    >
+                        <PlusIcon className="h-5 w-5 mr-2" />
+                        <span>Nieuwe School</span>
+                    </button>
+                )}
+            </div>
 
                 {scholen.length > 0 && (
                     <div className="border border-slate-200 rounded-xl overflow-hidden mb-8">
@@ -428,8 +428,6 @@ return (
                         </ul>
                     </div>
                 )}
-            </>
-        )}
 
        {/* Rapportperioden sectie - voor beide rollen */}
 {selectedSchool ? (
