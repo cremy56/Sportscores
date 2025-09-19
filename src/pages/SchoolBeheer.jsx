@@ -372,20 +372,17 @@ if (!profile) {
 return (
     <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200">
         <Toaster position="top-center" />
-        
-        {/* Algemene header - ALTIJD zichtbaar */}
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 space-y-4 sm:space-y-0">
-                <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
-                        {isSuperAdmin ? 'Schoolbeheer' : 'Rapportperioden Beheer'}
-                    </h2>
-                    <p className="text-gray-600">
-                        {isSuperAdmin ? 'Beheer alle scholen in het systeem' : 'Beheer rapportperioden voor jouw school'}
-                    </p>
-                </div>
-                
-                {/* Button alleen voor super-admins */}
-                {isSuperAdmin && (
+
+        {/* ======================= */}
+        {/* == SUPER-ADMIN VIEW === */}
+        {/* ======================= */}
+        {isSuperAdmin && (
+            <>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 space-y-4 sm:space-y-0">
+                    <div>
+                        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Schoolbeheer</h2>
+                        <p className="text-gray-600">Beheer alle scholen in het systeem</p>
+                    </div>
                     <button
                         onClick={() => setModal({ type: 'form', data: null })}
                         className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
@@ -393,36 +390,24 @@ return (
                         <PlusIcon className="h-5 w-5 mr-2" />
                         <span>Nieuwe School</span>
                     </button>
-                )}
-            </div>
+                </div>
 
+                {/* Scholen lijst voor Super Admin */}
                 {scholen.length > 0 && (
                     <div className="border border-slate-200 rounded-xl overflow-hidden mb-8">
                         <ul className="divide-y divide-gray-200/70">
                             {scholen.map(school => (
                                 <li key={school.id} className="group">
                                     <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-purple-50/50 transition-colors touch-manipulation">
-                                        <div 
-                                            className="flex-1 min-w-0 mr-4 cursor-pointer"
-                                            onClick={() => setSelectedSchool(school)}
-                                        >
-                                            <p className="text-base sm:text-lg font-semibold text-gray-900 group-hover:text-purple-700 truncate">
+                                        <div className="flex-1 min-w-0 mr-4 cursor-pointer" onClick={() => setSelectedSchool(school)}>
+                                            <p className={`text-base sm:text-lg font-semibold truncate ${selectedSchool?.id === school.id ? 'text-purple-700' : 'text-gray-900 group-hover:text-purple-700'}`}>
                                                 {school.naam}
-                                                {selectedSchool?.id === school.id && (
-                                                    <span className="ml-2 text-sm text-purple-600">(geselecteerd)</span>
-                                                )}
                                             </p>
                                             <p className="text-sm text-gray-500 mt-1">{school.stad}</p>
                                         </div>
                                         <MobileActionButtons
-                                            onEdit={(e) => {
-                                                e.stopPropagation();
-                                                setModal({ type: 'form', data: school });
-                                            }}
-                                            onDelete={(e) => {
-                                                e.stopPropagation();
-                                                setModal({ type: 'confirm-school', data: school });
-                                            }}
+                                            onEdit={(e) => { e.stopPropagation(); setModal({ type: 'form', data: school }); }}
+                                            onDelete={(e) => { e.stopPropagation(); setModal({ type: 'confirm-school', data: school }); }}
                                             editLabel={`Bewerk ${school.naam}`}
                                             deleteLabel={`Verwijder ${school.naam}`}
                                         />
@@ -432,94 +417,100 @@ return (
                         </ul>
                     </div>
                 )}
+            </>
+        )}
 
-       {/* Rapportperioden sectie - voor beide rollen */}
-{selectedSchool ? (
-    <div className={isSuperAdmin ? "border-t border-slate-200 pt-8" : ""}>
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 space-y-4 sm:space-y-0">
-            <div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
-                    Rapportperioden - {selectedSchool.naam}
-                </h3>
-                <p className="text-gray-600">Beheer de perioden voor leerling evaluatie</p>
-            </div>
-            <button
-                onClick={() => setModal({ type: 'period', data: null })}
-                className="flex items-center justify-center bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
-            >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                <span>Nieuwe Periode</span>
-            </button>
-        </div>
-        
-        {periodenLoading ? (
-            <div className="bg-gray-50 rounded-xl p-6">
-                <p className="text-gray-500">Perioden laden...</p>
-            </div>
-        ) : rapportperioden.length === 0 ? (
-            <div className="text-center p-8 border border-slate-200 rounded-xl">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CalendarIcon className="w-6 h-6 text-green-600" />
+        {/* =================== */}
+        {/* == ADMIN VIEW ===== */}
+        {/* =================== */}
+        {!isSuperAdmin && (
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 space-y-4 sm:space-y-0">
+                <div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Rapportperioden Beheer</h2>
+                    <p className="text-gray-600">Beheer rapportperioden voor jouw school: <strong>{selectedSchool ? selectedSchool.naam : '...'}</strong></p>
                 </div>
-                <h4 className="text-lg font-bold text-gray-800 mb-2">Geen Rapportperioden</h4>
-                <p className="text-gray-600">Maak de eerste rapportperiode aan voor deze school.</p>
-            </div>
-        ) : (
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <ul className="divide-y divide-gray-200/70">
-                    {rapportperioden.map(period => (
-                        <li key={period.id} className="group">
-                            <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-green-50/50 transition-colors">
-                                <div className="flex-1 min-w-0 mr-4">
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <p className="text-base sm:text-lg font-semibold text-gray-900 group-hover:text-green-700">
-                                            {period.naam}
-                                        </p>
-                                        {period.is_actief && (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                Actief
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="text-sm text-gray-500">
-                                        {formatDate(period.startdatum)} - {formatDate(period.einddatum)}
-                                    </p>
-                                    <p className="text-sm text-gray-500">
-                                        Doel: {period.doel_xp?.toLocaleString()} XP • {period.schooljaar}
-                                    </p>
-                                </div>
-                                <MobileActionButtons
-                                    onEdit={(e) => {
-                                        e.stopPropagation();
-                                        setModal({ type: 'period', data: period });
-                                    }}
-                                    onDelete={(e) => {
-                                        e.stopPropagation();
-                                        setModal({ type: 'confirm-period', data: period });
-                                    }}
-                                    editLabel={`Bewerk ${period.naam}`}
-                                    deleteLabel={`Verwijder ${period.naam}`}
-                                />
-                            </div>
-                        </li>
-                    ))}
-                </ul>
             </div>
         )}
-    </div>
-) : (
-    <div className="text-center p-8 border border-slate-200 rounded-xl">
-        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CalendarIcon className="w-6 h-6 text-gray-600" />
-        </div>
-        <h3 className="text-lg font-bold text-gray-800 mb-2">
-            {isSuperAdmin ? 'Selecteer een School' : 'Rapportperioden Beheer'}
-        </h3>
-        <p className="text-gray-600">
-            {isSuperAdmin ? 'Klik op een school hierboven om rapportperioden te beheren.' : 'Geen school gevonden voor jouw account.'}
-        </p>
-    </div>
-)}
+
+        {/* ===================================== */}
+        {/* == GEDEELDE RAPPORTPERIODEN SECTIE == */}
+        {/* ===================================== */}
+
+        {/* Voor Admins: toon een laadstatus als de school nog niet geselecteerd is */}
+        {!isSuperAdmin && !selectedSchool && (
+            <div className="text-center p-8 border border-slate-200 rounded-xl">
+                <p>Schoolgegevens laden...</p>
+            </div>
+        )}
+
+        {/* Voor Super Admins: toon placeholder als er nog geen school gekozen is */}
+        {isSuperAdmin && !selectedSchool && (
+            <div className="text-center p-8 border border-slate-200 rounded-xl">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <BuildingOffice2Icon className="w-6 h-6 text-gray-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Selecteer een School</h3>
+                <p className="text-gray-600">Klik op een school hierboven om de rapportperioden te beheren.</p>
+            </div>
+        )}
+
+        {/* Zodra een school geselecteerd is, toon de rapportperioden (werkt voor beide rollen) */}
+        {selectedSchool && (
+            <div className={isSuperAdmin ? "border-t border-slate-200 pt-8" : ""}>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 space-y-4 sm:space-y-0">
+                    <div>
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">Rapportperioden</h3>
+                        {isSuperAdmin && <p className="text-gray-600">Geselecteerde school: <strong>{selectedSchool.naam}</strong></p>}
+                    </div>
+                    <button
+                        onClick={() => setModal({ type: 'period', data: null })}
+                        className="flex items-center justify-center bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
+                    >
+                        <PlusIcon className="h-5 w-5 mr-2" />
+                        <span>Nieuwe Periode</span>
+                    </button>
+                </div>
+
+                {/* Hier komt de rest van de logica voor het tonen van perioden (periodenLoading, lijst, etc.) */}
+                {periodenLoading ? (
+                    <div className="text-center p-6"><p>Perioden laden...</p></div>
+                ) : rapportperioden.length === 0 ? (
+                    <div className="text-center p-8 border border-slate-200 rounded-xl">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <CalendarIcon className="w-6 h-6 text-green-600" />
+                        </div>
+                        <h4 className="text-lg font-bold text-gray-800 mb-2">Geen Rapportperioden</h4>
+                        <p className="text-gray-600">Maak de eerste rapportperiode aan voor deze school.</p>
+                    </div>
+                ) : (
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                        <ul className="divide-y divide-gray-200/70">
+                            {rapportperioden.map(period => (
+                                // ... de <li> voor elke periode blijft hetzelfde
+                                <li key={period.id} className="group">
+                                    <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-green-50/50 transition-colors">
+                                        <div className="flex-1 min-w-0 mr-4">
+                                            <div className="flex items-center gap-3 mb-1">
+                                                <p className="text-base sm:text-lg font-semibold text-gray-900 group-hover:text-green-700">{period.naam}</p>
+                                                {period.is_actief && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Actief</span>}
+                                            </div>
+                                            <p className="text-sm text-gray-500">{formatDate(period.startdatum)} - {formatDate(period.einddatum)}</p>
+                                            <p className="text-sm text-gray-500">Doel: {period.doel_xp?.toLocaleString()} XP • {period.schooljaar}</p>
+                                        </div>
+                                        <MobileActionButtons
+                                            onEdit={(e) => { e.stopPropagation(); setModal({ type: 'period', data: period }); }}
+                                            onDelete={(e) => { e.stopPropagation(); setModal({ type: 'confirm-period', data: period }); }}
+                                            editLabel={`Bewerk ${period.naam}`}
+                                            deleteLabel={`Verwijder ${period.naam}`}
+                                        />
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
+        )}
 
             {/* Modals */}
             {isSuperAdmin && (
