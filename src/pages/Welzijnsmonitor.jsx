@@ -342,11 +342,7 @@ const EHBODashboard = () => {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">{student.name}</div>
-                        {!student.isRegistered && (
-                          <div className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded mt-1">
-                            Niet geregistreerd
-                          </div>
-                        )}
+                        
                       </div>
                     </div>
                   </td>
@@ -408,7 +404,7 @@ const EHBODashboard = () => {
                         new Date(student.lastActivity).toLocaleDateString('nl-NL') : 
                         'Nooit'
                     ) : (
-                      'Moet nog registreren'
+                      'Nog geen activiteit waargenomen'
                     )}
                   </td>
                 </tr>
