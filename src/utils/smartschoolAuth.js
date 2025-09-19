@@ -1,6 +1,6 @@
 // src/utils/smartschoolAuth.js
 const SMARTSCHOOL_CONFIG = {
-  clientId: process.env.REACT_APP_SMARTSCHOOL_CLIENT_ID,
+  clientId: 'abc833209402', // Hardcoded CLIENT_ID is veilig in OAuth
   redirectUri: `${window.location.origin}/auth/smartschool/callback`,
   scope: 'userinfo fulluserinfo'
 };
@@ -18,13 +18,15 @@ export const initiateSmartschoolLogin = (schoolDomain) => {
   });
 
   const authUrl = `https://${schoolDomain}.smartschool.be/oauth?${params.toString()}`;
-  console.log('Redirecting to:', authUrl); // Voor debugging
+  console.log('Redirecting to:', authUrl);
+  
+  // Direct redirect naar Smartschool
   window.location.href = authUrl;
 };
 
 export const exchangeCodeForToken = async (code, state) => {
   try {
-    const response = await fetch('/api/auth/smartschool/token', {
+    const response = await fetch('https://us-central1-sportscore-6774d.cloudfunctions.net/smartschoolAuth', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
