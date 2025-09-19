@@ -247,9 +247,20 @@ return (
         {!isSuperAdmin && (
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 space-y-4 sm:space-y-0">
                 <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Rapportperioden Beheer</h2>
-                    <p className="text-gray-600">Beheer rapportperioden voor jouw school: <strong>{selectedSchool ? selectedSchool.naam : '...'}</strong></p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Rapportperioden</h2>
+                    <p className="text-gray-600">Voor jouw school: <strong>{selectedSchool ? selectedSchool.naam : '...'}</strong></p>
                 </div>
+                
+                {/* Knop naast de titel voor gewone admins */}
+                {selectedSchool && (
+                    <button
+                        onClick={() => setModal({ type: 'period', data: null })}
+                        className="flex items-center justify-center bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
+                    >
+                        <PlusIcon className="h-5 w-5 mr-2" />
+                        <span>Nieuwe Periode</span>
+                    </button>
+                )}
             </div>
         )}
 
@@ -278,21 +289,24 @@ return (
         {/* Zodra een school geselecteerd is, toon de rapportperioden (werkt voor beide rollen) */}
         {selectedSchool && (
             <div className={isSuperAdmin ? "border-t border-slate-200 pt-8" : ""}>
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 space-y-4 sm:space-y-0">
-                    <div>
-                        <h3 className="text-xl font-bold text-gray-800 mb-2">Rapportperioden</h3>
-                        {isSuperAdmin && <p className="text-gray-600">Geselecteerde school: <strong>{selectedSchool.naam}</strong></p>}
+                {/* Alleen voor super-admins een kleine subtitel */}
+                {isSuperAdmin && (
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 space-y-4 sm:space-y-0">
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-2">Rapportperioden</h3>
+                            <p className="text-gray-600">Geselecteerde school: <strong>{selectedSchool.naam}</strong></p>
+                        </div>
+                        <button
+                            onClick={() => setModal({ type: 'period', data: null })}
+                            className="flex items-center justify-center bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
+                        >
+                            <PlusIcon className="h-5 w-5 mr-2" />
+                            <span>Nieuwe Periode</span>
+                        </button>
                     </div>
-                    <button
-                        onClick={() => setModal({ type: 'period', data: null })}
-                        className="flex items-center justify-center bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
-                    >
-                        <PlusIcon className="h-5 w-5 mr-2" />
-                        <span>Nieuwe Periode</span>
-                    </button>
-                </div>
+                )}
 
-                {/* Hier komt de rest van de logica voor het tonen van perioden (periodenLoading, lijst, etc.) */}
+                {/* Direct naar de perioden lijst */}
                 {periodenLoading ? (
                     <div className="text-center p-6"><p>Perioden laden...</p></div>
                 ) : rapportperioden.length === 0 ? (
@@ -307,7 +321,6 @@ return (
                     <div className="border border-slate-200 rounded-xl overflow-hidden">
                         <ul className="divide-y divide-gray-200/70">
                             {rapportperioden.map(period => (
-                                // ... de <li> voor elke periode blijft hetzelfde
                                 <li key={period.id} className="group">
                                     <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-green-50/50 transition-colors">
                                         <div className="flex-1 min-w-0 mr-4">
@@ -333,39 +346,39 @@ return (
             </div>
         )}
 
-            {/* Modals */}
-            {isSuperAdmin && (
-                <SchoolFormModal
-                    isOpen={modal.type === 'form'}
-                    onClose={handleCloseModal}
-                    schoolData={modal.data}
-                />
-            )}
-
-            <RapportperiodeModal
-                isOpen={modal.type === 'period'}
+        {/* Modals */}
+        {isSuperAdmin && (
+            <SchoolFormModal
+                isOpen={modal.type === 'form'}
                 onClose={handleCloseModal}
-                schoolId={selectedSchool?.id}
-                periodData={modal.data}
+                schoolData={modal.data}
             />
+        )}
 
-            <ConfirmModal
-                isOpen={modal.type === 'confirm-school'}
-                onClose={handleCloseModal}
-                onConfirm={handleDeleteSchool}
-                title="School Verwijderen"
-            >
-                Weet u zeker dat u school "{modal.data?.naam}" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
-            </ConfirmModal>
+        <RapportperiodeModal
+            isOpen={modal.type === 'period'}
+            onClose={handleCloseModal}
+            schoolId={selectedSchool?.id}
+            periodData={modal.data}
+        />
 
-            <ConfirmModal
-                isOpen={modal.type === 'confirm-period'}
-                onClose={handleCloseModal}
-                onConfirm={handleDeletePeriod}
-                title="Periode Verwijderen"
-            >
-                Weet u zeker dat u periode "{modal.data?.naam}" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
-            </ConfirmModal>
-        </div>
-    );
+        <ConfirmModal
+            isOpen={modal.type === 'confirm-school'}
+            onClose={handleCloseModal}
+            onConfirm={handleDeleteSchool}
+            title="School Verwijderen"
+        >
+            Weet u zeker dat u school "{modal.data?.naam}" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+        </ConfirmModal>
+
+        <ConfirmModal
+            isOpen={modal.type === 'confirm-period'}
+            onClose={handleCloseModal}
+            onConfirm={handleDeletePeriod}
+            title="Periode Verwijderen"
+        >
+            Weet u zeker dat u periode "{modal.data?.naam}" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+        </ConfirmModal>
+    </div>
+);
 }
