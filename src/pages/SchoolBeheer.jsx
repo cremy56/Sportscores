@@ -380,15 +380,17 @@ return (
         </div>
 
         {/* Super-admin: School lijst en selectie */}
-        {isSuperAdmin && (
-            <>
-                <button
-                    onClick={() => setModal({ type: 'form', data: null })}
-                    className="mb-6 flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
-                >
-                    <PlusIcon className="h-5 w-5 mr-2" />
-                    <span>Nieuwe School</span>
-                </button>
+{isSuperAdmin && (
+    <>
+        <div className="flex justify-end mb-6">
+            <button
+                onClick={() => setModal({ type: 'form', data: null })}
+                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation"
+            >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                <span>Nieuwe School</span>
+            </button>
+        </div>
 
                 {scholen.length > 0 && (
                     <div className="border border-slate-200 rounded-xl overflow-hidden mb-8">
