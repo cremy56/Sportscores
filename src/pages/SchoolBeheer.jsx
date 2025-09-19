@@ -11,226 +11,20 @@ import {
     where, 
     orderBy, 
     setDoc, 
-    updateDoc, 
-    Timestamp 
 } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 import { PlusIcon, TrashIcon, PencilIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import { BuildingOffice2Icon } from '@heroicons/react/24/solid';
 import SchoolFormModal from '../components/SchoolFormModal';
 import ConfirmModal from '../components/ConfirmModal';
-
-// Mobile-vriendelijke Action Buttons Component
-const MobileActionButtons = ({ onEdit, onDelete, editLabel = "Bewerk", deleteLabel = "Verwijder" }) => (
-    <div className="flex items-center gap-2">
-        <button
-            onClick={onEdit}
-            className="p-3 sm:p-2 text-gray-400 rounded-full hover:bg-blue-100 hover:text-blue-600 transition-colors touch-manipulation"
-            aria-label={editLabel}
-        >
-            <PencilIcon className="h-5 w-5" />
-        </button>
-        <button
-            onClick={onDelete}
-            className="p-3 sm:p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors touch-manipulation"
-            aria-label={deleteLabel}
-        >
-            <TrashIcon className="h-5 w-5" />
-        </button>
-    </div>
-);
-
-// Rapportperiode Form Modal
-const RapportperiodeModal = ({ isOpen, onClose, schoolId, periodData = null }) => {
-    const [formData, setFormData] = useState({
-        naam: '',
-        startdatum: '',
-        einddatum: '',
-        schooljaar: '',
-        doel_xp: 20000,
-        is_actief: false
-    });
-    const [saving, setSaving] = useState(false);
-
-    useEffect(() => {
-        if (periodData) {
-            setFormData({
-                naam: periodData.naam || '',
-                startdatum: periodData.startdatum?.toDate().toISOString().split('T')[0] || '',
-                einddatum: periodData.einddatum?.toDate().toISOString().split('T')[0] || '',
-                schooljaar: periodData.schooljaar || '',
-                doel_xp: periodData.doel_xp || 20000,
-                is_actief: periodData.is_actief || false
-            });
-        } else {
-            setFormData({
-                naam: '',
-                startdatum: '',
-                einddatum: '',
-                schooljaar: new Date().getFullYear() + '-' + (new Date().getFullYear() + 1),
-                doel_xp: 20000,
-                is_actief: false
-            });
-        }
-    }, [periodData, isOpen]);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!schoolId) return;
-
-        setSaving(true);
-        const loadingToast = toast.loading(periodData ? 'Periode bijwerken...' : 'Periode aanmaken...');
-
-        try {
-            const docId = periodData?.id || `periode_${Date.now()}`;
-            const periodRef = doc(db, 'scholen', schoolId, 'rapportperioden', docId);
-            
-            const data = {
-                naam: formData.naam,
-                startdatum: Timestamp.fromDate(new Date(formData.startdatum)),
-                einddatum: Timestamp.fromDate(new Date(formData.einddatum)),
-                schooljaar: formData.schooljaar,
-                doel_xp: parseInt(formData.doel_xp),
-                is_actief: formData.is_actief,
-                updated_at: Timestamp.now()
-            };
-
-            if (!periodData) {
-                data.created_at = Timestamp.now();
-            }
-
-            await setDoc(periodRef, data, { merge: true });
-            
-            toast.success(periodData ? 'Periode succesvol bijgewerkt!' : 'Periode succesvol aangemaakt!');
-            onClose();
-        } catch (error) {
-            console.error('Error saving period:', error);
-            toast.error('Fout bij opslaan: ' + error.message);
-        } finally {
-            setSaving(false);
-            toast.dismiss(loadingToast);
-        }
-    };
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-                <h3 className="text-xl font-bold text-gray-800 mb-4">
-                    {periodData ? 'Periode Bewerken' : 'Nieuwe Rapportperiode'}
-                </h3>
-                
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Naam
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.naam}
-                            onChange={(e) => setFormData(prev => ({ ...prev, naam: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            placeholder="bijv. 1e Trimester 2024-2025"
-                            required
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Startdatum
-                            </label>
-                            <input
-                                type="date"
-                                value={formData.startdatum}
-                                onChange={(e) => setFormData(prev => ({ ...prev, startdatum: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Einddatum
-                            </label>
-                            <input
-                                type="date"
-                                value={formData.einddatum}
-                                onChange={(e) => setFormData(prev => ({ ...prev, einddatum: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Schooljaar
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.schooljaar}
-                            onChange={(e) => setFormData(prev => ({ ...prev, schooljaar: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            placeholder="2024-2025"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Doel XP
-                        </label>
-                        <input
-                            type="number"
-                            value={formData.doel_xp}
-                            onChange={(e) => setFormData(prev => ({ ...prev, doel_xp: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            min="1000"
-                            max="100000"
-                            step="1000"
-                            required
-                        />
-                    </div>
-
-                    <div className="flex items-center">
-                        <input
-                            type="checkbox"
-                            id="is_actief"
-                            checked={formData.is_actief}
-                            onChange={(e) => setFormData(prev => ({ ...prev, is_actief: e.target.checked }))}
-                            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="is_actief" className="ml-2 block text-sm text-gray-700">
-                            Actieve periode (telt voor leerling rapportscores)
-                        </label>
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-1 py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                            disabled={saving}
-                        >
-                            Annuleren
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="flex-1 py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-                        >
-                            {saving ? 'Opslaan...' : 'Opslaan'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
+import RapportperiodeModal from '../components/RapportperiodeModal'; // Aanname dat deze bestaat
 
 export default function SchoolBeheer() {
-    const { profile } = useOutletContext();
+    console.log('%c[RENDER] Component wordt opnieuw gerenderd...', 'color: gray');
+
+    const context = useOutletContext();
+    const profile = context ? context.profile : null;
+
     const [scholen, setScholen] = useState([]);
     const [rapportperioden, setRapportperioden] = useState([]);
     const [selectedSchool, setSelectedSchool] = useState(null);
@@ -238,49 +32,70 @@ export default function SchoolBeheer() {
     const [periodenLoading, setPeriodenLoading] = useState(false);
     const [modal, setModal] = useState({ type: null, data: null });
 
-    // Bepaal welke school de admin kan beheren
     const userSchoolId = profile?.school_id;
     const isSuperAdmin = profile?.rol === 'super-administrator';
 
+    console.log('%c[STATE INIT] Direct na useState', 'color: blue', {
+        profile: profile,
+        isSuperAdmin: isSuperAdmin,
+        userSchoolId: userSchoolId,
+        loading: loading,
+        selectedSchool: selectedSchool
+    });
+
+    // Effect 1: Reset selectedSchool als de rol verandert
     useEffect(() => {
+        console.log(`%c[EFFECT 1] Rol is veranderd (isSuperAdmin: ${isSuperAdmin}). Resetting selectedSchool.`, 'color: orange');
         setSelectedSchool(null);
     }, [isSuperAdmin]);
 
+    // Effect 2: Haal scholen op
     useEffect(() => {
+        console.log('%c[EFFECT 2] Start met ophalen van scholen. Zet loading op true.', 'color: green');
         setLoading(true);
+
         const scholenRef = collection(db, 'scholen');
         const q = query(scholenRef);
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
+            console.log('%c[EFFECT 2 - SNAPSHOT] Data ontvangen van Firestore.', 'color: green; font-weight: bold');
             const scholenData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             scholenData.sort((a, b) => a.naam.localeCompare(b.naam));
             setScholen(scholenData);
             
-            // Voor gewone administrators, selecteer automatisch hun school
+            console.log(`%c[EFFECT 2 - SNAPSHOT] Logic voor auto-select: isSuperAdmin=${isSuperAdmin}, userSchoolId=${userSchoolId}`, 'color: green');
+
             if (!isSuperAdmin && userSchoolId) {
                 const userSchool = scholenData.find(s => s.id === userSchoolId);
+                console.log(`%c[EFFECT 2 - SNAPSHOT] School gezocht voor admin. Gevonden:`, 'color: green', userSchool);
                 if (userSchool) {
                     setSelectedSchool(userSchool);
+                } else {
+                    console.error(`[EFFECT 2 - SNAPSHOT] FOUT: Kon school met ID "${userSchoolId}" niet vinden voor de admin!`);
                 }
             }
             
+            console.log('%c[EFFECT 2 - SNAPSHOT] Zet loading op false.', 'color: green');
             setLoading(false);
         }, (error) => {
-            console.error("Fout bij ophalen scholen:", error);
+            console.error("[EFFECT 2] Fout bij ophalen scholen:", error);
             toast.error("Kon de scholen niet laden.");
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            console.log('%c[EFFECT 2 - CLEANUP] Unsubscribe van scholen listener.', 'color: red');
+            unsubscribe();
+        };
     }, [isSuperAdmin, userSchoolId]);
 
-    // Laad rapportperioden voor geselecteerde school
+    // Effect 3: Laad rapportperioden
     useEffect(() => {
         if (!selectedSchool) {
             setRapportperioden([]);
             return;
         }
-
+        console.log(`%c[EFFECT 3] Geselecteerde school veranderd naar: ${selectedSchool.naam}. Rapportperioden ophalen.`, 'color: purple');
         setPeriodenLoading(true);
         const periodenRef = collection(db, 'scholen', selectedSchool.id, 'rapportperioden');
         const q = query(periodenRef, orderBy('startdatum', 'desc'));
@@ -291,11 +106,13 @@ export default function SchoolBeheer() {
             setPeriodenLoading(false);
         }, (error) => {
             console.error("Fout bij ophalen rapportperioden:", error);
-            toast.error("Kon rapportperioden niet laden.");
             setPeriodenLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            console.log('%c[EFFECT 3 - CLEANUP] Unsubscribe van rapportperioden listener.', 'color: red');
+            unsubscribe();
+        };
     }, [selectedSchool]);
 
     const handleCloseModal = () => {
@@ -352,22 +169,23 @@ export default function SchoolBeheer() {
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
         return date.toLocaleDateString('nl-NL');
     };
-
+        console.log('%c[PRE-RENDER] Finale state voordat JSX wordt gerenderd', 'font-weight: bold; color: darkblue', {
+                loading: loading,
+                isSuperAdmin: isSuperAdmin,
+                selectedSchool: selectedSchool,
+                profileExists: !!profile
+            });
     if (loading) {
-        return (
-            <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200">
-                <div className="text-center p-8 sm:p-12">Laden...</div>
-            </div>
-        );
+        console.log('[RENDER-RESULTAAT] Toon "Laden..."');
+        return <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center">Laden...</div>;
     }
-// Na de loading check, voeg deze check toe:
-if (!profile) {
-    return (
-        <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200">
-            <div className="text-center p-8 sm:p-12">Profiel laden...</div>
-        </div>
-    );
-}
+
+    if (!profile) {
+        console.log('[RENDER-RESULTAAT] Toon "Profiel laden..."');
+        return <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center">Profiel laden...</div>;
+    }
+
+    console.log('[RENDER-RESULTAAT] Toon de volledige component UI.');
 
 // En zorg ervoor dat er altijd content wordt getoond
 return (
