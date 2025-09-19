@@ -41,6 +41,8 @@ import EHBODetail from './pages/EHBODetail';
 import Instellingen from './pages/Instellingen';
 import AlgemeenInstellingen from './pages/AlgemeenInstellingen';
 
+import UniversalLogin from './components/UniversalLogin';
+
 // Component om de dynamische homepage te bepalen
 function DynamicHomepage({ schoolSettings }) {
   // Als de instelling aanstaat, toon Highscores, anders Ad Valvas
@@ -204,12 +206,12 @@ function App() {
       <Routes>
         {!user ? (
             <>
-                <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/auth/smartschool/callback" element={<UniversalLogin />} />
                 {isSignInWithEmailLink(auth, window.location.href) ? (
                     <Route path="*" element={<HandleAuthRedirect />} />
                 ) : (
-                    <Route path="*" element={<Navigate to="/login" />} />
+                    <Route path="*" element={<UniversalLogin />} />
                 )}
             </>
         ) : (
