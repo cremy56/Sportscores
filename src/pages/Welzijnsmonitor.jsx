@@ -15,7 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Welzijnsmonitor = () => {
-  const { profile } = useOutletContext();
+  const { profile, school } = useOutletContext();
   const [activeTab, setActiveTab] = useState('ehbo');
   const [classStats, setClassStats] = useState(null);
   const [students, setStudents] = useState([]);
