@@ -6,7 +6,7 @@ const settingsMenu = [
     { name: 'Algemeen', to: '/instellingen', icon: Cog6ToothIcon, end: true },
     { name: 'Trainingsbeheer', to: '/instellingen/trainingsbeheer', icon: WrenchScrewdriverIcon },
     { name: 'Gebruikersbeheer', to: '/instellingen/gebruikersbeheer', icon: UsersIcon },
-    { name: 'Schoolbeheer', to: '/instellingen/schoolbeheer', icon: BuildingLibraryIcon, adminOnly: true }
+    { name: 'Schoolbeheer', to: '/instellingen/schoolbeheer', icon: BuildingLibraryIcon, adminOnly: false }
 ];
 
 export default function Instellingen() {
@@ -30,8 +30,8 @@ export default function Instellingen() {
                             <h2 className="text-xl font-bold mb-4 hidden lg:block">Instellingen</h2>
                             <nav className="flex lg:flex-col lg:space-y-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
                                 {settingsMenu.map((item) => {
-                                    // Verberg Schoolbeheer voor gewone administrators
-                                    if (item.adminOnly && profile?.rol !== 'super-administrator') {
+                                    // Verberg Schoolbeheer voor leerkrachten
+                                  if (item.adminOnly && !['administrator', 'super-administrator'].includes(profile?.rol)) {
                                         return null;
                                     }
                                     return (

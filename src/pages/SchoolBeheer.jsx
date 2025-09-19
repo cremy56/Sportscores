@@ -148,6 +148,29 @@ export default function SchoolBeheer() {
                 </div>
             )}
 
+            {/* Rapportperioden sectie - alleen voor administrators */}
+            {profile?.rol && ['administrator', 'super-administrator'].includes(profile.rol) && (
+            <div className="mt-12 border-t border-slate-200 pt-8">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 space-y-4 sm:space-y-0">
+                <div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">Rapportperioden</h3>
+                    <p className="text-gray-600">Beheer de perioden voor leerling evaluatie</p>
+                </div>
+                <button
+                    onClick={() => setModal({ type: 'period', data: null })}
+                    className="flex items-center justify-center bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
+                >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    <span>Nieuwe Periode</span>
+                </button>
+                </div>
+                
+                {/* Hier komt de lijst met rapportperioden */}
+                <div className="bg-gray-50 rounded-xl p-6">
+                <p className="text-gray-500">Rapportperioden functionaliteit komt hier...</p>
+                </div>
+            </div>
+            )}
             <SchoolFormModal
                 isOpen={modal.type === 'form'}
                 onClose={handleCloseModal}
