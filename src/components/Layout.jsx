@@ -105,12 +105,12 @@ const ProfileMenu = ({
     const currentPath = location.pathname;
     
     // Check if current path is restricted for the new role
-    const restrictedPaths = {
-      'leerling': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer', '/welzijnsmonitor', '/groepsbeheer', '/sporttesten'],
-      'leerkracht': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'],
-      'administrator': ['/schoolbeheer'],
-      'super-administrator': []
-    };
+   const restrictedPaths = {
+    'leerling': ['/instellingen', '/welzijnsmonitor', '/groepsbeheer', '/sporttesten'],
+    'leerkracht': ['/instellingen'],
+    'administrator': ['/instellingen/schoolbeheer'], // Specifiek pad
+    'super-administrator': []
+};
 
     const isPathRestricted = restrictedPaths[newRole]?.some(path => currentPath.startsWith(path));
     
