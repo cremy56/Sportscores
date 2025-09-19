@@ -18,6 +18,8 @@ import { BuildingOffice2Icon } from '@heroicons/react/24/solid';
 import SchoolFormModal from '../components/SchoolFormModal';
 import ConfirmModal from '../components/ConfirmModal';
 import RapportperiodeModal from '../components/RapportperiodeModal'; // Aanname dat deze bestaat
+import MobileActionButtons from '../components/MobileActionButtons'; // <-- VOEG DEZE REGEL TOE
+
 
 export default function SchoolBeheer() {
     console.log('%c[RENDER] Component wordt opnieuw gerenderd...', 'color: gray');
