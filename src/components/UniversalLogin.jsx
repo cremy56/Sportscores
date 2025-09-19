@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { auth, db } from '../firebase';
-import { collection, getDocs, signInWithEmailAndPassword, signInWithCustomToken } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
+import { signInWithEmailAndPassword, signInWithCustomToken } from 'firebase/auth';
 import { initiateSmartschoolLogin, exchangeCodeForToken } from '../utils/smartschoolAuth';
 import toast, { Toaster } from 'react-hot-toast';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
