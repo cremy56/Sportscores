@@ -108,7 +108,7 @@ const ProfileMenu = ({
    const restrictedPaths = {
     'leerling': ['/instellingen', '/welzijnsmonitor', '/groepsbeheer', '/sporttesten'],
     'leerkracht': ['/instellingen'],
-    'administrator': ['/instellingen/schoolbeheer'], // Specifiek pad
+    'administrator': [], // Specifiek pad
     'super-administrator': []
 };
 
