@@ -355,10 +355,29 @@ export default function SchoolBeheer() {
             </div>
         );
     }
-
+// Na de loading check, voeg deze check toe:
+if (!profile) {
     return (
         <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200">
-            <Toaster position="top-center" />
+            <div className="text-center p-8 sm:p-12">Profiel laden...</div>
+        </div>
+    );
+}
+
+// En zorg ervoor dat er altijd content wordt getoond
+return (
+    <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200">
+        <Toaster position="top-center" />
+        
+        {/* ALTIJD een header tonen */}
+        <div className="mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
+                {isSuperAdmin ? 'Schoolbeheer' : 'Rapportperioden Beheer'}
+            </h2>
+            <p className="text-gray-600">
+                {isSuperAdmin ? 'Beheer alle scholen in het systeem' : 'Beheer rapportperioden voor jouw school'}
+            </p>
+        </div>
             
             {/* School Management Section - Alleen voor super-administrators */}
             {isSuperAdmin && (
