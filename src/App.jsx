@@ -259,11 +259,9 @@ function App() {
                             <Route index element={<AlgemeenInstellingen />} />
                             <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
                             <Route path="gebruikersbeheer" element={<Gebruikersbeheer />} />
-                            {activeRole === 'super-administrator' && (
-                              <Route path="schoolbeheer" element={<SchoolBeheer />} />
-                            )}
-                        </Route>
-                      )}
+                            <Route path="schoolbeheer" element={<SchoolBeheer />} />
+                          </Route>
+                        )}
 
                     </Route>
                   </Route>
