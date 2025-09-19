@@ -243,6 +243,10 @@ export default function SchoolBeheer() {
     const isSuperAdmin = profile?.rol === 'super-administrator';
 
     useEffect(() => {
+        setSelectedSchool(null);
+    }, [isSuperAdmin]);
+
+    useEffect(() => {
         const scholenRef = collection(db, 'scholen');
         const q = query(scholenRef);
 
