@@ -407,7 +407,7 @@ const getHartslagScore = () => {
           <div className="absolute pointer-events-none" style={{ bottom: '40px', left: '50%' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.slaap}%</span></div>
           
           <div className="absolute -left top-1/2 transform -translate-y-1/2"><div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Mentaal</div></div>
-          <div className="absolute pointer-events-none" style={{ top: '60%', left: '25px' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.mentaal}%</span></div>
+          <div className="absolute pointer-events-none" style={{ top: '60%', left: '27px' }}><span className="text-gray-800 font-bold text-xl drop-shadow-lg">{welzijnScores.mentaal}%</span></div>
 
           {/* Hart in midden */}
           <div 
@@ -416,7 +416,7 @@ const getHartslagScore = () => {
             style={{ width: '180px', height: '180px', background: 'linear-gradient(145deg, #ef4444, #dc2626, #b91c1c)', borderRadius: '50%', boxShadow: '0 20px 40px rgba(239, 68, 68, 0.4), inset 0 4px 8px rgba(255,255,255,0.2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'slowPulse 3s infinite ease-in-out' }}
           >
             <div style={{ fontSize: '4rem', marginBottom: '8px', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))' }}>❤️</div>
-            <div className="text-white font-bold text-3xl leading-none filter drop-shadow-md">{dagelijkseData.hartslag_rust || 'N/A'}</div>
+            <div className="text-white font-bold text-3xl leading-none filter drop-shadow-md">{dagelijkseData.hartslag_rust || '?'}</div>
             <div className="text-white text-sm opacity-90 font-medium">BPM</div>
           </div>
         </div>
