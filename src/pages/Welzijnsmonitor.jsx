@@ -866,84 +866,83 @@ const loadWelzijnStats = async ({ groupId, studentId }) => {
 };
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      {/* Header with Role-Based Controls */}
-      <div className="mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="text-center lg:text-left lg:flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
-              Welzijnsmonitor - {profile?.rol === 'administrator' || profile?.rol === 'super-administrator' ? 'School Dashboard' : 'Groep Dashboard'}
-            </h1>
-            <p className="text-slate-600">
-              {isTeacher ? 'Overzicht van EHBO competenties voor uw groepen' : 
-               isAdmin ? 'Overzicht van EHBO competenties en welzijn voor de hele school' :
-               'Overzicht van EHBO competenties en welzijn statistieken'}
-            </p>
-          </div>
-          
-         {/* Role-Based Controls */}
-          <div className="lg:flex-shrink-0 lg:w-[600px]">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-              
-              {/* Everyone gets group selection if they are teacher or admin */}
-                {(isTeacher || isAdmin) && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Groep Selecteren
-                      {groupsLoading && <span className="text-xs text-gray-500 ml-2">(Laden...)</span>}
-                    </label>
-                    <select
-                      value={selectedGroup}
-                      onChange={(e) => handleGroupSelection(e.target.value)}
-                      disabled={groupsLoading}
-                      className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-red-500 focus:ring-red-500 disabled:bg-gray-100"
-                    >
-                      {groupsLoading ? (
-                        <option value="all">Groepen laden...</option>
-                      ) : availableGroups.length > 0 ? (
-                        availableGroups.map(group => (
-                          <option key={group.id} value={group.id}>
-                            {group.naam}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="all">Geen groepen gevonden</option>
-                      )}
-                    </select>
-                    
-                   
-                  </div>
-                )}
-              
-              {/* Admin: Student Search (optional, additional filter) */}
-              {isAdmin && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Specifieke Leerling (Optioneel)
-                  </label>
-                  <StudentSearch 
-                    onStudentSelect={handleStudentSelection}
-                    schoolId={profile?.school_id}
-                    initialStudent={selectedStudent}
-                    placeholder="Extra filter op leerling"
-                  />
-                </div>
+     {/* Header with Role-Based Controls */}
+<div className="mb-8">
+  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
+    {/* Titel links */}
+    <div>
+      <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">
+        {school?.naam} Welzijnsmonitor
+      </h1>
+      <p className="text-slate-600">
+        {isTeacher ? 'Overzicht van EHBO competenties voor uw groepen' : 
+         isAdmin ? 'Overzicht van EHBO competenties en welzijn voor de hele school' :
+         'Overzicht van EHBO competenties en welzijn statistieken'}
+      </p>
+    </div>
+    
+    {/* Controls rechts */}
+    <div className="lg:flex-shrink-0 lg:w-[600px]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        
+        {/* Group selection */}
+        {(isTeacher || isAdmin) && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Groep Selecteren
+              {groupsLoading && <span className="text-xs text-gray-500 ml-2">(Laden...)</span>}
+            </label>
+            <select
+              value={selectedGroup}
+              onChange={(e) => handleGroupSelection(e.target.value)}
+              disabled={groupsLoading}
+              className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-red-500 focus:ring-red-500 disabled:bg-gray-100"
+            >
+              {groupsLoading ? (
+                <option value="all">Groepen laden...</option>
+              ) : availableGroups.length > 0 ? (
+                availableGroups.map(group => (
+                  <option key={group.id} value={group.id}>
+                    {group.naam}
+                  </option>
+                ))
+              ) : (
+                <option value="all">Geen groepen gevonden</option>
               )}
-              
-              {/* Clear Student Selection for Admins */}
-              {isAdmin && selectedStudent && (
-                <div className="flex items-end">
-                  <button
-                    onClick={() => setSelectedStudent(null)}
-                    className="w-full h-10 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-sm"
-                  >
-                    Verwijder Leerling Filter
-                  </button>
-                </div>
-              )}
-            </div>
+            </select>
           </div>
-        </div>
+        )}
+        
+        {/* Student search for admins */}
+        {isAdmin && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Specifieke Leerling (Optioneel)
+            </label>
+            <StudentSearch 
+              onStudentSelect={handleStudentSelection}
+              schoolId={profile?.school_id}
+              initialStudent={selectedStudent}
+              placeholder="Extra filter op leerling"
+            />
+          </div>
+        )}
+        
+        {/* Clear student button */}
+        {isAdmin && selectedStudent && (
+          <div className="flex items-end">
+            <button
+              onClick={() => setSelectedStudent(null)}
+              className="w-full h-10 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-sm"
+            >
+              Verwijder Leerling Filter
+            </button>
+          </div>
+        )}
       </div>
+    </div>
+  </div>
+</div>
 
       {/* Navigation Tabs */}
       <div className="flex gap-2 mb-8 bg-white rounded-xl p-2 shadow-sm border border-gray-200">

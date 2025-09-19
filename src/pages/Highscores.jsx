@@ -113,10 +113,7 @@ export default function Highscores() {
                             <p className="text-sm text-slate-600 mb-3">
                                 {getLearnerAgeText()}
                             </p>
-                            {/* Decoratieve lijn voor leerlingen */}
-                            <div className="flex justify-center mt-4">
-                                <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                            </div>
+                            
                         </div>
                     ) : (
                         // Oude header voor leerkrachten/admins (met logo en algemene tekst)
