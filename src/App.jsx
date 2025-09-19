@@ -259,6 +259,7 @@ function App() {
                             <Route index element={<AlgemeenInstellingen />} />
                             <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
                             <Route path="gebruikersbeheer" element={<Gebruikersbeheer />} />
+                            {/* De foute voorwaarde is hier weggehaald */}
                             <Route path="schoolbeheer" element={<SchoolBeheer />} />
                           </Route>
                         )}
