@@ -1,7 +1,7 @@
 // src/utils/smartschoolAuth.js
 const SMARTSCHOOL_CONFIG = {
-  clientId: 'abc833209402',
-  redirectUri: 'Https://www.sportscores.be/auth/smartschool/callback', // Exacte productie URL
+  clientId: 'abc833209402', // Hardcoded CLIENT_ID is veilig in OAuth
+  redirectUri: `${window.location.origin}/auth/smartschool/callback`,
   scope: 'userinfo fulluserinfo'
 };
 
@@ -17,8 +17,7 @@ export const initiateSmartschoolLogin = (schoolDomain) => {
     })
   });
 
-  // Gebruik dit in smartschoolAuth.js:
-const authUrl = `https://${schoolDomain}.smartschool.be/OAuth?${params.toString()}`;
+  const authUrl = `https://${schoolDomain}.smartschool.be/oauth?${params.toString()}`;
   console.log('Redirecting to:', authUrl);
   
   // Direct redirect naar Smartschool
