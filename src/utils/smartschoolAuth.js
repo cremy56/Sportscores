@@ -1,7 +1,7 @@
 // src/utils/smartschoolAuth.js
 const SMARTSCHOOL_CONFIG = {
   clientId: 'abc833209402',
-  redirectUri: 'https://www.sportscores.be/auth/smartschool/callback', // Exacte productie URL
+  redirectUri: 'Https://www.sportscores.be/auth/smartschool/callback', // Exacte productie URL
   scope: 'userinfo fulluserinfo'
 };
 
