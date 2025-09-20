@@ -17,7 +17,8 @@ export const initiateSmartschoolLogin = (schoolDomain) => {
     })
   });
 
-  const authUrl = `https://${schoolDomain}.smartschool.be/oauth?${params.toString()}`;
+  // Gebruik dit in smartschoolAuth.js:
+const authUrl = `https://oauth.smartschool.be/OAuth/index/authorize?${params.toString()}`;
   console.log('Redirecting to:', authUrl);
   
   // Direct redirect naar Smartschool
