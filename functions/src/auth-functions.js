@@ -44,7 +44,7 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
       
       // Stap 2: Wissel de ontvangen 'code' in voor een 'access token'.
       // Dit gebeurt via een beveiligde server-naar-server call naar het CENTRALE Smartschool eindpunt.
-      const tokenResponse = await axios.post(`https://oauth.smartschool.be/OAuth/index/token`, 
+      const tokenResponse = await axios.post('https://oauth.smartschool.be/OAuth/index/token', 
         new URLSearchParams({
           grant_type: 'authorization_code',
           client_id: process.env.SMARTSCHOOL_CLIENT_ID, // Je geheime Client ID
@@ -59,7 +59,7 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
       
       // Stap 3: Gebruik het 'access token' om de gebruikersinformatie op te halen.
       // Dit gebeurt via het CENTRALE API-eindpunt van Smartschool.
-      const userResponse = await axios.get(`https://api.smartschool.be/v3/userinfo`, {
+      const userResponse = await axios.get('https://oauth.smartschool.be/Api/V1/userinfo', {
         headers: { 'Authorization': `Bearer ${access_token}` }
       });
       const smartschoolUser = userResponse.data;
