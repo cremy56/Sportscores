@@ -1,8 +1,9 @@
 // src/utils/smartschoolAuth.js
 const SMARTSCHOOL_CONFIG = {
-  clientId: 'abc833209402',
-  redirectUri: 'https://www.sportscores.be/auth/smartschool/callback', // <-- CORRECT
-  scope: 'userinfo'
+  clientId: 'abc833209402', 
+  // BELANGRIJK: Zorg dat DIT de URI is die je bij Smartschool hebt geregistreerd!
+  redirectUri: 'https://www.sportscores.be/auth/smartschool/callback', 
+  scope: 'userinfo fulluserinfo' // Voeg 'fulluserinfo' toe voor geboortedatum
 };
 
 export const initiateSmartschoolLogin = (schoolDomain) => {
@@ -11,14 +12,14 @@ export const initiateSmartschoolLogin = (schoolDomain) => {
     client_id: SMARTSCHOOL_CONFIG.clientId,
     redirect_uri: SMARTSCHOOL_CONFIG.redirectUri,
     scope: SMARTSCHOOL_CONFIG.scope,
-    // We voegen het school domein toe aan de 'state' parameter.
-    // Dit is cruciaal voor de backend om te weten welke school de aanvraag doet.
+    // De 'state' parameter geeft het schooldomein veilig door aan onze backend.
     state: JSON.stringify({ 
       schoolDomain: schoolDomain, // bv. "kabeveren"
       timestamp: Date.now() 
     })
   });
 
+  // De URL wijst nu naar het CORRECTE, CENTRALE Smartschool OAuth eindpunt.
   const authUrl = `https://oauth.smartschool.be/OAuth/index/authorize?${params.toString()}`;
   
   console.log('Redirecting to:', authUrl);
