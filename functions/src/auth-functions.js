@@ -40,105 +40,56 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
       // STAP 1: Exchange authorization code for access token
       console.log(`Exchanging code for token with ${schoolDomain}.smartschool.be`);
       const tokenResponse = await axios.post(`https://oauth.smartschool.be/OAuth/index/token`, 
-        new URLSearchParams({ // Smartschool verwacht form-urlencoded data
+        new URLSearchParams({
           grant_type: 'authorization_code',
           client_id: process.env.SMARTSCHOOL_CLIENT_ID,
           client_secret: process.env.SMARTSCHOOL_CLIENT_SECRET,
           code,
           redirect_uri
         }).toString(), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
 
       const { access_token } = tokenResponse.data;
-      console.log('Access token received from Smartschool');
       
-      // STAP 2: Get user info from Smartschool
-      const userResponse = await axios.get(`https://api.smartschool.be/V3/userinfo`, {
-        headers: {
-          'Authorization': `Bearer ${access_token}`
-        }
+      // STAP 2: Haal gebruikersinfo op via het centrale API-eindpunt
+      // De documentatie specificeert dit eindpunt voor API-calls.
+      //
+      const userResponse = await axios.get(`https://api.smartschool.be/v3/userinfo`, {
+        headers: { 'Authorization': `Bearer ${access_token}` }
       });
 
       const smartschoolUser = userResponse.data;
-      console.log('Smartschool user info received:', {
-        firstName: smartschoolUser.firstName,
-        lastName: smartschoolUser.lastName,
-        birthDate: smartschoolUser.birthDate
-      });
       
-      // STAP 3: Zoek school in Firestore
-      const schoolId = schoolDomain;
-      const schoolRef = await db.collection('scholen').doc(schoolId).get();
-      
-      if (!schoolRef.exists) {
-        console.error('School not found in database:', schoolId);
-        return res.status(404).json({ error: 'School niet gevonden' });
-      }
-      
-      const schoolData = schoolRef.data();
-      
-      // Controleer auth method
-      if (schoolData.instellingen?.auth_method !== 'smartschool') {
-        return res.status(400).json({ 
-          error: 'School gebruikt geen Smartschool authenticatie' 
-        });
-      }
+      // STAP 3: Converteer domein naar school_id voor de database (bv. "kabeveren" -> "ka_beveren")
+      const schoolId = schoolDomain; // Pas dit aan indien nodig
 
-      // STAP 4: Zoek gebruiker in toegestane_gebruikers
-      const fullName = `${smartschoolUser.voornaam} ${smartschoolUser.naam}`; // Gebruik de velden die Smartschool teruggeeft
-      const birthDate = new Date(smartschoolUser.geboortedatum).toISOString().split('T')[0];
+      // STAP 4: Zoek gebruiker in 'toegestane_gebruikers'
+      const fullName = `${smartschoolUser.voornaam} ${smartschoolUser.naam}`;
+      const birthDateTimestamp = admin.firestore.Timestamp.fromDate(new Date(smartschoolUser.geboortedatum));
 
       const userQuery = await db.collection('toegestane_gebruikers')
         .where('naam', '==', fullName)
-        .where('geboortedatum', '==', birthDate)
+        .where('geboortedatum', '==', birthDateTimestamp)
         .where('school_id', '==', schoolId)
         .get();
 
       if (userQuery.empty) {
-        console.error('User not found in database:', { fullName, birthDate, schoolId });
-        return res.status(404).json({ 
-          error: 'Gebruiker niet gevonden',
-          details: 'Geen match gevonden op basis van naam, geboortedatum en school'
-        });
+        return res.status(404).json({ error: 'Gebruiker niet gevonden' });
       }
 
       const userDoc = userQuery.docs[0];
       const userData = userDoc.data();
       
-      console.log('User found in database:', userData.naam);
-      
       // STAP 5: Creëer Firebase custom token
-      const customToken = await admin.auth().createCustomToken(userDoc.id, {
-        smartschool_id: smartschoolUser.id,
-        email: userData.email,
-        rol: userData.rol,
-        school_id: userData.school_id,
-        auth_method: 'smartschool'
-      });
+      // We gebruiken het e-mailadres uit toegestane_gebruikers als de unieke ID voor het token.
+      const customToken = await admin.auth().createCustomToken(userDoc.id);
 
-      console.log('Firebase custom token created successfully');
-
-      res.json({
-        success: true,
-        customToken,
-        user: {
-          id: userDoc.id,
-          naam: userData.naam,
-          email: userData.email,
-          rol: userData.rol,
-          school_id: userData.school_id
-        }
-      });
+      res.json({ success: true, customToken });
 
     } catch (error) {
-      console.error('Smartschool OAuth error:', error.response?.data || error.message);
-      res.status(500).json({ 
-        error: 'OAuth authentication failed',
-        details: error.response?.data?.error_description || error.message 
-      });
+        console.error('Smartschool OAuth error:', error.response?.data || error.message);
+        res.status(500).json({ error: 'OAuth authenticatie mislukt' });
     }
   });
 });

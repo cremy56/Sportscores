@@ -19,7 +19,7 @@ const LoadingSpinner = ({ message }) => (
 );
 
 export default function UniversalLogin() {
-  const [uiState, setUiState] = useState('CHOICE'); // 'CHOICE', 'SCHOOL_SELECT', 'EMAIL_FORM', 'LOADING'
+  const [uiState, setUiState] = useState('CHOICE');
   const [smartschoolSchools, setSmartschoolSchools] = useState([]);
   const [loadingMessage, setLoadingMessage] = useState('Laden...');
   
@@ -31,12 +31,13 @@ export default function UniversalLogin() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Effect 1: Handle de Smartschool callback
+  // Effect 1: Detecteer en handel de Smartschool callback af
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
 
+    // Als de URL 'code' en 'state' bevat, is het een callback.
     if (code && state) {
       setUiState('LOADING');
       setLoadingMessage('Bezig met aanmelden via Smartschool...');
@@ -48,15 +49,14 @@ export default function UniversalLogin() {
           if (tokenData.customToken) {
             await signInWithCustomToken(auth, tokenData.customToken);
             toast.success('Succesvol ingelogd via Smartschool!');
-            // De onAuthStateChanged in App.jsx zal de navigatie afhandelen
           } else {
             throw new Error(tokenData.error || 'Custom token niet ontvangen.');
           }
         } catch (error) {
           console.error('OAuth callback error:', error);
           toast.error(`Login mislukt: ${error.message}`);
-          setUiState('CHOICE'); // Zet de UI terug naar de keuze-pagina bij een fout
-          navigate('/login', { replace: true }); // Maak de URL schoon
+          setUiState('CHOICE');
+          navigate('/login', { replace: true });
         }
       };
 
@@ -64,8 +64,14 @@ export default function UniversalLogin() {
     }
   }, [location, navigate]);
 
-  // Effect 2: Laad de scholen die Smartschool gebruiken
+  // Effect 2: Laad de scholen, maar SLA DIT OVER als we een callback afhandelen.
   useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    if (urlParams.has('code') && urlParams.has('state')) {
+      // Dit is een callback, dus we hoeven de scholen niet te laden.
+      return; 
+    }
+
     const loadSmartschoolSchools = async () => {
       try {
         const schoolsQuery = query(
@@ -86,9 +92,9 @@ export default function UniversalLogin() {
       }
     };
     loadSmartschoolSchools();
-  }, []);
+  }, [location.search]); // Afhankelijk van de URL-zoekparameters
 
-  const handleSmartschoolButtonClick = () => {
+const handleSmartschoolButtonClick = () => {
     if (smartschoolSchools.length === 0) {
       toast.error('Geen scholen geconfigureerd voor Smartschool.');
       return;
@@ -116,7 +122,7 @@ export default function UniversalLogin() {
       toast.success('Succesvol ingelogd!');
     } catch (error) {
       toast.error('Verkeerd e-mailadres of wachtwoord.');
-      setUiState('EMAIL_FORM'); // Ga terug naar het formulier bij een fout
+      setUiState('EMAIL_FORM');
     }
   };
 
