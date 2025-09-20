@@ -37,7 +37,7 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
       }
 
       // Haal het schooldomein op dat we in de state hadden meegestuurd.
-      const schoolDomain = stateData.schoolDomain;
+      const schoolDomain = stateData.school;
       if (!schoolDomain) {
         return res.status(400).json({ error: 'School domain missing in state' });
       }
