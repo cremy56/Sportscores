@@ -2,7 +2,7 @@
 const SMARTSCHOOL_CONFIG = {
   clientId: 'abc833209402', // Hardcoded CLIENT_ID is veilig in OAuth
   redirectUri: `${window.location.origin}/auth/smartschool/callback`,
-  scope: 'userinfo fulluserinfo'
+  scope: 'userinfo'
 };
 
 export const initiateSmartschoolLogin = (schoolDomain) => {
