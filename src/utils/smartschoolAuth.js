@@ -11,16 +11,17 @@ export const initiateSmartschoolLogin = (schoolDomain) => {
     client_id: SMARTSCHOOL_CONFIG.clientId,
     redirect_uri: SMARTSCHOOL_CONFIG.redirectUri,
     scope: SMARTSCHOOL_CONFIG.scope,
+    // We voegen het school domein toe aan de 'state' parameter.
+    // Dit is cruciaal voor de backend om te weten welke school de aanvraag doet.
     state: JSON.stringify({ 
-      school: schoolDomain,
+      schoolDomain: schoolDomain, // bv. "kabeveren"
       timestamp: Date.now() 
     })
   });
 
-  const authUrl = `https://${schoolDomain}.smartschool.be/oauth?${params.toString()}`;
-  console.log('Redirecting to:', authUrl);
+  const authUrl = `https://oauth.smartschool.be/OAuth/index/authorize?${params.toString()}`;
   
-  // Direct redirect naar Smartschool
+  console.log('Redirecting to:', authUrl);
   window.location.href = authUrl;
 };
 

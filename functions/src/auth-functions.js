@@ -32,17 +32,21 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
         return res.status(400).json({ error: 'State expired' });
       }
 
-      const schoolDomain = stateData.school;
+      const schoolDomain = stateData.schoolDomain;
+      if (!schoolDomain) {
+        return res.status(400).json({ error: 'School domain missing in state' });
+      }
       
       // STAP 1: Exchange authorization code for access token
       console.log(`Exchanging code for token with ${schoolDomain}.smartschool.be`);
-      const tokenResponse = await axios.post(`https://${schoolDomain}.smartschool.be/oauth/token`, {
-        grant_type: 'authorization_code',
-        client_id: process.env.SMARTSCHOOL_CLIENT_ID,
-        client_secret: process.env.SMARTSCHOOL_CLIENT_SECRET,
-        code,
-        redirect_uri
-      }, {
+      const tokenResponse = await axios.post(`https://oauth.smartschool.be/OAuth/index/token`, 
+        new URLSearchParams({ // Smartschool verwacht form-urlencoded data
+          grant_type: 'authorization_code',
+          client_id: process.env.SMARTSCHOOL_CLIENT_ID,
+          client_secret: process.env.SMARTSCHOOL_CLIENT_SECRET,
+          code,
+          redirect_uri
+        }).toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         }
@@ -52,7 +56,7 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
       console.log('Access token received from Smartschool');
       
       // STAP 2: Get user info from Smartschool
-      const userResponse = await axios.get(`https://${schoolDomain}.smartschool.be/api/v1/user`, {
+      const userResponse = await axios.get(`https://api.smartschool.be/V3/userinfo`, {
         headers: {
           'Authorization': `Bearer ${access_token}`
         }
@@ -66,7 +70,7 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
       });
       
       // STAP 3: Zoek school in Firestore
-      const schoolId = schoolDomain.replace('-', '_');
+      const schoolId = schoolDomain;
       const schoolRef = await db.collection('scholen').doc(schoolId).get();
       
       if (!schoolRef.exists) {
@@ -84,11 +88,9 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
       }
 
       // STAP 4: Zoek gebruiker in toegestane_gebruikers
-      const fullName = `${smartschoolUser.firstName} ${smartschoolUser.lastName}`;
-      const birthDate = new Date(smartschoolUser.birthDate).toISOString().split('T')[0];
-      
-      console.log('Searching for user:', { fullName, birthDate, schoolId });
-      
+      const fullName = `${smartschoolUser.voornaam} ${smartschoolUser.naam}`; // Gebruik de velden die Smartschool teruggeeft
+      const birthDate = new Date(smartschoolUser.geboortedatum).toISOString().split('T')[0];
+
       const userQuery = await db.collection('toegestane_gebruikers')
         .where('naam', '==', fullName)
         .where('geboortedatum', '==', birthDate)
