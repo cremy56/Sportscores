@@ -2,7 +2,7 @@
 const SMARTSCHOOL_CONFIG = {
   clientId: 'abc833209402', 
   // BELANGRIJK: Zorg dat DIT de URI is die je bij Smartschool hebt geregistreerd!
-  redirectUri: 'Https://www.sportscores.be/auth/smartschool/callback', 
+  redirectUri: 'https://www.sportscores.be/auth/smartschool/callback', 
   scope: 'userinfo fulluserinfo' // Voeg 'fulluserinfo' toe voor geboortedatum
 };
 
