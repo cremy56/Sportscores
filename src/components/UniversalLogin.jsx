@@ -9,7 +9,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import logoSrc from '../assets/logo.png';
 
-// Een simpele laad-indicator component
+// Loading spinner component for better user feedback
 const LoadingSpinner = ({ message }) => (
   <div className="text-center">
     <div style={{ margin: 'auto', border: '4px solid rgba(0, 0, 0, 0.1)', width: '36px', height: '36px', borderRadius: '50%', borderLeftColor: '#8b5cf6', animation: 'spin 1s ease infinite' }}></div>
@@ -19,11 +19,11 @@ const LoadingSpinner = ({ message }) => (
 );
 
 export default function UniversalLogin() {
-  const [uiState, setUiState] = useState('CHOICE');
+  const [uiState, setUiState] = useState('CHOICE'); // Manages what the user sees
   const [smartschoolSchools, setSmartschoolSchools] = useState([]);
   const [loadingMessage, setLoadingMessage] = useState('Laden...');
   
-  // State voor het e-mailformulier
+  // State for the email form
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,13 +31,12 @@ export default function UniversalLogin() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Effect 1: Detecteer en handel de Smartschool callback af
+  // This effect handles the callback from Smartschool
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
 
-    // Als de URL 'code' en 'state' bevat, is het een callback.
     if (code && state) {
       setUiState('LOADING');
       setLoadingMessage('Bezig met aanmelden via Smartschool...');
@@ -49,14 +48,15 @@ export default function UniversalLogin() {
           if (tokenData.customToken) {
             await signInWithCustomToken(auth, tokenData.customToken);
             toast.success('Succesvol ingelogd via Smartschool!');
+            // onAuthStateChanged in App.jsx will handle navigation
           } else {
             throw new Error(tokenData.error || 'Custom token niet ontvangen.');
           }
         } catch (error) {
           console.error('OAuth callback error:', error);
           toast.error(`Login mislukt: ${error.message}`);
-          setUiState('CHOICE');
-          navigate('/login', { replace: true });
+          setUiState('CHOICE'); // Go back to login choice on failure
+          navigate('/login', { replace: true }); // Clean up the URL
         }
       };
 
@@ -64,12 +64,11 @@ export default function UniversalLogin() {
     }
   }, [location, navigate]);
 
-  // Effect 2: Laad de scholen, maar SLA DIT OVER als we een callback afhandelen.
+  // This effect loads the schools that use Smartschool, but only if not handling a callback
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     if (urlParams.has('code') && urlParams.has('state')) {
-      // Dit is een callback, dus we hoeven de scholen niet te laden.
-      return; 
+      return; // It's a callback, no need to load schools
     }
 
     const loadSmartschoolSchools = async () => {
@@ -92,16 +91,18 @@ export default function UniversalLogin() {
       }
     };
     loadSmartschoolSchools();
-  }, [location.search]); // Afhankelijk van de URL-zoekparameters
+  }, [location.search]);
 
-const handleSmartschoolButtonClick = () => {
+  const handleSmartschoolButtonClick = () => {
     if (smartschoolSchools.length === 0) {
       toast.error('Geen scholen geconfigureerd voor Smartschool.');
       return;
     }
+    // If there's only one Smartschool, log in directly
     if (smartschoolSchools.length === 1) {
       handleSmartschoolLogin(smartschoolSchools[0]);
     } else {
+      // Otherwise, let the user choose
       setUiState('SCHOOL_SELECT');
     }
   };
@@ -109,6 +110,7 @@ const handleSmartschoolButtonClick = () => {
   const handleSmartschoolLogin = (school) => {
     setUiState('LOADING');
     setLoadingMessage('U wordt doorgestuurd naar Smartschool...');
+    // Use the school domain from Firestore to initiate the login
     const domain = school.instellingen?.smartschool_domain || school.id;
     initiateSmartschoolLogin(domain);
   };
@@ -122,10 +124,11 @@ const handleSmartschoolButtonClick = () => {
       toast.success('Succesvol ingelogd!');
     } catch (error) {
       toast.error('Verkeerd e-mailadres of wachtwoord.');
-      setUiState('EMAIL_FORM');
+      setUiState('EMAIL_FORM'); // Go back to the form on error
     }
   };
 
+  // Renders the correct UI based on the current state
   const renderContent = () => {
     switch (uiState) {
       case 'LOADING':

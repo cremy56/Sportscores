@@ -5,11 +5,17 @@ const admin = require('firebase-admin');
 const axios = require('axios');
 const cors = require('cors')({ origin: true });
 
+// Initialiseer Firebase Admin. Zorg dat dit slechts één keer gebeurt.
+// Als je al een `index.js` hebt die dit doet, is het hier niet nodig.
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
 const db = admin.firestore();
 
-// Smartschool OAuth token exchange
 exports.smartschoolAuth = functions.https.onRequest((req, res) => {
+  // Gebruik CORS om de aanvraag vanaf je web-app toe te staan.
   cors(req, res, async () => {
+    // Accepteer alleen POST-requests voor de veiligheid.
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -17,33 +23,32 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
     try {
       const { code, state, redirect_uri } = req.body;
       
-      console.log('Smartschool OAuth token exchange started');
-      
-      // Verifieer state parameter
+      // Stap 1: Valideer de 'state' parameter die terugkomt van Smartschool.
+      // Dit is een cruciale veiligheidsstap om CSRF-aanvallen te voorkomen.
       let stateData;
       try {
         stateData = JSON.parse(state);
       } catch (e) {
         return res.status(400).json({ error: 'Invalid state parameter' });
       }
-      
-      const timeDiff = Date.now() - stateData.timestamp;
-      if (timeDiff > 10 * 60 * 1000) { // 10 minuten timeout
+      // Controleer of de state niet te oud is (bv. maximaal 10 minuten).
+      if (Date.now() - stateData.timestamp > 10 * 60 * 1000) {
         return res.status(400).json({ error: 'State expired' });
       }
 
+      // Haal het schooldomein op dat we in de state hadden meegestuurd.
       const schoolDomain = stateData.schoolDomain;
       if (!schoolDomain) {
         return res.status(400).json({ error: 'School domain missing in state' });
       }
       
-      // STAP 1: Exchange authorization code for access token
-      console.log(`Exchanging code for token with ${schoolDomain}.smartschool.be`);
+      // Stap 2: Wissel de ontvangen 'code' in voor een 'access token'.
+      // Dit gebeurt via een beveiligde server-naar-server call naar het CENTRALE Smartschool eindpunt.
       const tokenResponse = await axios.post(`https://oauth.smartschool.be/OAuth/index/token`, 
         new URLSearchParams({
           grant_type: 'authorization_code',
-          client_id: process.env.SMARTSCHOOL_CLIENT_ID,
-          client_secret: process.env.SMARTSCHOOL_CLIENT_SECRET,
+          client_id: process.env.SMARTSCHOOL_CLIENT_ID, // Je geheime Client ID
+          client_secret: process.env.SMARTSCHOOL_CLIENT_SECRET, // Je geheime Client Secret
           code,
           redirect_uri
         }).toString(), {
@@ -52,19 +57,16 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
 
       const { access_token } = tokenResponse.data;
       
-      // STAP 2: Haal gebruikersinfo op via het centrale API-eindpunt
-      // De documentatie specificeert dit eindpunt voor API-calls.
-      //
+      // Stap 3: Gebruik het 'access token' om de gebruikersinformatie op te halen.
+      // Dit gebeurt via het CENTRALE API-eindpunt van Smartschool.
       const userResponse = await axios.get(`https://api.smartschool.be/v3/userinfo`, {
         headers: { 'Authorization': `Bearer ${access_token}` }
       });
-
       const smartschoolUser = userResponse.data;
       
-      // STAP 3: Converteer domein naar school_id voor de database (bv. "kabeveren" -> "ka_beveren")
-      const schoolId = schoolDomain; // Pas dit aan indien nodig
-
-      // STAP 4: Zoek gebruiker in 'toegestane_gebruikers'
+      // Stap 4: Zoek de gebruiker in je eigen 'toegestane_gebruikers' database.
+      // We gebruiken de naam, geboortedatum en school_id om een unieke match te vinden.
+      const schoolId = schoolDomain; // We gaan ervan uit dat het domein gelijk is aan de school_id.
       const fullName = `${smartschoolUser.voornaam} ${smartschoolUser.naam}`;
       const birthDateTimestamp = admin.firestore.Timestamp.fromDate(new Date(smartschoolUser.geboortedatum));
 
@@ -75,16 +77,17 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
         .get();
 
       if (userQuery.empty) {
-        return res.status(404).json({ error: 'Gebruiker niet gevonden' });
+        return res.status(404).json({ error: 'Gebruiker niet gevonden of gegevens komen niet overeen.' });
       }
 
       const userDoc = userQuery.docs[0];
-      const userData = userDoc.data();
       
-      // STAP 5: Creëer Firebase custom token
-      // We gebruiken het e-mailadres uit toegestane_gebruikers als de unieke ID voor het token.
+      // Stap 5: Maak een Firebase Custom Token aan.
+      // Hiermee kan de frontend inloggen bij Firebase als deze specifieke gebruiker.
+      // De UID van het token is het e-mailadres (de document ID van toegestane_gebruikers).
       const customToken = await admin.auth().createCustomToken(userDoc.id);
 
+      // Stuur het custom token terug naar de frontend.
       res.json({ success: true, customToken });
 
     } catch (error) {
