@@ -143,21 +143,32 @@ const checkAndCreateProfile = async () => {
       }
       
       if (allowedUserSnap.exists()) {
-        const initialProfileData = {
-          ...allowedUserSnap.data(),
-          email: user.email || '', // Email kan null zijn voor Smartschool
-          onboarding_complete: false,
-          xp: 0,
-          xp_current_period: 0,
-          xp_current_school_year: 0,
-          streak_days: 0,
-          weekly_stats: {
-            kompas: 0,
-            trainingen: 0,
-            perfectWeek: false
-          },
-          personal_records_count: 0
-        };
+        const userData = allowedUserSnap.data();
+let initialProfileData = {
+  naam: userData.naam,
+  rol: userData.rol,
+  school_id: userData.school_id,
+  email: user.email || '',
+  onboarding_complete: false
+};
+
+// Voeg rol-specifieke velden toe
+if (userData.rol === 'leerling') {
+  initialProfileData = {
+    ...initialProfileData,
+    xp: 0,
+    xp_current_period: 0,
+    xp_current_school_year: 0,
+    streak_days: 0,
+    weekly_stats: {
+      kompas: 0,
+      trainingen: 0,
+      perfectWeek: false
+    },
+    personal_records_count: 0,
+    geboortedatum: userData.geboortedatum
+  };
+}
         await setDoc(profileRef, initialProfileData);
       } else {
         console.error("Gebruiker niet gevonden in toegestane_gebruikers.");
