@@ -23,32 +23,21 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
     try {
       const { code, state, redirect_uri } = req.body;
       
-      // Stap 1: Valideer de 'state' parameter die terugkomt van Smartschool.
-      // Dit is een cruciale veiligheidsstap om CSRF-aanvallen te voorkomen.
       let stateData;
-      try {
-        stateData = JSON.parse(state);
-      } catch (e) {
-        return res.status(400).json({ error: 'Invalid state parameter' });
-      }
-      // Controleer of de state niet te oud is (bv. maximaal 10 minuten).
-      if (Date.now() - stateData.timestamp > 10 * 60 * 1000) {
-        return res.status(400).json({ error: 'State expired' });
-      }
+      try { stateData = JSON.parse(state); } 
+      catch (e) { return res.status(400).json({ error: 'Invalid state' }); }
 
-      // Haal het schooldomein op dat we in de state hadden meegestuurd.
-      const schoolDomain = stateData.school;
+      const schoolDomain = stateData.schoolDomain;
       if (!schoolDomain) {
         return res.status(400).json({ error: 'School domain missing in state' });
       }
       
-      // Stap 2: Wissel de ontvangen 'code' in voor een 'access token'.
-      // Dit gebeurt via een beveiligde server-naar-server call naar het CENTRALE Smartschool eindpunt.
-      const tokenResponse = await axios.post('https://oauth.smartschool.be/OAuth/index/token', 
+      // Stap 1: Wissel code in voor token via het centrale eindpunt.
+      const tokenResponse = await axios.post(`https://oauth.smartschool.be/OAuth/index/token`, 
         new URLSearchParams({
           grant_type: 'authorization_code',
-          client_id: process.env.SMARTSCHOOL_CLIENT_ID, // Je geheime Client ID
-          client_secret: process.env.SMARTSCHOOL_CLIENT_SECRET, // Je geheime Client Secret
+          client_id: process.env.SMARTSCHOOL_CLIENT_ID,
+          client_secret: process.env.SMARTSCHOOL_CLIENT_SECRET,
           code,
           redirect_uri
         }).toString(), {
@@ -57,16 +46,15 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
 
       const { access_token } = tokenResponse.data;
       
-      // Stap 3: Gebruik het 'access token' om de gebruikersinformatie op te halen.
-      // Dit gebeurt via het CENTRALE API-eindpunt van Smartschool.
-      const userResponse = await axios.get('https://oauth.smartschool.be/Api/V1/userinfo', {
+      // Stap 2: Haal gebruikersinfo op via het centrale API-eindpunt.
+      const userResponse = await axios.get(`https://api.smartschool.be/v3/userinfo`, {
         headers: { 'Authorization': `Bearer ${access_token}` }
       });
       const smartschoolUser = userResponse.data;
       
-      // Stap 4: Zoek de gebruiker in je eigen 'toegestane_gebruikers' database.
-      // We gebruiken de naam, geboortedatum en school_id om een unieke match te vinden.
-      const schoolId = schoolDomain; // We gaan ervan uit dat het domein gelijk is aan de school_id.
+      const schoolId = schoolDomain;
+      
+      // Stap 3: Zoek gebruiker in 'toegestane_gebruikers'
       const fullName = `${smartschoolUser.voornaam} ${smartschoolUser.naam}`;
       const birthDateTimestamp = admin.firestore.Timestamp.fromDate(new Date(smartschoolUser.geboortedatum));
 
@@ -77,17 +65,14 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
         .get();
 
       if (userQuery.empty) {
-        return res.status(404).json({ error: 'Gebruiker niet gevonden of gegevens komen niet overeen.' });
+        return res.status(404).json({ error: 'Gebruiker niet gevonden' });
       }
 
       const userDoc = userQuery.docs[0];
       
-      // Stap 5: Maak een Firebase Custom Token aan.
-      // Hiermee kan de frontend inloggen bij Firebase als deze specifieke gebruiker.
-      // De UID van het token is het e-mailadres (de document ID van toegestane_gebruikers).
+      // Stap 4: Creëer Firebase custom token
       const customToken = await admin.auth().createCustomToken(userDoc.id);
 
-      // Stuur het custom token terug naar de frontend.
       res.json({ success: true, customToken });
 
     } catch (error) {
