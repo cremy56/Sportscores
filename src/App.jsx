@@ -150,7 +150,7 @@ const checkAndCreateProfile = async () => {
           rol: userData.rol,
           school_id: userData.school_id,
           email: user.email || '',
-          onboarding_complete: false
+          onboarding_complete: userData.smartschool_username ? true : false // TRUE voor Smartschool-gebruikers
         };
 
         // Voeg rol-specifieke velden toe

@@ -74,7 +74,7 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
       let allowedUserSnap = await allowedUserRef.get();
 
       // Fallback naar naam-gebaseerde zoekquery voor bestaande data
-      if (!allowedUserSnap.exists()) {
+      if (!allowedUserSnap.exists) {
         console.log('Smartschool ID not found, trying name-based search');
         const userQuery = await db.collection('toegestane_gebruikers')
           .where('naam', '==', fullName)
@@ -91,7 +91,9 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
         console.log('Found user via Smartschool ID');
       }
 
-      if (!allowedUserSnap.exists()) {
+      // Check if we found a user
+      const hasUser = allowedUserSnap.exists || !userQuery?.empty;
+      if (!hasUser) {
         return res.status(404).json({ error: 'Je account is niet gevonden. Neem contact op met je beheerder.' });
       }
 
