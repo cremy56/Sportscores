@@ -127,16 +127,25 @@ function App() {
       });
     };
 
-   const checkAndCreateProfile = async () => {
+const checkAndCreateProfile = async () => {
   try {
     const docSnap = await getDoc(profileRef);
     if (!docSnap.exists()) {
-      const allowedUserRef = doc(db, 'toegestane_gebruikers', user.email);
-      const allowedUserSnap = await getDoc(allowedUserRef);
+      // Voor Smartschool-gebruikers: zoek via custom token claims of user.uid
+      // De user.uid komt uit de custom token die je hebt aangemaakt
+      const allowedUserRef = doc(db, 'toegestane_gebruikers', user.uid);
+      let allowedUserSnap = await getDoc(allowedUserRef);
+      
+      // Fallback: als het niet via uid werkt, probeer via email (voor email-gebruikers)
+      if (!allowedUserSnap.exists() && user.email) {
+        const emailRef = doc(db, 'toegestane_gebruikers', user.email);
+        allowedUserSnap = await getDoc(emailRef);
+      }
+      
       if (allowedUserSnap.exists()) {
         const initialProfileData = {
           ...allowedUserSnap.data(),
-          email: user.email,
+          email: user.email || '', // Email kan null zijn voor Smartschool
           onboarding_complete: false,
           xp: 0,
           xp_current_period: 0,
