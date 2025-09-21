@@ -131,44 +131,57 @@ const checkAndCreateProfile = async () => {
   try {
     const docSnap = await getDoc(profileRef);
     if (!docSnap.exists()) {
-      // Voor Smartschool-gebruikers: zoek via custom token claims of user.uid
-      // De user.uid komt uit de custom token die je hebt aangemaakt
-      const allowedUserRef = doc(db, 'toegestane_gebruikers', user.uid);
+      // Voor Smartschool-gebruikers: probeer eerst via uid (custom token ID)
+      let allowedUserRef = doc(db, 'toegestane_gebruikers', user.uid);
       let allowedUserSnap = await getDoc(allowedUserRef);
       
       // Fallback: als het niet via uid werkt, probeer via email (voor email-gebruikers)
       if (!allowedUserSnap.exists() && user.email) {
-        const emailRef = doc(db, 'toegestane_gebruikers', user.email);
-        allowedUserSnap = await getDoc(emailRef);
+        allowedUserRef = doc(db, 'toegestane_gebruikers', user.email);
+        allowedUserSnap = await getDoc(allowedUserRef);
       }
       
       if (allowedUserSnap.exists()) {
         const userData = allowedUserSnap.data();
-let initialProfileData = {
-  naam: userData.naam,
-  rol: userData.rol,
-  school_id: userData.school_id,
-  email: user.email || '',
-  onboarding_complete: false
-};
+        
+        // Basis profiel data voor alle gebruikers
+        let initialProfileData = {
+          naam: userData.naam,
+          rol: userData.rol,
+          school_id: userData.school_id,
+          email: user.email || '',
+          onboarding_complete: false
+        };
 
-// Voeg rol-specifieke velden toe
-if (userData.rol === 'leerling') {
-  initialProfileData = {
-    ...initialProfileData,
-    xp: 0,
-    xp_current_period: 0,
-    xp_current_school_year: 0,
-    streak_days: 0,
-    weekly_stats: {
-      kompas: 0,
-      trainingen: 0,
-      perfectWeek: false
-    },
-    personal_records_count: 0,
-    geboortedatum: userData.geboortedatum
-  };
-}
+        // Voeg rol-specifieke velden toe
+        if (userData.rol === 'leerling') {
+          initialProfileData = {
+            ...initialProfileData,
+            xp: 0,
+            xp_current_period: 0,
+            xp_current_school_year: 0,
+            streak_days: 0,
+            weekly_stats: {
+              kompas: 0,
+              trainingen: 0,
+              perfectWeek: false
+            },
+            personal_records_count: 0,
+            geboortedatum: userData.geboortedatum
+          };
+        }
+
+        // Voeg eventuele Smartschool data toe als die beschikbaar is
+        if (userData.smartschool_username) {
+          initialProfileData.smartschool_username = userData.smartschool_username;
+        }
+        if (userData.smartschool_user_id) {
+          initialProfileData.smartschool_user_id = userData.smartschool_user_id;
+        }
+        if (userData.last_smartschool_login) {
+          initialProfileData.last_smartschool_login = userData.last_smartschool_login;
+        }
+
         await setDoc(profileRef, initialProfileData);
       } else {
         console.error("Gebruiker niet gevonden in toegestane_gebruikers.");

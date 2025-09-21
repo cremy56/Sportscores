@@ -48,49 +48,65 @@ exports.smartschoolAuth = functions.https.onRequest((req, res) => {
 
       const { access_token } = tokenResponse.data;
       
-      // ========================= CORRECTIE HIER =========================
-      // Stap 2: Haal gebruikersinfo op via het SPECIFIEKE schooldomein.
       // Stap 2: Haal gebruikersinfo op via het CENTRALE OAuth eindpunt
-const constructedUrl = `https://oauth.smartschool.be/Api/V1/userinfo?access_token=${access_token}`;
-console.log('Constructed URL:', constructedUrl);
+      const constructedUrl = `https://oauth.smartschool.be/Api/V1/userinfo?access_token=${access_token}`;
+      console.log('Constructed URL:', constructedUrl);
 
-const userResponse = await axios.get(constructedUrl);
+      const userResponse = await axios.get(constructedUrl);
 
-const smartschoolUser = userResponse.data;
-console.log('Smartschool API response:', JSON.stringify(smartschoolUser, null, 2));
+      const smartschoolUser = userResponse.data;
+      console.log('Smartschool API response:', JSON.stringify(smartschoolUser, null, 2));
 
-// Update field validation to match actual API response
-if (!smartschoolUser.name || !smartschoolUser.surname || !smartschoolUser.userID) {
-    console.log('Missing fields - name:', !!smartschoolUser.name, 'surname:', !!smartschoolUser.surname, 'userID:', !!smartschoolUser.userID);
-    throw new Error('Ontbrekende gebruikersgegevens in Smartschool respons.');
-}
+      // Update field validation to match actual API response
+      if (!smartschoolUser.name || !smartschoolUser.surname || !smartschoolUser.userID) {
+          console.log('Missing fields - name:', !!smartschoolUser.name, 'surname:', !!smartschoolUser.surname, 'userID:', !!smartschoolUser.userID);
+          throw new Error('Ontbrekende gebruikersgegevens in Smartschool respons.');
+      }
 
-const fullName = `${smartschoolUser.name} ${smartschoolUser.surname}`;
-const schoolId = schoolDomain;
+      const fullName = `${smartschoolUser.name} ${smartschoolUser.surname}`;
+      const schoolId = schoolDomain;
 
-// First: Try to find user by name + school (no birth date in initial query)
-const userQuery = await db.collection('toegestane_gebruikers')
-  .where('naam', '==', fullName)
-  .where('school_id', '==', schoolId)
-  .limit(1)
-  .get();
+      // Probeer eerst Smartschool ID-structuur
+      const smartschoolId = `smartschool_${schoolId}_${smartschoolUser.username}`;
+      console.log('Trying Smartschool ID:', smartschoolId);
+      
+      let allowedUserRef = admin.firestore().collection('toegestane_gebruikers').doc(smartschoolId);
+      let allowedUserSnap = await allowedUserRef.get();
 
-if (userQuery.empty) {
-  return res.status(404).json({ error: 'Je account is niet gevonden. Neem contact op met je beheerder.' });
-}
+      // Fallback naar naam-gebaseerde zoekquery voor bestaande data
+      if (!allowedUserSnap.exists()) {
+        console.log('Smartschool ID not found, trying name-based search');
+        const userQuery = await db.collection('toegestane_gebruikers')
+          .where('naam', '==', fullName)
+          .where('school_id', '==', schoolId)
+          .limit(1)
+          .get();
+        
+        if (!userQuery.empty) {
+          allowedUserRef = userQuery.docs[0].ref;
+          allowedUserSnap = userQuery.docs[0];
+          console.log('Found user via name search:', allowedUserRef.id);
+        }
+      } else {
+        console.log('Found user via Smartschool ID');
+      }
 
-const userDoc = userQuery.docs[0];
-const userData = userDoc.data();
+      if (!allowedUserSnap.exists()) {
+        return res.status(404).json({ error: 'Je account is niet gevonden. Neem contact op met je beheerder.' });
+      }
 
-// Optional: Add Smartschool data to the document for future reference
-await userDoc.ref.update({
-  smartschool_username: smartschoolUser.username,
-  smartschool_user_id: smartschoolUser.userID,
-  last_smartschool_login: admin.firestore.FieldValue.serverTimestamp()
-});
+      const userData = allowedUserSnap.data();
 
-const customToken = await admin.auth().createCustomToken(userDoc.id);
-res.json({ success: true, customToken });
+      // Voeg Smartschool data toe voor toekomstige referentie
+      await allowedUserRef.update({
+        smartschool_username: smartschoolUser.username,
+        smartschool_user_id: smartschoolUser.userID,
+        last_smartschool_login: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Gebruik het document ID voor de custom token
+      const customToken = await admin.auth().createCustomToken(allowedUserRef.id);
+      res.json({ success: true, customToken });
 
     } catch (error) {
         console.error('Volledige fout in Cloud Function:', error);
