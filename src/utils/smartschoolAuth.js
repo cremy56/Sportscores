@@ -1,6 +1,6 @@
 // src/utils/smartschoolAuth.js
 const SMARTSCHOOL_CONFIG = {
-  clientId: 'abc833209402',
+  clientId: 'acb833209402',
   // Zorg dat deze URI 100% overeenkomt met wat je bij Smartschool hebt geregistreerd.
   redirectUri: 'https://www.sportscores.be/auth/smartschool/callback', 
   scope: 'userinfo fulluserinfo' // 'fulluserinfo' voor geboortedatum
