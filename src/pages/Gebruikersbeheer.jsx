@@ -27,6 +27,17 @@ import {
 import UserFormModal from '../components/UserFormModal'; 
 import ConfirmModal from '../components/ConfirmModal';
 
+// Helper functie om identifier te bepalen
+const getIdentifier = (user) => {
+    if (user.smartschool_username) {
+        return user.smartschool_username;
+    }
+    if (user.email) {
+        return user.email;
+    }
+    return null;
+};
+
 // Mobile-vriendelijke Action Buttons Component
 const MobileActionButtons = ({ onEdit, onDelete, user }) => (
     <div className="flex items-center gap-2">
@@ -95,30 +106,62 @@ export default function Gebruikersbeheer() {
         if (!profile?.school_id) return;
         
         setLoading(true);
-        let finalQuery;
         const termLower = term.toLowerCase();
         const usersRef = collection(db, 'toegestane_gebruikers');
 
-        if (term.includes('@')) {
-            finalQuery = query(
-                usersRef,
-                where('school_id', '==', profile.school_id),
-                where('rol', 'in', ['leerling', 'leerkracht']),
-                where('email', '>=', termLower),
-                where('email', '<=', termLower + '\uf8ff')
-            );
-        } else {
-            finalQuery = query(
-                usersRef,
-                where('school_id', '==', profile.school_id),
-                where('rol', 'in', ['leerling', 'leerkracht']),
-                where('naam_keywords', 'array-contains', termLower)
-            );
-        }
-
         try {
-            const querySnapshot = await getDocs(finalQuery);
-            const results = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            let queries = [];
+            
+            // Query 1: Zoek op naam keywords
+            queries.push(
+                query(
+                    usersRef,
+                    where('school_id', '==', profile.school_id),
+                    where('rol', 'in', ['leerling', 'leerkracht']),
+                    where('naam_keywords', 'array-contains', termLower)
+                )
+            );
+
+            // Query 2: Zoek op email (als term @ bevat)
+            if (term.includes('@')) {
+                queries.push(
+                    query(
+                        usersRef,
+                        where('school_id', '==', profile.school_id),
+                        where('rol', 'in', ['leerling', 'leerkracht']),
+                        where('email', '>=', termLower),
+                        where('email', '<=', termLower + '\uf8ff')
+                    )
+                );
+            }
+
+            // Query 3: Zoek op smartschool_username
+            queries.push(
+                query(
+                    usersRef,
+                    where('school_id', '==', profile.school_id),
+                    where('rol', 'in', ['leerling', 'leerkracht']),
+                    where('smartschool_username', '>=', termLower),
+                    where('smartschool_username', '<=', termLower + '\uf8ff')
+                )
+            );
+
+            // Voer alle queries uit
+            const allResults = new Map();
+            
+            for (const q of queries) {
+                try {
+                    const querySnapshot = await getDocs(q);
+                    querySnapshot.docs.forEach(doc => {
+                        allResults.set(doc.id, { id: doc.id, ...doc.data() });
+                    });
+                } catch (error) {
+                    console.warn('Een query is mislukt:', error);
+                    // Continue met andere queries
+                }
+            }
+
+            const results = Array.from(allResults.values());
             results.sort((a, b) => a.naam.localeCompare(b.naam));
             setUsers(results);
         } catch (error) {
@@ -151,37 +194,61 @@ export default function Gebruikersbeheer() {
                     return;
                 }
 
-                const requiredHeaders = ['naam', 'email', 'geboortedatum', 'geslacht'];
-                const missingHeaders = requiredHeaders.filter(h => !results.meta.fields.includes(h));
+                // Aangepaste header validatie - email is nu optioneel
+                const requiredHeaders = ['naam', 'geboortedatum', 'geslacht'];
+                const optionalHeaders = ['email', 'smartschool_username'];
+                const missingRequiredHeaders = requiredHeaders.filter(h => !results.meta.fields.includes(h));
                 
-                if (missingHeaders.length > 0) {
-                    toast.error(`CSV mist verplichte kolommen: ${missingHeaders.join(', ')}`);
+                if (missingRequiredHeaders.length > 0) {
+                    toast.error(`CSV mist verplichte kolommen: ${missingRequiredHeaders.join(', ')}`);
                     return;
                 }
 
-                const validRows = results.data.filter(row => row.naam && row.email && row.email.includes('@'));
+                // Valideer dat elke rij minstens email OF smartschool_username heeft
+                const validRows = results.data.filter(row => {
+                    if (!row.naam) return false;
+                    
+                    const hasEmail = row.email && row.email.includes('@');
+                    const hasUsername = row.smartschool_username && row.smartschool_username.trim();
+                    
+                    return hasEmail || hasUsername;
+                });
 
                 if (validRows.length === 0) {
-                    toast.error("Geen geldige rijen gevonden in CSV.");
+                    toast.error("Geen geldige rijen gevonden. Elke rij moet een naam en minstens een email of smartschool_username hebben.");
                     return;
                 }
 
                 try {
                     const batch = writeBatch(db);
                     validRows.forEach(row => {
-                        const docRef = doc(db, 'toegestane_gebruikers', row.email.trim().toLowerCase());
+                        // Bepaal de identifier voor het document ID
+                        const identifier = row.smartschool_username?.trim() || row.email?.trim().toLowerCase();
+                        const docRef = doc(db, 'toegestane_gebruikers', identifier);
+                        
                         const geslachtCleaned = (row.geslacht || '').trim().toUpperCase();
                         const finalGeslacht = geslachtCleaned.startsWith('M') ? 'M' : 'V';
 
-                        batch.set(docRef, {
+                        const userData = {
                             naam: row.naam.trim(),
-                            email: row.email.trim().toLowerCase(),
                             geboortedatum: row.geboortedatum ? new Date(row.geboortedatum) : null,
                             geslacht: finalGeslacht,
                             rol: 'leerling',
                             school_id: profile.school_id,
                             naam_keywords: row.naam.toLowerCase().split(' ').filter(Boolean),
-                        });
+                        };
+
+                        // Voeg email toe als het bestaat
+                        if (row.email && row.email.includes('@')) {
+                            userData.email = row.email.trim().toLowerCase();
+                        }
+
+                        // Voeg smartschool_username toe als het bestaat
+                        if (row.smartschool_username && row.smartschool_username.trim()) {
+                            userData.smartschool_username = row.smartschool_username.trim();
+                        }
+
+                        batch.set(docRef, userData);
                     });
 
                     await batch.commit();
@@ -239,9 +306,10 @@ export default function Gebruikersbeheer() {
 
         const csvData = users.map(user => ({
             naam: user.naam,
-            email: user.email,
+            email: user.email || '',
+            smartschool_username: user.smartschool_username || '',
             rol: user.rol,
-            geboortedatum: user.geboortedatum,
+            geboortedatum: user.geboortedatum || '',
             geslacht: user.geslacht === 'M' ? 'Mannelijk' : 'Vrouwelijk'
         }));
 
@@ -265,6 +333,21 @@ export default function Gebruikersbeheer() {
         };
         return <span className={`capitalize text-xs font-semibold px-2 py-1 rounded-full ${styles[role] || 'bg-gray-100 text-gray-800'}`}>{role}</span>;
     };
+
+    // Nieuwe component om gebruiker identificatie te tonen
+    const UserIdentification = ({ user }) => (
+        <div>
+            <p className="text-base sm:text-lg font-bold text-gray-900 truncate">{user.naam}</p>
+            <div className="space-y-1">
+                {user.email && (
+                    <p className="text-sm text-gray-600 truncate">📧 {user.email}</p>
+                )}
+                {user.smartschool_username && (
+                    <p className="text-sm text-blue-600 truncate">👤 {user.smartschool_username}</p>
+                )}
+            </div>
+        </div>
+    );
 
     return (
         <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200">
@@ -340,7 +423,7 @@ export default function Gebruikersbeheer() {
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Zoek gebruikers op naam of e-mail..."
+                    placeholder="Zoek op naam, e-mail of smartschool username..."
                     className="w-full pl-12 pr-4 py-3 sm:py-4 bg-white border border-slate-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-base"
                 />
                 {loading && (
@@ -376,8 +459,7 @@ export default function Gebruikersbeheer() {
                                             <RoleBadge role={user.rol} />
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-base sm:text-lg font-bold text-gray-900 truncate">{user.naam}</p>
-                                            <p className="text-sm text-gray-600 truncate">{user.email}</p>
+                                            <UserIdentification user={user} />
                                         </div>
                                     </div>
                                     <MobileActionButtons
