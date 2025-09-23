@@ -59,6 +59,10 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
     // Simpele logica zonder useMemo
     const isSuperAdmin = currentUserProfile?.rol === 'super-administrator';
     const schoolAuthMethod = schoolSettings?.auth_method;
+        console.log('Current role:', currentUserProfile?.rol);
+        console.log('SchoolSettings:', schoolSettings);
+        console.log('SchoolAuthMethod:', schoolAuthMethod);
+        console.log('Available types:', availableTypes);
     
     let availableTypes = [];
     if (isSuperAdmin) {
