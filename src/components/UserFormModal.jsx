@@ -174,8 +174,21 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+        
+        // Update form data eerst
         setFormData(prev => ({ ...prev, [name]: value }));
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+
+        // Reset andere velden wanneer login type verandert
+        if (name === 'login_type') {
+            setIdentifierExists(false);
+            if (value === 'email') {
+                setFormData(prev => ({ ...prev, smartschool_username: '', [name]: value }));
+            } else {
+                setFormData(prev => ({ ...prev, email: '', [name]: value }));
+            }
+            return; // Stop hier voor login_type changes
+        }
 
         // Check identifier wanneer het verandert (alleen bij nieuwe gebruikers)
         if (!isEditing && (name === 'email' || name === 'smartschool_username')) {
@@ -186,17 +199,7 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
                     checkIdentifierExists(value, type);
                 }
             }, 500);
-            return () => clearTimeout(timeoutId);
-        }
-
-        // Reset andere velden wanneer login type verandert
-        if (name === 'login_type') {
-            setIdentifierExists(false);
-            if (value === 'email') {
-                setFormData(prev => ({ ...prev, smartschool_username: '' }));
-            } else {
-                setFormData(prev => ({ ...prev, email: '' }));
-            }
+            // Note: Deze timeout cleanup werkt alleen in useEffect, niet in event handlers
         }
     };
 
