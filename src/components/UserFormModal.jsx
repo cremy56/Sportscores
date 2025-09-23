@@ -183,44 +183,46 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        console.log('handleChange called:', name, value);
+        console.log('handleChange called:', name, '=', value);
         
+        // Eerst de basis update
         setFormData(prev => {
-            const newData = { ...prev, [name]: value };
-            console.log('New formData will be:', newData);
-            return newData;
+            const updated = { ...prev, [name]: value };
+            console.log('Updated formData:', updated);
+            return updated;
         });
         
-        if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
-
-        // Reset andere velden wanneer login type verandert
-        if (name === 'login_type') {
-            console.log('Login type changed to:', value);
-            setIdentifierExists(false);
-            
-            // Gebruik setTimeout om ervoor te zorgen dat de state update batched wordt
-            setTimeout(() => {
-                setFormData(prev => {
-                    if (value === 'email') {
-                        return { ...prev, smartschool_username: '' };
-                    } else {
-                        return { ...prev, email: '' };
-                    }
-                });
-            }, 0);
-            return;
+        // Clear errors
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: '' }));
         }
 
-        // Check identifier wanneer het verandert (alleen bij nieuwe gebruikers)
-        if (!isEditing && (name === 'email' || name === 'smartschool_username')) {
+        // Special handling voor login_type
+        if (name === 'login_type') {
+            setIdentifierExists(false);
+            // Reset de andere velden
+            setFormData(prev => ({
+                ...prev,
+                [name]: value,
+                email: value === 'smartschool' ? '' : prev.email,
+                smartschool_username: value === 'email' ? '' : prev.smartschool_username
+            }));
+        }
+
+        // Check identifier voor nieuwe gebruikers
+        if (!isEditing && (name === 'email' || name === 'smartschool_username') && value) {
             setIdentifierExists(false);
             setTimeout(() => {
-                if (value) {
-                    const type = name === 'email' ? 'email' : 'smartschool';
-                    checkIdentifierExists(value, type);
-                }
+                const type = name === 'email' ? 'email' : 'smartschool';
+                checkIdentifierExists(value, type);
             }, 500);
         }
+    };
+
+    // Separate functie voor radio button clicks
+    const handleLoginTypeChange = (type) => {
+        console.log('handleLoginTypeChange called with:', type);
+        handleChange({ target: { name: 'login_type', value: type } });
     };
 
     const handleSubmit = async (e) => {
