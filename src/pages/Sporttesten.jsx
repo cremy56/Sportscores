@@ -7,7 +7,23 @@ import { TrashIcon, PlusIcon, ChevronRightIcon, FunnelIcon, MagnifyingGlassIcon,
 import ConfirmModal from '../components/ConfirmModal';
 import TestFormModal from '../components/TestFormModal';
 
-// Helper component voor de filterbalk (onveranderd)
+// Helper function to get user identifier for database queries
+const getUserIdentifier = (user, profile) => {
+    // Try different identifiers in order of preference
+    if (profile?.smartschool_username) {
+        return profile.smartschool_username;
+    }
+    if (profile?.email) {
+        return profile.email;
+    }
+    if (user?.email) {
+        return user.email;
+    }
+    // Fallback to uid
+    return user?.uid;
+};
+
+// Helper component voor de filterbalk
 function FilterBar({ filters, onFiltersChange, groepen, testen }) {
     const [isExpanded, setIsExpanded] = useState(false);
     return (
@@ -89,91 +105,153 @@ export default function Sporttesten() {
     const [loading, setLoading] = useState(true);
     const [modal, setModal] = useState({ type: null, data: null });
     const [filters, setFilters] = useState({ search: '', groep: '', test: '' });
+    const [rawScores, setRawScores] = useState([]);
 
     const canManage = ['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol);
 
+    // Hook 1: Haalt alle data op en zet de listeners op
+    useEffect(() => {
+        if (!profile?.school_id) {
+            setLoading(false);
+            return;
+        }
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
 
+        setLoading(true);
 
-// Stap 1: Introduceer een nieuwe state voor de 'ruwe' scoredata
-const [rawScores, setRawScores] = useState([]);
-
-// Hook 1: Haalt alle data op en zet de listeners op
-useEffect(() => {
-    if (!profile?.school_id) {
-        setLoading(false);
-        return;
-    }
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-
-    setLoading(true);
-
-    const groepenRef = collection(db, 'groepen');
-    const qGroepen = query(groepenRef, where('school_id', '==', profile.school_id));
-    const unsubscribeGroepen = onSnapshot(qGroepen, (snapshot) => {
-        setGroepen(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    const testenRef = collection(db, 'testen');
-    const qTesten = query(testenRef, where('school_id', '==', profile.school_id));
-    const unsubscribeTesten = onSnapshot(qTesten, (snapshot) => {
-        const testenData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        testenData.sort((a, b) => a.naam.localeCompare(b.naam));
-        setTesten(testenData);
-    });
-
-    const scoresRef = collection(db, 'scores');
-    const qScores = query(scoresRef, where('school_id', '==', profile.school_id), where('leerkracht_id', '==', currentUser.uid));
-    const unsubscribeScores = onSnapshot(qScores, (scoresSnapshot) => {
-        const scoresData = scoresSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return { id: doc.id, ...data, datum: data.datum.toDate() };
+        const groepenRef = collection(db, 'groepen');
+        const qGroepen = query(groepenRef, where('school_id', '==', profile.school_id));
+        const unsubscribeGroepen = onSnapshot(qGroepen, (snapshot) => {
+            setGroepen(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
-        setRawScores(scoresData); // Sla de ruwe scores op
-    });
 
-    return () => {
-        unsubscribeGroepen();
-        unsubscribeTesten();
-        unsubscribeScores();
-    };
-}, [profile]);
+        const testenRef = collection(db, 'testen');
+        const qTesten = query(testenRef, where('school_id', '==', profile.school_id));
+        const unsubscribeTesten = onSnapshot(qTesten, (snapshot) => {
+            const testenData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            testenData.sort((a, b) => a.naam.localeCompare(b.naam));
+            setTesten(testenData);
+        });
 
-// Hook 2: Verwerkt en groepeert de data pas als alles binnen is
-useEffect(() => {
-    // Draai deze logica alleen als we alle benodigde data hebben
-    if (rawScores.length > 0 && groepen.length > 0 && testen.length > 0) {
-        const grouped = rawScores.reduce((acc, score) => {
-            const key = `${score.groep_id}-${score.test_id}-${score.datum.toISOString()}`;
-            if (!acc[key]) {
-                const groep = groepen.find(g => g.id === score.groep_id);
-                const test = testen.find(t => t.id === score.test_id);
-                acc[key] = {
-                    groep_id: score.groep_id,
-                    test_id: score.test_id,
-                    datum: score.datum,
-                    groep_naam: groep?.naam || 'Onbekende Groep',
-                    test_naam: test?.naam || 'Onbekende Test',
-                    score_ids: [],
-                    leerling_count: 0
-                };
+        // Updated scores query with hybrid user identification
+        const scoresRef = collection(db, 'scores');
+        const userIdentifier = getUserIdentifier(currentUser, profile);
+        
+        // Try multiple queries to find scores associated with this user
+        const queryScores = async () => {
+            try {
+                let allScores = [];
+                
+                // Query 1: Try with current identifier
+                const qScores1 = query(
+                    scoresRef, 
+                    where('school_id', '==', profile.school_id), 
+                    where('leerkracht_id', '==', userIdentifier)
+                );
+                const snapshot1 = await getDocs(qScores1);
+                allScores.push(...snapshot1.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                
+                // Query 2: If profile has both email and smartschool_username, try the other one too
+                if (profile?.email && profile?.smartschool_username) {
+                    const alternateId = userIdentifier === profile.email ? profile.smartschool_username : profile.email;
+                    const qScores2 = query(
+                        scoresRef, 
+                        where('school_id', '==', profile.school_id), 
+                        where('leerkracht_id', '==', alternateId)
+                    );
+                    const snapshot2 = await getDocs(qScores2);
+                    allScores.push(...snapshot2.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                }
+                
+                // Query 3: Fallback to uid if needed
+                if (currentUser.uid !== userIdentifier) {
+                    const qScores3 = query(
+                        scoresRef, 
+                        where('school_id', '==', profile.school_id), 
+                        where('leerkracht_id', '==', currentUser.uid)
+                    );
+                    const snapshot3 = await getDocs(qScores3);
+                    allScores.push(...snapshot3.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                }
+                
+                // Remove duplicates and convert dates
+                const uniqueScores = [];
+                const seenIds = new Set();
+                
+                allScores.forEach(score => {
+                    if (!seenIds.has(score.id)) {
+                        seenIds.add(score.id);
+                        uniqueScores.push({
+                            ...score,
+                            datum: score.datum.toDate ? score.datum.toDate() : new Date(score.datum)
+                        });
+                    }
+                });
+                
+                setRawScores(uniqueScores);
+                
+            } catch (error) {
+                console.error('Error querying scores:', error);
+                setRawScores([]);
             }
-            acc[key].score_ids.push(score.id);
-            acc[key].leerling_count++;
-            return acc;
-        }, {});
+        };
 
-        const uniekeEvaluaties = Object.values(grouped);
-        uniekeEvaluaties.sort((a, b) => b.datum - a.datum);
-        setEvaluaties(uniekeEvaluaties);
-        setLoading(false); // Zet loading pas op false als alles verwerkt is
-    } else if (profile) {
-        // Zorg ervoor dat de loading state uitgaat als er geen scores zijn
-        setLoading(false);
-    }
-}, [rawScores, groepen, testen, profile]);
+        queryScores();
 
-// --- EINDE WIJZIGING ---
+        // Set up real-time listener for new scores
+        const qScores = query(
+            scoresRef, 
+            where('school_id', '==', profile.school_id), 
+            where('leerkracht_id', '==', userIdentifier)
+        );
+        const unsubscribeScores = onSnapshot(qScores, (scoresSnapshot) => {
+            const scoresData = scoresSnapshot.docs.map(doc => {
+                const data = doc.data();
+                return { id: doc.id, ...data, datum: data.datum.toDate() };
+            });
+            setRawScores(scoresData);
+        });
+
+        return () => {
+            unsubscribeGroepen();
+            unsubscribeTesten();
+            unsubscribeScores();
+        };
+    }, [profile]);
+
+    // Hook 2: Verwerkt en groepeert de data pas als alles binnen is
+    useEffect(() => {
+        // Draai deze logica alleen als we alle benodigde data hebben
+        if (rawScores.length > 0 && groepen.length > 0 && testen.length > 0) {
+            const grouped = rawScores.reduce((acc, score) => {
+                const key = `${score.groep_id}-${score.test_id}-${score.datum.toISOString()}`;
+                if (!acc[key]) {
+                    const groep = groepen.find(g => g.id === score.groep_id);
+                    const test = testen.find(t => t.id === score.test_id);
+                    acc[key] = {
+                        groep_id: score.groep_id,
+                        test_id: score.test_id,
+                        datum: score.datum,
+                        groep_naam: groep?.naam || 'Onbekende Groep',
+                        test_naam: test?.naam || 'Onbekende Test',
+                        score_ids: [],
+                        leerling_count: 0
+                    };
+                }
+                acc[key].score_ids.push(score.id);
+                acc[key].leerling_count++;
+                return acc;
+            }, {});
+
+            const uniekeEvaluaties = Object.values(grouped);
+            uniekeEvaluaties.sort((a, b) => b.datum - a.datum);
+            setEvaluaties(uniekeEvaluaties);
+            setLoading(false);
+        } else if (profile) {
+            setLoading(false);
+        }
+    }, [rawScores, groepen, testen, profile]);
 
     // Gecombineerde Handlers
     const handleCloseModal = () => setModal({ type: null, data: null });
@@ -272,7 +350,6 @@ useEffect(() => {
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4"><BeakerIcon className="w-8 h-8 text-purple-600" /></div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-2">Geen Testen Gevonden</h3>
                 <p className="text-gray-600">
-                    {/* Gebruik hier 'canManage' */}
                     {canManage 
                         ? "Klik op \"Nieuwe Test\" om te beginnen."
                         : "Er zijn nog geen testen beschikbaar voor uw school."
@@ -290,7 +367,6 @@ useEffect(() => {
                                     <p className="text-sm text-gray-500">{test.categorie}</p>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    {/* Gebruik hier 'canManage' */}
                                     {canManage && (
                                         <button onClick={(e) => { e.stopPropagation(); setModal({ type: 'confirmDeleteTest', data: test }); }} className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600"><TrashIcon className="h-5 w-5" /></button>
                                     )}
@@ -318,7 +394,6 @@ useEffect(() => {
                             <h1 className="text-3xl font-bold text-gray-800">{activeTab === 'testafnames' ? 'Testafnames' : 'Sporttesten Beheer'}</h1>
                             <p className="text-gray-600 mt-1">{activeTab === 'testafnames' ? 'Beheer en bekijk alle testresultaten' : 'Beheer de beschikbare sporttesten voor je school'}</p>
                         </div>
-                        {/* --- START WIJZIGING: Gebruik 'canManage' ipv 'isAdmin' --- */}
                         {canManage && (
                             <button
                                 onClick={() => activeTab === 'testafnames' ? navigate('/nieuwe-testafname') : setModal({ type: 'testForm', data: null })}
@@ -338,7 +413,7 @@ useEffect(() => {
 
                     {/* Content Area */}
                     {activeTab === 'testafnames' && <TestafnamesTab />}
-                    {activeTab === 'testenbeheer' && <TestenBeheerTab canManage={canManage} />}
+                    {activeTab === 'testenbeheer' && <TestenBeheerTab />}
                 </div>
             </div>
 
