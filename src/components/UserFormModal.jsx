@@ -63,14 +63,18 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
     // Haal schoolinstellingen op als we een schoolId hebben maar geen schoolSettings
     useEffect(() => {
         const fetchSchoolSettings = async () => {
+            console.log('useEffect triggered - schoolId:', schoolId, 'schoolSettings:', schoolSettings, 'isOpen:', isOpen);
+            
             // Als we al schoolSettings hebben via props, gebruik die
             if (schoolSettings) {
+                console.log('Using provided schoolSettings:', schoolSettings);
                 setCurrentSchoolSettings(schoolSettings);
                 return;
             }
             
             // Anders haal ze op via schoolId
             if (!schoolId || !isOpen) {
+                console.log('No schoolId or modal not open, setting null');
                 setCurrentSchoolSettings(null);
                 return;
             }
