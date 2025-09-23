@@ -1,5 +1,5 @@
 // src/components/UserFormModal.jsx
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { db } from '../firebase';
 import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
@@ -69,33 +69,23 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
     const isEditing = !!userData;
     const currentUserRole = isEditing ? userData?.rol : role;
     
-    const getAvailableLoginTypes = () => {
-        console.log('currentUserProfile?.rol:', currentUserProfile?.rol);
-        console.log('schoolSettings:', schoolSettings);
-        
+    // Stabiliseer de availableLoginTypes met useMemo
+    const availableLoginTypes = useMemo(() => {
         // Super-administrator kan altijd beide kiezen
         if (currentUserProfile?.rol === 'super-administrator') {
-            console.log('Super admin detected, returning both types');
             return ['email', 'smartschool'];
         }
         
         // Voor andere administrators: check school instellingen
         if (schoolSettings?.auth_method) {
-            console.log('School auth_method found:', schoolSettings.auth_method);
             return [schoolSettings.auth_method];
         }
         
         // Fallback naar email als er geen instelling is
-        console.log('Fallback to email');
         return ['email'];
-    };
+    }, [currentUserProfile?.rol, schoolSettings?.auth_method]);
     
-    const availableLoginTypes = getAvailableLoginTypes();
     const canChooseLoginType = availableLoginTypes.length > 1;
-    
-    console.log('availableLoginTypes:', availableLoginTypes);
-    console.log('canChooseLoginType:', canChooseLoginType);
-    console.log('formData.login_type:', formData.login_type);
 
     useEffect(() => {
         if (isOpen) {
@@ -183,30 +173,13 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        console.log('handleChange called:', name, '=', value);
         
-        // Eerst de basis update
-        setFormData(prev => {
-            const updated = { ...prev, [name]: value };
-            console.log('Updated formData:', updated);
-            return updated;
-        });
+        // Basis update
+        setFormData(prev => ({ ...prev, [name]: value }));
         
         // Clear errors
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: '' }));
-        }
-
-        // Special handling voor login_type
-        if (name === 'login_type') {
-            setIdentifierExists(false);
-            // Reset de andere velden
-            setFormData(prev => ({
-                ...prev,
-                [name]: value,
-                email: value === 'smartschool' ? '' : prev.email,
-                smartschool_username: value === 'email' ? '' : prev.smartschool_username
-            }));
         }
 
         // Check identifier voor nieuwe gebruikers
@@ -219,10 +192,16 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
         }
     };
 
-    // Separate functie voor radio button clicks
+    // Separate functie voor login type changes
     const handleLoginTypeChange = (type) => {
-        console.log('handleLoginTypeChange called with:', type);
-        handleChange({ target: { name: 'login_type', value: type } });
+        setFormData(prev => ({
+            ...prev,
+            login_type: type,
+            // Reset andere velden
+            email: type === 'smartschool' ? '' : prev.email,
+            smartschool_username: type === 'email' ? '' : prev.smartschool_username
+        }));
+        setIdentifierExists(false);
     };
 
     const handleSubmit = async (e) => {
