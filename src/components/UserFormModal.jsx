@@ -59,7 +59,8 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
         smartschool_username: '',
         geboortedatum: '',
         geslacht: 'M',
-        login_type: 'email' // 'email' of 'smartschool'
+        login_type: 'email',
+        school_id: '' // Voor super-administrators
     });
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
