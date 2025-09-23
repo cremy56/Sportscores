@@ -196,7 +196,6 @@ export default function Gebruikersbeheer() {
 
                 // Aangepaste header validatie - email is nu optioneel
                 const requiredHeaders = ['naam', 'geboortedatum', 'geslacht'];
-                const optionalHeaders = ['email', 'smartschool_username'];
                 const missingRequiredHeaders = requiredHeaders.filter(h => !results.meta.fields.includes(h));
                 
                 if (missingRequiredHeaders.length > 0) {
@@ -221,39 +220,50 @@ export default function Gebruikersbeheer() {
 
                 try {
                     const batch = writeBatch(db);
-                    validRows.forEach(row => {
-                        // Bepaal de identifier voor het document ID
-                        const identifier = row.smartschool_username?.trim() || row.email?.trim().toLowerCase();
-                        const docRef = doc(db, 'toegestane_gebruikers', identifier);
-                        
-                        const geslachtCleaned = (row.geslacht || '').trim().toUpperCase();
-                        const finalGeslacht = geslachtCleaned.startsWith('M') ? 'M' : 'V';
+                    let successCount = 0;
+                    
+                    for (const row of validRows) {
+                        try {
+                            // Bepaal de identifier voor het document ID
+                            const identifier = row.smartschool_username?.trim() || row.email?.trim().toLowerCase();
+                            const docRef = doc(db, 'toegestane_gebruikers', identifier);
+                            
+                            const geslachtCleaned = (row.geslacht || '').trim().toUpperCase();
+                            const finalGeslacht = geslachtCleaned.startsWith('M') ? 'M' : 'V';
 
-                        const userData = {
-                            naam: row.naam.trim(),
-                            geboortedatum: row.geboortedatum ? new Date(row.geboortedatum) : null,
-                            geslacht: finalGeslacht,
-                            rol: 'leerling',
-                            school_id: profile.school_id,
-                            naam_keywords: row.naam.toLowerCase().split(' ').filter(Boolean),
-                        };
+                            const userData = {
+                                naam: row.naam.trim(),
+                                geboortedatum: row.geboortedatum ? new Date(row.geboortedatum) : null,
+                                geslacht: finalGeslacht,
+                                rol: 'leerling',
+                                school_id: profile.school_id,
+                                naam_keywords: row.naam.toLowerCase().split(' ').filter(Boolean),
+                            };
 
-                        // Voeg email toe als het bestaat
-                        if (row.email && row.email.includes('@')) {
-                            userData.email = row.email.trim().toLowerCase();
+                            // Voeg email toe als het bestaat
+                            if (row.email && row.email.includes('@')) {
+                                userData.email = row.email.trim().toLowerCase();
+                            }
+
+                            // Voeg smartschool_username toe als het bestaat
+                            if (row.smartschool_username && row.smartschool_username.trim()) {
+                                userData.smartschool_username = row.smartschool_username.trim();
+                            }
+
+                            batch.set(docRef, userData);
+                            successCount++;
+                        } catch (rowError) {
+                            console.warn(`Fout bij verwerken van rij voor ${row.naam}:`, rowError);
                         }
+                    }
 
-                        // Voeg smartschool_username toe als het bestaat
-                        if (row.smartschool_username && row.smartschool_username.trim()) {
-                            userData.smartschool_username = row.smartschool_username.trim();
-                        }
-
-                        batch.set(docRef, userData);
-                    });
-
-                    await batch.commit();
-                    toast.success(`${validRows.length} leerlingen succesvol geïmporteerd!`);
-                    setTotalCount(prev => (prev || 0) + validRows.length);
+                    if (successCount > 0) {
+                        await batch.commit();
+                        toast.success(`${successCount} leerlingen succesvol geïmporteerd!`);
+                        setTotalCount(prev => (prev || 0) + successCount);
+                    } else {
+                        toast.error("Geen geldige gebruikers konden worden geïmporteerd.");
+                    }
                 } catch (error) {
                     console.error("Import error:", error);
                     toast.error(`Import mislukt: ${error.message}`);
