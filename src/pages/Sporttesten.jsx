@@ -134,78 +134,19 @@ export default function Sporttesten() {
             setTesten(testenData);
         });
 
-        // Updated scores query with hybrid user identification
+        // Simplified scores query now that leerkracht_id uses smartschool ID
         const scoresRef = collection(db, 'scores');
         const userIdentifier = getUserIdentifier(currentUser, profile);
         
-        // Try multiple queries to find scores associated with this user
-        const queryScores = async () => {
-            try {
-                let allScores = [];
-                
-                // Query 1: Try with current identifier
-                const qScores1 = query(
-                    scoresRef, 
-                    where('school_id', '==', profile.school_id), 
-                    where('leerkracht_id', '==', userIdentifier)
-                );
-                const snapshot1 = await getDocs(qScores1);
-                allScores.push(...snapshot1.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                
-                // Query 2: If profile has both email and smartschool_username, try the other one too
-                if (profile?.email && profile?.smartschool_username) {
-                    const alternateId = userIdentifier === profile.email ? profile.smartschool_username : profile.email;
-                    const qScores2 = query(
-                        scoresRef, 
-                        where('school_id', '==', profile.school_id), 
-                        where('leerkracht_id', '==', alternateId)
-                    );
-                    const snapshot2 = await getDocs(qScores2);
-                    allScores.push(...snapshot2.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                }
-                
-                // Query 3: Fallback to uid if needed
-                if (currentUser.uid !== userIdentifier) {
-                    const qScores3 = query(
-                        scoresRef, 
-                        where('school_id', '==', profile.school_id), 
-                        where('leerkracht_id', '==', currentUser.uid)
-                    );
-                    const snapshot3 = await getDocs(qScores3);
-                    allScores.push(...snapshot3.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                }
-                
-                // Remove duplicates and convert dates
-                const uniqueScores = [];
-                const seenIds = new Set();
-                
-                allScores.forEach(score => {
-                    if (!seenIds.has(score.id)) {
-                        seenIds.add(score.id);
-                        uniqueScores.push({
-                            ...score,
-                            datum: score.datum.toDate ? score.datum.toDate() : new Date(score.datum)
-                        });
-                    }
-                });
-                
-                setRawScores(uniqueScores);
-                
-            } catch (error) {
-                console.error('Error querying scores:', error);
-                setRawScores([]);
-            }
-        };
-
-        queryScores();
-
-        // Set up real-time listener for new scores
+        console.log('Using identifier for scores query:', userIdentifier);
+        
         const qScores = query(
             scoresRef, 
             where('school_id', '==', profile.school_id), 
             where('leerkracht_id', '==', userIdentifier)
         );
         const unsubscribeScores = onSnapshot(qScores, (scoresSnapshot) => {
+            console.log(`Found ${scoresSnapshot.docs.length} scores for user:`, userIdentifier);
             const scoresData = scoresSnapshot.docs.map(doc => {
                 const data = doc.data();
                 return { id: doc.id, ...data, datum: data.datum.toDate() };
