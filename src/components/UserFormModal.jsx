@@ -77,8 +77,8 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
         }
         
         // Voor andere administrators: check school instellingen
-        if (schoolSettings?.primary_login_method) {
-            return [schoolSettings.primary_login_method];
+        if (schoolSettings?.auth_method) {
+            return [schoolSettings.auth_method];
         }
         
         // Fallback naar email als er geen instelling is
