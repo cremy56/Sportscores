@@ -2,12 +2,13 @@
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { db } from '../firebase';
-import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { 
     UserIcon, 
     EnvelopeIcon, 
-    AtSymbolIcon
+    AtSymbolIcon,
+    BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 
 // Helper-functies
@@ -44,10 +45,13 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
         smartschool_username: '',
         geboortedatum: '',
         geslacht: 'M',
-        login_type: 'email'
+        login_type: 'email',
+        school_id: ''
     });
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    const [schools, setSchools] = useState([]);
+    const [loadingSchools, setLoadingSchools] = useState(false);
 
     const isEditing = !!userData;
     const currentUserRole = isEditing ? userData?.rol : role;
@@ -65,6 +69,31 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
         availableTypes = ['email'];
     }
 
+    // Haal scholen op voor super-administrators
+    useEffect(() => {
+        const fetchSchools = async () => {
+            if (!isSuperAdmin || !isOpen) return;
+            
+            setLoadingSchools(true);
+            try {
+                const schoolsQuery = query(collection(db, 'scholen'), orderBy('naam'));
+                const schoolsSnapshot = await getDocs(schoolsQuery);
+                const schoolsList = schoolsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    naam: doc.data().naam
+                }));
+                setSchools(schoolsList);
+            } catch (error) {
+                console.error('Error fetching schools:', error);
+                toast.error('Kon scholen niet laden');
+            } finally {
+                setLoadingSchools(false);
+            }
+        };
+
+        fetchSchools();
+    }, [isSuperAdmin, isOpen]);
+
     // Initialize form data
     useEffect(() => {
         if (!isOpen) return;
@@ -77,7 +106,8 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
                 smartschool_username: userData.smartschool_username || '',
                 geboortedatum: formatDateForInput(userData.geboortedatum),
                 geslacht: userData.geslacht || 'M',
-                login_type: hasUsername ? 'smartschool' : 'email'
+                login_type: hasUsername ? 'smartschool' : 'email',
+                school_id: userData.school_id || ''
             });
         } else {
             const defaultType = availableTypes.includes('email') ? 'email' : availableTypes[0];
@@ -87,7 +117,8 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
                 smartschool_username: '',
                 geboortedatum: '',
                 geslacht: 'M',
-                login_type: defaultType
+                login_type: defaultType,
+                school_id: isSuperAdmin ? '' : schoolId || ''
             });
         }
         setErrors({});
@@ -115,6 +146,11 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
         
         if (!formData.naam.trim() || formData.naam.trim().length < 2) {
             newErrors.naam = 'Naam is verplicht';
+        }
+
+        // School validatie voor super-admin
+        if (isSuperAdmin && !formData.school_id) {
+            newErrors.school_id = 'Selecteer een school';
         }
 
         if (formData.login_type === 'email' && (!formData.email.trim() || !validateEmail(formData.email))) {
@@ -152,7 +188,7 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
         const userObject = {
             naam: formData.naam.trim(),
             rol: currentUserRole,
-            school_id: schoolId,
+            school_id: isSuperAdmin ? formData.school_id : schoolId,
             naam_keywords: formData.naam.toLowerCase().split(' ').filter(Boolean),
             updated_at: new Date(),
         };
@@ -233,7 +269,45 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
                                             {errors.naam && <p className="mt-1 text-sm text-red-600">{errors.naam}</p>}
                                         </div>
 
-                                        {/* Login Type - alleen voor nieuwe gebruikers met keuze */}
+                                        {/* School selector - alleen voor super-administrators bij nieuwe gebruikers */}
+                                        {!isEditing && isSuperAdmin && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">School *</label>
+                                                <div className="relative">
+                                                    <BuildingOfficeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                                    <select 
+                                                        name="school_id" 
+                                                        value={formData.school_id} 
+                                                        onChange={handleInputChange}
+                                                        disabled={loadingSchools}
+                                                        className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 ${errors.school_id ? 'border-red-300' : 'border-gray-300'}`}
+                                                    >
+                                                        <option value="">
+                                                            {loadingSchools ? 'Scholen laden...' : 'Selecteer een school'}
+                                                        </option>
+                                                        {schools.map(school => (
+                                                            <option key={school.id} value={school.id}>
+                                                                {school.naam}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                {errors.school_id && <p className="mt-1 text-sm text-red-600">{errors.school_id}</p>}
+                                                <p className="mt-1 text-xs text-gray-500">Als super-administrator kunt u gebruikers voor elke school aanmaken</p>
+                                            </div>
+                                        )}
+
+                                        {/* Info voor bestaande gebruikers */}
+                                        {isEditing && isSuperAdmin && (
+                                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                                                <div className="flex items-center space-x-2">
+                                                    <BuildingOfficeIcon className="w-5 h-5 text-blue-600" />
+                                                    <p className="text-sm text-blue-800">
+                                                        School kan niet worden gewijzigd bij bestaande gebruikers
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                         {!isEditing && canChooseType && (
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-3">Inlog methode *</label>
