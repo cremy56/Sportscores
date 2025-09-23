@@ -138,7 +138,14 @@ export default function Sporttesten() {
         const scoresRef = collection(db, 'scores');
         const userIdentifier = getUserIdentifier(currentUser, profile);
         
-        console.log('Using identifier for scores query:', userIdentifier);
+        console.log('=== DEBUG INFO ===');
+        console.log('Current user:', currentUser);
+        console.log('Profile object:', profile);
+        console.log('Profile smartschool_username:', profile?.smartschool_username);
+        console.log('Profile email:', profile?.email);
+        console.log('Calculated userIdentifier:', userIdentifier);
+        console.log('School ID:', profile.school_id);
+        console.log('==================');
         
         const qScores = query(
             scoresRef, 
@@ -147,6 +154,9 @@ export default function Sporttesten() {
         );
         const unsubscribeScores = onSnapshot(qScores, (scoresSnapshot) => {
             console.log(`Found ${scoresSnapshot.docs.length} scores for user:`, userIdentifier);
+            if (scoresSnapshot.docs.length > 0) {
+                console.log('First score data:', scoresSnapshot.docs[0].data());
+            }
             const scoresData = scoresSnapshot.docs.map(doc => {
                 const data = doc.data();
                 return { id: doc.id, ...data, datum: data.datum.toDate() };
