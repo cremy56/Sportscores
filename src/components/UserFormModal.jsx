@@ -69,24 +69,33 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
     const isEditing = !!userData;
     const currentUserRole = isEditing ? userData?.rol : role;
     
-    // Bepaal welke login types beschikbaar zijn
     const getAvailableLoginTypes = () => {
+        console.log('currentUserProfile?.rol:', currentUserProfile?.rol);
+        console.log('schoolSettings:', schoolSettings);
+        
         // Super-administrator kan altijd beide kiezen
         if (currentUserProfile?.rol === 'super-administrator') {
+            console.log('Super admin detected, returning both types');
             return ['email', 'smartschool'];
         }
         
         // Voor andere administrators: check school instellingen
         if (schoolSettings?.auth_method) {
+            console.log('School auth_method found:', schoolSettings.auth_method);
             return [schoolSettings.auth_method];
         }
         
         // Fallback naar email als er geen instelling is
+        console.log('Fallback to email');
         return ['email'];
     };
     
     const availableLoginTypes = getAvailableLoginTypes();
     const canChooseLoginType = availableLoginTypes.length > 1;
+    
+    console.log('availableLoginTypes:', availableLoginTypes);
+    console.log('canChooseLoginType:', canChooseLoginType);
+    console.log('formData.login_type:', formData.login_type);
 
     useEffect(() => {
         if (isOpen) {
@@ -174,32 +183,43 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+        console.log('handleChange called:', name, value);
         
-        // Update form data eerst
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData(prev => {
+            const newData = { ...prev, [name]: value };
+            console.log('New formData will be:', newData);
+            return newData;
+        });
+        
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
 
         // Reset andere velden wanneer login type verandert
         if (name === 'login_type') {
+            console.log('Login type changed to:', value);
             setIdentifierExists(false);
-            if (value === 'email') {
-                setFormData(prev => ({ ...prev, smartschool_username: '', [name]: value }));
-            } else {
-                setFormData(prev => ({ ...prev, email: '', [name]: value }));
-            }
-            return; // Stop hier voor login_type changes
+            
+            // Gebruik setTimeout om ervoor te zorgen dat de state update batched wordt
+            setTimeout(() => {
+                setFormData(prev => {
+                    if (value === 'email') {
+                        return { ...prev, smartschool_username: '' };
+                    } else {
+                        return { ...prev, email: '' };
+                    }
+                });
+            }, 0);
+            return;
         }
 
         // Check identifier wanneer het verandert (alleen bij nieuwe gebruikers)
         if (!isEditing && (name === 'email' || name === 'smartschool_username')) {
             setIdentifierExists(false);
-            const timeoutId = setTimeout(() => {
+            setTimeout(() => {
                 if (value) {
                     const type = name === 'email' ? 'email' : 'smartschool';
                     checkIdentifierExists(value, type);
                 }
             }, 500);
-            // Note: Deze timeout cleanup werkt alleen in useEffect, niet in event handlers
         }
     };
 
