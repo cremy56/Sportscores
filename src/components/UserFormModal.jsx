@@ -83,11 +83,27 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
                 console.log('Fetching settings for school:', schoolId);
                 const schoolDoc = await getDoc(doc(db, 'scholen', schoolId));
                 if (schoolDoc.exists()) {
-                    const settings = schoolDoc.data().instellingen || {};
+                    const schoolData = schoolDoc.data();
+                    console.log('Full school document:', schoolData);
+                    const settings = schoolData.instellingen || {};
                     console.log('Fetched school settings:', settings);
                     setCurrentSchoolSettings(settings);
                 } else {
-                    console.log('School document not found');
+                    console.log('School document not found for ID:', schoolId);
+                    // Probeer alternatieve school IDs als backup
+                    const alternativeIds = ['ka_beveren', 'kabeveren'];
+                    for (const altId of alternativeIds) {
+                        if (altId !== schoolId) {
+                            console.log('Trying alternative ID:', altId);
+                            const altDoc = await getDoc(doc(db, 'scholen', altId));
+                            if (altDoc.exists()) {
+                                const settings = altDoc.data().instellingen || {};
+                                console.log('Found with alternative ID:', altId, settings);
+                                setCurrentSchoolSettings(settings);
+                                return;
+                            }
+                        }
+                    }
                     setCurrentSchoolSettings({});
                 }
             } catch (error) {
