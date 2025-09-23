@@ -52,17 +52,41 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
     const [errors, setErrors] = useState({});
     const [schools, setSchools] = useState([]);
     const [loadingSchools, setLoadingSchools] = useState(false);
+    const [currentSchoolSettings, setCurrentSchoolSettings] = useState(null);
 
     const isEditing = !!userData;
     const currentUserRole = isEditing ? userData?.rol : role;
     
     // Simpele logica zonder useMemo
     const isSuperAdmin = currentUserProfile?.rol === 'super-administrator';
-    const schoolAuthMethod = schoolSettings?.auth_method;
-        console.log('Current role:', currentUserProfile?.rol);
-        console.log('SchoolSettings:', schoolSettings);
-        console.log('SchoolAuthMethod:', schoolAuthMethod);
-        console.log('Available types:', availableTypes);
+    
+    // Haal schoolinstellingen op als we een schoolId hebben maar geen schoolSettings
+    useEffect(() => {
+        const fetchSchoolSettings = async () => {
+            if (!schoolId || schoolSettings) {
+                setCurrentSchoolSettings(schoolSettings);
+                return;
+            }
+            
+            try {
+                const schoolDoc = await getDoc(doc(db, 'scholen', schoolId));
+                if (schoolDoc.exists()) {
+                    setCurrentSchoolSettings(schoolDoc.data().instellingen || {});
+                }
+            } catch (error) {
+                console.error('Error fetching school settings:', error);
+                setCurrentSchoolSettings({});
+            }
+        };
+
+        fetchSchoolSettings();
+    }, [schoolId, schoolSettings]);
+
+    // Bepaal beschikbare login types
+    const schoolAuthMethod = currentSchoolSettings?.auth_method;
+    console.log('Current role:', currentUserProfile?.rol);
+    console.log('SchoolSettings:', currentSchoolSettings);
+    console.log('SchoolAuthMethod:', schoolAuthMethod);
     
     let availableTypes = [];
     if (isSuperAdmin) {
@@ -72,6 +96,8 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
     } else {
         availableTypes = ['email'];
     }
+    
+    console.log('Available types:', availableTypes);
 
     // Haal scholen op voor super-administrators
     useEffect(() => {
