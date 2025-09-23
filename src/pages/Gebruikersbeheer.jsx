@@ -381,10 +381,19 @@ export default function Gebruikersbeheer() {
                             accept=".csv"
                             onChange={handleFileChange}
                             ref={fileInputRef}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                             title="Importeer CSV"
                         />
-                        <button className="flex items-center justify-center sm:justify-start bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto">
+                        <button 
+                            type="button"
+                            className="flex items-center justify-center sm:justify-start bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto relative z-0"
+                            onClick={() => {
+                                const fileInput = fileInputRef.current;
+                                if (fileInput) {
+                                    fileInput.click();
+                                }
+                            }}
+                        >
                             <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
                             <span className="sm:hidden">CSV Import</span>
                             <span className="hidden sm:inline">CSV </span>
