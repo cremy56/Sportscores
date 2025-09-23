@@ -60,7 +60,7 @@ const MobileActionButtons = ({ onEdit, onDelete, user }) => (
 
 export default function Gebruikersbeheer() {
     const context = useOutletContext();
-    const { profile } = context || {};
+    const { profile, school } = context || {};
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -481,6 +481,8 @@ export default function Gebruikersbeheer() {
                 userData={modal.data}
                 schoolId={profile?.school_id}
                 role={modal.role}
+                currentUserProfile={profile}
+                schoolSettings={school?.instellingen}
             />
             
             <ConfirmModal
