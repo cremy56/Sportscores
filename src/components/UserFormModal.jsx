@@ -72,9 +72,9 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
                 return;
             }
             
-            // Anders haal ze op via schoolId
-            if (!schoolId || !isOpen) {
-                console.log('No schoolId or modal not open, setting null');
+            // Haal schoolinstellingen op als we een schoolId hebben (ongeacht of modal open is)
+            if (!schoolId) {
+                console.log('No schoolId, setting null');
                 setCurrentSchoolSettings(null);
                 return;
             }
@@ -97,7 +97,7 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
         };
 
         fetchSchoolSettings();
-    }, [schoolId, schoolSettings, isOpen]);
+    }, [schoolId, schoolSettings]); // Removed isOpen dependency
 
     // Bepaal beschikbare login types
     const schoolAuthMethod = currentSchoolSettings?.auth_method;
