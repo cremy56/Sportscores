@@ -63,15 +63,28 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
     // Haal schoolinstellingen op als we een schoolId hebben maar geen schoolSettings
     useEffect(() => {
         const fetchSchoolSettings = async () => {
-            if (!schoolId || schoolSettings) {
+            // Als we al schoolSettings hebben via props, gebruik die
+            if (schoolSettings) {
                 setCurrentSchoolSettings(schoolSettings);
                 return;
             }
             
+            // Anders haal ze op via schoolId
+            if (!schoolId || !isOpen) {
+                setCurrentSchoolSettings(null);
+                return;
+            }
+            
             try {
+                console.log('Fetching settings for school:', schoolId);
                 const schoolDoc = await getDoc(doc(db, 'scholen', schoolId));
                 if (schoolDoc.exists()) {
-                    setCurrentSchoolSettings(schoolDoc.data().instellingen || {});
+                    const settings = schoolDoc.data().instellingen || {};
+                    console.log('Fetched school settings:', settings);
+                    setCurrentSchoolSettings(settings);
+                } else {
+                    console.log('School document not found');
+                    setCurrentSchoolSettings({});
                 }
             } catch (error) {
                 console.error('Error fetching school settings:', error);
@@ -80,7 +93,7 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
         };
 
         fetchSchoolSettings();
-    }, [schoolId, schoolSettings]);
+    }, [schoolId, schoolSettings, isOpen]);
 
     // Bepaal beschikbare login types
     const schoolAuthMethod = currentSchoolSettings?.auth_method;
