@@ -8,13 +8,7 @@ import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, PencilIcon, Ch
 import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { parseTimeInputToSeconds } from '../utils/formatters.js';
-
-const GENDER_MAPPING = {
-  'man': 'M',
-  'vrouw': 'V',
-  'jongen': 'M',
-  'meisje': 'V'
-};
+import { GENDER_MAPPING } from '../utils/firebaseUtils.js';
 
 // --- HELPER FUNCTIES ---
 // De helper functies (calculateAge, calculatePuntFromScore, etc.) blijven ongewijzigd.
