@@ -178,24 +178,34 @@ export default function NieuweTestafname() {
             setNormenInfo({ M: true, V: true, loading: false });
             return;
         }
-        const checkNormen = async () => {
-            setNormenInfo({ M: false, V: false, loading: true });
-            try {
-                const normenQuery = query(collection(db, 'normen'), where('test_id', '==', selectedTest.id));
-                const normenSnapshot = await getDocs(normenQuery);
-                if (normenSnapshot.empty) {
-                    setNormenInfo({ M: false, V: false, loading: false });
-                    return;
-                }
-                const normData = normenSnapshot.docs[0].data();
-                const hasMaleNorms = normData.punten_schaal.some(n => n.geslacht === 'M');
-                const hasFemaleNorms = normData.punten_schaal.some(n => n.geslacht === 'V');
-                setNormenInfo({ M: hasMaleNorms, V: hasFemaleNorms, loading: false });
-            } catch (error) {
-                console.error("Fout bij ophalen normen:", error);
-                setNormenInfo({ M: true, V: true, loading: false });
-            }
-        };
+       const checkNormen = async () => {
+    setNormenInfo({ M: false, V: false, loading: true });
+    try {
+        console.log('Checking norms for test_id:', selectedTest.id); // DEBUG
+        const normenQuery = query(collection(db, 'normen'), where('test_id', '==', selectedTest.id));
+        const normenSnapshot = await getDocs(normenQuery);
+        console.log('Found norms docs:', normenSnapshot.docs.length); // DEBUG
+        
+        if (normenSnapshot.empty) {
+            setNormenInfo({ M: false, V: false, loading: false });
+            return;
+        }
+        const normData = normenSnapshot.docs[0].data();
+        console.log('Norm data:', normData); // DEBUG
+        console.log('Punten schaal:', normData.punten_schaal); // DEBUG
+        
+        const hasMaleNorms = normData.punten_schaal.some(n => n.geslacht === 'M');
+        const hasFemaleNorms = normData.punten_schaal.some(n => n.geslacht === 'V');
+        
+        console.log('Has male norms:', hasMaleNorms); // DEBUG
+        console.log('Has female norms:', hasFemaleNorms); // DEBUG
+        
+        setNormenInfo({ M: hasMaleNorms, V: hasFemaleNorms, loading: false });
+    } catch (error) {
+        console.error("Fout bij ophalen normen:", error);
+        setNormenInfo({ M: true, V: true, loading: false });
+    }
+};
         checkNormen();
     }, [selectedTest]);
     
