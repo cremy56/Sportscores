@@ -30,7 +30,7 @@ const RETRY_CONFIG = {
 };
 
 // Enhanced gender mapping with more comprehensive mapping
-const GENDER_MAPPING = {
+export const GENDER_MAPPING = {
   'man': 'M',
   'vrouw': 'V', 
   'jongen': 'M',
@@ -809,4 +809,3 @@ function calculateStudentAge(birthDate, testDate) {
     return null;
   }
 }
-export { GENDER_MAPPING };
