@@ -621,6 +621,7 @@ const handleUpdateDate = async () => {
         // Update the URL without triggering a full page reload
         const newUrl = `/testafname/${groepId}/${testId}/${newDate}`;
         window.history.replaceState(null, '', newUrl);
+        window.location.pathname = newUrl;
         console.log('URL updated to:', newUrl);
         
         // Update the datum parameter in component state to reflect the new date
