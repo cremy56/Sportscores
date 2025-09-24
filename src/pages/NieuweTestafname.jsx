@@ -227,20 +227,37 @@ export default function NieuweTestafname() {
     }, []);
 
     // Filter leerlingen op basis van beschikbare normen
-   const gefilterdeLeerlingen = useMemo(() => {
+  const gefilterdeLeerlingen = useMemo(() => {
     if (normenInfo.loading) return [];
     
+    console.log('=== GENDER FILTERING DEBUG ===');
+    console.log('normenInfo:', normenInfo); // Zou {M: true, V: true, loading: false} moeten zijn
+    console.log('volledigeLeerlingen count:', volledigeLeerlingen.length);
+    
     const filtered = volledigeLeerlingen.filter(leerling => {
-        // --- WIJZIGING: Gebruik de GENDER_MAPPING ---
         const geslachtString = leerling.data.geslacht?.toLowerCase() || '';
-        const mappedGender = GENDER_MAPPING[geslachtString]; // bv. 'man' wordt 'M'
-
-        if (mappedGender === 'M') return normenInfo.M;
-        if (mappedGender === 'V') return normenInfo.V;
+        const mappedGender = GENDER_MAPPING[geslachtString];
         
-        return false; // Leerling wordt verborgen als geslacht onbekend is
+        console.log(`Leerling: ${leerling.data.naam}`);
+        console.log(`  - geslacht raw: "${leerling.data.geslacht}"`);
+        console.log(`  - geslacht lowercase: "${geslachtString}"`);
+        console.log(`  - mappedGender: "${mappedGender}"`);
+        console.log(`  - normenInfo.M: ${normenInfo.M}, normenInfo.V: ${normenInfo.V}`);
+
+        if (mappedGender === 'M') {
+            console.log(`  - Is male, normenInfo.M = ${normenInfo.M}, including: ${normenInfo.M}`);
+            return normenInfo.M;
+        }
+        if (mappedGender === 'V') {
+            console.log(`  - Is female, normenInfo.V = ${normenInfo.V}, including: ${normenInfo.V}`);
+            return normenInfo.V;
+        }
+        
+        console.log(`  - No valid mapping, excluding`);
+        return false;
     });
 
+    console.log('Filtered count:', filtered.length);
     setUitgeslotenLeerlingen(volledigeLeerlingen.filter(l => !filtered.includes(l)));
     return filtered;
 }, [volledigeLeerlingen, normenInfo]);
