@@ -300,6 +300,7 @@ export default function TestafnameDetail() {
     const [longPressTimer, setLongPressTimer] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // FIXED: Added missing state
     const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, scoreId: null, leerlingNaam: '' });
+const [currentDate, setCurrentDate] = useState(datum);
 
     const stats = useMemo(() => {
         const leerlingenMetScore = details.leerlingen.filter(l => l.score !== null);
@@ -585,7 +586,7 @@ const handleUpdateScore = async () => {
     };
 
 const handleUpdateDate = async () => {
-    if (!newDate || newDate === datum.split('T')[0]) {
+    if (!newDate || newDate === currentDate.split('T')[0]) {
         setEditingDate(false);
         return;
     }
@@ -603,6 +604,7 @@ const handleUpdateDate = async () => {
             return;
         }
         
+        // Update database
         const batch = writeBatch(db);
         const newDateObj = new Date(newDate + 'T02:00:00.000Z');
         
@@ -613,16 +615,19 @@ const handleUpdateDate = async () => {
         
         await batch.commit();
         
-        toast.success(`${scoresFromState.length} score(s) bijgewerkt naar nieuwe datum!`);
+        // Update lokale state (dit update de datum op het scherm)
+        setCurrentDate(newDate);
         
-        // Navigate to the new URL (this will update the datum parameter)
+        // Update URL zonder pagina reload
         const newUrl = `/testafname/${groepId}/${testId}/${newDate}`;
-        navigate(newUrl, { replace: true });
+        window.history.replaceState(null, '', newUrl);
+        
+        toast.success(`${scoresFromState.length} score(s) bijgewerkt naar nieuwe datum!`);
         
     } catch (error) {
         console.error('Error updating date:', error);
         toast.error('Fout bij bijwerken van de datum: ' + error.message);
-        setNewDate(datum.split('T')[0]);
+        setNewDate(currentDate.split('T')[0]);
     } finally {
         toast.dismiss(loadingToast);
         setUpdating(false);
@@ -739,7 +744,7 @@ const handleUpdateDate = async () => {
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm">{new Date(datum).toLocaleDateString('nl-BE', { 
+                                           <span className="text-sm">{new Date(currentDate).toLocaleDateString('nl-BE', { 
                                                 day: '2-digit',
                                                 month: '2-digit',
                                                 year: 'numeric'
