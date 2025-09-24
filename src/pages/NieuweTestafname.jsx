@@ -323,18 +323,18 @@ export default function NieuweTestafname() {
                     if (finalScoreValue !== null && !isNaN(finalScoreValue)) {
                         const leerling = gefilterdeLeerlingen.find(l => l.id === leerlingId);
                         const newScoreRef = doc(collection(db, 'scores'));
-                        batch.set(newScoreRef, {
-                            datum: new Date(datum),
-                            groep_id: selectedGroep.id,
-                            leerling_id: leerlingId,
-                            leerling_naam: leerling?.data?.naam || 'Onbekend',
-                            score: finalScoreValue,
-                            rapportpunt: scoreData.rapportpunt ?? null,
-                            school_id: profile.school_id,
-                            test_id: selectedTest.id,
-                            leerkracht_id: auth.currentUser.uid,
-                            created_at: serverTimestamp()
-                        });
+                            batch.set(newScoreRef, {
+                                datum: new Date(datum),
+                                groep_id: selectedGroep.id,
+                                leerling_id: leerling.id,  // ✅ Gebruik altijd het document ID
+                                leerling_naam: leerling?.data?.naam || 'Onbekend',
+                                score: finalScoreValue,
+                                rapportpunt: scoreData.rapportpunt ?? null,
+                                school_id: profile.school_id,
+                                test_id: selectedTest.id,
+                                leerkracht_id: auth.currentUser.uid,
+                                created_at: serverTimestamp()
+                            });
                     }
                 }
             }

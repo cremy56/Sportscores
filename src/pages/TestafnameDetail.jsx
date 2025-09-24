@@ -374,29 +374,54 @@ export default function TestafnameDetail() {
                 where('datum', '>=', dayStart),
                 where('datum', '<=', dayEnd)
             );
-            
+
             const scoresSnap = await getDocs(scoresQuery);
-            console.log('Found scores:', scoresSnap.docs.length);
-            
-            const scoresMap = new Map(scoresSnap.docs.map(d => [d.data().leerling_id, { id: d.id, ...d.data() }]));
+
+            // ✅ Maak een flexibele mapping die werkt met zowel document IDs als emails/usernames
+            const scoresMap = new Map();
+            const scoresWithEmailIds = []; // Voor backwards compatibility
+
+            scoresSnap.docs.forEach(scoreDoc => {
+                const scoreData = { id: scoreDoc.id, ...scoreDoc.data() };
+                const leerlingId = scoreData.leerling_id;
+                
+                scoresMap.set(leerlingId, scoreData);
+                
+                // Als het een email lijkt, bewaar het apart
+                if (leerlingId.includes('@')) {
+                    scoresWithEmailIds.push(scoreData);
+                }
+            });
 
             const leerlingIds = groupData.leerling_ids || [];
-            console.log('Leerling IDs:', leerlingIds.length);
-            
+
             let leerlingenData = [];
             if (leerlingIds.length > 0) {
-                 const leerlingenQuery = query(
-                        collection(db, 'toegestane_gebruikers'), 
-                        where('__name__', 'in', leerlingIds)
-                    );
+                const leerlingenQuery = query(
+                    collection(db, 'toegestane_gebruikers'), 
+                    where('__name__', 'in', leerlingIds)
+                );
                 const leerlingenSnap = await getDocs(leerlingenQuery);
                 
                 leerlingenData = leerlingenSnap.docs.map(d => {
-                    const scoreInfo = scoresMap.get(d.id);
+                    const userData = d.data();
+                    
+                    // Probeer eerst op document ID te matchen
+                    let scoreInfo = scoresMap.get(d.id);
+                    
+                    // Als dat niet lukt, probeer op email (backwards compatibility)
+                    if (!scoreInfo && userData.email) {
+                        scoreInfo = scoresMap.get(userData.email);
+                    }
+                    
+                    // Als dat ook niet lukt, probeer op smartschool_username
+                    if (!scoreInfo && userData.smartschool_username) {
+                        scoreInfo = scoresMap.get(userData.smartschool_username);
+                    }
+                    
                     return {
                         id: d.id,
-                        // WIJZIGING: Sla het volledige leerling-object op
-                        ...d.data(), 
+                        ...userData, 
                         score: scoreInfo?.score ?? null,
                         punt: scoreInfo?.rapportpunt ?? null,
                         score_id: scoreInfo?.id
