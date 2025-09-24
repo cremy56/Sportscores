@@ -809,3 +809,4 @@ function calculateStudentAge(birthDate, testDate) {
     return null;
   }
 }
+export { GENDER_MAPPING };
