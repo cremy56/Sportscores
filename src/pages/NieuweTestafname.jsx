@@ -365,7 +365,7 @@ export default function NieuweTestafname() {
                         rapportpunt: scoreData.rapportpunt ?? null,
                         school_id: profile.school_id,
                         test_id: selectedTest.id,
-                        leerkracht_id: auth.currentUser.uid,
+                        leerkracht_id: profile.email || profile.smartschool_username || auth.currentUser.uid,
                         created_at: serverTimestamp()
                     });
                 }
