@@ -379,7 +379,7 @@ export default function NieuweTestafname() {
         toast.success("Scores succesvol opgeslagen!");
         
         console.log('🔄 Navigating to /scores...');
-        navigate('/scores'); 
+        navigate('/Sporttesten'); 
         
     } catch (error) {
         console.error('❌ Save error:', error);
