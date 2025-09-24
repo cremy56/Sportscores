@@ -331,40 +331,64 @@ export default function NieuweTestafname() {
         setScores(prev => ({ ...prev, [leerlingId]: { ...prev[leerlingId], score: newScore, rapportpunt: null, isValid: true, isCalculating: true }}));
     };
 
-    const handleSaveScores = async () => {
-        if (!selectedGroep || !selectedTest) return toast.error("Selecteer een groep en een test.");
-        setIsSaving(true);
-        const batch = writeBatch(db);
-        const eenheidLower = selectedTest.eenheid?.toLowerCase();
-        try {
-            for (const leerlingId in scores) {
-                const scoreData = scores[leerlingId];
-                if (scoreData.score && String(scoreData.score).trim() !== '') {
-                    let finalScoreValue = (eenheidLower.includes('min') || eenheidLower.includes('sec')) ? parseTimeInputToSeconds(scoreData.score) : parseFloat(String(scoreData.score).replace(',', '.'));
-                    if (finalScoreValue !== null && !isNaN(finalScoreValue)) {
-                        const leerling = gefilterdeLeerlingen.find(l => l.id === leerlingId);
-                        const newScoreRef = doc(collection(db, 'scores'));
-                            batch.set(newScoreRef, {
-                                datum: new Date(datum),
-                                groep_id: selectedGroep.id,
-                                leerling_id: leerling.id,  // ✅ Gebruik altijd het document ID
-                                leerling_naam: leerling?.data?.naam || 'Onbekend',
-                                score: finalScoreValue,
-                                rapportpunt: scoreData.rapportpunt ?? null,
-                                school_id: profile.school_id,
-                                test_id: selectedTest.id,
-                                leerkracht_id: auth.currentUser.uid,
-                                created_at: serverTimestamp()
-                            });
-                    }
+   const handleSaveScores = async () => {
+    console.log('🔄 Starting save process...');
+    if (!selectedGroep || !selectedTest) return toast.error("Selecteer een groep en een test.");
+    
+    console.log('✅ Groups and test selected');
+    setIsSaving(true);
+    
+    const batch = writeBatch(db);
+    const eenheidLower = selectedTest.eenheid?.toLowerCase();
+    
+    try {
+        console.log('📝 Processing scores...', Object.keys(scores).length, 'scores to process');
+        
+        for (const leerlingId in scores) {
+            const scoreData = scores[leerlingId];
+            if (scoreData.score && String(scoreData.score).trim() !== '') {
+                let finalScoreValue = (eenheidLower.includes('min') || eenheidLower.includes('sec')) 
+                    ? parseTimeInputToSeconds(scoreData.score) 
+                    : parseFloat(String(scoreData.score).replace(',', '.'));
+                    
+                if (finalScoreValue !== null && !isNaN(finalScoreValue)) {
+                    const leerling = gefilterdeLeerlingen.find(l => l.id === leerlingId);
+                    console.log('💾 Adding score for:', leerling?.data?.naam, finalScoreValue);
+                    
+                    const newScoreRef = doc(collection(db, 'scores'));
+                    batch.set(newScoreRef, {
+                        datum: new Date(datum),
+                        groep_id: selectedGroep.id,
+                        leerling_id: leerling.id,
+                        leerling_naam: leerling?.data?.naam || 'Onbekend',
+                        score: finalScoreValue,
+                        rapportpunt: scoreData.rapportpunt ?? null,
+                        school_id: profile.school_id,
+                        test_id: selectedTest.id,
+                        leerkracht_id: auth.currentUser.uid,
+                        created_at: serverTimestamp()
+                    });
                 }
             }
-            await batch.commit();
-            toast.success("Scores succesvol opgeslagen!");
-            navigate('/scores');
-        } catch (error) { toast.error("Kon de scores niet opslaan.");
-        } finally { setIsSaving(false); }
-    };
+        }
+        
+        console.log('🔥 Committing batch...');
+        await batch.commit();
+        console.log('✅ Batch committed successfully');
+        
+        toast.success("Scores succesvol opgeslagen!");
+        
+        console.log('🔄 Navigating to /scores...');
+        // navigate('/scores'); // Tijdelijk uitschakelen om te testen
+        
+    } catch (error) {
+        console.error('❌ Save error:', error);
+        toast.error("Kon de scores niet opslaan: " + error.message);
+    } finally {
+        console.log('🏁 Save process finished');
+        setIsSaving(false);
+    }
+};
 
     const validScoresCount = Object.values(scores).filter(s => s.score && String(s.score).trim() !== '').length;
     
