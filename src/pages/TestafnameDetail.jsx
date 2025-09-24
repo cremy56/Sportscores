@@ -584,8 +584,8 @@ const handleUpdateScore = async () => {
         }
     };
 
-  const handleUpdateDate = async () => {
-    if (!newDate || newDate === datum) {
+const handleUpdateDate = async () => {
+    if (!newDate || newDate === datum.split('T')[0]) {
         setEditingDate(false);
         return;
     }
@@ -594,12 +594,22 @@ const handleUpdateScore = async () => {
     const loadingToast = toast.loading('Datum bijwerken...');
     
     try {
-        // Get all scores for this test session
-        const dayStart = new Date(datum);
+        // Parse the original date from the URL parameter
+        let originalDate;
+        if (datum.includes('T')) {
+            originalDate = new Date(datum);
+        } else {
+            originalDate = new Date(datum + 'T00:00:00');
+        }
+        
+        // Create search range for the current date
+        const dayStart = new Date(originalDate);
         dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(datum);
+        
+        const dayEnd = new Date(originalDate);
         dayEnd.setHours(23, 59, 59, 999);
         
+        // Find scores to update
         const scoresQuery = query(collection(db, 'scores'), 
             where('groep_id', '==', groepId),
             where('test_id', '==', testId),
@@ -609,30 +619,47 @@ const handleUpdateScore = async () => {
         
         const scoresSnapshot = await getDocs(scoresQuery);
         
+        let scoresToUpdate = [];
+        
         if (scoresSnapshot.empty) {
-            toast.error('Geen scores gevonden om bij te werken.');
-            return;
+            // Fallback: use the scores from component state
+            const scoresFromState = details.leerlingen
+                .filter(l => l.score_id)
+                .map(l => l.score_id);
+            
+            if (scoresFromState.length === 0) {
+                toast.error('Geen scores gevonden om bij te werken.');
+                return;
+            }
+            
+            scoresToUpdate = scoresFromState;
+        } else {
+            scoresToUpdate = scoresSnapshot.docs.map(doc => doc.id);
         }
         
         // Update all scores to the new date
         const batch = writeBatch(db);
-        const newDateObj = new Date(newDate);
+        const newDateObj = new Date(newDate + 'T02:00:00.000Z');
         
-        scoresSnapshot.docs.forEach(scoreDoc => {
-            batch.update(scoreDoc.ref, { datum: newDateObj });
+        scoresToUpdate.forEach(scoreId => {
+            const scoreRef = doc(db, 'scores', scoreId);
+            batch.update(scoreRef, { datum: newDateObj });
         });
         
         await batch.commit();
         
-        toast.success('Datum succesvol bijgewerkt!');
+        toast.success(`${scoresToUpdate.length} score(s) bijgewerkt naar nieuwe datum!`);
         
-        // Navigate to the new URL after successful update
+        // Navigate to the new URL AFTER successful update
         const newUrl = `/testafname/${groepId}/${testId}/${newDate}`;
         navigate(newUrl);
         
     } catch (error) {
         console.error('Error updating date:', error);
-        toast.error('Fout bij bijwerken van de datum.');
+        toast.error('Fout bij bijwerken van de datum: ' + error.message);
+        
+        // Reset to original date if update failed
+        setNewDate(datum.split('T')[0]);
     } finally {
         toast.dismiss(loadingToast);
         setUpdating(false);
