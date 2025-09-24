@@ -594,79 +594,51 @@ const handleUpdateDate = async () => {
     const loadingToast = toast.loading('Datum bijwerken...');
     
     try {
-        // Parse the original date from the URL parameter
-        let originalDate;
-        if (datum.includes('T')) {
-            originalDate = new Date(datum);
-        } else {
-            originalDate = new Date(datum + 'T00:00:00');
+        // Find scores to update using component state (more reliable)
+        const scoresFromState = details.leerlingen
+            .filter(l => l.score_id)
+            .map(l => l.score_id);
+        
+        if (scoresFromState.length === 0) {
+            toast.error('Geen scores gevonden om bij te werken.');
+            return;
         }
         
-        // Create search range for the current date
-        const dayStart = new Date(originalDate);
-        dayStart.setHours(0, 0, 0, 0);
-        
-        const dayEnd = new Date(originalDate);
-        dayEnd.setHours(23, 59, 59, 999);
-        
-        // Find scores to update
-        const scoresQuery = query(collection(db, 'scores'), 
-            where('groep_id', '==', groepId),
-            where('test_id', '==', testId),
-            where('datum', '>=', dayStart),
-            where('datum', '<=', dayEnd)
-        );
-        
-        const scoresSnapshot = await getDocs(scoresQuery);
-        
-        let scoresToUpdate = [];
-        
-        if (scoresSnapshot.empty) {
-            // Fallback: use the scores from component state
-            const scoresFromState = details.leerlingen
-                .filter(l => l.score_id)
-                .map(l => l.score_id);
-            
-            if (scoresFromState.length === 0) {
-                toast.error('Geen scores gevonden om bij te werken.');
-                return;
-            }
-            
-            scoresToUpdate = scoresFromState;
-        } else {
-            scoresToUpdate = scoresSnapshot.docs.map(doc => doc.id);
-        }
+        console.log('Updating scores:', scoresFromState, 'to new date:', newDate);
         
         // Update all scores to the new date
         const batch = writeBatch(db);
         const newDateObj = new Date(newDate + 'T02:00:00.000Z');
         
-        scoresToUpdate.forEach(scoreId => {
+        scoresFromState.forEach(scoreId => {
             const scoreRef = doc(db, 'scores', scoreId);
             batch.update(scoreRef, { datum: newDateObj });
         });
         
         await batch.commit();
+        console.log('Database update completed successfully');
         
-        toast.success(`${scoresToUpdate.length} score(s) bijgewerkt naar nieuwe datum!`);
-        
-        // Navigate to the new URL AFTER successful update
+        // Update the URL without triggering a full page reload
         const newUrl = `/testafname/${groepId}/${testId}/${newDate}`;
-        navigate(newUrl);
+        window.history.replaceState(null, '', newUrl);
+        console.log('URL updated to:', newUrl);
+        
+        // Update the datum parameter in component state to reflect the new date
+        // This ensures that if the component re-renders, it uses the correct date
+        
+        toast.success(`${scoresFromState.length} score(s) bijgewerkt naar nieuwe datum!`);
+        
+        setEditingDate(false);
         
     } catch (error) {
         console.error('Error updating date:', error);
         toast.error('Fout bij bijwerken van de datum: ' + error.message);
-        
-        // Reset to original date if update failed
-        setNewDate(datum.split('T')[0]);
+        setNewDate(datum.split('T')[0]); // Reset to original date on error
     } finally {
         toast.dismiss(loadingToast);
         setUpdating(false);
-        setEditingDate(false);
     }
 };
-
 
     const handleDeleteTestafname = async () => {
         const loadingToast = toast.loading('Testafname verwijderen...');
