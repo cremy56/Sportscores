@@ -594,7 +594,6 @@ const handleUpdateDate = async () => {
     const loadingToast = toast.loading('Datum bijwerken...');
     
     try {
-        // Find scores to update using component state (more reliable)
         const scoresFromState = details.leerlingen
             .filter(l => l.score_id)
             .map(l => l.score_id);
@@ -604,9 +603,6 @@ const handleUpdateDate = async () => {
             return;
         }
         
-        console.log('Updating scores:', scoresFromState, 'to new date:', newDate);
-        
-        // Update all scores to the new date
         const batch = writeBatch(db);
         const newDateObj = new Date(newDate + 'T02:00:00.000Z');
         
@@ -616,28 +612,21 @@ const handleUpdateDate = async () => {
         });
         
         await batch.commit();
-        console.log('Database update completed successfully');
-        
-        // Update the URL without triggering a full page reload
-        const newUrl = `/testafname/${groepId}/${testId}/${newDate}`;
-        window.history.replaceState(null, '', newUrl);
-        window.location.pathname = newUrl;
-        console.log('URL updated to:', newUrl);
-        
-        // Update the datum parameter in component state to reflect the new date
-        // This ensures that if the component re-renders, it uses the correct date
         
         toast.success(`${scoresFromState.length} score(s) bijgewerkt naar nieuwe datum!`);
         
-        setEditingDate(false);
+        // Navigate to the new URL (this will update the datum parameter)
+        const newUrl = `/testafname/${groepId}/${testId}/${newDate}`;
+        navigate(newUrl, { replace: true });
         
     } catch (error) {
         console.error('Error updating date:', error);
         toast.error('Fout bij bijwerken van de datum: ' + error.message);
-        setNewDate(datum.split('T')[0]); // Reset to original date on error
+        setNewDate(datum.split('T')[0]);
     } finally {
         toast.dismiss(loadingToast);
         setUpdating(false);
+        setEditingDate(false);
     }
 };
 
