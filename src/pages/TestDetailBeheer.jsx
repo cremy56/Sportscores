@@ -34,7 +34,7 @@ export default function TestDetailBeheer() {
     }, [profile]);
 
     // VEILIGERE CHECK: Controleer of 'profile' en 'profile.role' bestaan voordat we de waarde vergelijken.
-   const isAdmin = profile?.rol?.toLowerCase() === 'administrator';
+   const isAdmin = ['administrator', 'super-administrator'].includes(profile?.rol?.toLowerCase());
 
     // --- EINDE VAN DE AANPASSING ---
 
