@@ -584,16 +584,61 @@ const handleUpdateScore = async () => {
         }
     };
 
-   const handleUpdateDate = () => {
-        // Controleer of er een nieuwe datum is ingesteld die verschilt van de oude
-        if (newDate && newDate !== datum) {
-            // Bouw de nieuwe URL op met de geselecteerde datum
-            const newUrl = `/testafname/${groepId}/${testId}/${newDate}`;
-            navigate(newUrl); // Navigeer naar de nieuwe pagina
-        }
-        // Sluit in elk geval de bewerkmodus voor de datum
+  const handleUpdateDate = async () => {
+    if (!newDate || newDate === datum) {
         setEditingDate(false);
-    };
+        return;
+    }
+    
+    setUpdating(true);
+    const loadingToast = toast.loading('Datum bijwerken...');
+    
+    try {
+        // Get all scores for this test session
+        const dayStart = new Date(datum);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(datum);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        const scoresQuery = query(collection(db, 'scores'), 
+            where('groep_id', '==', groepId),
+            where('test_id', '==', testId),
+            where('datum', '>=', dayStart),
+            where('datum', '<=', dayEnd)
+        );
+        
+        const scoresSnapshot = await getDocs(scoresQuery);
+        
+        if (scoresSnapshot.empty) {
+            toast.error('Geen scores gevonden om bij te werken.');
+            return;
+        }
+        
+        // Update all scores to the new date
+        const batch = writeBatch(db);
+        const newDateObj = new Date(newDate);
+        
+        scoresSnapshot.docs.forEach(scoreDoc => {
+            batch.update(scoreDoc.ref, { datum: newDateObj });
+        });
+        
+        await batch.commit();
+        
+        toast.success('Datum succesvol bijgewerkt!');
+        
+        // Navigate to the new URL after successful update
+        const newUrl = `/testafname/${groepId}/${testId}/${newDate}`;
+        navigate(newUrl);
+        
+    } catch (error) {
+        console.error('Error updating date:', error);
+        toast.error('Fout bij bijwerken van de datum.');
+    } finally {
+        toast.dismiss(loadingToast);
+        setUpdating(false);
+        setEditingDate(false);
+    }
+};
 
 
     const handleDeleteTestafname = async () => {
