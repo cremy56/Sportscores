@@ -128,6 +128,15 @@ function App() {
     };
 
 const checkAndCreateProfile = async () => {
+  // School ID mapping voor Smartschool OAuth inconsistenties
+  const SCHOOL_ID_MAPPING = {
+    'kabeveren': 'ka_beveren'
+  };
+  
+  const normalizeSchoolId = (schoolId) => {
+    return SCHOOL_ID_MAPPING[schoolId] || schoolId;
+  };
+
   try {
     const docSnap = await getDoc(profileRef);
     if (!docSnap.exists()) {
