@@ -18,16 +18,31 @@ const DropdownMenu = ({ title, children, isActive = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef();
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
+ useEffect(() => {
+  const handleClickOutside = (event) => {
+    // Check of er geklikt wordt buiten de menu button EN buiten het menu zelf
+    if (menuOpen && 
+        menuButtonRef.current && 
+        !menuButtonRef.current.contains(event.target)) {
+      // Extra check: kijk of het geklikt element binnen een portal element zit
+      const portalRoot = document.getElementById('portal-root');
+      if (portalRoot && !portalRoot.contains(event.target)) {
+        setMenuOpen(false);
       }
-    };
+    }
+  };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  if (menuOpen) {
+    // Voeg listener toe met een kleine delay om te voorkomen dat de initiële click het menu direct sluit
+    setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+  }
+
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, [menuOpen]);
 
   const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
   const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
