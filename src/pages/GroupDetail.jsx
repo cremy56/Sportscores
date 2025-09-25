@@ -95,39 +95,66 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
 
   const delayDebounceFn = setTimeout(async () => {
     setLoading(true);
-    console.log('=== SEARCH DEBUG ===');
-    console.log('Search term:', searchTerm);
-    console.log('Search term lower:', searchTerm.toLowerCase());
-    console.log('Group school_id:', group.school_id);
-    console.log('Current group leerling_ids:', group.leerling_ids);
     
     try {
       const searchTermLower = searchTerm.toLowerCase();
       const usersRef = collection(db, 'toegestane_gebruikers');
       
-      const q = query(
-        usersRef,
+      console.log('=== STEP BY STEP DEBUG ===');
+      
+      // STAP 1: Haal ALLE gebruikers op van deze school
+      console.log('Step 1: All users for school', group.school_id);
+      const q1 = query(usersRef, where('school_id', '==', group.school_id));
+      const snap1 = await getDocs(q1);
+      console.log('All users in school:', snap1.docs.length);
+      snap1.docs.forEach(doc => {
+        const data = doc.data();
+        console.log(`- ${data.naam} (rol: ${data.rol})`);
+      });
+      
+      // STAP 2: Filter op leerlingen
+      console.log('Step 2: Only students');
+      const q2 = query(usersRef, 
+        where('school_id', '==', group.school_id),
+        where('rol', '==', 'leerling')
+      );
+      const snap2 = await getDocs(q2);
+      console.log('Students in school:', snap2.docs.length);
+      snap2.docs.forEach(doc => {
+        const data = doc.data();
+        console.log(`- ${data.naam} (keywords: ${JSON.stringify(data.naam_keywords)})`);
+      });
+      
+      // STAP 3: Zoek met naam_keywords
+      console.log('Step 3: Search with keywords for:', searchTermLower);
+      const q3 = query(usersRef,
         where('school_id', '==', group.school_id),
         where('rol', '==', 'leerling'),
         where('naam_keywords', 'array-contains', searchTermLower)
       );
-
-      const querySnapshot = await getDocs(q);
-      console.log('Raw query results:', querySnapshot.docs.length);
+      const snap3 = await getDocs(q3);
+      console.log('Search results:', snap3.docs.length);
       
-      const allResults = querySnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
-      }));
+      // FALLBACK: Manual filter als de query niet werkt
+      console.log('Step 4: Manual fallback search');
+      const allStudents = snap2.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const manualResults = allStudents.filter(student => 
+        student.naam && student.naam.toLowerCase().includes(searchTermLower)
+      );
+      console.log('Manual search results:', manualResults.length);
       
-      console.log('All students found:', allResults);
+      // Gebruik manual results als de query faalt
+      const results = snap3.docs.length > 0 
+        ? snap3.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        : manualResults;
       
-      const results = allResults.filter(student => !group.leerling_ids.includes(student.id));
+      // Filter uit degenen die al in de groep zitten
+      const finalResults = results.filter(student => !group.leerling_ids.includes(student.id));
       
-      console.log('Filtered results (not in group):', results);
-      console.log('==================');
+      console.log('Final results after filtering group members:', finalResults);
+      console.log('============================');
       
-      setSearchResults(results);
+      setSearchResults(finalResults);
     } catch (error) {
       console.error("Fout bij zoeken naar leerlingen:", error);
       toast.error("Kon niet zoeken naar leerlingen.");
