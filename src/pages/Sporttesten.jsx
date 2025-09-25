@@ -180,14 +180,19 @@ export default function Sporttesten() {
                 if (!acc[key]) {
                     const groep = groepen.find(g => g.id === score.groep_id);
                     const test = testen.find(t => t.id === score.test_id);
+                    
+                    // Gebruik de groepsnaam uit de score als de groep niet meer bestaat
+                    const groepNaam = groep ? groep.naam : (score.groep_naam || 'Verwijderde Groep');
+                    
                     acc[key] = {
                         groep_id: score.groep_id,
                         test_id: score.test_id,
                         datum: score.datum,
-                        groep_naam: groep?.naam || 'Onbekende Groep',
+                        groep_naam: groepNaam,
                         test_naam: test?.naam || 'Onbekende Test',
                         score_ids: [],
-                        leerling_count: 0
+                        leerling_count: 0,
+                        isOrphanedGroup: !groep  // Flag om te markeren dat de groep niet meer bestaat
                     };
                 }
                 acc[key].score_ids.push(score.id);
@@ -269,18 +274,22 @@ export default function Sporttesten() {
                 {filteredEvaluaties.length > 0 ? (
                     <ul className="divide-y divide-gray-200/70">
                         {filteredEvaluaties.map(item => (
-                            <li key={`${item.groep_id}-${item.test_id}-${item.datum}`} className="group hover:bg-purple-50/50 transition-colors">
-                                <div onClick={() => navigate(`/testafname/${item.groep_id}/${item.test_id}/${item.datum.toISOString()}`)} className="flex items-center justify-between p-6 cursor-pointer">
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-lg text-gray-900 group-hover:text-purple-700">{item.test_naam}</p>
-                                        <p className="text-sm text-gray-600 mt-1">{item.groep_naam} • {item.leerling_count} leerling{item.leerling_count !== 1 ? 'en' : ''}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2 ml-4">
-                                        <button onClick={(e) => { e.stopPropagation(); setModal({ type: 'confirmDeleteTestafname', data: item }); }} className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600" title="Verwijder testafname"><TrashIcon className="h-5 w-5" /></button>
-                                        <ChevronRightIcon className="h-6 w-6 text-gray-400 group-hover:text-purple-700 transition-all group-hover:translate-x-1" />
-                                    </div>
+                           <li key={`${item.groep_id}-${item.test_id}-${item.datum}`} className={`group hover:bg-purple-50/50 transition-colors ${item.isOrphanedGroup ? 'opacity-75' : ''}`}>
+                            <div onClick={() => navigate(`/testafname/${item.groep_id}/${item.test_id}/${item.datum.toISOString()}`)} className="flex items-center justify-between p-6 cursor-pointer">
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-lg text-gray-900 group-hover:text-purple-700">{item.test_naam}</p>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                        {item.groep_naam}
+                                        {item.isOrphanedGroup && <span className="text-orange-600 ml-1">(Groep verwijderd)</span>}
+                                        • {item.leerling_count} leerling{item.leerling_count !== 1 ? 'en' : ''}
+                                    </p>
                                 </div>
-                            </li>
+                                <div className="flex items-center gap-2 ml-4">
+                                    <button onClick={(e) => { e.stopPropagation(); setModal({ type: 'confirmDeleteTestafname', data: item }); }} className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600" title="Verwijder testafname"><TrashIcon className="h-5 w-5" /></button>
+                                    <ChevronRightIcon className="h-6 w-6 text-gray-400 group-hover:text-purple-700 transition-all group-hover:translate-x-1" />
+                                </div>
+                            </div>
+                        </li>
                         ))}
                     </ul>
                 ) : (
