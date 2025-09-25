@@ -88,39 +88,55 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (searchTerm.length < 2 || !group?.school_id) {
-      setSearchResults([]);
-      return;
+  if (searchTerm.length < 2 || !group?.school_id) {
+    setSearchResults([]);
+    return;
+  }
+
+  const delayDebounceFn = setTimeout(async () => {
+    setLoading(true);
+    console.log('=== SEARCH DEBUG ===');
+    console.log('Search term:', searchTerm);
+    console.log('Search term lower:', searchTerm.toLowerCase());
+    console.log('Group school_id:', group.school_id);
+    console.log('Current group leerling_ids:', group.leerling_ids);
+    
+    try {
+      const searchTermLower = searchTerm.toLowerCase();
+      const usersRef = collection(db, 'toegestane_gebruikers');
+      
+      const q = query(
+        usersRef,
+        where('school_id', '==', group.school_id),
+        where('rol', '==', 'leerling'),
+        where('naam_keywords', 'array-contains', searchTermLower)
+      );
+
+      const querySnapshot = await getDocs(q);
+      console.log('Raw query results:', querySnapshot.docs.length);
+      
+      const allResults = querySnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      }));
+      
+      console.log('All students found:', allResults);
+      
+      const results = allResults.filter(student => !group.leerling_ids.includes(student.id));
+      
+      console.log('Filtered results (not in group):', results);
+      console.log('==================');
+      
+      setSearchResults(results);
+    } catch (error) {
+      console.error("Fout bij zoeken naar leerlingen:", error);
+      toast.error("Kon niet zoeken naar leerlingen.");
     }
+    setLoading(false);
+  }, 300);
 
-    const delayDebounceFn = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const searchTermLower = searchTerm.toLowerCase();
-        const usersRef = collection(db, 'toegestane_gebruikers');
-        
-        const q = query(
-          usersRef,
-          where('school_id', '==', group.school_id),
-          where('rol', '==', 'leerling'),
-          where('naam_keywords', 'array-contains', searchTermLower)
-        );
-
-        const querySnapshot = await getDocs(q);
-        const results = querySnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(student => !group.leerling_ids.includes(student.id));
-        
-        setSearchResults(results);
-      } catch (error) {
-        console.error("Fout bij zoeken naar leerlingen:", error);
-        toast.error("Kon niet zoeken naar leerlingen.");
-      }
-      setLoading(false);
-    }, 300);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, group]);
+  return () => clearTimeout(delayDebounceFn);
+}, [searchTerm, group]);
 
   const handleAddStudent = async (student) => {
     const groupRef = doc(db, 'groepen', group.id);
