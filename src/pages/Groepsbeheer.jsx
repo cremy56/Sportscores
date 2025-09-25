@@ -7,6 +7,22 @@ import toast, { Toaster } from 'react-hot-toast';
 import { PlusIcon, UsersIcon, AcademicCapIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import ConfirmModal from '../components/ConfirmModal';
 
+// Helper function to get user identifier for database queries
+const getUserIdentifier = (user, profile) => {
+    // Try different identifiers in order of preference
+    if (profile?.smartschool_username) {
+        return profile.smartschool_username;
+    }
+    if (profile?.email) {
+        return profile.email;
+    }
+    if (user?.email) {
+        return user.email;
+    }
+    // Fallback to uid
+    return user?.uid;
+};
+
 export default function Groepsbeheer() {
   const { profile } = useOutletContext();
   const [groepen, setGroepen] = useState([]);
@@ -23,60 +39,61 @@ export default function Groepsbeheer() {
   useEffect(() => {
     // Stop als het profiel (en dus de school_id) nog niet geladen is.
     if (!auth.currentUser || !profile?.school_id) {
-      // Als er geen school_id is, stop met laden en toon een lege lijst.
-      setLoading(false);
-      return;
+        setLoading(false);
+        return;
     }
 
     const groepenCollectionRef = collection(db, 'groepen');
+    const userIdentifier = getUserIdentifier(auth.currentUser, profile); // ✅ Nieuwe regel
     const q = query(
         groepenCollectionRef, 
         where('school_id', '==', profile.school_id), 
-        where('leerkracht_id', '==', auth.currentUser.uid)
+        where('leerkracht_id', '==', userIdentifier) // ✅ Gebruik userIdentifier
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const groepenData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setGroepen(groepenData);
-      setLoading(false);
+        const groepenData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        setGroepen(groepenData);
+        setLoading(false);
     }, (error) => {
-      console.error("Fout bij ophalen groepen:", error);
-      toast.error("Kon de groepen niet laden.");
-      setLoading(false);
+        console.error("Fout bij ophalen groepen:", error);
+        toast.error("Kon de groepen niet laden.");
+        setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [profile?.school_id]); // Voeg profile.school_id toe aan de dependency array
+}, [profile?.school_id]);
 
   const handleCreateGroup = async (e) => {
     e.preventDefault();
     if (!newGroupName.trim()) {
-      toast.error("Groepsnaam mag niet leeg zijn.");
-      return;
+        toast.error("Groepsnaam mag niet leeg zijn.");
+        return;
     }
     setIsSubmitting(true);
 
     try {
-      await addDoc(collection(db, 'groepen'), {
-        naam: newGroupName,
-        leerkracht_id: auth.currentUser.uid,
-        school_id: profile.school_id,
-        leerling_ids: [],
-        created_at: serverTimestamp()
-      });
-      toast.success(`Groep "${newGroupName}" succesvol aangemaakt!`);
-      setShowModal(false);
-      setNewGroupName('');
+        const userIdentifier = getUserIdentifier(auth.currentUser, profile); // ✅ Nieuwe regel
+        await addDoc(collection(db, 'groepen'), {
+            naam: newGroupName,
+            leerkracht_id: userIdentifier, // ✅ Gebruik userIdentifier
+            school_id: profile.school_id,
+            leerling_ids: [],
+            created_at: serverTimestamp()
+        });
+        toast.success(`Groep "${newGroupName}" succesvol aangemaakt!`);
+        setShowModal(false);
+        setNewGroupName('');
     } catch (error) {
-      console.error("Fout bij aanmaken groep:", error);
-      toast.error("Kon de groep niet aanmaken.");
+        console.error("Fout bij aanmaken groep:", error);
+        toast.error("Kon de groep niet aanmaken.");
     } finally {
-      setIsSubmitting(false);
+        setIsSubmitting(false);
     }
-  };
+};
 
   const handleEditGroup = (group) => {
     setEditingGroup(group);
