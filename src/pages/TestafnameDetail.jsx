@@ -318,135 +318,155 @@ const [currentDate, setCurrentDate] = useState(datum);
 
     // FIXED: Remove fetchDetails from dependency array to prevent infinite loop
     const fetchDetails = useCallback(async () => {
-        if (!groepId || !testId || !datum) {
-            console.warn('Missing required params:', { groepId, testId, datum });
+    if (!groepId || !testId || !datum) {
+        console.warn('Missing required params:', { groepId, testId, datum });
+        setLoading(false);
+        return;
+    }
+    
+    setLoading(true);
+
+    try {
+        const [groupSnap, testSnap] = await Promise.all([
+            getDoc(doc(db, 'groepen', groepId)),
+            getDoc(doc(db, 'testen', testId)),
+        ]);
+
+        // ✅ Alleen stoppen als de test niet bestaat - groep mag ontbreken
+        if (!testSnap.exists()) {
+            toast.error("Test niet gevonden");
             setLoading(false);
             return;
         }
+
+        // ✅ Graceful handling van ontbrekende groep
+        const groupData = groupSnap.exists() ? groupSnap.data() : null;
+        const groupName = groupData?.naam || 'Verwijderde Groep';
+        const leerlingIds = groupData?.leerling_ids || [];
         
-        setLoading(true);
-        console.log('Fetching details for:', { groepId, testId, datum });
+        const testData = { id: testSnap.id, ...testSnap.data() };
 
+        // Date parsing blijft hetzelfde...
+        let targetDate;
         try {
-            const [groupSnap, testSnap] = await Promise.all([
-                getDoc(doc(db, 'groepen', groepId)),
-                getDoc(doc(db, 'testen', testId)),
-            ]);
-
-            if (!groupSnap.exists() || !testSnap.exists()) {
-                console.error('Document not found:', { 
-                    groupExists: groupSnap.exists(), 
-                    testExists: testSnap.exists() 
-                });
-                toast.error("Groep of test niet gevonden");
-                setLoading(false);
-                return;
+            targetDate = new Date(datum);
+            if (isNaN(targetDate.getTime())) {
+                throw new Error('Invalid date');
             }
-
-            const groupData = groupSnap.data();
-            const testData = { id: testSnap.id, ...testSnap.data() }; // WIJZIGING: Sla het volledige test-object op
-
-            
-            // FIXED: Better date parsing
-            let targetDate;
-            try {
-                targetDate = new Date(datum);
-                if (isNaN(targetDate.getTime())) {
-                    throw new Error('Invalid date');
-                }
-            } catch (error) {
-                console.error('Invalid date format:', datum);
-                toast.error("Ongeldige datum");
-                setLoading(false);
-                return;
-            }
-
-            const dayStart = new Date(targetDate);
-            dayStart.setHours(0, 0, 0, 0);
-
-            const dayEnd = new Date(targetDate);
-            dayEnd.setHours(23, 59, 59, 999);
-
-            console.log('Date range:', { dayStart, dayEnd });
-
-            const scoresQuery = query(collection(db, 'scores'), 
-                where('groep_id', '==', groepId),
-                where('test_id', '==', testId),
-                where('datum', '>=', dayStart),
-                where('datum', '<=', dayEnd)
-            );
-
-            const scoresSnap = await getDocs(scoresQuery);
-
-            // ✅ Maak een flexibele mapping die werkt met zowel document IDs als emails/usernames
-            const scoresMap = new Map();
-            const scoresWithEmailIds = []; // Voor backwards compatibility
-
-            scoresSnap.docs.forEach(scoreDoc => {
-                const scoreData = { id: scoreDoc.id, ...scoreDoc.data() };
-                const leerlingId = scoreData.leerling_id;
-                
-                scoresMap.set(leerlingId, scoreData);
-                
-                // Als het een email lijkt, bewaar het apart
-                if (leerlingId.includes('@')) {
-                    scoresWithEmailIds.push(scoreData);
-                }
-            });
-
-            const leerlingIds = groupData.leerling_ids || [];
-
-            let leerlingenData = [];
-            if (leerlingIds.length > 0) {
-                const leerlingenQuery = query(
-                    collection(db, 'toegestane_gebruikers'), 
-                    where('__name__', 'in', leerlingIds)
-                );
-                const leerlingenSnap = await getDocs(leerlingenQuery);
-                
-                leerlingenData = leerlingenSnap.docs.map(d => {
-                    const userData = d.data();
-                    
-                    // Probeer eerst op document ID te matchen
-                    let scoreInfo = scoresMap.get(d.id);
-                    
-                    // Als dat niet lukt, probeer op email (backwards compatibility)
-                    if (!scoreInfo && userData.email) {
-                        scoreInfo = scoresMap.get(userData.email);
-                    }
-                    
-                    // Als dat ook niet lukt, probeer op smartschool_username
-                    if (!scoreInfo && userData.smartschool_username) {
-                        scoreInfo = scoresMap.get(userData.smartschool_username);
-                    }
-                    
-                    return {
-                        id: d.id,
-                        ...userData, 
-                        score: scoreInfo?.score ?? null,
-                        punt: scoreInfo?.rapportpunt ?? null,
-                        score_id: scoreInfo?.id
-                    };
-                });
-            }
-            
-            setDetails({
-                groep_naam: groupData.naam,
-                test_naam: testData.naam,
-                eenheid: testData.eenheid,
-                max_punten: testData.max_punten || 20,
-                test_volledig: testData, // WIJZIGING: Sla het test-object op in de state
-                leerlingen: leerlingenData.sort((a,b) => a.naam.localeCompare(b.naam))
-            });
-
-
         } catch (error) {
-            console.error("Error fetching details:", error);
-            toast.error("Details konden niet worden geladen: " + error.message);
-        } finally {
+            console.error('Invalid date format:', datum);
+            toast.error("Ongeldige datum");
             setLoading(false);
+            return;
         }
-    }, []); // FIXED: Empty dependency array
+
+        const dayStart = new Date(targetDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(targetDate);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        // Haal scores op
+        const scoresQuery = query(collection(db, 'scores'), 
+            where('groep_id', '==', groepId),
+            where('test_id', '==', testId),
+            where('datum', '>=', dayStart),
+            where('datum', '<=', dayEnd)
+        );
+
+        const scoresSnap = await getDocs(scoresQuery);
+        const scoresMap = new Map();
+
+        scoresSnap.docs.forEach(scoreDoc => {
+            const scoreData = { id: scoreDoc.id, ...scoreDoc.data() };
+            const leerlingId = scoreData.leerling_id;
+            scoresMap.set(leerlingId, scoreData);
+        });
+
+        let leerlingenData = [];
+
+        if (leerlingIds.length > 0) {
+            // ✅ Normale flow: groep bestaat, gebruik leerling_ids
+            const leerlingenQuery = query(
+                collection(db, 'toegestane_gebruikers'), 
+                where('__name__', 'in', leerlingIds)
+            );
+            const leerlingenSnap = await getDocs(leerlingenQuery);
+            
+            leerlingenData = leerlingenSnap.docs.map(d => {
+                const userData = d.data();
+                let scoreInfo = scoresMap.get(d.id);
+                
+                if (!scoreInfo && userData.email) {
+                    scoreInfo = scoresMap.get(userData.email);
+                }
+                if (!scoreInfo && userData.smartschool_username) {
+                    scoreInfo = scoresMap.get(userData.smartschool_username);
+                }
+                
+                return {
+                    id: d.id,
+                    ...userData, 
+                    score: scoreInfo?.score ?? null,
+                    punt: scoreInfo?.rapportpunt ?? null,
+                    score_id: scoreInfo?.id
+                };
+            });
+        } else if (scoresSnap.docs.length > 0) {
+            // ✅ Fallback: groep bestaat niet, maar we hebben scores
+            // Haal leerlingen op via de leerling_id's in de scores
+            const leerlingIdsFromScores = [...new Set(scoresSnap.docs.map(doc => doc.data().leerling_id))];
+            
+            for (const leerlingId of leerlingIdsFromScores) {
+                try {
+                    // Probeer eerst als document ID
+                    const leerlingDoc = await getDoc(doc(db, 'toegestane_gebruikers', leerlingId));
+                    if (leerlingDoc.exists()) {
+                        const userData = leerlingDoc.data();
+                        const scoreInfo = scoresMap.get(leerlingId);
+                        leerlingenData.push({
+                            id: leerlingDoc.id,
+                            ...userData,
+                            score: scoreInfo?.score ?? null,
+                            punt: scoreInfo?.rapportpunt ?? null,
+                            score_id: scoreInfo?.id
+                        });
+                    } else {
+                        // Als document ID niet werkt, gebruik de naam uit de score
+                        const scoreInfo = scoresMap.get(leerlingId);
+                        if (scoreInfo && scoreInfo.leerling_naam) {
+                            leerlingenData.push({
+                                id: leerlingId,
+                                naam: scoreInfo.leerling_naam,
+                                score: scoreInfo.score,
+                                punt: scoreInfo.rapportpunt,
+                                score_id: scoreInfo.id,
+                                isOrphaned: true // Flag dat deze leerling niet meer als gebruiker bestaat
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Could not find student ${leerlingId}:`, error);
+                }
+            }
+        }
+        
+        setDetails({
+            groep_naam: groupName,
+            test_naam: testData.naam,
+            eenheid: testData.eenheid,
+            max_punten: testData.max_punten || 20,
+            test_volledig: testData,
+            leerlingen: leerlingenData.sort((a,b) => a.naam.localeCompare(b.naam)),
+            isOrphanedGroup: !groupSnap.exists() // Flag voor UI
+        });
+
+    } catch (error) {
+        console.error("Error fetching details:", error);
+        toast.error("Details konden niet worden geladen: " + error.message);
+    } finally {
+        setLoading(false);
+    }
+}, []);
 
     // FIXED: Separate useEffect with proper dependencies
     useEffect(() => {
