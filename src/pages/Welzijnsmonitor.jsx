@@ -124,10 +124,10 @@ const loadUserGroups = async () => {
         let displayName = group.naam;
         
         // Add extra info for admins
-        if (isAdmin && group.role === 'admin') {
-          displayName += ` (${group.leerkracht_naam}) - ${group.leerling_count} leerlingen`;
+       if (isAdmin && group.role === 'admin') {
+          displayName += ` (${group.leerkracht_id}) - ${group.leerling_count} lln`;
         } else if (group.leerling_count) {
-          displayName += ` - ${group.leerling_count} leerlingen`;
+          displayName += ` - ${group.leerling_count} lln`;
         }
         
         dropdownGroups.push({
