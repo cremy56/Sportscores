@@ -344,22 +344,25 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
 
   // Effect to handle redirects when role changes and current path becomes inaccessible
   useEffect(() => {
-    if (!activeRole) return;
-    
-    const currentPath = location.pathname;
-    const restrictedPaths = {
-      'leerling': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer', '/welzijnsmonitor', '/groepsbeheer', '/sporttesten'],
-      'leerkracht': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'],
-      'administrator': ['/schoolbeheer'],
-      'super-administrator': []
-    };
+  // ✅ Alleen redirecten als activeRole én profile geladen zijn
+  if (!activeRole || !profile) return;
+  
+  const currentPath = location.pathname;
+  const restrictedPaths = {
+    'leerling': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer', '/welzijnsmonitor', '/groepsbeheer', '/sporttesten'],
+    'leerkracht': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'],
+    'administrator': ['/schoolbeheer'],
+    'super-administrator': []
+  };
 
-    const isPathRestricted = restrictedPaths[activeRole]?.some(path => currentPath.startsWith(path));
-    
-    if (isPathRestricted) {
-      navigate('/');
-    }
-  }, [activeRole, location.pathname, navigate]);
+  const isPathRestricted = restrictedPaths[activeRole]?.some(path => currentPath.startsWith(path));
+  
+  // ✅ Alleen redirecten als de huidige pagina echt restricted is
+  if (isPathRestricted) {
+    console.log(`Redirecting from restricted path ${currentPath} for role ${activeRole}`);
+    navigate('/');
+  }
+}, [activeRole, location.pathname, navigate, profile]); // ✅ profile toegevoegd aan dependencies
 
   const toggleMenu = () => {
     if (menuButtonRef.current) {
