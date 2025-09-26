@@ -3,12 +3,18 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 export default function ProtectedRoute({ profile, school, activeRole }) {
   const location = useLocation();
-console.log('🛡️ ProtectedRoute check:', {
-  pathname: location.pathname,
-  userRole,
-  profileExists: !!profile,
-  onboardingComplete: profile?.onboarding_complete
-});
+  
+  // ✅ Definieer userRole EERST
+  const userRole = activeRole || profile?.rol;
+  
+  // ✅ Nu kunnen we userRole veilig gebruiken in console.log
+  console.log('🛡️ ProtectedRoute check:', {
+    pathname: location.pathname,
+    userRole,
+    profileExists: !!profile,
+    onboardingComplete: profile?.onboarding_complete
+  });
+
   // Als het profiel nog niet geladen is, stuur de gebruiker terug.
   if (!profile) {
     return <Navigate to="/" replace />;
@@ -24,13 +30,13 @@ console.log('🛡️ ProtectedRoute check:', {
     return <Navigate to="/" replace />;
   }
 
-  // ROL-GEBASEERDE AUTORISATIE
-  const userRole = activeRole || profile?.rol;
-console.log('👤 Role check:', { activeRole, profileRole: profile?.rol, finalRole: userRole });
-if (!userRole) {
-  console.log('⏳ Waiting for role to be determined...');
-  return <div>Loading...</div>; // Of een loading component
-}
+  console.log('👤 Role check:', { activeRole, profileRole: profile?.rol, finalRole: userRole });
+  
+  if (!userRole) {
+    console.log('⏳ Waiting for role to be determined...');
+    return <div>Loading...</div>;
+  }
+  
   const currentPath = location.pathname;
 
   // Definieer welke rollen toegang hebben tot welke paths
@@ -81,7 +87,7 @@ if (!userRole) {
   
   // Als er specifieke rollen vereist zijn en de gebruiker heeft ze niet
   if (requiredRoles && !requiredRoles.includes(userRole)) {
-    console.log(`Access denied: User role "${userRole}" not authorized for path "${currentPath}". Required roles:`, requiredRoles);
+    console.log(`🚨 ProtectedRoute REDIRECT: Access denied for "${userRole}" on path "${currentPath}". Required roles:`, requiredRoles);
     return <Navigate to="/" replace />;
   }
 
