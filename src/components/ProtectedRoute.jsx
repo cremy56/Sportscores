@@ -5,20 +5,28 @@ export default function ProtectedRoute({ profile, school, activeRole }) {
   const location = useLocation();
   
   // ✅ Definieer userRole EERST
-  const userRole = activeRole || profile?.rol;
-  
-  // ✅ Nu kunnen we userRole veilig gebruiken in console.log
-  console.log('🛡️ ProtectedRoute check:', {
-    pathname: location.pathname,
-    userRole,
-    profileExists: !!profile,
-    onboardingComplete: profile?.onboarding_complete
-  });
+ const userRole = activeRole || profile?.rol;
 
-  // Als het profiel nog niet geladen is, stuur de gebruiker terug.
-  if (!profile) {
-    return <Navigate to="/" replace />;
-  }
+console.log('🛡️ ProtectedRoute check:', {
+  pathname: location.pathname,
+  userRole,
+  profileExists: !!profile,
+  onboardingComplete: profile?.onboarding_complete
+});
+
+// ✅ NIEUWE CHECK: Wacht tot profiel geladen is
+if (!profile && location.pathname !== '/') {
+  console.log('⏳ Profile still loading, showing loading state...');
+  return <div className="flex items-center justify-center h-64">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+    <span className="ml-3 text-gray-600">Profiel laden...</span>
+  </div>;
+}
+
+// Als het profiel nog niet geladen is EN we zijn op de root, laat door
+if (!profile) {
+  return <Navigate to="/" replace />;
+}
 
   // Als de onboarding niet is voltooid, forceer de gebruiker naar de setup-pagina.
   if (!profile.onboarding_complete && location.pathname !== '/setup-account') {
