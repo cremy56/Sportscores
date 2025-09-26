@@ -270,54 +270,47 @@ const checkAndCreateProfile = async () => {
               <Route path="/setup-account" element={<SetupAccount />} />
               <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} />
 
-            <Route element={<ProtectedRoute profile={profile} school={school} />}>
-                  
-                      <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} activeRole={activeRole} setActiveRole={setActiveRole} />}>
-                       {/* Dynamische homepage route */}
-                       <Route index element={<DynamicHomepage schoolSettings={schoolSettings} />} />
-                       
-                       {/* Directe routes naar beide pagina's (voor navigatie) */}
-                       <Route path="/advalvas" element={<AdValvas />} />
-                       <Route path="/highscores" element={<Highscores />} />
-                       
-                      <Route path="/evolutie" element={<Evolutie />} />
-                      <Route path="/groeiplan" element={<Groeiplan />} />
-                      <Route path="/rewards" element={<Rewards />} />
-                      <Route path="/groepsbeheer" element={<Groepsbeheer />} />
-                      <Route path="/groep/:groepId" element={<GroupDetail />} />
-                      <Route path="/sporttesten" element={<Sporttesten />} />
-                      <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
-                      <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
-                      <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
-                      <Route path="/groeiplan/schema" element={<SchemaDetail />} />
-
-                      {(activeRole === 'leerling' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
-                        <>
-                          <Route path="/gezondheid" element={<Gezondheid />} />
-                          <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
-                          <Route path="/gezondheid/mentaal" element={<MentaalDetail />} /> 
-                          <Route path="/gezondheid/voeding" element={<VoedingDetail />} />
-                          <Route path="/gezondheid/slaap" element={<SlaapDetail />} />
-                          <Route path="/gezondheid/hart" element={<HartDetail />} />
-                           <Route path="/gezondheid/EHBO" element={<EHBODetail />} />
-                        </>
-                      )}
-                      
-                      {(activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator') && (
-                        <Route path="/welzijnsmonitor" element={<Welzijnsmonitor />} />
-                      )}
-                      
-                      {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
-                        <Route path="/instellingen" element={<Instellingen />}>
-                          <Route index element={<AlgemeenInstellingen />} />
-                          <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
-                          <Route path="gebruikersbeheer" element={<Gebruikersbeheer />} />
-                          <Route path="schoolbeheer" element={<SchoolBeheer />} />
-                        </Route>
-                      )}
-
-                  </Route>
-                </Route>
+           <Route element={<ProtectedRoute profile={profile} school={school} />}>
+  <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} activeRole={activeRole} setActiveRole={setActiveRole} />}>
+    {/* Dynamische homepage route */}
+    <Route index element={<DynamicHomepage schoolSettings={schoolSettings} />} />
+    
+    {/* Directe routes naar beide pagina's (voor navigatie) */}
+    <Route path="/advalvas" element={<AdValvas />} />
+    <Route path="/highscores" element={<Highscores />} />
+    
+    <Route path="/evolutie" element={<Evolutie />} />
+    <Route path="/groeiplan" element={<Groeiplan />} />
+    <Route path="/rewards" element={<Rewards />} />
+    
+    {/* Gezondheid routes - GEEN conditionals meer */}
+    <Route path="/gezondheid" element={<Gezondheid />} />
+    <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
+    <Route path="/gezondheid/mentaal" element={<MentaalDetail />} /> 
+    <Route path="/gezondheid/voeding" element={<VoedingDetail />} />
+    <Route path="/gezondheid/slaap" element={<SlaapDetail />} />
+    <Route path="/gezondheid/hart" element={<HartDetail />} />
+    <Route path="/gezondheid/EHBO" element={<EHBODetail />} />
+    
+    {/* Admin/Teacher routes - GEEN conditionals meer */}
+    <Route path="/welzijnsmonitor" element={<Welzijnsmonitor />} />
+    <Route path="/groepsbeheer" element={<Groepsbeheer />} />
+    <Route path="/groep/:groepId" element={<GroupDetail />} />
+    <Route path="/sporttesten" element={<Sporttesten />} />
+    <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
+    <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
+    <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
+    <Route path="/groeiplan/schema" element={<SchemaDetail />} />
+    
+    {/* Settings routes - GEEN conditionals meer */}
+    <Route path="/instellingen" element={<Instellingen />}>
+      <Route index element={<AlgemeenInstellingen />} />
+      <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
+      <Route path="gebruikersbeheer" element={<Gebruikersbeheer />} />
+      <Route path="schoolbeheer" element={<SchoolBeheer />} />
+    </Route>
+  </Route>
+</Route>
               <Route path="/login" element={<Navigate to="/" />} />
               <Route path="/register" element={<Navigate to="/" />} />
          </>
