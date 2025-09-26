@@ -45,6 +45,7 @@ import UniversalLogin from './components/UniversalLogin';
 
 // Component om de dynamische homepage te bepalen
 function DynamicHomepage({ schoolSettings }) {
+  console.log('🏠 DynamicHomepage rendering, schoolSettings:', schoolSettings);
   // Als de instelling aanstaat, toon Highscores, anders Ad Valvas
   if (schoolSettings?.sportdashboardAsHomepage) {
     return <Highscores />;

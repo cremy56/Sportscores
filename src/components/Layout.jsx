@@ -343,8 +343,14 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   }, [profile?.rol, activeRole, setActiveRole]);
 
   // Effect to handle redirects when role changes and current path becomes inaccessible
-  useEffect(() => {
-  // ✅ Alleen redirecten als activeRole én profile geladen zijn
+ // Effect to handle redirects when role changes and current path becomes inaccessible
+useEffect(() => {
+  console.log('🔄 Layout redirect effect triggered:', { 
+    activeRole, 
+    profile: !!profile, 
+    pathname: location.pathname 
+  });
+  
   if (!activeRole || !profile) return;
   
   const currentPath = location.pathname;
@@ -357,19 +363,18 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
 
   const isPathRestricted = restrictedPaths[activeRole]?.some(path => currentPath.startsWith(path));
   
-  // ✅ Alleen redirecten als de huidige pagina echt restricted is
+  console.log('🚨 Path restriction check:', { 
+    currentPath, 
+    activeRole, 
+    isPathRestricted,
+    restrictedForRole: restrictedPaths[activeRole] 
+  });
+  
   if (isPathRestricted) {
-    console.log(`Redirecting from restricted path ${currentPath} for role ${activeRole}`);
-    // Voeg dit toe in Layout.jsx net voor de navigate('/') call:
-console.log('About to redirect:', { 
-  currentPath, 
-  activeRole, 
-  isPathRestricted, 
-  profile: !!profile 
-});
+    console.log('❌ REDIRECTING TO HOME - path is restricted');
     navigate('/');
   }
-}, [activeRole, location.pathname, navigate, profile]); // ✅ profile toegevoegd aan dependencies
+}, [activeRole, location.pathname, navigate, profile]);
 
   const toggleMenu = () => {
     if (menuButtonRef.current) {
