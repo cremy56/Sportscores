@@ -81,18 +81,23 @@ function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [school, setSchool] = useState(null);
-  const [schoolSettings, setSchoolSettings] = useState(null); // Nieuwe state voor schoolinstellingen
+  const [schoolSettings, setSchoolSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true); // ✅ NIEUWE STATE
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [activeRole, setActiveRole] = useState(null);
 
+  // ✅ AANGEPASTE AUTH LISTENER - wacht op Firebase Auth initialisatie
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      console.log('Auth state changed:', currentUser ? 'Logged in' : 'Logged out');
       setUser(currentUser);
+      setAuthLoading(false); // ✅ Auth is nu geladen
+      
       if (!currentUser) {
         setProfile(null);
         setSchool(null);
-        setSchoolSettings(null); // Reset schoolinstellingen
+        setSchoolSettings(null);
         setActiveRole(null);
         setLoading(false);
       }
@@ -234,7 +239,8 @@ const checkAndCreateProfile = async () => {
     }
   }, [profile, user]);
 
-  if (loading) {
+  // ✅ Toon loading terwijl auth én profile laden
+  if (authLoading || loading) {
     return (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f9fafb' }}>
             <div style={{ border: '4px solid rgba(0, 0, 0, 0.1)', width: '36px', height: '36px', borderRadius: '50%', borderLeftColor: '#8b5cf6', animation: 'spin 1s ease infinite' }}></div>
@@ -305,7 +311,6 @@ const checkAndCreateProfile = async () => {
                           <Route index element={<AlgemeenInstellingen />} />
                           <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
                           <Route path="gebruikersbeheer" element={<Gebruikersbeheer />} />
-                          {/* De foute voorwaarde is hier weggehaald */}
                           <Route path="schoolbeheer" element={<SchoolBeheer />} />
                         </Route>
                       )}

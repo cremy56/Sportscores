@@ -235,7 +235,9 @@ exports.getUserGroups = onCall(async (request) => {
         groups.push({
           id: doc.id,
           naam: groupData.naam || `Groep ${doc.id}`,
-          leerling_count: groupData.leerling_ids ? groupData.leerling_ids.length : 0
+          leerling_count: groupData.leerling_ids ? groupData.leerling_ids.length : 0,
+          role: 'teacher', // ✅ FIXED: Was 'admin', moet 'teacher' zijn
+          leerkracht_id: groupData.leerkracht_id || 'Onbekend'
         });
       });
       
@@ -254,7 +256,8 @@ exports.getUserGroups = onCall(async (request) => {
           id: doc.id,
           naam: groupData.naam || `Groep ${doc.id}`,
           leerling_count: groupData.leerling_ids ? groupData.leerling_ids.length : 0,
-          role: 'teacher' // They teach this group
+          role: 'teacher', // They teach this group
+          leerkracht_id: groupData.leerkracht_id || 'Onbekend'
         });
       });
       
@@ -272,7 +275,7 @@ exports.getUserGroups = onCall(async (request) => {
             naam: groupData.naam || `Groep ${doc.id}`,
             leerling_count: groupData.leerling_ids ? groupData.leerling_ids.length : 0,
             role: 'admin', // They can view as admin
-            leerkracht_naam: groupData.leerkracht_naam || 'Onbekend'
+            leerkracht_id: groupData.leerkracht_id || 'Onbekend' // ✅ FIXED: Was 'leerkracht_naam'
           });
         }
       });
