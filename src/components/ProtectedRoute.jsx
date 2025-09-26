@@ -3,7 +3,12 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 export default function ProtectedRoute({ profile, school, activeRole }) {
   const location = useLocation();
-
+console.log('🛡️ ProtectedRoute check:', {
+  pathname: location.pathname,
+  userRole,
+  profileExists: !!profile,
+  onboardingComplete: profile?.onboarding_complete
+});
   // Als het profiel nog niet geladen is, stuur de gebruiker terug.
   if (!profile) {
     return <Navigate to="/" replace />;
@@ -20,7 +25,12 @@ export default function ProtectedRoute({ profile, school, activeRole }) {
   }
 
   // ROL-GEBASEERDE AUTORISATIE
-  const userRole = activeRole || profile.rol;
+  const userRole = activeRole || profile?.rol;
+console.log('👤 Role check:', { activeRole, profileRole: profile?.rol, finalRole: userRole });
+if (!userRole) {
+  console.log('⏳ Waiting for role to be determined...');
+  return <div>Loading...</div>; // Of een loading component
+}
   const currentPath = location.pathname;
 
   // Definieer welke rollen toegang hebben tot welke paths
