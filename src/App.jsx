@@ -1,6 +1,6 @@
 // src/App.jsx
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -273,7 +273,7 @@ const checkAndCreateProfile = async () => {
                   
                       <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} activeRole={activeRole} setActiveRole={setActiveRole} />}>
                        {/* Dynamische homepage route */}
-                       <Route path="/" element={<DynamicHomepage schoolSettings={schoolSettings} />} />
+                       <Route index element={<DynamicHomepage schoolSettings={schoolSettings} />} />
                        
                        {/* Directe routes naar beide pagina's (voor navigatie) */}
                        <Route path="/advalvas" element={<AdValvas />} />
