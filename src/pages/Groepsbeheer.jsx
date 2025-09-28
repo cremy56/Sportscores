@@ -45,6 +45,13 @@ export default function Groepsbeheer() {
 
     const groepenCollectionRef = collection(db, 'groepen');
     const userIdentifier = getUserIdentifier(auth.currentUser, profile); // ✅ Nieuwe regel
+    // ✅ Debug logging toevoegen
+    console.log('🔍 GROEPSBEHEER DEBUG:', {
+        currentUser: auth.currentUser,
+        profile: profile,
+        userIdentifier: userIdentifier,
+        school_id: profile.school_id
+    });
     const q = query(
         groepenCollectionRef, 
         where('school_id', '==', profile.school_id), 
@@ -52,6 +59,10 @@ export default function Groepsbeheer() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log('📚 Found groups:', snapshot.docs.length);
+      snapshot.docs.forEach(doc => {
+            console.log('Group data:', doc.data());
+        });
         const groepenData = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
