@@ -348,13 +348,35 @@ export default function Sporttesten() {
             <Toaster position="top-center" />
             <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
                 <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
-                    {/* Header */}
-                    <div className="flex justify-between items-center mb-8">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-800">{activeTab === 'testafnames' ? 'Testafnames' : 'Sporttesten Beheer'}</h1>
-                            <p className="text-gray-600 mt-1">{activeTab === 'testafnames' ? 'Beheer en bekijk alle testresultaten' : 'Beheer de beschikbare sporttesten voor je school'}</p>
+                    {/* Mobile Header */}
+                        <div className="lg:hidden mb-8">
+                        <div className="flex justify-between items-center">
+                            <h1 className="text-2xl font-bold text-gray-800">
+                            {activeTab === 'testafnames' ? 'Testafnames' : 'Testen'}
+                            </h1>
+                            {canManage && (
+                            <button
+                                onClick={() => activeTab === 'testafnames' ? navigate('/nieuwe-testafname') : setModal({ type: 'testForm', data: null })}
+                                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg"
+                            >
+                                <PlusIcon className="h-6 w-6" />
+                            </button>
+                            )}
                         </div>
-                        {canManage && (
+                        </div>
+
+                        {/* Desktop Header */}
+                        <div className="hidden lg:block mb-8">
+                        <div className="flex justify-between items-center">
+                            <div>
+                            <h1 className="text-3xl font-bold text-gray-800">
+                                {activeTab === 'testafnames' ? 'Testafnames' : 'Sporttesten Beheer'}
+                            </h1>
+                            <p className="text-gray-600 mt-1">
+                                {activeTab === 'testafnames' ? 'Beheer en bekijk alle testresultaten' : 'Beheer de beschikbare sporttesten voor je school'}
+                            </p>
+                            </div>
+                            {canManage && (
                             <button
                                 onClick={() => activeTab === 'testafnames' ? navigate('/nieuwe-testafname') : setModal({ type: 'testForm', data: null })}
                                 className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:scale-105"
@@ -362,8 +384,9 @@ export default function Sporttesten() {
                                 <PlusIcon className="h-6 w-6" />
                                 <span className="ml-2">{activeTab === 'testafnames' ? 'Nieuwe Afname' : 'Nieuwe Test'}</span>
                             </button>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                        </div>
 
                     {/* Tab Navigatie */}
                     <div className="flex gap-2 border-b border-gray-200 mb-6">
