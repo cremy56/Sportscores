@@ -116,7 +116,8 @@ export default function UserFormModal({
         }
 
         // School validatie voor super-admin
-        if (isSuperAdmin && !formData.school_id) {
+        if (!isEditing && isSuperAdmin && !formData.school_id) {
+
             newErrors.school_id = 'Selecteer een school';
         }
 
@@ -134,7 +135,7 @@ export default function UserFormModal({
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
         e.preventDefault();
         
         if (!validateForm()) {
@@ -142,50 +143,61 @@ export default function UserFormModal({
             return;
         }
 
-        // De masterKey is hier niet meer nodig.
-        // if (!masterKey && !isEditing) { ... } // <-- VERWIJDER DEZE CHECK
-
         setLoading(true);
         const loadingToast = toast.loading(isEditing ? 'Bijwerken...' : 'Toevoegen...');
         
         try {
-            // Data die we naar de server sturen
-            const targetSchoolId = isSuperAdmin ? formData.school_id : schoolId;
-            const apiPayload = {
-                formData: formData, // De (onversleutelde) formulierdata
-                currentUserRole: currentUserRole,
-                targetSchoolId: targetSchoolId,
-                currentUserProfileHash: currentUserProfile?.smartschool_id_hash
-            };
+            let response;
+            let result;
 
-            // Als we bewerken, stuur dit naar een andere API (nog te maken)
             if (isEditing) {
-                // TODO: Maak een 'api/updateUser.js' die alleen klas/gender bijwerkt
-                // Voor nu focussen we op de 'create' flow.
-                // Gooi een error als men probeert te editen:
-                if (isEditing) {
-                     throw new Error("Bewerken is nog niet geïmplementeerd met de veilige API-route");
-                }
+                // --- UPDATE PAD ---
+                // Bouw het 'updates' object
+                const updates = {
+                    klas: currentUserRole === 'leerling' ? formData.klas.trim() : null,
+                    gender: currentUserRole === 'leerling' ? formData.gender : null,
+                    // Je kunt hier ook 'is_active' toevoegen als je dat veld in je formulier zou hebben
+                };
+
+                const apiPayload = {
+                    userId: userData.id, // De ID van de gebruiker die we bewerken
+                    updates: updates,
+                    currentUserProfileHash: currentUserProfile?.smartschool_id_hash
+                };
+
+                response = await fetch('/api/updateUser', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(apiPayload),
+                });
+                result = await response.json();
+
+            } else {
+                // --- CREATE PAD ---
+                const targetSchoolId = isSuperAdmin ? formData.school_id : schoolId;
+                const apiPayload = {
+                    formData: formData,
+                    currentUserRole: currentUserRole,
+                    targetSchoolId: targetSchoolId,
+                    currentUserProfileHash: currentUserProfile?.smartschool_id_hash
+                };
+
+                response = await fetch('/api/createUser', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(apiPayload),
+                });
+                result = await response.json();
             }
 
-            // Roep de nieuwe, veilige API route aan
-            const response = await fetch('/api/createUser', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(apiPayload),
-            });
-
-            const result = await response.json();
-
+            // --- Algemene afhandeling ---
             if (!response.ok) {
                 throw new Error(result.error || 'Er is iets misgegaan');
             }
             
             toast.dismiss(loadingToast);
-            toast.success(`${capitalize(currentUserRole)} succesvol toegevoegd!`);
-            onUserSaved();
+            toast.success(isEditing ? 'Gebruiker succesvol bijgewerkt!' : `${capitalize(currentUserRole)} succesvol toegevoegd!`);
+            onUserSaved(); // Dit triggert de 'loadUsers' in de parent
             onClose();
 
         } catch (error) {

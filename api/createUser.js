@@ -1,9 +1,9 @@
 // api/createUser.js
-import { db } from '../src/firebase'; // Pas het pad naar firebase.js aan
+import { db } from '../src/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import CryptoJS from 'crypto-js';
 
-// --- Deze functies draaien nu veilig op de server ---
+// Server-side helper functies
 const generateHash = (smartschoolUserId) => {
     return CryptoJS.SHA256(smartschoolUserId).toString();
 };
@@ -12,41 +12,68 @@ const encryptName = (name, masterKey) => {
     if (!masterKey) throw new Error('Master key niet beschikbaar op server');
     return CryptoJS.AES.encrypt(name, masterKey).toString();
 };
-// ---------------------------------------------------
 
 export default async function handler(req, res) {
+    
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
     try {
-        // Haal de (onversleutelde) data op uit de request
-        const { 
-            formData, 
-            currentUserRole, 
-            targetSchoolId, 
-            currentUserProfileHash 
-        } = req.body;
+        const { formData, currentUserRole, targetSchoolId, currentUserProfileHash } = req.body;
 
-        // --- Haal de VEILIGE sleutel op ---
-        // Dit werkt alleen op de server en gebruikt de naam ZONDER VITE_ prefix
+        // Input validatie
+        if (!formData) {
+            return res.status(400).json({ error: 'formData is verplicht' });
+        }
+
+        if (!formData.smartschool_user_id || !formData.smartschool_user_id.trim()) {
+            return res.status(400).json({ error: 'Smartschool User ID is verplicht' });
+        }
+
+        if (!formData.naam || !formData.naam.trim()) {
+            return res.status(400).json({ error: 'Naam is verplicht' });
+        }
+
+        if (!currentUserRole || !['leerling', 'leerkracht'].includes(currentUserRole)) {
+            return res.status(400).json({ error: 'Ongeldige rol' });
+        }
+
+        if (!targetSchoolId) {
+            return res.status(400).json({ error: 'School ID is verplicht' });
+        }
+
+        // Extra validatie voor leerlingen
+        if (currentUserRole === 'leerling') {
+            if (!formData.klas || !formData.klas.trim()) {
+                return res.status(400).json({ error: 'Klas is verplicht voor leerlingen' });
+            }
+
+            if (!formData.gender || !['M', 'V', 'X'].includes(formData.gender)) {
+                return res.status(400).json({ error: 'Gender moet M, V of X zijn' });
+            }
+        }
+
+        // Haal master key op
         const schoolKey = targetSchoolId.toUpperCase().replace(/_/g, '');
         const envVarName = `MASTER_KEY_${schoolKey}`;
-        
-        let masterKey = process.env[envVarName];
-        if (!masterKey) {
-            masterKey = process.env.SCHOOL_MASTER_KEY; // Algemene fallback
-        }
+        let masterKey = process.env[envVarName] || process.env.SCHOOL_MASTER_KEY;
         
         if (!masterKey) {
-            console.error(`❌ Geen master key gevonden op server voor ${envVarName}`);
-            return res.status(500).json({ error: 'Server encryptie-fout' });
+            console.error(`❌ Geen master key gevonden voor ${envVarName} of SCHOOL_MASTER_KEY`);
+            return res.status(500).json({ 
+                error: 'Server configuratie fout: encryptie key niet gevonden',
+                details: 'Contact administrator'
+            });
         }
-        // ---------------------------------
 
-        // Genereer de hash en encrypt de naam (veilig op de server)
+        console.log(`✅ Master key geladen voor school: ${targetSchoolId}`);
+
+        // Generate hash en encrypt
         const docId = generateHash(formData.smartschool_user_id.trim());
         const encryptedName = encryptName(formData.naam.trim(), masterKey);
+
+        console.log(`🔐 Creating user with hash: ${docId.substring(0, 16)}...`);
 
         // Data voor toegestane_gebruikers
         const whitelistData = {
@@ -78,15 +105,23 @@ export default async function handler(req, res) {
             last_smartschool_login: null
         };
         
-        // Schrijf naar Firestore (dit vereist dat je server-functie permissie heeft)
+        // Schrijf naar Firestore
         await setDoc(doc(db, 'toegestane_gebruikers', docId), whitelistData, { merge: true });
         await setDoc(doc(db, 'users', docId), usersData, { merge: true });
 
-        // Stuur succes terug naar de client
-        res.status(200).json({ success: true, userId: docId });
+        console.log(`✅ User created successfully: ${docId.substring(0, 16)}...`);
+
+        res.status(200).json({ 
+            success: true, 
+            userId: docId,
+            message: `${currentUserRole} succesvol toegevoegd`
+        });
 
     } catch (error) {
-        console.error('API Error:', error);
-        res.status(500).json({ error: 'Fout bij opslaan: ' + error.message });
+        console.error('❌ API Error:', error);
+        res.status(500).json({ 
+            error: 'Fout bij opslaan: ' + error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 }
