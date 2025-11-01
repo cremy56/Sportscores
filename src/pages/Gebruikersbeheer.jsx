@@ -1,15 +1,17 @@
 // src/pages/Gebruikersbeheer.jsx
+// VOLLEDIGE VERSIE MET AUTHENTICATIE (idToken)
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { getAuth } from 'firebase/auth'; // <-- IMPORT VOOR AUTH
 import { db } from '../firebase';
 import { 
-    collection, 
-    query, 
-    where, 
-    getDoc, 
     doc, 
+    getDoc, 
     deleteDoc,
-    getCountFromServer
+    getCountFromServer,
+    collection,
+    query,
+    where
 } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 import Papa from 'papaparse';
@@ -18,20 +20,16 @@ import {
     ArrowUpTrayIcon, 
     TrashIcon, 
     PencilIcon, 
-    MagnifyingGlassIcon,
     UsersIcon,
     ArrowDownTrayIcon,
     UserPlusIcon,
-    ShieldCheckIcon,
-    InformationCircleIcon
+    ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import UserFormModal from '../components/UserFormModal'; 
 import ConfirmModal from '../components/ConfirmModal';
 
-// GEEN CryptoJS meer! Alles server-side! ✅
-
 // Mobile-vriendelijke Action Buttons Component
-const MobileActionButtons = ({ onEdit, onDelete, user }) => (
+const MobileActionButtons = ({ onEdit, onDelete }) => (
     <div className="flex items-center gap-2">
         <button
             onClick={onEdit}
@@ -50,6 +48,17 @@ const MobileActionButtons = ({ onEdit, onDelete, user }) => (
     </div>
 );
 
+// Helper om veilig de auth token op te halen
+const getAuthToken = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+        toast.error("Authenticatie verlopen. Log opnieuw in.");
+        throw new Error("Niet geauthenticeerd");
+    }
+    return await user.getIdToken();
+};
+
 export default function Gebruikersbeheer() {
     const context = useOutletContext();
     const { profile, school } = context || {};
@@ -65,7 +74,7 @@ export default function Gebruikersbeheer() {
     }, []);
     const [modal, setModal] = useState({ type: null, data: null });
 
-    // Tel totaal aantal gebruikers
+    // Tel totaal aantal gebruikers (alleen client-side)
     useEffect(() => {
         const getTotalCount = async () => {
             if (!profile?.school_id) return;
@@ -90,17 +99,19 @@ export default function Gebruikersbeheer() {
         }
     }, [profile?.school_id, filterKlas, filterRol]);
 
-    // === NIEUWE SERVER-SIDE LOAD USERS ===
+    // === SERVER-SIDE LOAD USERS (MET AUTH) ===
     const loadUsers = async () => {
         if (!profile?.school_id) return;
         
         setLoading(true);
         try {
-            // Roep server-side API aan voor decryptie
+            const token = await getAuthToken(); // <-- HAAL AUTH TOKEN OP
+
             const response = await fetch('/api/getUsers', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // <-- VOEG TOKEN TOE
                 },
                 body: JSON.stringify({
                     schoolId: profile.school_id,
@@ -111,11 +122,13 @@ export default function Gebruikersbeheer() {
 
             const result = await response.json();
 
+            if (response.status === 401) {
+                throw new Error("Authenticatie geweigerd");
+            }
             if (!response.ok) {
                 throw new Error(result.error || 'Fout bij ophalen gebruikers');
             }
 
-            // Users bevatten nu al 'decrypted_name' van server!
             setUsers(result.users);
             console.log(`✅ Loaded ${result.users.length} users`);
             
@@ -156,8 +169,9 @@ export default function Gebruikersbeheer() {
             });
         };
         reader.readAsText(file);
-    }, [profile?.school_id]);
+    }, [profile?.school_id, profile?.smartschool_id_hash]); // <-- profile hash toegevoegd als dependency
 
+    // === SERVER-SIDE CSV IMPORT (MET AUTH) ===
     const handleCSVImport = async (data) => {
         if (!profile?.school_id) {
             toast.error('School niet geladen, probeer opnieuw');
@@ -167,6 +181,8 @@ export default function Gebruikersbeheer() {
         const loadingToast = toast.loading('CSV importeren...');
         
         try {
+            const token = await getAuthToken(); // <-- HAAL AUTH TOKEN OP
+
             const apiPayload = {
                 csvData: data,
                 targetSchoolId: profile.school_id,
@@ -177,6 +193,7 @@ export default function Gebruikersbeheer() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // <-- VOEG TOKEN TOE
                 },
                 body: JSON.stringify(apiPayload),
             });
@@ -184,6 +201,9 @@ export default function Gebruikersbeheer() {
             const result = await response.json();
             toast.dismiss(loadingToast);
 
+            if (response.status === 401) {
+                throw new Error("Authenticatie geweigerd");
+            }
             if (!response.ok) {
                 throw new Error(result.error || 'Er is iets misgegaan');
             }
@@ -208,13 +228,13 @@ export default function Gebruikersbeheer() {
         }
     };
 
+    // Export blijft client-side (bevat geen gevoelige data)
     const exportToCSV = () => {
         if (users.length === 0) {
             toast.error('Geen gebruikers om te exporteren');
             return;
         }
 
-        // Export ZONDER gevoelige data
         const exportData = users.map(user => ({
             rol: user.rol,
             klas: user.klas || '',
@@ -240,26 +260,31 @@ export default function Gebruikersbeheer() {
         toast.success('Export succesvol!');
     };
 
+    // Delete blijft client-side (dit moet ook naar een API-route!)
     const handleDelete = async (user) => {
-    try {
-        // 1. Verwijder altijd uit de whitelist
-        await deleteDoc(doc(db, 'toegestane_gebruikers', user.id));
+        try {
+            // TODO: Maak een /api/deleteUser endpoint
+            // Dit is nu onveilig, want het gebruikt client-side permissies
+            // die we gaan blokkeren met Security Rules (Stap 3).
+            
+            // 1. Verwijder uit whitelist
+            await deleteDoc(doc(db, 'toegestane_gebruikers', user.id));
 
-        // 2. Controleer of het 'users' profiel bestaat en verwijder dat ook
-        const userProfileRef = doc(db, 'users', user.id);
-        const userProfileSnap = await getDoc(userProfileRef);
+            // 2. Controleer en verwijder 'users' profiel
+            const userProfileRef = doc(db, 'users', user.id);
+            const userProfileSnap = await getDoc(userProfileRef);
 
-        if (userProfileSnap.exists()) {
-            await deleteDoc(userProfileRef);
+            if (userProfileSnap.exists()) {
+                await deleteDoc(userProfileRef);
+            }
+            
+            toast.success('Gebruiker verwijderd');
+            loadUsers(); // Refresh
+        } catch (error) {
+            console.error('Fout bij verwijderen:', error);
+            toast.error('Fout bij verwijderen');
         }
-        
-        toast.success('Gebruiker verwijderd');
-        loadUsers(); // Refresh de lijst
-    } catch (error) {
-        console.error('Fout bij verwijderen:', error);
-        toast.error('Fout bij verwijderen');
-    }
-};
+    };
 
     const handleOpenModal = (type, data = null, role = null) => {
         setModal({ type, data, role });
@@ -273,7 +298,9 @@ export default function Gebruikersbeheer() {
         loadUsers();
     };
 
-    return (
+    // ... (de rest van je JSX render-code blijft exact hetzelfde) ...
+    // ... (vanaf regel 301, 'return (...)', is alles identiek aan je upload) ...
+     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 p-4 sm:p-6 lg:p-8">
             <Toaster position="top-right" />
             
@@ -439,7 +466,6 @@ export default function Gebruikersbeheer() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right">
                                                 <MobileActionButtons
-                                                    user={user}
                                                     onEdit={() => handleOpenModal('form', user)}
                                                     onDelete={() => handleOpenModal('confirm', user)}
                                                 />

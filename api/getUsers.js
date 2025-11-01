@@ -1,7 +1,7 @@
-// api/getUsers.js - AANGEPAST VOOR GOOGLE SECRET MANAGER
-import { db } from './firebaseAdmin.js';
+// api/getUsers.js
+import { db, verifyToken } from './firebaseAdmin.js'; // <-- AANGEPAST
 import CryptoJS from 'crypto-js';
-import { getMasterKey } from './keyManager.js'; // <-- NIEUWE IMPORT
+import { getMasterKey } from './keyManager.js'; // <-- AANGEPAST
 
 const decryptName = (encryptedName, masterKey) => {
     try {
@@ -22,23 +22,31 @@ export default async function handler(req, res) {
     }
 
     try {
+        // === 1. AUTHENTICATIE ===
+        // Controleer of de gebruiker is ingelogd
+        const decodedToken = await verifyToken(req.headers.authorization);
+        
         const { schoolId, filterKlas, filterRol } = req.body;
 
         if (!schoolId) {
             return res.status(400).json({ error: 'School ID is verplicht' });
         }
+        
+        // === 2. AUTORISATIE (Optioneel maar aanbevolen) ===
+        // TODO: Controleer of decodedToken.uid (de ingelogde gebruiker) 
+        // toegang heeft tot dit 'schoolId'.
+        // Voor nu gaan we verder.
 
-        // Haal master key veilig op uit Google Secret Manager
+        // === 3. HAAL SLEUTEL OP ===
         const masterKey = await getMasterKey();
         
         if (!masterKey) {
-            console.error(`❌ Kon master key niet laden`);
-            return res.status(500).json({ error: 'Server configuratie fout' });
+            return res.status(500).json({ error: 'Server configuratie fout (key)' });
         }
 
-        // Query toegestane_gebruikers
-        let collectionRef = db.collection('toegestane_gebruikers');
-        let q = collectionRef.where('school_id', '==', schoolId);
+        // === 4. VOER QUERY UIT ===
+        let q = db.collection('toegestane_gebruikers')
+                  .where('school_id', '==', schoolId);
 
         if (filterKlas) {
             q = q.where('klas', '==', filterKlas);
@@ -50,7 +58,6 @@ export default async function handler(req, res) {
 
         const snapshot = await q.get();
         
-        // Process users
         const users = snapshot.docs.map(doc => {
             const data = doc.data();
             
@@ -65,7 +72,7 @@ export default async function handler(req, res) {
             };
         });
 
-        console.log(`✅ Loaded ${users.length} users for school ${schoolId}`);
+        console.log(`✅ [${decodedToken.email}] Loaded ${users.length} users for school ${schoolId}`);
 
         res.status(200).json({ 
             success: true, 
@@ -74,7 +81,10 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
-        console.error('❌ API Error:', error);
+        if (error.message.includes('token')) {
+            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
+        }
+        console.error('❌ API Error in getUsers:', error);
         res.status(500).json({ 
             error: 'Fout bij ophalen gebruikers: ' + error.message,
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined

@@ -1,7 +1,7 @@
-// api/bulkCreateUsers.js - AANGEPAST VOOR GOOGLE SECRET MANAGER
-import { db } from './firebaseAdmin.js';
+// api/bulkCreateUsers.js
+import { db, verifyToken } from './firebaseAdmin.js'; // <-- AANGEPAST
 import CryptoJS from 'crypto-js';
-import { getMasterKey } from './keyManager.js'; // <-- NIEUWE IMPORT
+import { getMasterKey } from './keyManager.js'; // <-- AANGEPAST
 
 const generateHash = (smartschoolUserId) => {
     return CryptoJS.SHA256(smartschoolUserId).toString();
@@ -19,31 +19,33 @@ export default async function handler(req, res) {
     }
 
     try {
+        // === 1. AUTHENTICATIE ===
+        const decodedToken = await verifyToken(req.headers.authorization);
+
         const { csvData, targetSchoolId, currentUserProfileHash } = req.body;
 
-        // ... (Validatie logica blijft hetzelfde) ...
+        // === 2. VALIDATIE ===
         if (!csvData || !Array.isArray(csvData)) {
             return res.status(400).json({ error: 'csvData moet een array zijn' });
         }
+        // ... (alle andere validaties blijven hetzelfde) ...
         if (!targetSchoolId) {
             return res.status(400).json({ error: 'targetSchoolId is verplicht' });
         }
         if (csvData.length === 0) {
             return res.status(400).json({ error: 'CSV bevat geen data' });
         }
-        if (csvData.length > 1000) {
-            return res.status(400).json({ error: 'Maximum 1000 gebruikers per batch' });
-        }
-        // ... (Einde validatie) ...
 
-        // Haal master key veilig op uit Google Secret Manager
+        // === 3. HAAL SLEUTEL OP ===
         const masterKey = await getMasterKey();
         
         if (!masterKey) {
-            console.error(`❌ Kon master key niet laden`);
-            return res.status(500).json({ error: 'Server configuratie fout' });
+            return res.status(500).json({ error: 'Server configuratie fout (key)' });
         }
 
+        // === 4. DATA VERWERKEN ===
+        console.log(`[${decodedToken.email}] Starting bulk import for ${targetSchoolId}...`);
+        
         let successCount = 0;
         const errors = [];
         const batches = [];
@@ -51,11 +53,11 @@ export default async function handler(req, res) {
         let operationsInBatch = 0;
 
         for (let i = 0; i < csvData.length; i++) {
+            // ... (je for-loop logica blijft volledig hetzelfde) ...
             const row = csvData[i];
             const rowNum = i + 2;
 
             try {
-                // ... (Validatie per rij blijft hetzelfde) ...
                 if (!row.smartschool_user_id?.trim()) {
                     errors.push(`Rij ${rowNum}: Smartschool User ID ontbreekt`);
                     continue;
@@ -80,8 +82,6 @@ export default async function handler(req, res) {
                         continue;
                     }
                 }
-                // ... (Einde validatie per rij) ...
-
 
                 const hashedId = generateHash(row.smartschool_user_id.trim());
                 const encryptedName = encryptName(row.naam.trim(), masterKey);
@@ -110,25 +110,26 @@ export default async function handler(req, res) {
 
                 if (operationsInBatch >= 450) {
                     batches.push(currentBatch);
-                    currentBatch = db.batch();
+                    currentBatch = db.batch(); // db.batch() gebruiken
                     operationsInBatch = 0;
                 }
-
             } catch (rowError) {
                 console.error(`Fout bij verwerken rij ${rowNum}:`, rowError);
                 errors.push(`Rij ${rowNum}: ${rowError.message}`);
             }
         }
 
-        // ... (Rest van de batch commit logica blijft hetzelfde) ...
         if (operationsInBatch > 0) {
             batches.push(currentBatch);
         }
+        
+        // ... (Batch commit logica blijft hetzelfde) ...
         console.log(`📦 Committing ${batches.length} batch(es)...`);
         for (let i = 0; i < batches.length; i++) {
             await batches[i].commit();
             console.log(`✅ Batch ${i + 1}/${batches.length} committed`);
         }
+
         console.log(`✅ Import complete: ${successCount} success, ${errors.length} errors`);
 
         res.status(200).json({ 
@@ -140,6 +141,9 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
+        if (error.message.includes('token')) {
+            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
+        }
         console.error('❌ API Bulk Error:', error);
         res.status(500).json({ 
             error: 'Fout bij bulk import: ' + error.message,

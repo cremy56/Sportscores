@@ -1,7 +1,7 @@
-// api/createUser.js - AANGEPAST VOOR GOOGLE SECRET MANAGER
-import { db } from './firebaseAdmin.js';
+// api/createUser.js
+import { db, verifyToken } from './firebaseAdmin.js'; // <-- AANGEPAST
 import CryptoJS from 'crypto-js';
-import { getMasterKey } from './keyManager.js'; // <-- NIEUWE IMPORT
+import { getMasterKey } from './keyManager.js'; // <-- AANGEPAST
 
 const generateHash = (smartschoolUserId) => {
     return CryptoJS.SHA256(smartschoolUserId).toString();
@@ -19,12 +19,16 @@ export default async function handler(req, res) {
     }
 
     try {
+        // === 1. AUTHENTICATIE ===
+        const decodedToken = await verifyToken(req.headers.authorization);
+        
         const { formData, currentUserRole, targetSchoolId, currentUserProfileHash } = req.body;
 
-        // ... (Validatie logica blijft hetzelfde) ...
+        // === 2. VALIDATIE ===
         if (!formData?.smartschool_user_id?.trim()) {
             return res.status(400).json({ error: 'Smartschool User ID is verplicht' });
         }
+        // ... (alle andere validaties blijven hetzelfde) ...
         if (!formData?.naam?.trim()) {
             return res.status(400).json({ error: 'Naam is verplicht' });
         }
@@ -42,20 +46,19 @@ export default async function handler(req, res) {
                 return res.status(400).json({ error: 'Gender moet M, V of X zijn voor leerlingen' });
             }
         }
-        // ... (Einde validatie) ...
 
-        // Haal master key veilig op uit Google Secret Manager
+        // === 3. HAAL SLEUTEL OP ===
         const masterKey = await getMasterKey();
         
         if (!masterKey) {
-            console.error(`❌ Kon master key niet laden`);
-            return res.status(500).json({ error: 'Server configuratie fout' });
+            return res.status(500).json({ error: 'Server configuratie fout (key)' });
         }
 
+        // === 4. DATA VERWERKEN ===
         const docId = generateHash(formData.smartschool_user_id.trim());
         const encryptedName = encryptName(formData.naam.trim(), masterKey);
 
-        console.log(`🔐 Creating user: ${currentUserRole} - ${docId.substring(0, 16)}...`);
+        console.log(`🔐 [${decodedToken.email}] Creating user: ${currentUserRole} - ${docId.substring(0, 16)}...`);
 
         const whitelistData = {
             smartschool_id_hash: docId,
@@ -84,7 +87,10 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
-        console.error('❌ API Error:', error);
+        if (error.message.includes('token')) {
+            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
+        }
+        console.error('❌ API Error in createUser:', error);
         res.status(500).json({ 
             error: 'Fout bij opslaan: ' + error.message,
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined

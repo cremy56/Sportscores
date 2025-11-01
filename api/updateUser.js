@@ -1,5 +1,5 @@
 // api/updateUser.js
-import { db } from './firebaseAdmin.js';
+import { db, verifyToken } from './firebaseAdmin.js'; // <-- AANGEPAST
 
 export default async function handler(req, res) {
 
@@ -8,18 +8,21 @@ export default async function handler(req, res) {
     }
 
     try {
+        // === 1. AUTHENTICATIE ===
+        const decodedToken = await verifyToken(req.headers.authorization);
+
         const { userId, updates, currentUserProfileHash } = req.body;
 
-        // Input validatie
+        // === 2. VALIDATIE ===
         if (!userId) {
             return res.status(400).json({ error: 'userId is verplicht' });
         }
-
+        // ... (rest van je validatie blijft hetzelfde) ...
         if (!updates || typeof updates !== 'object') {
             return res.status(400).json({ error: 'updates object is verplicht' });
         }
-
-        // Check of user bestaat
+        
+        // === 3. DATA VERWERKEN ===
         const userRef = db.collection('toegestane_gebruikers').doc(userId);
         const userDoc = await userRef.get();
 
@@ -27,52 +30,40 @@ export default async function handler(req, res) {
             return res.status(404).json({ error: 'Gebruiker niet gevonden' });
         }
 
-        const userData = userDoc.data();
-
-        // Alleen bepaalde velden mogen bewerkt worden
+        // ... (allowedFields logica blijft hetzelfde) ...
         const allowedFields = ['klas', 'gender', 'is_active'];
         const updateData = {};
-
         for (const field of allowedFields) {
             if (updates.hasOwnProperty(field)) {
                 updateData[field] = updates[field];
             }
         }
-
-        // Validatie gender (alleen voor leerlingen)
         if (updateData.gender && !['M', 'V', 'X'].includes(updateData.gender)) {
             return res.status(400).json({ error: 'Gender moet M, V of X zijn' });
         }
-
-        // Validatie klas
         if (updateData.klas && typeof updateData.klas !== 'string') {
             return res.status(400).json({ error: 'Klas moet een string zijn' });
         }
-
         if (Object.keys(updateData).length === 0) {
             return res.status(400).json({ error: 'Geen geldige velden om te updaten' });
         }
 
-        // Voeg metadata toe
         updateData.last_updated = new Date();
         updateData.updated_by_hash = currentUserProfileHash || 'admin';
 
-        console.log(`🔄 Updating user ${userId.substring(0, 16)}...`, updateData);
+        console.log(`🔄 [${decodedToken.email}] Updating user ${userId.substring(0, 16)}...`);
 
-        
-        // 1. Update altijd de whitelist (deze bestaat gegarandeerd)
+        // Update whitelist
         await userRef.update(updateData);
 
-        // 2. Controleer of het 'users' profiel al bestaat (na login)
+        // Update 'users' profiel indien het bestaat
         const userProfileRef = db.collection('users').doc(userId);
         const userProfileSnap = await userProfileRef.get();
 
         if (userProfileSnap.exists) {
-            // Zo ja, update het profiel ook
             console.log('User profiel bestaat, ook updaten...');
             await userProfileRef.update(updateData);
         } else {
-            // Zo nee, sla deze stap over
             console.log('User profiel bestaat nog niet, update overgeslagen.');
         }
 
@@ -85,6 +76,9 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
+        if (error.message.includes('token')) {
+            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
+        }
         console.error('❌ API Update Error:', error);
         res.status(500).json({ 
             error: 'Fout bij bijwerken: ' + error.message,
