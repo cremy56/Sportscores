@@ -1,7 +1,7 @@
 // api/createUser.js - FIXED VERSION
 // klas en gender alleen voor leerlingen
-import { db } from '../src/firebase';
-import { doc, setDoc } from 'firebase/firebaseAdmin';
+import { db } from './firebaseAdmin';
+import { doc, setDoc } from 'firebase-admin/firestore';
 import CryptoJS from 'crypto-js';
 
 const generateHash = (smartschoolUserId) => {

@@ -1,7 +1,7 @@
 // api/getUsers.js - SIMPLIFIED VERSION
 // Reads encrypted_name directly from toegestane_gebruikers
-import { db } from '../src/firebase';
-import { collection, query, where, getDocs } from 'firebase/firebaseAdmin';
+import { db } from './firebaseAdmin'; // <-- FIX 1
+import { collection, query, where, getDocs } from 'firebase-admin/firestore'; // <-- FIX 2
 import CryptoJS from 'crypto-js';
 
 const decryptName = (encryptedName, masterKey) => {
