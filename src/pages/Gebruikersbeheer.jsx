@@ -15,7 +15,6 @@ import {
 } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 import Papa from 'papaparse';
-import CryptoJS from 'crypto-js';
 import { 
     PlusIcon, 
     ArrowUpTrayIcon, 
@@ -31,26 +30,6 @@ import {
 import UserFormModal from '../components/UserFormModal'; 
 import ConfirmModal from '../components/ConfirmModal';
 
-// Helper functie voor hash generatie
-const generateHash = (smartschoolUserId) => {
-    return CryptoJS.SHA256(smartschoolUserId).toString();
-};
-
-// Helper functie voor naam encryptie
-const encryptName = (name, masterKey) => {
-    return CryptoJS.AES.encrypt(name, masterKey).toString();
-};
-
-// Helper functie voor naam decryptie
-const decryptName = (encryptedName, masterKey) => {
-    try {
-        const decrypted = CryptoJS.AES.decrypt(encryptedName, masterKey);
-        return decrypted.toString(CryptoJS.enc.Utf8);
-    } catch (error) {
-        console.error('Decryptie fout:', error);
-        return '[Naam niet beschikbaar]';
-    }
-};
 
 // Mobile-vriendelijke Action Buttons Component
 const MobileActionButtons = ({ onEdit, onDelete, user }) => (
@@ -80,7 +59,6 @@ export default function Gebruikersbeheer() {
     const [filterKlas, setFilterKlas] = useState('');
     const [filterRol, setFilterRol] = useState('');
     const [totalCount, setTotalCount] = useState(null);
-    const [masterKey, setMasterKey] = useState(null);
     const fileInputRef = useCallback(node => {
         if (node !== null) {
             node.value = '';
@@ -88,37 +66,6 @@ export default function Gebruikersbeheer() {
     }, []);
     const [modal, setModal] = useState({ type: null, data: null });
 
- useEffect(() => {
-    const loadMasterKey = () => {
-        console.log("DIT IS ALLES WAT VITE HEEFT GELADEN:", import.meta.env);
-        if (!profile?.school_id) {
-            console.warn('⚠️ No school_id found');
-            return;
-        }
-        
-        // Convert "ka_beveren" → "KABEVEREN"
-        const schoolKey = profile.school_id.toUpperCase().replace(/_/g, '');
-        
-        // Try school-specific key first, then fallback to default (Vite-stijl)
-        const envVarNameForVite = `VITE_MASTER_KEY_${schoolKey}`;
-        let masterKey = import.meta.env[envVarNameForVite];
-        
-        if (!masterKey) {
-            console.log(`⚠️ No key found for ${envVarNameForVite}, using default`);
-            masterKey = import.meta.env.VITE_SCHOOL_MASTER_KEY; // Algemene fallback
-        }
-        
-        if (!masterKey) {
-            console.error('❌ No master key available!');
-            masterKey = "TEST_MASTER_KEY_CHANGE_IN_PRODUCTION"; // Nood-fallback
-        }
-        
-        setMasterKey(masterKey);
-        console.log('✅ Master key loaded for:', profile.school_id);
-    };
-    
-    loadMasterKey();
-}, [profile?.school_id]);
 
     // Tel totaal aantal gebruikers
     useEffect(() => {
@@ -205,112 +152,50 @@ export default function Gebruikersbeheer() {
             });
         };
         reader.readAsText(file);
-    }, [profile?.school_id, masterKey]);
+    }, [profile?.school_id]);
 
-    const handleCSVImport = async (data) => {
-        if (!profile?.school_id || !masterKey) {
-            toast.error('School of encryptie key niet beschikbaar');
+   const handleCSVImport = async (data) => {
+        if (!profile?.school_id) {
+            toast.error('School niet geladen, probeer opnieuw');
             return;
         }
 
         const loadingToast = toast.loading('CSV importeren...');
-        const errors = [];
-        const batch = writeBatch(db);
-        let successCount = 0;
-
+        
         try {
-            for (let i = 0; i < data.length; i++) {
-                const row = data[i];
-                
-                // Validatie
-                if (!row.smartschool_user_id) {
-                    errors.push(`Rij ${i + 2}: Smartschool User ID ontbreekt`);
-                    continue;
-                }
-                if (!row.naam) {
-                    errors.push(`Rij ${i + 2}: Naam ontbreekt`);
-                    continue;
-                }
-                if (!row.rol || !['leerling', 'leerkracht'].includes(row.rol.toLowerCase())) {
-                    errors.push(`Rij ${i + 2}: Rol moet 'leerling' of 'leerkracht' zijn`);
-                    continue;
-                }
+            const apiPayload = {
+                csvData: data, // De volledige lijst van Papa.parse
+                targetSchoolId: profile.school_id,
+                currentUserProfileHash: profile.smartschool_id_hash
+            };
 
-                // Voor leerlingen: klas en gender zijn verplicht
-                if (row.rol.toLowerCase() === 'leerling') {
-                    if (!row.klas) {
-                        errors.push(`Rij ${i + 2}: Klas is verplicht voor leerlingen`);
-                        continue;
-                    }
-                    if (!row.gender || !['M', 'V', 'X'].includes(row.gender.toUpperCase())) {
-                        errors.push(`Rij ${i + 2}: Gender moet M, V of X zijn`);
-                        continue;
-                    }
-                }
+            const response = await fetch('/api/bulkCreateUsers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(apiPayload),
+            });
 
-                // Genereer hash voor document ID
-                const hashedId = generateHash(row.smartschool_user_id.trim());
-
-                // Encrypt naam
-                const encryptedName = encryptName(row.naam.trim(), masterKey);
-
-                // Maak document in toegestane_gebruikers
-                const userRef = doc(db, 'toegestane_gebruikers', hashedId);
-                batch.set(userRef, {
-                    smartschool_id_hash: hashedId,
-                    school_id: profile.school_id,
-                    rol: row.rol.toLowerCase(),
-                    klas: row.rol.toLowerCase() === 'leerling' ? row.klas.trim() : null,
-                    gender: row.rol.toLowerCase() === 'leerling' ? row.gender.toUpperCase() : null,
-                    is_active: true,
-                    toegevoegd_door_hash: profile.smartschool_id_hash || 'admin',
-                    created_at: new Date(),
-                    last_updated: new Date()
-                }, { merge: true });
-
-                // Maak ook document in users collection (voor bestaande users die nog moeten migreren)
-                const usersDocRef = doc(db, 'users', hashedId);
-                batch.set(usersDocRef, {
-                    smartschool_id_hash: hashedId,
-                    encrypted_name: encryptedName,
-                    nickname: '', // Wordt door leerling ingevuld
-                    nickname_lower: '',
-                    nickname_set_at: null,
-                    school_id: profile.school_id,
-                    klas: row.rol.toLowerCase() === 'leerling' ? row.klas.trim() : null,
-                    gender: row.rol.toLowerCase() === 'leerling' ? row.gender.toUpperCase() : null,
-                    rol: row.rol.toLowerCase(),
-                    onboarding_complete: false,
-                    created_at: new Date(),
-                    last_login: null,
-                    last_smartschool_login: null
-                }, { merge: true });
-
-                successCount++;
-
-                // Commit elke 500 records (Firestore limiet)
-                if (successCount % 500 === 0) {
-                    await batch.commit();
-                    toast.loading(`${successCount} gebruikers verwerkt...`, { id: loadingToast });
-                }
-            }
-
-            // Commit resterende
-            await batch.commit();
-
+            const result = await response.json();
             toast.dismiss(loadingToast);
 
-            if (errors.length > 0) {
-                console.error('Import fouten:', errors);
-                toast.error(`${successCount} gebruikers geïmporteerd, ${errors.length} fouten`, {
-                    duration: 5000
-                });
-            } else {
-                toast.success(`${successCount} gebruikers succesvol geïmporteerd!`);
+            if (!response.ok) {
+                throw new Error(result.error || 'Er is iets misgegaan');
             }
 
-            // Refresh lijst
-            loadUsers();
+            // Toon succes/fouten van de server
+            if (result.errorCount > 0) {
+                console.error('Import fouten:', result.errors);
+                toast.error(
+                    `${result.successCount} gebruikers geïmporteerd, ${result.errorCount} fouten`, 
+                    { duration: 5000 }
+                );
+            } else {
+                toast.success(`${result.successCount} gebruikers succesvol geïmporteerd!`);
+            }
+
+            loadUsers(); // Refresh de lijst
 
         } catch (error) {
             console.error('CSV import fout:', error);
@@ -593,7 +478,6 @@ export default function Gebruikersbeheer() {
                 role={modal.role}
                 currentUserProfile={profile}
                 schoolSettings={school?.instellingen}
-                masterKey={masterKey}
             />
             
             <ConfirmModal

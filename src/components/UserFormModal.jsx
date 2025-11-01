@@ -4,7 +4,6 @@ import { Dialog, Transition } from '@headlessui/react';
 import { db } from '../firebase';
 import { doc, setDoc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import CryptoJS from 'crypto-js';
 import { 
     UserIcon, 
     BuildingOfficeIcon,
@@ -15,15 +14,6 @@ import {
 // Helper functies
 const capitalize = (s) => s && s.charAt(0).toUpperCase() + s.slice(1);
 
-// Privacy-veilige helper functies
-const generateHash = (smartschoolUserId) => {
-    return CryptoJS.SHA256(smartschoolUserId).toString();
-};
-
-const encryptName = (name, masterKey) => {
-    if (!masterKey) throw new Error('Master key niet beschikbaar');
-    return CryptoJS.AES.encrypt(name, masterKey).toString();
-};
 
 export default function UserFormModal({ 
     isOpen, 
@@ -33,8 +23,7 @@ export default function UserFormModal({
     schoolId, 
     role, 
     currentUserProfile, 
-    schoolSettings, 
-    masterKey 
+    schoolSettings
 }) {
     const [formData, setFormData] = useState({
         naam: '',
@@ -153,72 +142,49 @@ export default function UserFormModal({
             return;
         }
 
-        if (!masterKey && !isEditing) {
-            toast.error("Master key niet beschikbaar voor naam encryptie");
-            return;
-        }
+        // De masterKey is hier niet meer nodig.
+        // if (!masterKey && !isEditing) { ... } // <-- VERWIJDER DEZE CHECK
 
         setLoading(true);
         const loadingToast = toast.loading(isEditing ? 'Bijwerken...' : 'Toevoegen...');
         
         try {
-            let docId;
-
-            if (isEditing) {
-                // Editing existing user - use existing hash
-                docId = userData.id;
-            } else {
-                // New user - generate hash from Smartschool User ID
-                docId = generateHash(formData.smartschool_user_id.trim());
-            }
-
+            // Data die we naar de server sturen
             const targetSchoolId = isSuperAdmin ? formData.school_id : schoolId;
-
-            // Data voor toegestane_gebruikers
-            const whitelistData = {
-                smartschool_id_hash: docId,
-                school_id: targetSchoolId,
-                rol: currentUserRole,
-                klas: currentUserRole === 'leerling' ? formData.klas.trim() : null,
-                gender: currentUserRole === 'leerling' ? formData.gender : null,
-                is_active: true,
-                toegevoegd_door_hash: currentUserProfile?.smartschool_id_hash || 'admin',
-                last_updated: new Date()
+            const apiPayload = {
+                formData: formData, // De (onversleutelde) formulierdata
+                currentUserRole: currentUserRole,
+                targetSchoolId: targetSchoolId,
+                currentUserProfileHash: currentUserProfile?.smartschool_id_hash
             };
 
-            // Als nieuwe user, voeg created_at toe
-            if (!isEditing) {
-                whitelistData.created_at = new Date();
+            // Als we bewerken, stuur dit naar een andere API (nog te maken)
+            if (isEditing) {
+                // TODO: Maak een 'api/updateUser.js' die alleen klas/gender bijwerkt
+                // Voor nu focussen we op de 'create' flow.
+                // Gooi een error als men probeert te editen:
+                if (isEditing) {
+                     throw new Error("Bewerken is nog niet geïmplementeerd met de veilige API-route");
+                }
             }
 
-            // Save to toegestane_gebruikers
-            await setDoc(doc(db, 'toegestane_gebruikers', docId), whitelistData, { merge: true });
+            // Roep de nieuwe, veilige API route aan
+            const response = await fetch('/api/createUser', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(apiPayload),
+            });
 
-            // Als nieuwe user EN naam is opgegeven, maak ook users document aan
-            if (!isEditing && formData.naam.trim()) {
-                const encryptedName = encryptName(formData.naam.trim(), masterKey);
+            const result = await response.json();
 
-                const usersData = {
-                    smartschool_id_hash: docId,
-                    encrypted_name: encryptedName,
-                    nickname: '',
-                    nickname_lower: '',
-                    nickname_set_at: null,
-                    school_id: targetSchoolId,
-                    klas: currentUserRole === 'leerling' ? formData.klas.trim() : null,
-                    gender: currentUserRole === 'leerling' ? formData.gender : null,
-                    rol: currentUserRole,
-                    onboarding_complete: false,
-                    created_at: new Date(),
-                    last_login: null,
-                    last_smartschool_login: null
-                };
-
-                await setDoc(doc(db, 'users', docId), usersData, { merge: true });
+            if (!response.ok) {
+                throw new Error(result.error || 'Er is iets misgegaan');
             }
             
             toast.dismiss(loadingToast);
-            toast.success(`${capitalize(currentUserRole)} succesvol ${isEditing ? 'bijgewerkt' : 'toegevoegd'}!`);
+            toast.success(`${capitalize(currentUserRole)} succesvol toegevoegd!`);
             onUserSaved();
             onClose();
 
