@@ -5,9 +5,6 @@ import { useOutletContext } from 'react-router-dom';
 import { getAuth } from 'firebase/auth'; // <-- IMPORT VOOR AUTH
 import { db } from '../firebase';
 import { 
-    doc, 
-    getDoc, 
-    deleteDoc,
     getCountFromServer,
     collection,
     query,
@@ -261,28 +258,33 @@ export default function Gebruikersbeheer() {
     };
 
     // Delete blijft client-side (dit moet ook naar een API-route!)
+    // === SERVER-SIDE DELETE (MET AUTH) ===
     const handleDelete = async (user) => {
         try {
-            // TODO: Maak een /api/deleteUser endpoint
-            // Dit is nu onveilig, want het gebruikt client-side permissies
-            // die we gaan blokkeren met Security Rules (Stap 3).
-            
-            // 1. Verwijder uit whitelist
-            await deleteDoc(doc(db, 'toegestane_gebruikers', user.id));
+            const token = await getAuthToken(); // <-- HAAL AUTH TOKEN OP
 
-            // 2. Controleer en verwijder 'users' profiel
-            const userProfileRef = doc(db, 'users', user.id);
-            const userProfileSnap = await getDoc(userProfileRef);
+            const response = await fetch('/api/deleteUser', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // <-- VOEG TOKEN TOE
+                },
+                body: JSON.stringify({ userId: user.id })
+            });
 
-            if (userProfileSnap.exists()) {
-                await deleteDoc(userProfileRef);
+            if (response.status === 401) {
+                throw new Error("Authenticatie geweigerd");
+            }
+            if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.error || 'Kon niet verwijderen');
             }
             
             toast.success('Gebruiker verwijderd');
-            loadUsers(); // Refresh
+            loadUsers(); // Refresh de lijst
         } catch (error) {
             console.error('Fout bij verwijderen:', error);
-            toast.error('Fout bij verwijderen');
+            toast.error('Fout bij verwijderen: ' + error.message);
         }
     };
 
