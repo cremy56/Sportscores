@@ -1,7 +1,6 @@
 // api/bulkCreateUsers.js - FIXED VERSION
 // klas en gender alleen voor leerlingen
 import { db } from './firebaseAdmin.js';
-import { doc, writeBatch } from 'firebase-admin/firestore';
 import CryptoJS from 'crypto-js';
 
 const generateHash = (smartschoolUserId) => {
@@ -52,7 +51,7 @@ export default async function handler(req, res) {
         let successCount = 0;
         const errors = [];
         const batches = [];
-        let currentBatch = writeBatch(db);
+        let currentBatch = db.batch(); // Gebruik db.batch()
         let operationsInBatch = 0;
 
         for (let i = 0; i < csvData.length; i++) {
@@ -111,11 +110,8 @@ export default async function handler(req, res) {
                     whitelistData.gender = row.gender.toUpperCase();
                 }
 
-                currentBatch.set(
-                    doc(db, 'toegestane_gebruikers', hashedId), 
-                    whitelistData, 
-                    { merge: true }
-                );
+                const docRef = db.collection('toegestane_gebruikers').doc(hashedId);
+                currentBatch.set(docRef, whitelistData, { merge: true });
                 
                 operationsInBatch++;
                 successCount++;

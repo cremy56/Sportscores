@@ -1,7 +1,6 @@
 // api/createUser.js - FIXED VERSION
 // klas en gender alleen voor leerlingen
 import { db } from './firebaseAdmin.js';
-import { doc, setDoc } from 'firebase-admin/firestore';
 import CryptoJS from 'crypto-js';
 
 const generateHash = (smartschoolUserId) => {
@@ -83,7 +82,7 @@ export default async function handler(req, res) {
             whitelistData.gender = formData.gender;
         }
         
-        await setDoc(doc(db, 'toegestane_gebruikers', docId), whitelistData, { merge: true });
+       await db.collection('toegestane_gebruikers').doc(docId).set(whitelistData, { merge: true });
 
         console.log(`✅ ${currentUserRole} created: ${docId.substring(0, 16)}...`);
 

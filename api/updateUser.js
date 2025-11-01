@@ -1,6 +1,5 @@
 // api/updateUser.js
 import { db } from './firebaseAdmin.js';
-import { doc, updateDoc, getDoc } from 'firebase-admin/firestore';
 
 export default async function handler(req, res) {
 
@@ -21,8 +20,8 @@ export default async function handler(req, res) {
         }
 
         // Check of user bestaat
-        const userRef = doc(db, 'toegestane_gebruikers', userId);
-        const userDoc = await getDoc(userRef);
+        const userRef = db.collection('toegestane_gebruikers').doc(userId);
+        const userDoc = await userRef.get();
 
         if (!userDoc.exists()) {
             return res.status(404).json({ error: 'Gebruiker niet gevonden' });
@@ -62,16 +61,16 @@ export default async function handler(req, res) {
 
         
         // 1. Update altijd de whitelist (deze bestaat gegarandeerd)
-        await updateDoc(doc(db, 'toegestane_gebruikers', userId), updateData);
+        await userRef.update(updateData);
 
         // 2. Controleer of het 'users' profiel al bestaat (na login)
-        const userProfileRef = doc(db, 'users', userId);
-        const userProfileSnap = await getDoc(userProfileRef); // getDoc is al geïmporteerd
+        const userProfileRef = db.collection('users').doc(userId);
+        const userProfileSnap = await userProfileRef.get();
 
-        if (userProfileSnap.exists()) {
+        if (userProfileSnap.exists) {
             // Zo ja, update het profiel ook
             console.log('User profiel bestaat, ook updaten...');
-            await updateDoc(userProfileRef, updateData);
+            await userProfileRef.update(updateData);
         } else {
             // Zo nee, sla deze stap over
             console.log('User profiel bestaat nog niet, update overgeslagen.');

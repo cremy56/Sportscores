@@ -1,7 +1,6 @@
 // api/getUsers.js - SIMPLIFIED VERSION
 // Reads encrypted_name directly from toegestane_gebruikers
 import { db } from './firebaseAdmin.js';
-import { collection, query, where, getDocs } from 'firebase-admin/firestore'; // <-- FIX 2
 import CryptoJS from 'crypto-js';
 
 const decryptName = (encryptedName, masterKey) => {
@@ -40,20 +39,19 @@ export default async function handler(req, res) {
         }
 
         // Query toegestane_gebruikers - ALLES IN 1 QUERY!
-        let q = query(
-            collection(db, 'toegestane_gebruikers'),
-            where('school_id', '==', schoolId)
-        );
+        let collectionRef = db.collection('toegestane_gebruikers');
+        let q = collectionRef.where('school_id', '==', schoolId);
 
         if (filterKlas) {
-            q = query(q, where('klas', '==', filterKlas));
+            q = q.where('klas', '==', filterKlas);
         }
 
         if (filterRol) {
-            q = query(q, where('rol', '==', filterRol));
+            q = q.where('rol', '==', filterRol);
         }
 
-        const snapshot = await getDocs(q);
+        const snapshot = await q.get(); // Gebruik .get() in plaats van getDocs(q)
+        // =============================
         
         // Process users - decrypt naam direct uit toegestane_gebruikers
         const users = snapshot.docs.map(doc => {
