@@ -2,14 +2,31 @@
 import admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// Haal de JSON-string op die je al in Vercel hebt
 const serviceAccountString = process.env.FIREBASE_ADMIN_CREDENTIALS;
 
-if (!serviceAccountString) {
-    throw new Error('De FIREBASE_ADMIN_CREDENTIALS environment variable is niet ingesteld.');
-}
+// --- TIJDELIJKE DEBUG STAP ---
+console.log("--- DEBUGGING firebaseAdmin.js ---");
+console.log("Typeof serviceAccountString:", typeof serviceAccountString);
 
-const serviceAccount = JSON.parse(serviceAccountString);
+if (serviceAccountString) {
+    console.log("Eerste 30 karakters:", serviceAccountString.substring(0, 30));
+    console.log("Laatste 30 karakters:", serviceAccountString.substring(serviceAccountString.length - 30));
+} else {
+    console.log("!!! serviceAccountString is LEEG of UNDEFINED !!!");
+}
+// ----------------------------
+
+// Probeer te parsen en vang de fout op
+let serviceAccount;
+try {
+    serviceAccount = JSON.parse(serviceAccountString);
+} catch (error) {
+    console.error("!!!!!!!!!!!! JSON PARSE FOUT !!!!!!!!!!!!");
+    console.error("De FIREBASE_ADMIN_CREDENTIALS variabele is GEEN geldige JSON.");
+    console.error("Foutmelding:", error.message);
+    // Gooi de fout opnieuw om de 500-error te veroorzaken (wat we nu zien)
+    throw new Error('JSON Parse Fout: Controleer de Vercel Environment Variable.');
+}
 
 // Initialiseer de admin app (alleen als het nog niet is gebeurd)
 if (admin.apps.length === 0) {
