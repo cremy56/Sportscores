@@ -6,7 +6,7 @@ import {
     collection, 
     query, 
     where, 
-    getDocs, 
+    getDoc, 
     doc, 
     deleteDoc,
     getCountFromServer
@@ -241,16 +241,25 @@ export default function Gebruikersbeheer() {
     };
 
     const handleDelete = async (user) => {
-        try {
-            await deleteDoc(doc(db, 'toegestane_gebruikers', user.id));
-            await deleteDoc(doc(db, 'users', user.id));
-            toast.success('Gebruiker verwijderd');
-            loadUsers();
-        } catch (error) {
-            console.error('Fout bij verwijderen:', error);
-            toast.error('Fout bij verwijderen');
+    try {
+        // 1. Verwijder altijd uit de whitelist
+        await deleteDoc(doc(db, 'toegestane_gebruikers', user.id));
+
+        // 2. Controleer of het 'users' profiel bestaat en verwijder dat ook
+        const userProfileRef = doc(db, 'users', user.id);
+        const userProfileSnap = await getDoc(userProfileRef);
+
+        if (userProfileSnap.exists()) {
+            await deleteDoc(userProfileRef);
         }
-    };
+        
+        toast.success('Gebruiker verwijderd');
+        loadUsers(); // Refresh de lijst
+    } catch (error) {
+        console.error('Fout bij verwijderen:', error);
+        toast.error('Fout bij verwijderen');
+    }
+};
 
     const handleOpenModal = (type, data = null, role = null) => {
         setModal({ type, data, role });

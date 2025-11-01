@@ -60,9 +60,22 @@ export default async function handler(req, res) {
 
         console.log(`🔄 Updating user ${userId.substring(0, 16)}...`, updateData);
 
-        // Update beide collections
+        
+        // 1. Update altijd de whitelist (deze bestaat gegarandeerd)
         await updateDoc(doc(db, 'toegestane_gebruikers', userId), updateData);
-        await updateDoc(doc(db, 'users', userId), updateData);
+
+        // 2. Controleer of het 'users' profiel al bestaat (na login)
+        const userProfileRef = doc(db, 'users', userId);
+        const userProfileSnap = await getDoc(userProfileRef); // getDoc is al geïmporteerd
+
+        if (userProfileSnap.exists()) {
+            // Zo ja, update het profiel ook
+            console.log('User profiel bestaat, ook updaten...');
+            await updateDoc(userProfileRef, updateData);
+        } else {
+            // Zo nee, sla deze stap over
+            console.log('User profiel bestaat nog niet, update overgeslagen.');
+        }
 
         console.log(`✅ User updated successfully`);
 
