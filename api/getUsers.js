@@ -1,12 +1,15 @@
-// api/getUsers.js
+// api/getUsers.js - SIMPLIFIED VERSION
+// Reads encrypted_name directly from toegestane_gebruikers
 import { db } from '../src/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import CryptoJS from 'crypto-js';
 
 const decryptName = (encryptedName, masterKey) => {
     try {
+        if (!encryptedName) return '[Geen naam]';
         const decrypted = CryptoJS.AES.decrypt(encryptedName, masterKey);
-        return decrypted.toString(CryptoJS.enc.Utf8);
+        const result = decrypted.toString(CryptoJS.enc.Utf8);
+        return result || '[Decryptie fout]';
     } catch (error) {
         console.error('Decryptie fout:', error);
         return '[Naam niet beschikbaar]';
@@ -35,7 +38,7 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'School ID is verplicht' });
         }
 
-        // Haal master key op (server-side!)
+        // Haal master key op
         const schoolKey = schoolId.toUpperCase().replace(/_/g, '');
         const envVarName = `MASTER_KEY_${schoolKey}`;
         let masterKey = process.env[envVarName] || process.env.SCHOOL_MASTER_KEY;
@@ -45,7 +48,7 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Server configuratie fout' });
         }
 
-        // Query toegestane_gebruikers
+        // Query toegestane_gebruikers - ALLES IN 1 QUERY!
         let q = query(
             collection(db, 'toegestane_gebruikers'),
             where('school_id', '==', schoolId)
@@ -61,37 +64,19 @@ export default async function handler(req, res) {
 
         const snapshot = await getDocs(q);
         
-        // Parallel: haal users data op voor namen
-        const userIds = snapshot.docs.map(doc => doc.id);
-        const usersPromises = userIds.map(id => 
-            getDocs(query(collection(db, 'users'), where('smartschool_id_hash', '==', id)))
-        );
-        const usersSnapshots = await Promise.all(usersPromises);
-
-        // Maak user map met decrypted namen
-        const usersMap = {};
-        usersSnapshots.forEach(snap => {
-            if (!snap.empty) {
-                const userData = snap.docs[0].data();
-                const decryptedName = decryptName(userData.encrypted_name, masterKey);
-                usersMap[userData.smartschool_id_hash] = {
-                    ...userData,
-                    decrypted_name: decryptedName
-                };
-            }
-        });
-
-        // Combineer data
+        // Process users - decrypt naam direct uit toegestane_gebruikers
         const users = snapshot.docs.map(doc => {
-            const whitelistData = doc.data();
-            const userData = usersMap[doc.id] || {};
+            const data = doc.data();
+            
+            // Decrypt naam (nu in zelfde document!)
+            const decryptedName = data.encrypted_name 
+                ? decryptName(data.encrypted_name, masterKey)
+                : (data.naam || '[Naam ontbreekt]'); // Fallback voor oude data
             
             return {
                 id: doc.id,
-                ...whitelistData,
-                nickname: userData.nickname || '',
-                decrypted_name: userData.decrypted_name || '[Naam niet beschikbaar]',
-                onboarding_complete: userData.onboarding_complete || false
+                ...data,
+                decrypted_name: decryptedName
             };
         });
 
