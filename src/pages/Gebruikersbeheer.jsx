@@ -90,6 +90,7 @@ export default function Gebruikersbeheer() {
 
  useEffect(() => {
     const loadMasterKey = () => {
+        console.log("DIT IS ALLES WAT VITE HEEFT GELADEN:", import.meta.env);
         if (!profile?.school_id) {
             console.warn('⚠️ No school_id found');
             return;
