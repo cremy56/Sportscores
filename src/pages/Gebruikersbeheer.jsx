@@ -10,10 +10,12 @@ import {
     writeBatch, 
     doc, 
     deleteDoc,
-    getCountFromServer 
+    getCountFromServer,
+    setDoc 
 } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 import Papa from 'papaparse';
+import CryptoJS from 'crypto-js';
 import { 
     PlusIcon, 
     ArrowUpTrayIcon, 
@@ -22,20 +24,32 @@ import {
     MagnifyingGlassIcon,
     UsersIcon,
     ArrowDownTrayIcon,
-    UserPlusIcon
+    UserPlusIcon,
+    ShieldCheckIcon,
+    InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import UserFormModal from '../components/UserFormModal'; 
 import ConfirmModal from '../components/ConfirmModal';
 
-// Helper functie om identifier te bepalen
-const getIdentifier = (user) => {
-    if (user.smartschool_username) {
-        return user.smartschool_username;
+// Helper functie voor hash generatie
+const generateHash = (smartschoolUserId) => {
+    return CryptoJS.SHA256(smartschoolUserId).toString();
+};
+
+// Helper functie voor naam encryptie
+const encryptName = (name, masterKey) => {
+    return CryptoJS.AES.encrypt(name, masterKey).toString();
+};
+
+// Helper functie voor naam decryptie
+const decryptName = (encryptedName, masterKey) => {
+    try {
+        const decrypted = CryptoJS.AES.decrypt(encryptedName, masterKey);
+        return decrypted.toString(CryptoJS.enc.Utf8);
+    } catch (error) {
+        console.error('Decryptie fout:', error);
+        return '[Naam niet beschikbaar]';
     }
-    if (user.email) {
-        return user.email;
-    }
-    return null;
 };
 
 // Mobile-vriendelijke Action Buttons Component
@@ -44,14 +58,14 @@ const MobileActionButtons = ({ onEdit, onDelete, user }) => (
         <button
             onClick={onEdit}
             className="p-3 sm:p-2 text-gray-500 rounded-full hover:bg-blue-100 hover:text-blue-600 transition-all duration-200 touch-manipulation"
-            aria-label={`Bewerk ${user.naam}`}
+            aria-label="Bewerk gebruiker"
         >
             <PencilIcon className="h-5 w-5" />
         </button>
         <button
             onClick={onDelete}
             className="p-3 sm:p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-all duration-200 touch-manipulation"
-            aria-label={`Verwijder ${user.naam}`}
+            aria-label="Verwijder gebruiker"
         >
             <TrashIcon className="h-5 w-5" />
         </button>
@@ -63,8 +77,10 @@ export default function Gebruikersbeheer() {
     const { profile, school } = context || {};
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [filterKlas, setFilterKlas] = useState('');
+    const [filterRol, setFilterRol] = useState('');
     const [totalCount, setTotalCount] = useState(null);
+    const [masterKey, setMasterKey] = useState(null);
     const fileInputRef = useCallback(node => {
         if (node !== null) {
             node.value = '';
@@ -72,14 +88,45 @@ export default function Gebruikersbeheer() {
     }, []);
     const [modal, setModal] = useState({ type: null, data: null });
 
+  useEffect(() => {
+    const loadMasterKey = () => {
+        if (!profile?.school_id) {
+            console.warn('⚠️ No school_id found');
+            return;
+        }
+        
+        // Convert "ka_beveren" → "KABEVEREN"
+        const schoolKey = profile.school_id.toUpperCase().replace(/_/g, '');
+        const envVarName = `REACT_APP_MASTER_KEY_${schoolKey}`;
+        
+        // Try school-specific key first, then fallback to default
+        let masterKey = process.env[envVarName];
+        
+        if (!masterKey) {
+            console.log(`⚠️ No key found for ${envVarName}, using default`);
+            masterKey = process.env.REACT_APP_SCHOOL_MASTER_KEY;
+        }
+        
+        if (!masterKey) {
+            console.error('❌ No master key available!');
+            masterKey = "TEST_MASTER_KEY_CHANGE_IN_PRODUCTION";
+        }
+        
+        setMasterKey(masterKey);
+        console.log('✅ Master key loaded for:', profile.school_id);
+    };
+    
+    loadMasterKey();
+}, [profile?.school_id]);
+
+    // Tel totaal aantal gebruikers
     useEffect(() => {
         const getTotalCount = async () => {
             if (!profile?.school_id) return;
             try {
                 const countQuery = query(
                     collection(db, 'toegestane_gebruikers'),
-                    where('school_id', '==', profile.school_id),
-                    where('rol', 'in', ['leerling', 'leerkracht'])
+                    where('school_id', '==', profile.school_id)
                 );
                 const snapshot = await getCountFromServer(countQuery);
                 setTotalCount(snapshot.data().count);
@@ -90,279 +137,284 @@ export default function Gebruikersbeheer() {
         getTotalCount();
     }, [profile?.school_id]);
 
+    // Laad gebruikers op basis van filters
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (searchTerm.length >= 2) {
-                searchUsers(searchTerm);
-            } else if (searchTerm.length === 0) {
-                setUsers([]);
-            }
-        }, 300);
+        if (profile?.school_id) {
+            loadUsers();
+        }
+    }, [profile?.school_id, filterKlas, filterRol]);
 
-        return () => clearTimeout(timeoutId);
-    }, [searchTerm, profile?.school_id]);
-
-    const searchUsers = async (term) => {
+    const loadUsers = async () => {
         if (!profile?.school_id) return;
         
         setLoading(true);
-        const termLower = term.toLowerCase();
-        const usersRef = collection(db, 'toegestane_gebruikers');
-
         try {
-            let queries = [];
-            
-            // Query 1: Zoek op naam keywords
-            queries.push(
-                query(
-                    usersRef,
-                    where('school_id', '==', profile.school_id),
-                    where('rol', 'in', ['leerling', 'leerkracht']),
-                    where('naam_keywords', 'array-contains', termLower)
-                )
+            let q = query(
+                collection(db, 'toegestane_gebruikers'),
+                where('school_id', '==', profile.school_id)
             );
 
-            // Query 2: Zoek op email (als term @ bevat)
-            if (term.includes('@')) {
-                queries.push(
-                    query(
-                        usersRef,
-                        where('school_id', '==', profile.school_id),
-                        where('rol', 'in', ['leerling', 'leerkracht']),
-                        where('email', '>=', termLower),
-                        where('email', '<=', termLower + '\uf8ff')
-                    )
-                );
+            // Filter op klas als geselecteerd
+            if (filterKlas) {
+                q = query(q, where('klas', '==', filterKlas));
             }
 
-            // Query 3: Zoek op smartschool_username
-            queries.push(
-                query(
-                    usersRef,
-                    where('school_id', '==', profile.school_id),
-                    where('rol', 'in', ['leerling', 'leerkracht']),
-                    where('smartschool_username', '>=', termLower),
-                    where('smartschool_username', '<=', termLower + '\uf8ff')
-                )
-            );
-
-            // Voer alle queries uit
-            const allResults = new Map();
-            
-            for (const q of queries) {
-                try {
-                    const querySnapshot = await getDocs(q);
-                    querySnapshot.docs.forEach(doc => {
-                        allResults.set(doc.id, { id: doc.id, ...doc.data() });
-                    });
-                } catch (error) {
-                    console.warn('Een query is mislukt:', error);
-                    // Continue met andere queries
-                }
+            // Filter op rol als geselecteerd
+            if (filterRol) {
+                q = query(q, where('rol', '==', filterRol));
             }
 
-            const results = Array.from(allResults.values());
-            results.sort((a, b) => a.naam.localeCompare(b.naam));
-            setUsers(results);
+            const snapshot = await getDocs(q);
+            const usersData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            setUsers(usersData);
         } catch (error) {
-            console.error('Zoekfout:', error);
-            toast.error('Fout bij zoeken naar gebruikers.');
+            console.error('Fout bij laden gebruikers:', error);
+            toast.error('Kon gebruikers niet laden');
         } finally {
             setLoading(false);
         }
     };
-    
+
     const handleFileChange = useCallback((event) => {
-        const file = event.target.files[0];
+        const file = event.target.files?.[0];
         if (!file) return;
 
-        if (!file.name.toLowerCase().endsWith('.csv')) {
-            toast.error("Selecteer een geldig CSV-bestand.");
+        if (!file.name.endsWith('.csv')) {
+            toast.error('Alleen CSV bestanden zijn toegestaan.');
             return;
         }
 
-        const loadingToast = toast.loading('CSV-bestand verwerken...');
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            delimiter: ";",
-            complete: async (results) => {
-                toast.dismiss(loadingToast);
-                
-                if (!results.data || results.data.length === 0) {
-                    toast.error("CSV is leeg of incorrect geformatteerd.");
-                    return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const text = e.target?.result;
+            Papa.parse(text, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async (results) => {
+                    await handleCSVImport(results.data);
+                },
+                error: (error) => {
+                    console.error('CSV parse fout:', error);
+                    toast.error('Fout bij inlezen CSV bestand.');
                 }
+            });
+        };
+        reader.readAsText(file);
+    }, [profile?.school_id, masterKey]);
 
-                // Aangepaste header validatie - email is nu optioneel
-                const requiredHeaders = ['naam', 'geboortedatum', 'geslacht'];
-                const missingRequiredHeaders = requiredHeaders.filter(h => !results.meta.fields.includes(h));
-                
-                if (missingRequiredHeaders.length > 0) {
-                    toast.error(`CSV mist verplichte kolommen: ${missingRequiredHeaders.join(', ')}`);
-                    return;
-                }
-
-                // Valideer dat elke rij minstens email OF smartschool_username heeft
-                const validRows = results.data.filter(row => {
-                    if (!row.naam) return false;
-                    
-                    const hasEmail = row.email && row.email.includes('@');
-                    const hasUsername = row.smartschool_username && row.smartschool_username.trim();
-                    
-                    return hasEmail || hasUsername;
-                });
-
-                if (validRows.length === 0) {
-                    toast.error("Geen geldige rijen gevonden. Elke rij moet een naam en minstens een email of smartschool_username hebben.");
-                    return;
-                }
-
-                try {
-                    const batch = writeBatch(db);
-                    let successCount = 0;
-                    
-                    for (const row of validRows) {
-                        try {
-                            // Bepaal de identifier voor het document ID
-                            const identifier = row.smartschool_username?.trim() || row.email?.trim().toLowerCase();
-                            const docRef = doc(db, 'toegestane_gebruikers', identifier);
-                            
-                            const geslachtCleaned = (row.geslacht || '').trim().toUpperCase();
-                            const finalGeslacht = geslachtCleaned.startsWith('M') ? 'M' : 'V';
-
-                            const userData = {
-                                naam: row.naam.trim(),
-                                geboortedatum: row.geboortedatum ? new Date(row.geboortedatum) : null,
-                                geslacht: finalGeslacht,
-                                rol: 'leerling',
-                                school_id: profile.school_id,
-                                naam_keywords: row.naam.toLowerCase().split(' ').filter(Boolean),
-                            };
-
-                            // Voeg email toe als het bestaat
-                            if (row.email && row.email.includes('@')) {
-                                userData.email = row.email.trim().toLowerCase();
-                            }
-
-                            // Voeg smartschool_username toe als het bestaat
-                            if (row.smartschool_username && row.smartschool_username.trim()) {
-                                userData.smartschool_username = row.smartschool_username.trim();
-                            }
-
-                            batch.set(docRef, userData);
-                            successCount++;
-                        } catch (rowError) {
-                            console.warn(`Fout bij verwerken van rij voor ${row.naam}:`, rowError);
-                        }
-                    }
-
-                    if (successCount > 0) {
-                        await batch.commit();
-                        toast.success(`${successCount} leerlingen succesvol geïmporteerd!`);
-                        setTotalCount(prev => (prev || 0) + successCount);
-                    } else {
-                        toast.error("Geen geldige gebruikers konden worden geïmporteerd.");
-                    }
-                } catch (error) {
-                    console.error("Import error:", error);
-                    toast.error(`Import mislukt: ${error.message}`);
-                }
-            },
-            error: (error) => {
-                toast.dismiss(loadingToast);
-                toast.error(`Fout bij het lezen van het bestand: ${error.message}`);
-            }
-        });
-    }, [profile?.school_id]);
-
-    const handleDeleteUser = async () => {
-        if (!modal.data) return;
-        
-        try {
-            await deleteDoc(doc(db, 'toegestane_gebruikers', modal.data.id));
-            toast.success('Gebruiker succesvol verwijderd!');
-            setUsers(prev => prev.filter(l => l.id !== modal.data.id));
-            setTotalCount(prev => (prev || 1) - 1);
-        } catch (error) {
-            console.error("Delete error:", error);
-            toast.error('Kon de gebruiker niet verwijderen.');
+    const handleCSVImport = async (data) => {
+        if (!profile?.school_id || !masterKey) {
+            toast.error('School of encryptie key niet beschikbaar');
+            return;
         }
 
+        const loadingToast = toast.loading('CSV importeren...');
+        const errors = [];
+        const batch = writeBatch(db);
+        let successCount = 0;
+
+        try {
+            for (let i = 0; i < data.length; i++) {
+                const row = data[i];
+                
+                // Validatie
+                if (!row.smartschool_user_id) {
+                    errors.push(`Rij ${i + 2}: Smartschool User ID ontbreekt`);
+                    continue;
+                }
+                if (!row.naam) {
+                    errors.push(`Rij ${i + 2}: Naam ontbreekt`);
+                    continue;
+                }
+                if (!row.rol || !['leerling', 'leerkracht'].includes(row.rol.toLowerCase())) {
+                    errors.push(`Rij ${i + 2}: Rol moet 'leerling' of 'leerkracht' zijn`);
+                    continue;
+                }
+
+                // Voor leerlingen: klas en gender zijn verplicht
+                if (row.rol.toLowerCase() === 'leerling') {
+                    if (!row.klas) {
+                        errors.push(`Rij ${i + 2}: Klas is verplicht voor leerlingen`);
+                        continue;
+                    }
+                    if (!row.gender || !['M', 'V', 'X'].includes(row.gender.toUpperCase())) {
+                        errors.push(`Rij ${i + 2}: Gender moet M, V of X zijn`);
+                        continue;
+                    }
+                }
+
+                // Genereer hash voor document ID
+                const hashedId = generateHash(row.smartschool_user_id.trim());
+
+                // Encrypt naam
+                const encryptedName = encryptName(row.naam.trim(), masterKey);
+
+                // Maak document in toegestane_gebruikers
+                const userRef = doc(db, 'toegestane_gebruikers', hashedId);
+                batch.set(userRef, {
+                    smartschool_id_hash: hashedId,
+                    school_id: profile.school_id,
+                    rol: row.rol.toLowerCase(),
+                    klas: row.rol.toLowerCase() === 'leerling' ? row.klas.trim() : null,
+                    gender: row.rol.toLowerCase() === 'leerling' ? row.gender.toUpperCase() : null,
+                    is_active: true,
+                    toegevoegd_door_hash: profile.smartschool_id_hash || 'admin',
+                    created_at: new Date(),
+                    last_updated: new Date()
+                }, { merge: true });
+
+                // Maak ook document in users collection (voor bestaande users die nog moeten migreren)
+                const usersDocRef = doc(db, 'users', hashedId);
+                batch.set(usersDocRef, {
+                    smartschool_id_hash: hashedId,
+                    encrypted_name: encryptedName,
+                    nickname: '', // Wordt door leerling ingevuld
+                    nickname_lower: '',
+                    nickname_set_at: null,
+                    school_id: profile.school_id,
+                    klas: row.rol.toLowerCase() === 'leerling' ? row.klas.trim() : null,
+                    gender: row.rol.toLowerCase() === 'leerling' ? row.gender.toUpperCase() : null,
+                    rol: row.rol.toLowerCase(),
+                    onboarding_complete: false,
+                    created_at: new Date(),
+                    last_login: null,
+                    last_smartschool_login: null
+                }, { merge: true });
+
+                successCount++;
+
+                // Commit elke 500 records (Firestore limiet)
+                if (successCount % 500 === 0) {
+                    await batch.commit();
+                    toast.loading(`${successCount} gebruikers verwerkt...`, { id: loadingToast });
+                }
+            }
+
+            // Commit resterende
+            await batch.commit();
+
+            toast.dismiss(loadingToast);
+
+            if (errors.length > 0) {
+                console.error('Import fouten:', errors);
+                toast.error(`${successCount} gebruikers geïmporteerd, ${errors.length} fouten`, {
+                    duration: 5000
+                });
+            } else {
+                toast.success(`${successCount} gebruikers succesvol geïmporteerd!`);
+            }
+
+            // Refresh lijst
+            loadUsers();
+
+        } catch (error) {
+            console.error('CSV import fout:', error);
+            toast.error('Fout bij importeren: ' + error.message);
+            toast.dismiss(loadingToast);
+        }
+    };
+
+    const exportToCSV = () => {
+        if (users.length === 0) {
+            toast.error('Geen gebruikers om te exporteren');
+            return;
+        }
+
+        // Export zonder gevoelige data
+        const exportData = users.map(user => ({
+            rol: user.rol,
+            klas: user.klas || '',
+            gender: user.gender || '',
+            is_active: user.is_active,
+            created_at: user.created_at?.toDate?.()?.toISOString() || ''
+        }));
+
+        const csv = Papa.unparse(exportData);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `gebruikers_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success('Gebruikers geëxporteerd');
+    };
+
+    const handleDeleteUser = async () => {
+        if (!modal.data?.id) return;
+
+        const loadingToast = toast.loading('Gebruiker verwijderen...');
+        
+        try {
+            // Verwijder uit toegestane_gebruikers
+            await deleteDoc(doc(db, 'toegestane_gebruikers', modal.data.id));
+            
+            // Verwijder ook uit users (als bestaat)
+            try {
+                await deleteDoc(doc(db, 'users', modal.data.id));
+            } catch (error) {
+                // User document bestaat misschien nog niet
+                console.log('User document niet gevonden (normaal als nog niet ingelogd)');
+            }
+
+            toast.dismiss(loadingToast);
+            toast.success('Gebruiker verwijderd');
+            setModal({ type: null, data: null });
+            loadUsers();
+        } catch (error) {
+            console.error('Verwijder fout:', error);
+            toast.dismiss(loadingToast);
+            toast.error('Fout bij verwijderen');
+        }
+    };
+
+    const handleUserSaved = () => {
         setModal({ type: null, data: null });
+        loadUsers();
     };
 
     const handleCloseModal = () => {
         setModal({ type: null, data: null });
     };
 
-    const handleUserSaved = () => {
-        if (!modal.data) {
-            setTotalCount(prev => (prev !== null ? prev + 1 : 1));
-        }
-
-        if (searchTerm.length >= 2) {
-            searchUsers(searchTerm);
-        }
-        
-        handleCloseModal();
-    };
-    
-    const exportToCSV = () => {
-        if (users.length === 0) {
-            toast.error('Geen data om te exporteren. Voer eerst een zoekopdracht uit.');
-            return;
-        }
-
-        const csvData = users.map(user => ({
-            naam: user.naam,
-            email: user.email || '',
-            smartschool_username: user.smartschool_username || '',
-            rol: user.rol,
-            geboortedatum: user.geboortedatum || '',
-            geslacht: user.geslacht === 'M' ? 'Mannelijk' : 'Vrouwelijk'
-        }));
-
-        const csv = Papa.unparse(csvData, { delimiter: ';' });
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `gebruikers_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('CSV-bestand gedownload!');
-    };
-    
     const RoleBadge = ({ role }) => {
         const styles = {
-            leerling: 'bg-blue-100 text-blue-800',
-            leerkracht: 'bg-green-100 text-green-800',
+            leerling: 'bg-purple-100 text-purple-800',
+            leerkracht: 'bg-blue-100 text-blue-800',
+            admin: 'bg-green-100 text-green-800',
+            super_admin: 'bg-red-100 text-red-800'
         };
         return <span className={`capitalize text-xs font-semibold px-2 py-1 rounded-full ${styles[role] || 'bg-gray-100 text-gray-800'}`}>{role}</span>;
     };
 
-    // Nieuwe component om gebruiker identificatie te tonen
-    const UserIdentification = ({ user }) => (
-        <div>
-            <p className="text-base sm:text-lg font-bold text-gray-900 truncate">{user.naam}</p>
-            <div className="space-y-1">
-                {user.email && (
-                    <p className="text-sm text-gray-600 truncate">📧 {user.email}</p>
-                )}
-                {user.smartschool_username && (
-                    <p className="text-sm text-blue-600 truncate">👤 {user.smartschool_username}</p>
-                )}
-            </div>
-        </div>
-    );
+    // Unieke klassen voor filter
+    const uniqueKlassen = [...new Set(users.filter(u => u.klas).map(u => u.klas))].sort();
 
     return (
         <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-slate-200">
             <Toaster position="top-center" />
             
+            {/* Privacy Notice */}
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <div className="flex items-start gap-3">
+                    <ShieldCheckIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <h3 className="font-semibold text-blue-900 text-sm">Privacy-Veilig Beheer</h3>
+                        <p className="text-xs text-blue-700 mt-1">
+                            Gebruikers worden opgeslagen via gehashte IDs. Namen zijn encrypted. 
+                            CSV import gebruikt Smartschool User IDs (geen namen of emails).
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 sm:mb-8 space-y-4 sm:space-y-0">
                 <div>
@@ -372,9 +424,9 @@ export default function Gebruikersbeheer() {
                     </p>
                 </div>
                 
-                {/* Mobile-first button layout */}
+                {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                    {/* CSV Import knop */}
+                    {/* CSV Import */}
                     <div className="relative">
                         <input
                             type="file"
@@ -387,112 +439,150 @@ export default function Gebruikersbeheer() {
                         <button 
                             type="button"
                             className="flex items-center justify-center sm:justify-start bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto relative z-0"
-                            onClick={() => {
-                                const fileInput = fileInputRef.current;
-                                if (fileInput) {
-                                    fileInput.click();
-                                }
-                            }}
                         >
-                            <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-                            <span className="sm:hidden">CSV Import</span>
-                            <span className="hidden sm:inline">CSV </span>
-                            <span className="hidden sm:inline">Import</span>
+                            <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
+                            <span>CSV Import</span>
                         </button>
                     </div>
 
-                    {/* Export knop - alleen zichtbaar als er resultaten zijn */}
+                    {/* CSV Export */}
                     {users.length > 0 && (
                         <button
                             onClick={exportToCSV}
                             className="flex items-center justify-center sm:justify-start bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
                         >
-                            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-                            <span className="sm:hidden">CSV Export</span>
-                            <span className="hidden sm:inline">CSV </span>
-                            <span className="hidden sm:inline">Export</span>
+                            <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                            <span>CSV Export</span>
                         </button>
                     )}
 
+                    {/* Nieuwe Leerkracht */}
                     <button 
                         onClick={() => setModal({ type: 'form', data: null, role: 'leerkracht' })}
                         className="flex items-center justify-center sm:justify-start bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
                     >
-                        <UserPlusIcon className="h-4 w-4 mr-2" />
-                        <span className="sm:hidden">Nieuwe Leerkracht</span>
-                        <span className="hidden sm:inline">Nieuwe </span>
-                        <span className="hidden sm:inline">Leerkracht</span>
+                        <UserPlusIcon className="h-5 w-5 mr-2" />
+                        <span>Leerkracht</span>
                     </button>
+
+                    {/* Nieuwe Leerling */}
                     <button
                         onClick={() => setModal({ type: 'form', data: null, role: 'leerling' })}
                         className="flex items-center justify-center sm:justify-start bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 sm:py-2 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 touch-manipulation w-full sm:w-auto"
                     >
-                        <PlusIcon className="h-4 w-4 mr-2" />
-                        <span className="sm:hidden">Nieuwe Leerling</span>
-                        <span className="hidden sm:inline">Nieuwe </span>
-                        <span className="hidden sm:inline">Leerling</span>
+                        <PlusIcon className="h-5 w-5 mr-2" />
+                        <span>Leerling</span>
                     </button>
                 </div>
             </div>
 
-            {/* Zoekbalk */}
-            <div className="relative mb-6 sm:mb-8">
-                <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
-                <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Zoek op naam, e-mail of smartschool username..."
-                    className="w-full pl-12 pr-4 py-3 sm:py-4 bg-white border border-slate-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-base"
-                />
-                {loading && (
-                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
-                    </div>
-                )}
+            {/* CSV Format Helper */}
+            <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                <button
+                    onClick={() => setModal({ type: 'csvhelp' })}
+                    className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
+                >
+                    <InformationCircleIcon className="h-5 w-5" />
+                    <span className="font-medium">CSV Formaat Informatie</span>
+                </button>
+            </div>
+
+            {/* Filters */}
+            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Filter op Klas</label>
+                    <select
+                        value={filterKlas}
+                        onChange={(e) => setFilterKlas(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                        <option value="">Alle klassen</option>
+                        {uniqueKlassen.map(klas => (
+                            <option key={klas} value={klas}>{klas}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Filter op Rol</label>
+                    <select
+                        value={filterRol}
+                        onChange={(e) => setFilterRol(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                        <option value="">Alle rollen</option>
+                        <option value="leerling">Leerling</option>
+                        <option value="leerkracht">Leerkracht</option>
+                    </select>
+                </div>
             </div>
 
             {/* Resultaten */}
             <div className="border border-slate-200 rounded-xl overflow-hidden">
-                {searchTerm.length < 2 ? (
-                    <div className="text-center p-8 sm:p-12">
-                        <UsersIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Zoek naar gebruikers</h3>
-                        <p className="text-sm sm:text-base text-gray-600">Gebruik de zoekbalk hierboven om gebruikers te vinden.</p>
+                {loading ? (
+                    <div className="text-center p-8 sm:p-12 text-gray-600">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                        Laden...
                     </div>
-                ) : loading ? (
-                   <div className="text-center p-8 sm:p-12 text-gray-600">Laden...</div>
                 ) : users.length === 0 ? (
                     <div className="text-center p-8 sm:p-12">
-                        <MagnifyingGlassIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Geen resultaten</h3>
-                        <p className="text-sm sm:text-base text-gray-600">Probeer een andere zoekterm.</p>
+                        <UsersIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Geen gebruikers gevonden</h3>
+                        <p className="text-sm sm:text-base text-gray-600">Voeg gebruikers toe via CSV import of handmatig.</p>
                     </div>
                 ) : (
-                    <ul className="divide-y divide-slate-200">
-                        {users.map(user => (
-                            <li key={user.id}>
-                                <div className="flex items-center justify-between p-4 sm:p-6 hover:bg-slate-50 transition-colors touch-manipulation">
-                                    <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                                        <div className="flex-shrink-0">
-                                            <RoleBadge role={user.rol} />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <UserIdentification user={user} />
-                                        </div>
-                                    </div>
-                                    <MobileActionButtons
-                                        user={user}
-                                        onEdit={() => setModal({ type: 'form', data: user })}
-                                        onDelete={() => setModal({ type: 'confirm', data: user })}
-                                    />
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Klas</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gender</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hash ID</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acties</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {users.map(user => (
+                                        <tr key={user.id} className="hover:bg-gray-50">
+                                            <td className="px-4 py-3">
+                                                <RoleBadge role={user.rol} />
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900">
+                                                {user.klas || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900">
+                                                {user.gender || '-'}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={`text-xs px-2 py-1 rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                    {user.is_active ? 'Actief' : 'Inactief'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-xs text-gray-500 font-mono truncate max-w-xs">
+                                                {user.id.substring(0, 16)}...
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <MobileActionButtons
+                                                    user={user}
+                                                    onEdit={() => setModal({ type: 'form', data: user })}
+                                                    onDelete={() => setModal({ type: 'confirm', data: user })}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-sm text-gray-600">
+                            Totaal: {users.length} gebruiker{users.length !== 1 ? 's' : ''}
+                        </div>
+                    </>
                 )}
             </div>
 
+            {/* Modals */}
             <UserFormModal
                 isOpen={modal.type === 'form'}
                 onClose={handleCloseModal}
@@ -502,6 +592,7 @@ export default function Gebruikersbeheer() {
                 role={modal.role}
                 currentUserProfile={profile}
                 schoolSettings={school?.instellingen}
+                masterKey={masterKey}
             />
             
             <ConfirmModal
@@ -510,8 +601,74 @@ export default function Gebruikersbeheer() {
                 onConfirm={handleDeleteUser}
                 title="Gebruiker Verwijderen"
             >
-                Weet u zeker dat u "{modal.data?.naam}" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+                <p className="text-gray-700">
+                    Weet u zeker dat u deze gebruiker wilt verwijderen?
+                </p>
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                        <strong>Rol:</strong> {modal.data?.rol}<br />
+                        <strong>Klas:</strong> {modal.data?.klas || 'N/A'}<br />
+                        <strong>Hash:</strong> <span className="font-mono text-xs">{modal.data?.id?.substring(0, 20)}...</span>
+                    </p>
+                </div>
+                <p className="mt-4 text-sm text-red-600">
+                    ⚠️ Dit kan niet ongedaan worden gemaakt.
+                </p>
             </ConfirmModal>
+
+            {/* CSV Help Modal */}
+            {modal.type === 'csvhelp' && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+                        <h2 className="text-2xl font-bold mb-4">CSV Import Formaat</h2>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="font-semibold mb-2">Verplichte Kolommen:</h3>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                                    <li><code className="bg-gray-100 px-1 rounded">smartschool_user_id</code> - Unieke ID van Smartschool</li>
+                                    <li><code className="bg-gray-100 px-1 rounded">naam</code> - Voor- en achternaam (wordt encrypted)</li>
+                                    <li><code className="bg-gray-100 px-1 rounded">rol</code> - "leerling" of "leerkracht"</li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <h3 className="font-semibold mb-2">Extra voor Leerlingen:</h3>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                                    <li><code className="bg-gray-100 px-1 rounded">klas</code> - Bijv. "3A", "4B"</li>
+                                    <li><code className="bg-gray-100 px-1 rounded">gender</code> - "M", "V" of "X"</li>
+                                </ul>
+                            </div>
+
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                                <h3 className="font-semibold mb-2">Voorbeeld CSV:</h3>
+                                <pre className="text-xs font-mono overflow-x-auto">
+{`smartschool_user_id,naam,rol,klas,gender
+abc123xyz==,Jan Janssens,leerling,3A,M
+def456uvw==,Marie Peeters,leerling,3A,V
+teacher789==,Tom Claes,leerkracht,,`}
+                                </pre>
+                            </div>
+
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                <h3 className="font-semibold text-blue-900 mb-2">🔒 Privacy & Beveiliging:</h3>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-blue-800">
+                                    <li>Namen worden automatisch encrypted bij import</li>
+                                    <li>Smartschool User IDs worden gehashed (SHA-256)</li>
+                                    <li>Originele data wordt niet leesbaar opgeslagen</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setModal({ type: null })}
+                            className="mt-6 w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                            Sluiten
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

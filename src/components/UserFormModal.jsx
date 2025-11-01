@@ -2,213 +2,128 @@
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { db } from '../firebase';
-import { doc, setDoc, updateDoc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import CryptoJS from 'crypto-js';
 import { 
     UserIcon, 
-    EnvelopeIcon, 
-    AtSymbolIcon,
-    BuildingOfficeIcon
+    BuildingOfficeIcon,
+    ShieldCheckIcon,
+    InformationCircleIcon
 } from '@heroicons/react/24/outline';
 
-// Helper-functies
-const formatDateForInput = (date) => {
-    if (!date) return '';
-    let d = date.toDate ? date.toDate() : new Date(date);
-    if (isNaN(d.getTime())) return '';
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
-const calculateAge = (birthDate) => {
-    if (!birthDate) return null;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-        age--;
-    }
-    return age;
-};
-
-const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-const validateUsername = (username) => username && username.trim().length >= 3 && /^[a-zA-Z0-9._-]+$/.test(username.trim());
+// Helper functies
 const capitalize = (s) => s && s.charAt(0).toUpperCase() + s.slice(1);
 
-export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, schoolId, role, currentUserProfile, schoolSettings }) {
+// Privacy-veilige helper functies
+const generateHash = (smartschoolUserId) => {
+    return CryptoJS.SHA256(smartschoolUserId).toString();
+};
+
+const encryptName = (name, masterKey) => {
+    if (!masterKey) throw new Error('Master key niet beschikbaar');
+    return CryptoJS.AES.encrypt(name, masterKey).toString();
+};
+
+export default function UserFormModal({ 
+    isOpen, 
+    onClose, 
+    onUserSaved, 
+    userData, 
+    schoolId, 
+    role, 
+    currentUserProfile, 
+    schoolSettings, 
+    masterKey 
+}) {
     const [formData, setFormData] = useState({
         naam: '',
-        email: '',
-        smartschool_username: '',
-        geboortedatum: '',
-        geslacht: 'M',
-        login_type: 'email',
+        smartschool_user_id: '',
+        klas: '',
+        gender: 'M',
         school_id: ''
     });
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const [schools, setSchools] = useState([]);
     const [loadingSchools, setLoadingSchools] = useState(false);
-    const [currentSchoolSettings, setCurrentSchoolSettings] = useState(null);
 
     const isEditing = !!userData;
     const currentUserRole = isEditing ? userData?.rol : role;
-    
-    // Simpele logica zonder useMemo
-    const isSuperAdmin = currentUserProfile?.rol === 'super-administrator';
-    
-    // Haal schoolinstellingen op als we een schoolId hebben maar geen schoolSettings
-    useEffect(() => {
-        const fetchSchoolSettings = async () => {
-            console.log('useEffect triggered - schoolId:', schoolId, 'schoolSettings:', schoolSettings, 'isOpen:', isOpen);
-            
-            // Als we al schoolSettings hebben via props, gebruik die
-            if (schoolSettings) {
-                console.log('Using provided schoolSettings:', schoolSettings);
-                setCurrentSchoolSettings(schoolSettings);
-                return;
-            }
-            
-            // Haal schoolinstellingen op als we een schoolId hebben (ongeacht of modal open is)
-            if (!schoolId) {
-                console.log('No schoolId, setting null');
-                setCurrentSchoolSettings(null);
-                return;
-            }
-            
-            try {
-                console.log('Fetching settings for school:', schoolId);
-                const schoolDoc = await getDoc(doc(db, 'scholen', schoolId));
-                if (schoolDoc.exists()) {
-                    const schoolData = schoolDoc.data();
-                    console.log('Full school document:', schoolData);
-                    const settings = schoolData.instellingen || {};
-                    console.log('Fetched school settings:', settings);
-                    setCurrentSchoolSettings(settings);
-                } else {
-                    console.log('School document not found for ID:', schoolId);
-                    // Probeer alternatieve school IDs als backup
-                    const alternativeIds = ['ka_beveren', 'kabeveren'];
-                    for (const altId of alternativeIds) {
-                        if (altId !== schoolId) {
-                            console.log('Trying alternative ID:', altId);
-                            const altDoc = await getDoc(doc(db, 'scholen', altId));
-                            if (altDoc.exists()) {
-                                const settings = altDoc.data().instellingen || {};
-                                console.log('Found with alternative ID:', altId, settings);
-                                setCurrentSchoolSettings(settings);
-                                return;
-                            }
-                        }
-                    }
-                    setCurrentSchoolSettings({});
-                }
-            } catch (error) {
-                console.error('Error fetching school settings:', error);
-                setCurrentSchoolSettings({});
-            }
-        };
-
-        fetchSchoolSettings();
-    }, [schoolId, schoolSettings]); // Removed isOpen dependency
-
-    // Bepaal beschikbare login types
-    const schoolAuthMethod = currentSchoolSettings?.auth_method;
-    console.log('Current role:', currentUserProfile?.rol);
-    console.log('SchoolSettings:', currentSchoolSettings);
-    console.log('SchoolAuthMethod:', schoolAuthMethod);
-    
-    let availableTypes = [];
-    if (isSuperAdmin) {
-        availableTypes = ['email', 'smartschool'];
-    } else if (schoolAuthMethod) {
-        availableTypes = [schoolAuthMethod];
-    } else {
-        availableTypes = ['email'];
-    }
-    
-    console.log('Available types:', availableTypes);
+    const isSuperAdmin = currentUserProfile?.rol === 'super_admin';
 
     // Haal scholen op voor super-administrators
     useEffect(() => {
-        const fetchSchools = async () => {
-            if (!isSuperAdmin || !isOpen) return;
-            
-            setLoadingSchools(true);
-            try {
-                const schoolsQuery = query(collection(db, 'scholen'), orderBy('naam'));
-                const schoolsSnapshot = await getDocs(schoolsQuery);
-                const schoolsList = schoolsSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    naam: doc.data().naam
-                }));
-                setSchools(schoolsList);
-            } catch (error) {
-                console.error('Error fetching schools:', error);
-                toast.error('Kon scholen niet laden');
-            } finally {
-                setLoadingSchools(false);
-            }
-        };
-
-        fetchSchools();
-    }, [isSuperAdmin, isOpen]);
-
-    // Initialize form data
-    useEffect(() => {
-        if (!isOpen) return;
-        
-        if (isEditing) {
-            const hasUsername = userData.smartschool_username && userData.smartschool_username.trim();
-            setFormData({
-                naam: userData.naam || '',
-                email: userData.email || '',
-                smartschool_username: userData.smartschool_username || '',
-                geboortedatum: formatDateForInput(userData.geboortedatum),
-                geslacht: userData.geslacht || 'M',
-                login_type: hasUsername ? 'smartschool' : 'email',
-                school_id: userData.school_id || ''
-            });
-        } else {
-            const defaultType = availableTypes.includes('email') ? 'email' : availableTypes[0];
-            setFormData({
-                naam: '',
-                email: '',
-                smartschool_username: '',
-                geboortedatum: '',
-                geslacht: 'M',
-                login_type: defaultType,
-                school_id: isSuperAdmin ? '' : schoolId || ''
-            });
+        if (isOpen && isSuperAdmin && !isEditing) {
+            fetchSchools();
         }
-        setErrors({});
-    }, [isOpen, isEditing]); // Minimale dependencies
+    }, [isOpen, isSuperAdmin, isEditing]);
+
+    // Reset form bij openen
+    useEffect(() => {
+        if (isOpen) {
+            if (userData) {
+                // Editing mode - alleen klas en gender kunnen bewerkt worden
+                setFormData({
+                    naam: '', // Naam is encrypted, kan niet getoond worden
+                    smartschool_user_id: '', // Kan niet bewerkt worden
+                    klas: userData.klas || '',
+                    gender: userData.gender || 'M',
+                    school_id: userData.school_id || ''
+                });
+            } else {
+                // New user mode
+                setFormData({
+                    naam: '',
+                    smartschool_user_id: '',
+                    klas: '',
+                    gender: 'M',
+                    school_id: isSuperAdmin ? '' : schoolId
+                });
+            }
+            setErrors({});
+        }
+    }, [isOpen, userData, schoolId, role, isSuperAdmin]);
+
+    const fetchSchools = async () => {
+        setLoadingSchools(true);
+        try {
+            const q = query(collection(db, 'scholen'), orderBy('naam'));
+            const snapshot = await getDocs(q);
+            const schoolsData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                naam: doc.data().naam
+            }));
+            setSchools(schoolsData);
+        } catch (error) {
+            console.error('Fout bij ophalen scholen:', error);
+            toast.error('Kon scholen niet laden');
+        } finally {
+            setLoadingSchools(false);
+        }
+    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        
+        // Clear error voor dit veld
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: '' }));
         }
     };
 
-    const handleLoginTypeChange = (type) => {
-        setFormData(prev => ({
-            ...prev,
-            login_type: type,
-            email: type === 'smartschool' ? '' : prev.email,
-            smartschool_username: type === 'email' ? '' : prev.smartschool_username
-        }));
-    };
-
     const validateForm = () => {
         const newErrors = {};
         
-        if (!formData.naam.trim() || formData.naam.trim().length < 2) {
-            newErrors.naam = 'Naam is verplicht';
+        // Naam validatie (alleen voor nieuwe users)
+        if (!isEditing && (!formData.naam.trim() || formData.naam.trim().length < 2)) {
+            newErrors.naam = 'Naam is verplicht (min 2 tekens)';
+        }
+
+        // Smartschool User ID validatie (alleen bij nieuwe users)
+        if (!isEditing && !formData.smartschool_user_id.trim()) {
+            newErrors.smartschool_user_id = 'Smartschool User ID is verplicht';
         }
 
         // School validatie voor super-admin
@@ -216,19 +131,14 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
             newErrors.school_id = 'Selecteer een school';
         }
 
-        if (formData.login_type === 'email' && (!formData.email.trim() || !validateEmail(formData.email))) {
-            newErrors.email = 'Een geldig e-mailadres is verplicht';
-        }
-        
-        if (formData.login_type === 'smartschool' && (!formData.smartschool_username.trim() || !validateUsername(formData.smartschool_username))) {
-            newErrors.smartschool_username = 'Een geldige username is verplicht';
+        // Klas validatie voor leerlingen
+        if (currentUserRole === 'leerling' && !formData.klas.trim()) {
+            newErrors.klas = 'Klas is verplicht voor leerlingen';
         }
 
-        if (currentUserRole === 'leerling' && formData.geboortedatum) {
-            const age = calculateAge(formData.geboortedatum);
-            if (age !== null && (age < 4 || age > 25)) {
-                newErrors.geboortedatum = 'Leeftijd moet tussen 4 en 25 jaar zijn';
-            }
+        // Gender validatie voor leerlingen
+        if (currentUserRole === 'leerling' && !['M', 'V', 'X'].includes(formData.gender)) {
+            newErrors.gender = 'Geldig gender is verplicht (M, V of X)';
         }
 
         setErrors(newErrors);
@@ -237,100 +147,203 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
         if (!validateForm()) {
-            toast.error("Corrigeer de fouten");
+            toast.error("Corrigeer de fouten in het formulier");
+            return;
+        }
+
+        if (!masterKey && !isEditing) {
+            toast.error("Master key niet beschikbaar voor naam encryptie");
             return;
         }
 
         setLoading(true);
+        const loadingToast = toast.loading(isEditing ? 'Bijwerken...' : 'Toevoegen...');
         
-        const identifier = formData.login_type === 'smartschool' 
-            ? formData.smartschool_username.trim()
-            : formData.email.trim().toLowerCase();
-
-        const userObject = {
-            naam: formData.naam.trim(),
-            rol: currentUserRole,
-            school_id: isSuperAdmin ? formData.school_id : schoolId,
-            naam_keywords: formData.naam.toLowerCase().split(' ').filter(Boolean),
-            updated_at: new Date(),
-        };
-
-        if (formData.login_type === 'email') {
-            userObject.email = formData.email.trim().toLowerCase();
-        } else {
-            userObject.smartschool_username = formData.smartschool_username.trim();
-        }
-        
-        if (currentUserRole === 'leerling') {
-            userObject.geslacht = formData.geslacht;
-            userObject.geboortedatum = formData.geboortedatum ? new Date(formData.geboortedatum) : null;
-        }
-        
-        if (!isEditing) {
-            userObject.created_at = new Date();
-        }
-
         try {
+            let docId;
+
             if (isEditing) {
-                const userRef = doc(db, 'toegestane_gebruikers', userData.id);
-                await updateDoc(userRef, userObject);
+                // Editing existing user - use existing hash
+                docId = userData.id;
             } else {
-                const userRef = doc(db, 'toegestane_gebruikers', identifier);
-                await setDoc(userRef, userObject);
+                // New user - generate hash from Smartschool User ID
+                docId = generateHash(formData.smartschool_user_id.trim());
+            }
+
+            const targetSchoolId = isSuperAdmin ? formData.school_id : schoolId;
+
+            // Data voor toegestane_gebruikers
+            const whitelistData = {
+                smartschool_id_hash: docId,
+                school_id: targetSchoolId,
+                rol: currentUserRole,
+                klas: currentUserRole === 'leerling' ? formData.klas.trim() : null,
+                gender: currentUserRole === 'leerling' ? formData.gender : null,
+                is_active: true,
+                toegevoegd_door_hash: currentUserProfile?.smartschool_id_hash || 'admin',
+                last_updated: new Date()
+            };
+
+            // Als nieuwe user, voeg created_at toe
+            if (!isEditing) {
+                whitelistData.created_at = new Date();
+            }
+
+            // Save to toegestane_gebruikers
+            await setDoc(doc(db, 'toegestane_gebruikers', docId), whitelistData, { merge: true });
+
+            // Als nieuwe user EN naam is opgegeven, maak ook users document aan
+            if (!isEditing && formData.naam.trim()) {
+                const encryptedName = encryptName(formData.naam.trim(), masterKey);
+
+                const usersData = {
+                    smartschool_id_hash: docId,
+                    encrypted_name: encryptedName,
+                    nickname: '',
+                    nickname_lower: '',
+                    nickname_set_at: null,
+                    school_id: targetSchoolId,
+                    klas: currentUserRole === 'leerling' ? formData.klas.trim() : null,
+                    gender: currentUserRole === 'leerling' ? formData.gender : null,
+                    rol: currentUserRole,
+                    onboarding_complete: false,
+                    created_at: new Date(),
+                    last_login: null,
+                    last_smartschool_login: null
+                };
+
+                await setDoc(doc(db, 'users', docId), usersData, { merge: true });
             }
             
+            toast.dismiss(loadingToast);
             toast.success(`${capitalize(currentUserRole)} succesvol ${isEditing ? 'bijgewerkt' : 'toegevoegd'}!`);
             onUserSaved();
             onClose();
+
         } catch (error) {
-            toast.error(`Fout: ${error.message}`);
+            console.error('Save error:', error);
+            toast.dismiss(loadingToast);
+            toast.error('Fout bij opslaan: ' + error.message);
         } finally {
             setLoading(false);
         }
     };
 
-    const age = formData.geboortedatum ? calculateAge(formData.geboortedatum) : null;
-    const canChooseType = availableTypes.length > 1;
-
     return (
         <Transition.Root show={isOpen} as={Fragment}>
             <Dialog as="div" className="relative z-50" onClose={onClose}>
-                <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
-                    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+                <Transition.Child
+                    as={Fragment}
+                    enter="ease-out duration-300"
+                    enterFrom="opacity-0"
+                    enterTo="opacity-100"
+                    leave="ease-in duration-200"
+                    leaveFrom="opacity-100"
+                    leaveTo="opacity-0"
+                >
+                    <div className="fixed inset-0 bg-black/50 transition-opacity" />
                 </Transition.Child>
 
                 <div className="fixed inset-0 z-10 overflow-y-auto">
-                    <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                        <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" enterTo="opacity-100 translate-y-0 sm:scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 translate-y-0 sm:scale-100" leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
-                            <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                    <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                        <Transition.Child
+                            as={Fragment}
+                            enter="ease-out duration-300"
+                            enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                            enterTo="opacity-100 translate-y-0 sm:scale-100"
+                            leave="ease-in duration-200"
+                            leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                            leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                        >
+                            <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
                                 <form onSubmit={handleSubmit}>
-                                    <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-4">
+                                    {/* Header */}
+                                    <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-6">
                                         <div className="flex items-center space-x-3">
                                             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                                                 <UserIcon className="w-6 h-6 text-white" />
                                             </div>
-                                            <div>
+                                            <div className="text-left">
                                                 <Dialog.Title as="h3" className="text-xl font-semibold text-white">
                                                     {isEditing ? `Gebruiker Bewerken` : `Nieuwe ${capitalize(currentUserRole)} Toevoegen`}
                                                 </Dialog.Title>
+                                                {isEditing && userData?.id && (
+                                                    <p className="text-sm text-white/80 font-mono mt-1">
+                                                        ID: {userData.id.substring(0, 16)}...
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Privacy Notice */}
+                                    <div className="px-6 pt-6">
+                                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                                            <div className="flex items-start gap-3">
+                                                <ShieldCheckIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                                <div className="text-sm text-blue-800">
+                                                    {isEditing ? (
+                                                        <p>Bij bewerken kunnen alleen <strong>klas</strong> en <strong>gender</strong> worden aangepast. Namen blijven encrypted.</p>
+                                                    ) : (
+                                                        <>
+                                                            <p className="font-semibold mb-1">🔒 Privacy-Veilig Systeem</p>
+                                                            <ul className="text-xs space-y-1">
+                                                                <li>• Naam wordt encrypted opgeslagen (AES-256-GCM)</li>
+                                                                <li>• Smartschool ID wordt gehashed (SHA-256)</li>
+                                                                <li>• Hash wordt gebruikt als document ID</li>
+                                                            </ul>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className="px-6 py-6 space-y-6">
-                                        {/* Naam */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Volledige naam *</label>
-                                            <input 
-                                                type="text" 
-                                                name="naam" 
-                                                value={formData.naam} 
-                                                onChange={handleInputChange} 
-                                                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 ${errors.naam ? 'border-red-300' : 'border-gray-300'}`} 
-                                            />
-                                            {errors.naam && <p className="mt-1 text-sm text-red-600">{errors.naam}</p>}
-                                        </div>
+                                        {/* Smartschool User ID - alleen bij nieuwe users */}
+                                        {!isEditing && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Smartschool User ID *
+                                                </label>
+                                                <input 
+                                                    type="text" 
+                                                    name="smartschool_user_id" 
+                                                    value={formData.smartschool_user_id} 
+                                                    onChange={handleInputChange} 
+                                                    placeholder="Bijv: Vm0cswf4KjN8yRuhBeaZHA=="
+                                                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 font-mono text-sm ${errors.smartschool_user_id ? 'border-red-300' : 'border-gray-300'}`} 
+                                                />
+                                                {errors.smartschool_user_id && <p className="mt-1 text-sm text-red-600">{errors.smartschool_user_id}</p>}
+                                                <div className="mt-2 flex items-start gap-2 text-xs text-gray-500">
+                                                    <InformationCircleIcon className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                                    <span>Haal dit op uit Smartschool export of OAuth response. Dit wordt gehashed en gebruikt als unieke identifier.</span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Naam - alleen bij nieuwe users */}
+                                        {!isEditing && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Volledige Naam (Voor- en Achternaam) *
+                                                </label>
+                                                <input 
+                                                    type="text" 
+                                                    name="naam" 
+                                                    value={formData.naam} 
+                                                    onChange={handleInputChange} 
+                                                    placeholder="Bijv: Jan Janssens"
+                                                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 ${errors.naam ? 'border-red-300' : 'border-gray-300'}`} 
+                                                />
+                                                {errors.naam && <p className="mt-1 text-sm text-red-600">{errors.naam}</p>}
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    🔒 Wordt encrypted opgeslagen en alleen zichtbaar voor leerkrachten met master key
+                                                </p>
+                                            </div>
+                                        )}
 
                                         {/* School selector - alleen voor super-administrators bij nieuwe gebruikers */}
                                         {!isEditing && isSuperAdmin && (
@@ -366,126 +379,83 @@ export default function UserFormModal({ isOpen, onClose, onUserSaved, userData, 
                                                 <div className="flex items-center space-x-2">
                                                     <BuildingOfficeIcon className="w-5 h-5 text-blue-600" />
                                                     <p className="text-sm text-blue-800">
-                                                        School kan niet worden gewijzigd bij bestaande gebruikers
+                                                        School en Smartschool User ID kunnen niet worden gewijzigd bij bestaande gebruikers
                                                     </p>
                                                 </div>
                                             </div>
                                         )}
-                                        {!isEditing && canChooseType && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-3">Inlog methode *</label>
-                                                <div className="space-y-3">
-                                                    {availableTypes.includes('email') && (
-                                                        <label className="flex items-center cursor-pointer">
-                                                            <input
-                                                                type="radio"
-                                                                name="login_type"
-                                                                value="email"
-                                                                checked={formData.login_type === 'email'}
-                                                                onChange={(e) => handleLoginTypeChange(e.target.value)}
-                                                                className="mr-3"
-                                                            />
-                                                            <EnvelopeIcon className="w-5 h-5 mr-2" />
-                                                            <span>E-mail</span>
-                                                        </label>
-                                                    )}
-                                                    {availableTypes.includes('smartschool') && (
-                                                        <label className="flex items-center cursor-pointer">
-                                                            <input
-                                                                type="radio"
-                                                                name="login_type"
-                                                                value="smartschool"
-                                                                checked={formData.login_type === 'smartschool'}
-                                                                onChange={(e) => handleLoginTypeChange(e.target.value)}
-                                                                className="mr-3"
-                                                            />
-                                                            <AtSymbolIcon className="w-5 h-5 mr-2" />
-                                                            <span>Smartschool</span>
-                                                        </label>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
 
-                                        {/* Email veld */}
-                                        {(formData.login_type === 'email' || (isEditing && userData?.email)) && (
+                                        {/* Klas - alleen voor leerlingen */}
+                                        {currentUserRole === 'leerling' && (
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">E-mailadres *</label>
-                                                <input 
-                                                    type="email" 
-                                                    name="email" 
-                                                    value={formData.email} 
-                                                    onChange={handleInputChange} 
-                                                    disabled={isEditing}
-                                                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 ${errors.email ? 'border-red-300' : 'border-gray-300'} ${isEditing ? 'bg-gray-50' : ''}`} 
-                                                />
-                                                {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
-                                            </div>
-                                        )}
-
-                                        {/* Username veld */}
-                                        {(formData.login_type === 'smartschool' || (isEditing && userData?.smartschool_username)) && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">Smartschool Username *</label>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Klas *
+                                                </label>
                                                 <input 
                                                     type="text" 
-                                                    name="smartschool_username" 
-                                                    value={formData.smartschool_username} 
+                                                    name="klas" 
+                                                    value={formData.klas} 
                                                     onChange={handleInputChange} 
-                                                    disabled={isEditing}
-                                                    placeholder="bijv. jdoe123"
-                                                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 ${errors.smartschool_username ? 'border-red-300' : 'border-gray-300'} ${isEditing ? 'bg-gray-50' : ''}`} 
+                                                    placeholder="Bijv: 3A, 4B"
+                                                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 ${errors.klas ? 'border-red-300' : 'border-gray-300'}`} 
                                                 />
-                                                {errors.smartschool_username && <p className="mt-1 text-sm text-red-600">{errors.smartschool_username}</p>}
+                                                {errors.klas && <p className="mt-1 text-sm text-red-600">{errors.klas}</p>}
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    Gebruikt voor grade-based normen en filtering
+                                                </p>
                                             </div>
                                         )}
 
-                                        {/* Leerling velden */}
+                                        {/* Gender - alleen voor leerlingen */}
                                         {currentUserRole === 'leerling' && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Geboortedatum</label>
-                                                    <input 
-                                                        type="date" 
-                                                        name="geboortedatum" 
-                                                        value={formData.geboortedatum} 
-                                                        onChange={handleInputChange} 
-                                                        max={new Date().toISOString().split('T')[0]} 
-                                                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 ${errors.geboortedatum ? 'border-red-300' : 'border-gray-300'}`} 
-                                                    />
-                                                    {age !== null && <p className="mt-1 text-sm text-gray-600">Leeftijd: {age} jaar</p>}
-                                                    {errors.geboortedatum && <p className="mt-1 text-sm text-red-600">{errors.geboortedatum}</p>}
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Geslacht</label>
-                                                    <select 
-                                                        name="geslacht" 
-                                                        value={formData.geslacht} 
-                                                        onChange={handleInputChange} 
-                                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500"
-                                                    >
-                                                        <option value="M">Mannelijk</option>
-                                                        <option value="V">Vrouwelijk</option>
-                                                    </select>
-                                                </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Gender *
+                                                </label>
+                                                <select 
+                                                    name="gender" 
+                                                    value={formData.gender} 
+                                                    onChange={handleInputChange} 
+                                                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 ${errors.gender ? 'border-red-300' : 'border-gray-300'}`}
+                                                >
+                                                    <option value="M">Mannelijk (M)</option>
+                                                    <option value="V">Vrouwelijk (V)</option>
+                                                    <option value="X">X / Anders</option>
+                                                </select>
+                                                {errors.gender && <p className="mt-1 text-sm text-red-600">{errors.gender}</p>}
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    Nodig voor grade-based normen (geen geboortedatum meer gebruikt)
+                                                </p>
                                             </div>
                                         )}
                                     </div>
 
+                                    {/* Footer Buttons */}
                                     <div className="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row gap-3 sm:justify-end">
                                         <button 
                                             type="button" 
                                             onClick={onClose} 
-                                            className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-100"
+                                            disabled={loading}
+                                            className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-100 disabled:opacity-50 transition-colors"
                                         >
                                             Annuleren
                                         </button>
                                         <button 
                                             type="submit" 
                                             disabled={loading} 
-                                            className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-xl disabled:opacity-50"
+                                            className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-xl disabled:opacity-50 hover:from-purple-700 hover:to-blue-700 transition-all"
                                         >
-                                            {loading ? 'Opslaan...' : isEditing ? 'Wijzigingen Opslaan' : `${capitalize(currentUserRole)} Toevoegen`}
+                                            {loading ? (
+                                                <span className="flex items-center justify-center">
+                                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Opslaan...
+                                                </span>
+                                            ) : (
+                                                isEditing ? 'Wijzigingen Opslaan' : `${capitalize(currentUserRole)} Toevoegen`
+                                            )}
                                         </button>
                                     </div>
                                 </form>
