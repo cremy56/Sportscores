@@ -1,7 +1,7 @@
-// api/createUser.js - FIXED VERSION
-// klas en gender alleen voor leerlingen
+// api/createUser.js - AANGEPAST VOOR GOOGLE SECRET MANAGER
 import { db } from './firebaseAdmin.js';
 import CryptoJS from 'crypto-js';
+import { getMasterKey } from './keyManager.js'; // <-- NIEUWE IMPORT
 
 const generateHash = (smartschoolUserId) => {
     return CryptoJS.SHA256(smartschoolUserId).toString();
@@ -14,7 +14,6 @@ const encryptName = (name, masterKey) => {
 
 export default async function handler(req, res) {
     
-
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -22,40 +21,34 @@ export default async function handler(req, res) {
     try {
         const { formData, currentUserRole, targetSchoolId, currentUserProfileHash } = req.body;
 
+        // ... (Validatie logica blijft hetzelfde) ...
         if (!formData?.smartschool_user_id?.trim()) {
             return res.status(400).json({ error: 'Smartschool User ID is verplicht' });
         }
-
         if (!formData?.naam?.trim()) {
             return res.status(400).json({ error: 'Naam is verplicht' });
         }
-
         if (!currentUserRole || !['leerling', 'leerkracht', 'super-administrator'].includes(currentUserRole)) {
             return res.status(400).json({ error: 'Ongeldige rol' });
         }
-
         if (!targetSchoolId) {
             return res.status(400).json({ error: 'School ID is verplicht' });
         }
-
-        // Extra validatie ALLEEN voor leerlingen
         if (currentUserRole === 'leerling') {
             if (!formData.klas?.trim()) {
                 return res.status(400).json({ error: 'Klas is verplicht voor leerlingen' });
             }
-
             if (!['M', 'V', 'X'].includes(formData.gender)) {
                 return res.status(400).json({ error: 'Gender moet M, V of X zijn voor leerlingen' });
             }
         }
+        // ... (Einde validatie) ...
 
-        // Haal master key op
-        const schoolKey = targetSchoolId.toUpperCase().replace(/_/g, '');
-        const envVarName = `MASTER_KEY_${schoolKey}`;
-        let masterKey = process.env[envVarName] || process.env.SCHOOL_MASTER_KEY;
+        // Haal master key veilig op uit Google Secret Manager
+        const masterKey = await getMasterKey();
         
         if (!masterKey) {
-            console.error(`❌ Geen master key voor ${envVarName}`);
+            console.error(`❌ Kon master key niet laden`);
             return res.status(500).json({ error: 'Server configuratie fout' });
         }
 
@@ -64,7 +57,6 @@ export default async function handler(req, res) {
 
         console.log(`🔐 Creating user: ${currentUserRole} - ${docId.substring(0, 16)}...`);
 
-        // Base data voor ALLE rollen
         const whitelistData = {
             smartschool_id_hash: docId,
             encrypted_name: encryptedName,
@@ -76,7 +68,6 @@ export default async function handler(req, res) {
             created_at: new Date()
         };
 
-        // Voeg klas en gender ALLEEN toe voor leerlingen
         if (currentUserRole === 'leerling') {
             whitelistData.klas = formData.klas.trim();
             whitelistData.gender = formData.gender;

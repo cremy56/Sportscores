@@ -1,7 +1,7 @@
-// api/bulkCreateUsers.js - FIXED VERSION
-// klas en gender alleen voor leerlingen
+// api/bulkCreateUsers.js - AANGEPAST VOOR GOOGLE SECRET MANAGER
 import { db } from './firebaseAdmin.js';
 import CryptoJS from 'crypto-js';
+import { getMasterKey } from './keyManager.js'; // <-- NIEUWE IMPORT
 
 const generateHash = (smartschoolUserId) => {
     return CryptoJS.SHA256(smartschoolUserId).toString();
@@ -14,7 +14,6 @@ const encryptName = (name, masterKey) => {
 
 export default async function handler(req, res) {
     
-
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -22,36 +21,33 @@ export default async function handler(req, res) {
     try {
         const { csvData, targetSchoolId, currentUserProfileHash } = req.body;
 
+        // ... (Validatie logica blijft hetzelfde) ...
         if (!csvData || !Array.isArray(csvData)) {
             return res.status(400).json({ error: 'csvData moet een array zijn' });
         }
-
         if (!targetSchoolId) {
             return res.status(400).json({ error: 'targetSchoolId is verplicht' });
         }
-
         if (csvData.length === 0) {
             return res.status(400).json({ error: 'CSV bevat geen data' });
         }
-
         if (csvData.length > 1000) {
             return res.status(400).json({ error: 'Maximum 1000 gebruikers per batch' });
         }
+        // ... (Einde validatie) ...
 
-        // Haal master key op
-        const schoolKey = targetSchoolId.toUpperCase().replace(/_/g, '');
-        const envVarName = `MASTER_KEY_${schoolKey}`;
-        let masterKey = process.env[envVarName] || process.env.SCHOOL_MASTER_KEY;
+        // Haal master key veilig op uit Google Secret Manager
+        const masterKey = await getMasterKey();
         
         if (!masterKey) {
-            console.error(`❌ Geen master key voor ${envVarName}`);
+            console.error(`❌ Kon master key niet laden`);
             return res.status(500).json({ error: 'Server configuratie fout' });
         }
 
         let successCount = 0;
         const errors = [];
         const batches = [];
-        let currentBatch = db.batch(); // Gebruik db.batch()
+        let currentBatch = db.batch();
         let operationsInBatch = 0;
 
         for (let i = 0; i < csvData.length; i++) {
@@ -59,40 +55,37 @@ export default async function handler(req, res) {
             const rowNum = i + 2;
 
             try {
+                // ... (Validatie per rij blijft hetzelfde) ...
                 if (!row.smartschool_user_id?.trim()) {
                     errors.push(`Rij ${rowNum}: Smartschool User ID ontbreekt`);
                     continue;
                 }
-
                 if (!row.naam?.trim()) {
                     errors.push(`Rij ${rowNum}: Naam ontbreekt`);
                     continue;
                 }
-
-                if (!['leerling', 'leerkracht', 'super-administrator'].includes(row.rol?.toLowerCase())) {
+                const rol = row.rol?.toLowerCase();
+                if (!['leerling', 'leerkracht', 'super-administrator'].includes(rol)) {
                     errors.push(`Rij ${rowNum}: Rol moet 'leerling', 'leerkracht' of 'super-administrator' zijn`);
                     continue;
                 }
-
-                const rol = row.rol.toLowerCase();
-
-                // Validatie ALLEEN voor leerlingen
                 if (rol === 'leerling') {
                     if (!row.klas?.trim()) {
                         errors.push(`Rij ${rowNum}: Klas is verplicht voor leerlingen`);
                         continue;
                     }
-
-                    if (!['M', 'V', 'X'].includes(row.gender?.toUpperCase())) {
+                    const gender = row.gender?.toUpperCase();
+                    if (!['M', 'V', 'X'].includes(gender)) {
                         errors.push(`Rij ${rowNum}: Gender moet M, V of X zijn voor leerlingen`);
                         continue;
                     }
                 }
+                // ... (Einde validatie per rij) ...
+
 
                 const hashedId = generateHash(row.smartschool_user_id.trim());
                 const encryptedName = encryptName(row.naam.trim(), masterKey);
 
-                // Base data voor ALLE rollen
                 const whitelistData = {
                     smartschool_id_hash: hashedId,
                     encrypted_name: encryptedName,
@@ -104,7 +97,6 @@ export default async function handler(req, res) {
                     created_at: new Date()
                 };
 
-                // Voeg klas en gender ALLEEN toe voor leerlingen
                 if (rol === 'leerling') {
                     whitelistData.klas = row.klas.trim();
                     whitelistData.gender = row.gender.toUpperCase();
@@ -118,7 +110,7 @@ export default async function handler(req, res) {
 
                 if (operationsInBatch >= 450) {
                     batches.push(currentBatch);
-                    currentBatch = writeBatch(db);
+                    currentBatch = db.batch();
                     operationsInBatch = 0;
                 }
 
@@ -128,16 +120,15 @@ export default async function handler(req, res) {
             }
         }
 
+        // ... (Rest van de batch commit logica blijft hetzelfde) ...
         if (operationsInBatch > 0) {
             batches.push(currentBatch);
         }
-
         console.log(`📦 Committing ${batches.length} batch(es)...`);
         for (let i = 0; i < batches.length; i++) {
             await batches[i].commit();
             console.log(`✅ Batch ${i + 1}/${batches.length} committed`);
         }
-
         console.log(`✅ Import complete: ${successCount} success, ${errors.length} errors`);
 
         res.status(200).json({ 

@@ -1,7 +1,7 @@
-// api/getUsers.js - SIMPLIFIED VERSION
-// Reads encrypted_name directly from toegestane_gebruikers
+// api/getUsers.js - AANGEPAST VOOR GOOGLE SECRET MANAGER
 import { db } from './firebaseAdmin.js';
 import CryptoJS from 'crypto-js';
+import { getMasterKey } from './keyManager.js'; // <-- NIEUWE IMPORT
 
 const decryptName = (encryptedName, masterKey) => {
     try {
@@ -28,17 +28,15 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'School ID is verplicht' });
         }
 
-        // Haal master key op
-        const schoolKey = schoolId.toUpperCase().replace(/_/g, '');
-        const envVarName = `MASTER_KEY_${schoolKey}`;
-        let masterKey = process.env[envVarName] || process.env.SCHOOL_MASTER_KEY;
+        // Haal master key veilig op uit Google Secret Manager
+        const masterKey = await getMasterKey();
         
         if (!masterKey) {
-            console.error(`❌ Geen master key voor ${envVarName}`);
+            console.error(`❌ Kon master key niet laden`);
             return res.status(500).json({ error: 'Server configuratie fout' });
         }
 
-        // Query toegestane_gebruikers - ALLES IN 1 QUERY!
+        // Query toegestane_gebruikers
         let collectionRef = db.collection('toegestane_gebruikers');
         let q = collectionRef.where('school_id', '==', schoolId);
 
@@ -50,17 +48,15 @@ export default async function handler(req, res) {
             q = q.where('rol', '==', filterRol);
         }
 
-        const snapshot = await q.get(); // Gebruik .get() in plaats van getDocs(q)
-        // =============================
+        const snapshot = await q.get();
         
-        // Process users - decrypt naam direct uit toegestane_gebruikers
+        // Process users
         const users = snapshot.docs.map(doc => {
             const data = doc.data();
             
-            // Decrypt naam (nu in zelfde document!)
             const decryptedName = data.encrypted_name 
                 ? decryptName(data.encrypted_name, masterKey)
-                : (data.naam || '[Naam ontbreekt]'); // Fallback voor oude data
+                : (data.naam || '[Naam ontbreekt]');
             
             return {
                 id: doc.id,
