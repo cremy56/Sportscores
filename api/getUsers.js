@@ -1,6 +1,6 @@
 // api/getUsers.js - SIMPLIFIED VERSION
 // Reads encrypted_name directly from toegestane_gebruikers
-import { db } from './firebaseAdmin'; // <-- FIX 1
+import { db } from './firebaseAdmin.js';
 import { collection, query, where, getDocs } from 'firebase-admin/firestore'; // <-- FIX 2
 import CryptoJS from 'crypto-js';
 

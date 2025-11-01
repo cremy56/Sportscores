@@ -1,5 +1,5 @@
 // api/updateUser.js
-import { db } from './firebaseAdmin';
+import { db } from './firebaseAdmin.js';
 import { doc, updateDoc, getDoc } from 'firebase-admin/firestore';
 
 export default async function handler(req, res) {

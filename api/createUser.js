@@ -1,6 +1,6 @@
 // api/createUser.js - FIXED VERSION
 // klas en gender alleen voor leerlingen
-import { db } from './firebaseAdmin';
+import { db } from './firebaseAdmin.js';
 import { doc, setDoc } from 'firebase-admin/firestore';
 import CryptoJS from 'crypto-js';
 
