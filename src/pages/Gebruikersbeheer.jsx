@@ -88,7 +88,7 @@ export default function Gebruikersbeheer() {
     }, []);
     const [modal, setModal] = useState({ type: null, data: null });
 
-  useEffect(() => {
+ useEffect(() => {
     const loadMasterKey = () => {
         if (!profile?.school_id) {
             console.warn('⚠️ No school_id found');
@@ -97,19 +97,19 @@ export default function Gebruikersbeheer() {
         
         // Convert "ka_beveren" → "KABEVEREN"
         const schoolKey = profile.school_id.toUpperCase().replace(/_/g, '');
-        const envVarName = `REACT_APP_MASTER_KEY_${schoolKey}`;
         
-        // Try school-specific key first, then fallback to default
-        let masterKey = process.env[envVarName];
+        // Try school-specific key first, then fallback to default (Vite-stijl)
+        const envVarNameForVite = `VITE_MASTER_KEY_${schoolKey}`;
+        let masterKey = import.meta.env[envVarNameForVite];
         
         if (!masterKey) {
-            console.log(`⚠️ No key found for ${envVarName}, using default`);
-            masterKey = process.env.REACT_APP_SCHOOL_MASTER_KEY;
+            console.log(`⚠️ No key found for ${envVarNameForVite}, using default`);
+            masterKey = import.meta.env.VITE_SCHOOL_MASTER_KEY; // Algemene fallback
         }
         
         if (!masterKey) {
             console.error('❌ No master key available!');
-            masterKey = "TEST_MASTER_KEY_CHANGE_IN_PRODUCTION";
+            masterKey = "TEST_MASTER_KEY_CHANGE_IN_PRODUCTION"; // Nood-fallback
         }
         
         setMasterKey(masterKey);
