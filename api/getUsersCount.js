@@ -7,6 +7,7 @@ export default async function handler(req, res) {
     }
 
     try {
+        // === 1. AUTHENTICATIE ===
         const decodedToken = await verifyToken(req.headers.authorization);
         const { schoolId } = req.body;
 
@@ -14,8 +15,9 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'School ID is verplicht' });
         }
 
+        // === 2. AUTORISATIE ===
         const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
-        if (!adminUserSnap.exists()) {
+        if (!adminUserSnap.exists) {
             return res.status(403).json({ error: 'Jouw profiel is niet gevonden.' });
         }
         const adminUserProfile = adminUserSnap.data();
@@ -24,14 +26,18 @@ export default async function handler(req, res) {
             return res.status(403).json({ error: 'Toegang geweigerd.' });
         }
 
-        const countQuery = db.collection('toegestane_gebruikers')
-                             .where('school_id', '==', schoolId);
-                             
-        const snapshot = await countQuery.count().get();
-        const count = snapshot.data().count;
+        // === 3. QUERY UITVOEREN (MET CORRECTE ADMIN SDK SYNTAX) ===
+        const collectionRef = db.collection('toegestane_gebruikers');
+        const query = collectionRef.where('school_id', '==', schoolId);
+        
+        // Gebruik .aggregate() in plaats van .count()
+        const snapshot = await query.aggregate({
+            totalCount: 'count'
+        }).get();
 
-        // Je hoeft hier geen audit log te schrijven, 
-        // want de 'getUsers' call doet dat al.
+        const count = snapshot.data().totalCount;
+        
+        console.log(`✅ [${decodedToken.email || decodedToken.uid}] Loaded user count: ${count}`);
 
         res.status(200).json({ success: true, count: count });
 
