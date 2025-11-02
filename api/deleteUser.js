@@ -17,13 +17,33 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'userId is verplicht' });
         }
 
-        // === 3. AUTORISATIE (TODO) ===
-        // TODO: Controleer of de ingelogde admin (decodedToken.uid)
-        // de rechten heeft om deze 'userId' te verwijderen.
+        // === 3. DATA OPHALEN ===
+        // Haal het profiel op van de persoon die de API aanroept (de admin)
+        const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
+        if (!adminUserSnap.exists) {
+            return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
+        }
+        const adminUserProfile = adminUserSnap.data();
+
+        // Haal het profiel op van de persoon die verwijderd wordt (de target)
+        const userRef = db.collection('toegestane_gebruikers').doc(userId);
+        const userDoc = await userRef.get();
+        if (!userDoc.exists()) {
+            return res.status(404).json({ error: 'De te verwijderen gebruiker is niet gevonden.' });
+        }
+        
+        // === 4. AUTORISATIE ===
+        // Nu we beide profielen hebben, kunnen we vergelijken
+        const targetSchoolId = userDoc.data().school_id; // Dit is de school van de target
+        
+        if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== targetSchoolId) {
+            console.warn(`[${decodedToken.email}] probeerde gebruiker (${userId}) te verwijderen van school ${targetSchoolId}, maar hoort zelf bij ${adminUserProfile.school_id}`);
+            return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
+        }
         
         console.log(`🗑️ [${decodedToken.email}] Deleting user ${userId.substring(0, 16)}...`);
 
-        // === 4. DATA VERWERKEN ===
+        // === 5. DATA VERWERKEN ===
         // 1. Verwijder uit whitelist
         await db.collection('toegestane_gebruikers').doc(userId).delete();
 
@@ -36,7 +56,18 @@ export default async function handler(req, res) {
             console.log('User profiel (uit users collectie) ook verwijderd.');
         }
 
-        console.log(`✅ User updated successfully`);
+        console.log(`✅ User deleted successfully`);
+
+        // === 6. AUDIT LOG ===
+        await db.collection('audit_logs').add({
+            admin_user_id: decodedToken.uid,
+            admin_email: decodedToken.email,
+            action: 'delete_user',
+            target_user_id: userId,
+            target_school_id: targetSchoolId,
+            timestamp: new Date(),
+            ip_address: req.headers['x-forwarded-for'] || req.socket.remoteAddress
+        });
 
         res.status(200).json({ 
             success: true, 

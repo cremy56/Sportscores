@@ -71,19 +71,33 @@ export default function Gebruikersbeheer() {
     }, []);
     const [modal, setModal] = useState({ type: null, data: null });
 
-    // Tel totaal aantal gebruikers (alleen client-side)
+    // Tel totaal aantal gebruikers (via beveiligde API)
     useEffect(() => {
         const getTotalCount = async () => {
             if (!profile?.school_id) return;
             try {
-                const countQuery = query(
-                    collection(db, 'toegestane_gebruikers'),
-                    where('school_id', '==', profile.school_id)
-                );
-                const snapshot = await getCountFromServer(countQuery);
-                setTotalCount(snapshot.data().count);
+                // We hergebruiken de getAuthToken helper
+                const token = await getAuthToken(); 
+                
+                const response = await fetch('/api/getUsersCount', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ schoolId: profile.school_id })
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || 'Kon telling niet ophalen');
+                }
+                
+                setTotalCount(result.count);
+
             } catch (error) {
-                console.error('Fout bij ophalen totaal aantal:', error);
+                console.error('Fout bij ophalen totaal aantal:', error.message);
+                // We tonen geen toast voor deze niet-kritieke fout
             }
         };
         getTotalCount();

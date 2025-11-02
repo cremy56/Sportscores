@@ -1,5 +1,5 @@
 // api/updateUser.js
-import { db, verifyToken } from './firebaseAdmin.js'; // <-- AANGEPAST
+import { db, verifyToken } from './firebaseAdmin.js';
 
 export default async function handler(req, res) {
 
@@ -10,27 +10,41 @@ export default async function handler(req, res) {
     try {
         // === 1. AUTHENTICATIE ===
         const decodedToken = await verifyToken(req.headers.authorization);
-
         const { userId, updates, currentUserProfileHash } = req.body;
 
         // === 2. VALIDATIE ===
         if (!userId) {
             return res.status(400).json({ error: 'userId is verplicht' });
         }
-        // ... (rest van je validatie blijft hetzelfde) ...
         if (!updates || typeof updates !== 'object') {
             return res.status(400).json({ error: 'updates object is verplicht' });
         }
         
-        // === 3. DATA VERWERKEN ===
+        // === 3. DATA OPHALEN ===
+        // Haal het profiel op van de persoon die de API aanroept (de admin)
+        const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
+        if (!adminUserSnap.exists) {
+            return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
+        }
+        const adminUserProfile = adminUserSnap.data();
+
+        // Haal het profiel op van de persoon die bewerkt wordt (de target)
         const userRef = db.collection('toegestane_gebruikers').doc(userId);
         const userDoc = await userRef.get();
-
         if (!userDoc.exists()) {
-            return res.status(404).json({ error: 'Gebruiker niet gevonden' });
+            return res.status(404).json({ error: 'De te bewerken gebruiker is niet gevonden.' });
+        }
+        
+        // === 4. AUTORISATIE ===
+        // Nu we beide profielen hebben, kunnen we vergelijken
+        const targetSchoolId = userDoc.data().school_id; // <-- Dit is de school van de target
+        
+        if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== targetSchoolId) {
+            console.warn(`[${decodedToken.email}] probeerde gebruiker (${userId}) te bewerken van school ${targetSchoolId}, maar hoort zelf bij ${adminUserProfile.school_id}`);
+            return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
         }
 
-        // ... (allowedFields logica blijft hetzelfde) ...
+        // === 5. UPDATE LOGICA ===
         const allowedFields = ['klas', 'gender', 'is_active'];
         const updateData = {};
         for (const field of allowedFields) {
@@ -68,6 +82,18 @@ export default async function handler(req, res) {
         }
 
         console.log(`✅ User updated successfully`);
+
+        // === 6. AUDIT LOG ===
+        await db.collection('audit_logs').add({
+            admin_user_id: decodedToken.uid,
+            admin_email: decodedToken.email,
+            action: 'update_user',
+            target_user_id: userId,
+            target_school_id: targetSchoolId,
+            fields_updated: Object.keys(updateData).filter(k => !k.includes('updated')),
+            timestamp: new Date(),
+            ip_address: req.headers['x-forwarded-for'] || req.socket.remoteAddress
+        });
 
         res.status(200).json({ 
             success: true, 

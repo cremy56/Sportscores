@@ -1,6 +1,7 @@
 // src/components/UserFormModal.jsx
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
+import { getAuth } from 'firebase/auth';
 import { db } from '../firebase';
 import { doc, setDoc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import toast from 'react-hot-toast';
@@ -14,6 +15,16 @@ import {
 // Helper functies
 const capitalize = (s) => s && s.charAt(0).toUpperCase() + s.slice(1);
 
+// Helper om veilig de auth token op te halen
+const getAuthToken = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+        toast.error("Authenticatie verlopen. Log opnieuw in.");
+        throw new Error("Niet geauthenticeerd");
+    }
+    return await user.getIdToken();
+};
 
 export default function UserFormModal({ 
     isOpen, 
@@ -147,27 +158,28 @@ export default function UserFormModal({
         const loadingToast = toast.loading(isEditing ? 'Bijwerken...' : 'Toevoegen...');
         
         try {
+            const token = await getAuthToken(); // <-- 1. HAAL TOKEN OP
             let response;
             let result;
 
             if (isEditing) {
                 // --- UPDATE PAD ---
-                // Bouw het 'updates' object
                 const updates = {
                     klas: currentUserRole === 'leerling' ? formData.klas.trim() : null,
                     gender: currentUserRole === 'leerling' ? formData.gender : null,
-                    // Je kunt hier ook 'is_active' toevoegen als je dat veld in je formulier zou hebben
                 };
-
                 const apiPayload = {
-                    userId: userData.id, // De ID van de gebruiker die we bewerken
+                    userId: userData.id, 
                     updates: updates,
                     currentUserProfileHash: currentUserProfile?.smartschool_id_hash
                 };
 
                 response = await fetch('/api/updateUser', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` // <-- 2. VOEG TOKEN TOE
+                    },
                     body: JSON.stringify(apiPayload),
                 });
                 result = await response.json();
@@ -184,7 +196,10 @@ export default function UserFormModal({
 
                 response = await fetch('/api/createUser', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` // <-- 3. VOEG TOKEN TOE
+                    },
                     body: JSON.stringify(apiPayload),
                 });
                 result = await response.json();
@@ -197,7 +212,7 @@ export default function UserFormModal({
             
             toast.dismiss(loadingToast);
             toast.success(isEditing ? 'Gebruiker succesvol bijgewerkt!' : `${capitalize(currentUserRole)} succesvol toegevoegd!`);
-            onUserSaved(); // Dit triggert de 'loadUsers' in de parent
+            onUserSaved(); 
             onClose();
 
         } catch (error) {

@@ -24,6 +24,19 @@ export default async function handler(req, res) {
         
         const { formData, currentUserRole, targetSchoolId, currentUserProfileHash } = req.body;
 
+        // Haal het profiel op van de persoon die de API aanroept
+        const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
+        if (!adminUserSnap.exists) {
+            return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
+        }
+        const adminUserProfile = adminUserSnap.data();
+
+        // Blokkeer als ze geen super-admin zijn EN proberen data van een andere school te zien
+       if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== targetSchoolId) {
+    console.warn(`[${decodedToken.email}] probeerde toegang te krijgen tot ${targetSchoolId}, maar hoort bij ${adminUserProfile.school_id}`);
+    return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
+}
+        // === EINDE AUTORISATIE ===
         // === 2. VALIDATIE ===
         if (!formData?.smartschool_user_id?.trim()) {
             return res.status(400).json({ error: 'Smartschool User ID is verplicht' });
@@ -79,7 +92,17 @@ export default async function handler(req, res) {
        await db.collection('toegestane_gebruikers').doc(docId).set(whitelistData, { merge: true });
 
         console.log(`✅ ${currentUserRole} created: ${docId.substring(0, 16)}...`);
-
+        // === 6. AUDIT LOG ===
+        await db.collection('audit_logs').add({
+            admin_user_id: decodedToken.uid,
+            admin_email: decodedToken.email,
+            action: 'create_user',
+            target_user_id: docId,
+            target_user_rol: currentUserRole,
+            target_school_id: targetSchoolId,
+            timestamp: new Date(),
+            ip_address: req.headers['x-forwarded-for'] || req.socket.remoteAddress
+        });
         res.status(200).json({ 
             success: true, 
             userId: docId,
