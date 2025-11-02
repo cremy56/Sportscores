@@ -1,7 +1,7 @@
 // api/createUser.js
-import { db, verifyToken } from './firebaseAdmin.js'; // <-- AANGEPAST
+import { db, verifyToken } from './firebaseAdmin.js';
 import CryptoJS from 'crypto-js';
-import { getMasterKey } from './keyManager.js'; // <-- AANGEPAST
+import { getMasterKey } from './keyManager.js';
 
 const generateHash = (smartschoolUserId) => {
     return CryptoJS.SHA256(smartschoolUserId).toString();
@@ -24,24 +24,22 @@ export default async function handler(req, res) {
         
         const { formData, currentUserRole, targetSchoolId, currentUserProfileHash } = req.body;
 
-        // Haal het profiel op van de persoon die de API aanroept
+        // === 2. AUTORISATIE ===
         const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
         if (!adminUserSnap.exists) {
             return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
         }
         const adminUserProfile = adminUserSnap.data();
 
-        // Blokkeer als ze geen super-admin zijn EN proberen data van een andere school te zien
-       if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== targetSchoolId) {
-    console.warn(`[${decodedToken.email}] probeerde toegang te krijgen tot ${targetSchoolId}, maar hoort bij ${adminUserProfile.school_id}`);
-    return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
-}
-        // === EINDE AUTORISATIE ===
-        // === 2. VALIDATIE ===
+        if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== targetSchoolId) {
+            console.warn(`[${decodedToken.email || decodedToken.uid}] probeerde toegang te krijgen tot ${targetSchoolId}, maar hoort bij ${adminUserProfile.school_id}`); // <-- FIX HIER
+            return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
+        }
+        
+        // === 3. VALIDATIE ===
         if (!formData?.smartschool_user_id?.trim()) {
             return res.status(400).json({ error: 'Smartschool User ID is verplicht' });
         }
-        // ... (alle andere validaties blijven hetzelfde) ...
         if (!formData?.naam?.trim()) {
             return res.status(400).json({ error: 'Naam is verplicht' });
         }
@@ -60,18 +58,18 @@ export default async function handler(req, res) {
             }
         }
 
-        // === 3. HAAL SLEUTEL OP ===
+        // === 4. HAAL SLEUTEL OP ===
         const masterKey = await getMasterKey();
         
         if (!masterKey) {
             return res.status(500).json({ error: 'Server configuratie fout (key)' });
         }
 
-        // === 4. DATA VERWERKEN ===
+        // === 5. DATA VERWERKEN ===
         const docId = generateHash(formData.smartschool_user_id.trim());
         const encryptedName = encryptName(formData.naam.trim(), masterKey);
 
-        console.log(`🔐 [${decodedToken.email}] Creating user: ${currentUserRole} - ${docId.substring(0, 16)}...`);
+        console.log(`🔐 [${decodedToken.email || decodedToken.uid}] Creating user: ${currentUserRole} - ${docId.substring(0, 16)}...`);
 
         const whitelistData = {
             smartschool_id_hash: docId,
@@ -92,10 +90,11 @@ export default async function handler(req, res) {
        await db.collection('toegestane_gebruikers').doc(docId).set(whitelistData, { merge: true });
 
         console.log(`✅ ${currentUserRole} created: ${docId.substring(0, 16)}...`);
+        
         // === 6. AUDIT LOG ===
         await db.collection('audit_logs').add({
             admin_user_id: decodedToken.uid,
-            admin_email: decodedToken.email,
+            admin_email: decodedToken.email || decodedToken.uid, // <-- HIER IS DE FIX
             action: 'create_user',
             target_user_id: docId,
             target_user_rol: currentUserRole,
@@ -103,6 +102,7 @@ export default async function handler(req, res) {
             timestamp: new Date(),
             ip_address: req.headers['x-forwarded-for'] || req.socket.remoteAddress
         });
+        
         res.status(200).json({ 
             success: true, 
             userId: docId,

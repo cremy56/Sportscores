@@ -21,14 +21,12 @@ export default async function handler(req, res) {
         }
         
         // === 3. DATA OPHALEN ===
-        // Haal het profiel op van de persoon die de API aanroept (de admin)
         const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
         if (!adminUserSnap.exists) {
             return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
         }
         const adminUserProfile = adminUserSnap.data();
 
-        // Haal het profiel op van de persoon die bewerkt wordt (de target)
         const userRef = db.collection('toegestane_gebruikers').doc(userId);
         const userDoc = await userRef.get();
         if (!userDoc.exists()) {
@@ -36,11 +34,10 @@ export default async function handler(req, res) {
         }
         
         // === 4. AUTORISATIE ===
-        // Nu we beide profielen hebben, kunnen we vergelijken
-        const targetSchoolId = userDoc.data().school_id; // <-- Dit is de school van de target
+        const targetSchoolId = userDoc.data().school_id;
         
         if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== targetSchoolId) {
-            console.warn(`[${decodedToken.email}] probeerde gebruiker (${userId}) te bewerken van school ${targetSchoolId}, maar hoort zelf bij ${adminUserProfile.school_id}`);
+            console.warn(`[${decodedToken.email || decodedToken.uid}] probeerde gebruiker (${userId}) te bewerken van school ${targetSchoolId}, maar hoort zelf bij ${adminUserProfile.school_id}`); // <-- FIX HIER
             return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
         }
 
@@ -65,12 +62,10 @@ export default async function handler(req, res) {
         updateData.last_updated = new Date();
         updateData.updated_by_hash = currentUserProfileHash || 'admin';
 
-        console.log(`🔄 [${decodedToken.email}] Updating user ${userId.substring(0, 16)}...`);
+        console.log(`🔄 [${decodedToken.email || decodedToken.uid}] Updating user ${userId.substring(0, 16)}...`);
 
-        // Update whitelist
         await userRef.update(updateData);
 
-        // Update 'users' profiel indien het bestaat
         const userProfileRef = db.collection('users').doc(userId);
         const userProfileSnap = await userProfileRef.get();
 
@@ -86,7 +81,7 @@ export default async function handler(req, res) {
         // === 6. AUDIT LOG ===
         await db.collection('audit_logs').add({
             admin_user_id: decodedToken.uid,
-            admin_email: decodedToken.email,
+            admin_email: decodedToken.email || decodedToken.uid, // <-- HIER IS DE FIX
             action: 'update_user',
             target_user_id: userId,
             target_school_id: targetSchoolId,

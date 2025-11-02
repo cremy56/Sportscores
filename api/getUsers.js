@@ -1,7 +1,7 @@
 // api/getUsers.js
-import { db, verifyToken } from './firebaseAdmin.js'; // <-- AANGEPAST
+import { db, verifyToken } from './firebaseAdmin.js';
 import CryptoJS from 'crypto-js';
-import { getMasterKey } from './keyManager.js'; // <-- AANGEPAST
+import { getMasterKey } from './keyManager.js';
 
 const decryptName = (encryptedName, masterKey) => {
     try {
@@ -22,46 +22,36 @@ export default async function handler(req, res) {
     }
 
     try {
-        // === 1. AUTHENTICATIE ===
-        // Controleer of de gebruiker is ingelogd
         const decodedToken = await verifyToken(req.headers.authorization);
-        
         const { schoolId, filterKlas, filterRol } = req.body;
 
         if (!schoolId) {
             return res.status(400).json({ error: 'School ID is verplicht' });
         }
         
-        // ===2. AUTORISATIE CHECK ===
-        // Haal het profiel op van de persoon die de API aanroept
         const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
         if (!adminUserSnap.exists) {
             return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
         }
         const adminUserProfile = adminUserSnap.data();
 
-        // Blokkeer als ze geen super-admin zijn EN proberen data van een andere school te zien
         if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== schoolId) {
-            console.warn(`[${decodedToken.email}] probeerde toegang te krijgen tot ${schoolId}, maar hoort bij ${adminUserProfile.school_id}`);
+            console.warn(`[${decodedToken.email || decodedToken.uid}] probeerde toegang te krijgen tot ${schoolId}, maar hoort bij ${adminUserProfile.school_id}`);
             return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
         }
-        // === EINDE AUTORISATIE ===
 
-        // === 3. HAAL SLEUTEL OP ===
         const masterKey = await getMasterKey();
         
         if (!masterKey) {
             return res.status(500).json({ error: 'Server configuratie fout (key)' });
         }
 
-        // === 4. VOER QUERY UIT ===
         let q = db.collection('toegestane_gebruikers')
                   .where('school_id', '==', schoolId);
 
         if (filterKlas) {
             q = q.where('klas', '==', filterKlas);
         }
-
         if (filterRol) {
             q = q.where('rol', '==', filterRol);
         }
@@ -70,7 +60,6 @@ export default async function handler(req, res) {
         
         const users = snapshot.docs.map(doc => {
             const data = doc.data();
-            
             const decryptedName = data.encrypted_name 
                 ? decryptName(data.encrypted_name, masterKey)
                 : (data.naam || '[Naam ontbreekt]');
@@ -82,13 +71,12 @@ export default async function handler(req, res) {
             };
         });
 
-        console.log(`✅ [${decodedToken.email}] Loaded ${users.length} users for school ${schoolId}`);
+        console.log(`✅ [${decodedToken.email || decodedToken.uid}] Loaded ${users.length} users for school ${schoolId}`);
 
         // === 6. AUDIT LOG ===
-        // We loggen alleen de *actie* (het opvragen), niet de data zelf.
         await db.collection('audit_logs').add({
             admin_user_id: decodedToken.uid,
-            admin_email: decodedToken.email,
+            admin_email: decodedToken.email || decodedToken.uid, // <-- HIER IS DE FIX
             action: 'get_users',
             target_school_id: schoolId,
             filters_used: { filterKlas, filterRol },

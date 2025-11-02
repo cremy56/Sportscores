@@ -1,7 +1,7 @@
 // api/bulkCreateUsers.js
-import { db, verifyToken } from './firebaseAdmin.js'; // <-- AANGEPAST
+import { db, verifyToken } from './firebaseAdmin.js';
 import CryptoJS from 'crypto-js';
-import { getMasterKey } from './keyManager.js'; // <-- AANGEPAST
+import { getMasterKey } from './keyManager.js';
 
 const generateHash = (smartschoolUserId) => {
     return CryptoJS.SHA256(smartschoolUserId).toString();
@@ -24,24 +24,22 @@ export default async function handler(req, res) {
 
         const { csvData, targetSchoolId, currentUserProfileHash } = req.body;
 
-        // Haal het profiel op van de persoon die de API aanroept
+        // === 2. AUTORISATIE ===
         const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
         if (!adminUserSnap.exists) {
             return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
         }
         const adminUserProfile = adminUserSnap.data();
 
-        // Blokkeer als ze geen super-admin zijn EN proberen data van een andere school te zien
-       if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== targetSchoolId) {
-    console.warn(`[${decodedToken.email}] probeerde toegang te krijgen tot ${targetSchoolId}, maar hoort bij ${adminUserProfile.school_id}`);
-    return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
-}
-        // === EINDE AUTORISATIE ===
-        // === 2. VALIDATIE ===
+        if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== targetSchoolId) {
+            console.warn(`[${decodedToken.email || decodedToken.uid}] probeerde toegang te krijgen tot ${targetSchoolId}, maar hoort bij ${adminUserProfile.school_id}`); // <-- FIX HIER
+            return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
+        }
+        
+        // === 3. VALIDATIE ===
         if (!csvData || !Array.isArray(csvData)) {
             return res.status(400).json({ error: 'csvData moet een array zijn' });
         }
-        // ... (alle andere validaties blijven hetzelfde) ...
         if (!targetSchoolId) {
             return res.status(400).json({ error: 'targetSchoolId is verplicht' });
         }
@@ -49,15 +47,15 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'CSV bevat geen data' });
         }
 
-        // === 3. HAAL SLEUTEL OP ===
+        // === 4. HAAL SLEUTEL OP ===
         const masterKey = await getMasterKey();
         
         if (!masterKey) {
             return res.status(500).json({ error: 'Server configuratie fout (key)' });
         }
 
-        // === 4. DATA VERWERKEN ===
-        console.log(`[${decodedToken.email}] Starting bulk import for ${targetSchoolId}...`);
+        // === 5. DATA VERWERKEN ===
+        console.log(`[${decodedToken.email || decodedToken.uid}] Starting bulk import for ${targetSchoolId}...`);
         
         let successCount = 0;
         const errors = [];
@@ -66,9 +64,8 @@ export default async function handler(req, res) {
         let operationsInBatch = 0;
 
         for (let i = 0; i < csvData.length; i++) {
-            // ... (je for-loop logica blijft volledig hetzelfde) ...
             const row = csvData[i];
-            const rowNum = i + 2;
+            const rowNum = i + 2; 
 
             try {
                 if (!row.smartschool_user_id?.trim()) {
@@ -121,11 +118,12 @@ export default async function handler(req, res) {
                 operationsInBatch++;
                 successCount++;
 
-                if (operationsInBatch >= 450) {
+                if (operationsInBatch >= 450) { 
                     batches.push(currentBatch);
-                    currentBatch = db.batch(); // db.batch() gebruiken
+                    currentBatch = db.batch(); 
                     operationsInBatch = 0;
                 }
+
             } catch (rowError) {
                 console.error(`Fout bij verwerken rij ${rowNum}:`, rowError);
                 errors.push(`Rij ${rowNum}: ${rowError.message}`);
@@ -136,7 +134,6 @@ export default async function handler(req, res) {
             batches.push(currentBatch);
         }
         
-        // ... (Batch commit logica blijft hetzelfde) ...
         console.log(`📦 Committing ${batches.length} batch(es)...`);
         for (let i = 0; i < batches.length; i++) {
             await batches[i].commit();
@@ -148,7 +145,7 @@ export default async function handler(req, res) {
         // === 6. AUDIT LOG ===
         await db.collection('audit_logs').add({
             admin_user_id: decodedToken.uid,
-            admin_email: decodedToken.email,
+            admin_email: decodedToken.email || decodedToken.uid, // <-- HIER IS DE FIX
             action: 'bulk_create_users',
             target_school_id: targetSchoolId,
             users_created: successCount,
@@ -161,7 +158,7 @@ export default async function handler(req, res) {
             success: true, 
             successCount: successCount, 
             errorCount: errors.length,
-            errors: errors.slice(0, 50),
+            errors: errors.slice(0, 50), 
             totalErrors: errors.length
         });
 
