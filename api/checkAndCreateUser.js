@@ -2,8 +2,6 @@
 import { db, verifyToken } from './firebaseAdmin.js';
 import CryptoJS from 'crypto-js';
 
-// Importeer de admin-versie van 'setDoc'
-import { setDoc, doc } from 'firebase-admin/firestore'; 
 
 const generateHash = (smartschoolUserId) => {
     return CryptoJS.SHA256(smartschoolUserId).toString();
