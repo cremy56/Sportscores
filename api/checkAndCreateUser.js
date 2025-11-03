@@ -2,7 +2,7 @@
 import { db, verifyToken } from './firebaseAdmin.js';
 import CryptoJS from 'crypto-js';
 
-
+// We hebben de hash-functie hier nodig, op de server
 const generateHash = (smartschoolUserId) => {
     return CryptoJS.SHA256(smartschoolUserId).toString();
 };
@@ -14,10 +14,7 @@ export default async function handler(req, res) {
 
     try {
         // === 1. AUTHENTICATIE ===
-        // We valideren de gebruiker die de check aanvraagt
         const decodedToken = await verifyToken(req.headers.authorization);
-        
-        // De UID van de ingelogde gebruiker (dit is de Smartschool User ID)
         const authUid = decodedToken.uid; 
         
         // === 2. CONTROLEER OF 'users' PROFIEL AL BESTAAT ===
@@ -25,24 +22,20 @@ export default async function handler(req, res) {
         const docSnap = await profileRef.get();
 
         if (docSnap.exists()) {
-            // Profiel bestaat al, alles is in orde.
             return res.status(200).json({ success: true, status: 'profile_exists', userProfile: docSnap.data() });
         }
 
         // === 3. PROFIEL BESTAAT NIET, CONTROLEER WHITELIST ===
-        
-        // Genereer de HASH (zoals je admin-tools doen)
         const hashedSmartschoolId = generateHash(authUid);
         
-        // Controleer de 'toegestane_gebruikers' met de HASH
         const allowedUserRef = db.collection('toegestane_gebruikers').doc(hashedSmartschoolId);
         const allowedUserSnap = await allowedUserRef.get();
 
         if (allowedUserSnap.exists()) {
-            // Gebruiker staat op de whitelist!
             const whitelistData = allowedUserSnap.data();
             
             // 4. Maak het profiel aan in de 'users' collectie
+            //    (ZONDER 'naam' en 'email' velden)
             const initialProfileData = {
                 smartschool_id_hash: hashedSmartschoolId,
                 encrypted_name: whitelistData.encrypted_name,
@@ -53,8 +46,6 @@ export default async function handler(req, res) {
                 onboarding_complete: true,
                 created_at: new Date(),
                 last_login: new Date(),
-                email: decodedToken.email || '', // Van het auth token
-                naam: decodedToken.displayName || '', // Van het auth token (onversleuteld)
             };
 
             await profileRef.set(initialProfileData);
@@ -62,7 +53,6 @@ export default async function handler(req, res) {
             return res.status(201).json({ success: true, status: 'profile_created', userProfile: initialProfileData });
             
         } else {
-            // Niet op de whitelist. Stuur een fout terug.
             console.error(`GEBRUIKER GEWEIGERD: Hash ${hashedSmartschoolId} (van Smartschool ID ${authUid}) niet gevonden in 'toegestane_gebruikers'.`);
             return res.status(403).json({ error: 'Je hebt geen toegang tot deze applicatie.' });
         }
