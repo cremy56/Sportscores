@@ -124,7 +124,7 @@ function App() {
             
             // 1. Haal de Smartschool User ID op uit het Firebase Auth profiel
             //    (Dit komt uit de 'providerData' van de Smartschool login)
-            const smartschoolUserId = user.providerData?.[0]?.uid;
+            const smartschoolUserId = user.uid;
             
             if (!smartschoolUserId) {
                 console.error("Kon Smartschool User ID niet vinden in Auth profiel. (user.providerData[0].uid)");
