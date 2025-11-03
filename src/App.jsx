@@ -3,10 +3,10 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { auth, db } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+// 'getDoc' en 'setDoc' zijn verwijderd, 'onSnapshot' en 'doc' blijven
+import { doc, onSnapshot } from 'firebase/firestore'; 
 import { setupNetworkMonitoring } from './utils/firebaseUtils';
-import CryptoJS from 'crypto-js'; // <-- 1. IMPORT CRYPTO-JS
-import toast from 'react-hot-toast'; // <-- Nodig voor error handling
+import toast from 'react-hot-toast'; // We hebben toast nodig voor de foutmelding
 
 // Component Imports
 import Layout from './components/Layout';
@@ -14,7 +14,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import UniversalLogin from './components/UniversalLogin';
 import SchoolBeheer from './pages/SchoolBeheer';
 
-// Pagina Imports
+// Pagina Imports (alle imports blijven hetzelfde)
 import AdValvas from './pages/adValvas';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
@@ -40,10 +40,7 @@ import EHBODetail from './pages/EHBODetail';
 import Instellingen from './pages/Instellingen';
 import AlgemeenInstellingen from './pages/AlgemeenInstellingen';
 
-// --- 2. HASH FUNCTIE (buiten het component) ---
-const generateHash = (smartschoolUserId) => {
-    return CryptoJS.SHA256(smartschoolUserId).toString();
-};
+// generateHash functie is hier verwijderd, die staat nu op de server
 
 function DynamicHomepage({ schoolSettings }) {
   console.log('🏠 DynamicHomepage rendering, schoolSettings:', schoolSettings);
@@ -52,8 +49,6 @@ function DynamicHomepage({ schoolSettings }) {
   }
   return <AdValvas />;
 }
-
-// 3. Verwijder HandleAuthRedirect (niet meer nodig)
 
 function App() {
   const [user, setUser] = useState(null);
@@ -109,75 +104,51 @@ function App() {
       });
     };
 
-    // --- 4. VOLLEDIG NIEUWE CHECKANDCREATEPROFILE FUNCTIE ---
-    const checkAndCreateProfile = async () => {
+    // --- 4. VERVANGEN checkAndCreateProfile FUNCTIE ---
+    // Deze functie roept nu de veilige API-route aan.
+    const checkAndCreateProfile = async (firebaseUser) => {
         try {
-            const docSnap = await getDoc(profileRef);
+            // 1. Haal het token van de zojuist ingelogde gebruiker op
+            const token = await firebaseUser.getIdToken();
+
+            // 2. Roep de nieuwe, veilige API-route aan
+            const response = await fetch('/api/checkAndCreateUser', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+                // Body is niet nodig, de API leest de ID uit het token
+            });
             
-            if (docSnap.exists()) {
-                // Profiel bestaat al, zet de listener op
-                setupListener();
-                return;
+            const result = await response.json();
+
+            if (!response.ok) {
+                // Als de API een 403 (verboden) of 500 stuurt, gooi een fout
+                throw new Error(result.error || 'Kon profiel niet valideren');
             }
-
-            // --- Profiel bestaat niet, probeer het aan te maken ---
             
-            // 1. Haal de Smartschool User ID op uit het Firebase Auth profiel
-            //    (Dit komt uit de 'providerData' van de Smartschool login)
-            const smartschoolUserId = user.uid;
+            console.log("Profiel check succesvol:", result.status);
             
-            if (!smartschoolUserId) {
-                console.error("Kon Smartschool User ID niet vinden in Auth profiel. (user.providerData[0].uid)");
-                toast.error("Smartschool ID niet gevonden, uitloggen.");
-                auth.signOut();
-                return;
-            }
-
-            // 2. Genereer de HASH die je backend ook gebruikt
-            const hashedSmartschoolId = generateHash(smartschoolUserId);
-            
-            // 3. Controleer de whitelist ('toegestane_gebruikers') met de HASH
-            const allowedUserRef = doc(db, 'toegestane_gebruikers', hashedSmartschoolId);
-            const allowedUserSnap = await getDoc(allowedUserRef);
-
-            if (allowedUserSnap.exists()) {
-                // Gebruiker staat op de whitelist!
-                const whitelistData = allowedUserSnap.data();
-                
-                // 4. Maak het profiel aan in de 'users' collectie
-                //    met de Firebase Auth UID als Document ID
-                const initialProfileData = {
-                    smartschool_id_hash: hashedSmartschoolId,
-                    encrypted_name: whitelistData.encrypted_name, // Neem encrypted naam over
-                    school_id: whitelistData.school_id,
-                    rol: whitelistData.rol,
-                    klas: whitelistData.klas || null,
-                    gender: whitelistData.gender || null,
-                    onboarding_complete: true, // Auto-complete voor Smartschool
-                    created_at: new Date(),
-                    last_login: new Date()//
-          
-                };
-
-                await setDoc(profileRef, initialProfileData);
-                
-                // Zet de listener op nadat het profiel is aangemaakt
-                setupListener();
-                
+            // 3. Zet de listener op (dit blijft hetzelfde)
+            // Deze check is nodig omdat onSnapshot faalt als het document nog niet bestaat
+            if (result.status === 'profile_created') {
+                // Wacht even tot het profiel is gerepliceerd
+                setTimeout(setupListener, 500); 
             } else {
-                // Niet op de whitelist. Log de gebruiker uit.
-                console.error(`GEBRUIKER GEWEIGERD: Hash ${hashedSmartschoolId} (van Smartschool ID ${smartschoolUserId}) niet gevonden in 'toegestane_gebruikers'.`);
-                toast.error("Je hebt geen toegang tot deze applicatie.");
-                auth.signOut();
+                setupListener();
             }
 
         } catch (error) {
-            console.error("Fout bij het controleren/aanmaken van profiel:", error);
+            // Als de check mislukt (bv. 403 Forbidden), log de gebruiker uit
+            console.error("Fout bij het controleren/aanmaken van profiel:", error.message);
+            toast.error(error.message);
             auth.signOut();
         }
     };
 
-    checkAndCreateProfile();
+    // Roep de nieuwe functie aan met het 'user' object
+    checkAndCreateProfile(user);
 
     return () => {
       if (unsubscribeProfile) {
@@ -208,7 +179,8 @@ function App() {
   }, [profile, user]);
 
   if (authLoading || loading) {
-    // Laadscherm (ongewijzigd)
+     // ... (je laadscherm)
+     return <div className="fixed inset-0 bg-white flex items-center justify-center"><div>Laden...</div></div>;
   }
 
   // --- 5. OPGESCHOONDE ROUTES ---
@@ -219,25 +191,36 @@ function App() {
             <>
                 {/* Alleen Smartschool is nog relevant */}
                 <Route path="/auth/smartschool/callback" element={<UniversalLogin />} />
-                {/* Stuur alle andere bezoekers naar de UniversalLogin */}
                 <Route path="*" element={<UniversalLogin />} />
             </>
         ) : (
             <>
-                {/* Redirect callback to home if already logged in */}
                 <Route path="/auth/smartschool/callback" element={<Navigate to="/" replace />} />
                 
-                {/* Als je e-mail routes verwijdert, kunnen deze ook weg */}
-                {/* <Route path="/setup-account" element={<SetupAccount />} /> */}
-                {/* <Route path="/wachtwoord-wijzigen" element={<WachtwoordWijzigen />} /> */}
-
                 <Route element={<ProtectedRoute profile={profile} school={school} />}>
                   <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} activeRole={activeRole} setActiveRole={setActiveRole} />}>
-                    {/* Alle ingelogde routes blijven hetzelfde */}
                     <Route index element={<DynamicHomepage schoolSettings={schoolSettings} />} />
                     <Route path="/advalvas" element={<AdValvas />} />
                     <Route path="/highscores" element={<Highscores />} />
-                    {/* ... etc. ... */}
+                    <Route path="/evolutie" element={<Evolutie />} />
+                    <Route path="/groeiplan" element={<Groeiplan />} />
+                    <Route path="/rewards" element={<Rewards />} />
+                    <Route path="/groepsbeheer" element={<Groepsbeheer />} />
+                    <Route path="/groep/:groepId" element={<GroupDetail />} />
+                    <Route path="/sporttesten" element={<Sporttesten />} />
+                    <Route path="/sporttesten/:testId" element={<TestDetailBeheer />} />
+                    <Route path="/testafname/new/:groepId" element={<NieuweTestafname />} />
+                    <Route path="/testafname/:testafnameId" element={<TestafnameDetail />} />
+                    <Route path="/trainingsbeheer/schema/:schemaId" element={<SchemaDetail />} />
+                    <Route path="/gezondheid" element={<Gezondheid />} />
+                    <Route path="/gezondheid/welzijn" element={<Welzijnsmonitor />} />
+                    <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
+                    <Route path="/gezondheid/mentaal" element={<MentaalDetail />} />
+                    <Route path="/gezondheid/voeding" element={<VoedingDetail />} />
+                    <Route path="/gezondheid/slaap" element={<SlaapDetail />} />
+                    <Route path="/gezondheid/hart" element={<HartDetail />} />
+                    <Route path="/gezondheid/ehbo" element={<EHBODetail />} />
+                    
                     <Route path="/instellingen" element={<Instellingen />}>
                       <Route index element={<AlgemeenInstellingen />} />
                       <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
