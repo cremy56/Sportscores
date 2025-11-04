@@ -1,8 +1,7 @@
 // src/pages/Highscores.jsx
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { db } from '../firebase';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 import CategoryCard from '../components/CategoryCard';
 
 // Importeer de calculateAge helper functie (of definieer hem hier)
@@ -52,37 +51,46 @@ export default function Highscores() {
     }, [profile, teacherSelectedAge]);
 
     useEffect(() => {
-        if (!profile?.school_id) {
-            setLoading(false);
-            return;
-        }
+        
+    if (!profile?.school_id) {
+        setLoading(false);
+        return;
+    }
 
-        const fetchTesten = async () => {
-            try {
-                setError(null);
-                const testenRef = collection(db, 'testen');
-                const q = query(
-                    testenRef, 
-                    where('school_id', '==', profile.school_id),
-                    where('is_actief', '==', true),
-                    orderBy('naam')
-                );
-                const querySnapshot = await getDocs(q);
-                const testenData = querySnapshot.docs.map(doc => ({ 
-                    id: doc.id, 
-                    ...doc.data() 
-                }));
-                setTesten(testenData);
-            } catch (err) {
-                console.error('Error fetching testen:', err);
-                setError('Kon de testen niet laden. Probeer het later opnieuw.');
-            } finally {
-                setLoading(false);
+    const fetchTesten = async () => {
+        try {
+            setError(null);
+            setLoading(true); // Zet loading hier
+
+            const user = auth.currentUser;
+            if (!user) {
+                throw new Error("Geen gebruiker ingelogd.");
             }
-        };
+            const token = await user.getIdToken();
 
-        fetchTesten();
-    }, [profile?.school_id]);
+            const response = await fetch('/api/getTests', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Kon de testen niet laden via API.');
+            }
+
+            setTesten(data.testen);
+        } catch (err) {
+            console.error('Error fetching testen via API:', err);
+            setError('Kon de testen niet laden. Probeer het later opnieuw.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchTesten();
+}, [profile?.school_id]);
 
     const grouped_tests = testen.reduce((acc, test) => {
         const cat = test.categorie || 'Algemeen';

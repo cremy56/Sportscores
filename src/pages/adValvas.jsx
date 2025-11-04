@@ -1,8 +1,8 @@
 // src/pages/adValvas.jsx
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { db } from '../firebase';
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, Timestamp, onSnapshot } from 'firebase/firestore';
+import { db,auth } from '../firebase';
+import { doc, onSnapshot } from 'firebase/firestore'; 
 import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity, Quote, Flame, BookOpen, BarChart3, TrendingDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { formatScoreWithUnit } from '../utils/formatters.js';
 import { PlusCircle, X } from 'lucide-react'; // Voeg PlusCircle en X toe
@@ -665,6 +665,45 @@ class LiveSportsFeedAPI {
     return this.fetchLiveSportsData();
   }
 }
+useEffect(() => {
+    if (!profile?.school_id) {
+        setLoading(false);
+        return;
+    }
+
+    const fetchAllAdValvasData = async () => {
+        setLoading(true);
+        try {
+            const user = auth.currentUser;
+            if (!user) throw new Error("Gebruiker niet ingelogd");
+            const token = await user.getIdToken();
+
+            const response = await fetch('/api/getAdValvasData', {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Kon dashboard data niet laden');
+            }
+
+            // Zet alle states in één keer met de data van de API
+            setTestHighscores(data.testHighscores || []);
+            setMededelingenData(data.mededelingen || []);
+            setBreakingNewsItems(data.breakingNews || []);
+            setActiveTests(data.activeTests || []);
+
+        } catch (error) {
+            console.error('Error fetching AdValvas data:', error);
+            // Je kunt hier een error state instellen als je wilt
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchAllAdValvasData();
+}, [profile?.school_id]);
 
 export default function AdValvas() {
   const { profile, school } = useOutletContext();
@@ -689,50 +728,25 @@ const [contentPattern, setContentPattern] = useState([]); // Alternerend patroon
 const [patternIndex, setPatternIndex] = useState(0);
 const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
  const [schoolSettings, setSchoolSettings] = useState(null);
+ const [mededelingenData, setMededelingenData] = useState([]);
 
 // Functie om de content te vernieuwen (belangrijk voor na het toevoegen)
-  const refreshContent = async () => {
+  const refreshContent = () => {
     if (loading) return;
-    const items = await generateContentItems();
+    const items = generateContentItems();
     setContentItems(items);
   };
 
   // Enhanced content genereren met meer variatie
 // src/pages/adValvas.jsx
 
- const generateContentItems = async () => {
+ const generateContentItems = () => {
   console.log('🔄 Content generatie gestart...');
-  
-  // 1. AANGEPASTE FETCH: fetchActiveTests is hier verwijderd.
-  const [breakingNewsData, mededelingenData, todaysScoresData] = await Promise.all([
-    detectBreakingNews(),
-    fetchMededelingen(profile?.school_id),
-    fetchTodaysScores(profile?.school_id)
-  ]);
-  
-  // --- NIEUWE LOGICA ---
-  // 2. LEID ACTIEVE TESTEN AF UIT DE OPGEHAALDE SCORES
-  // Dit vervangt de logica van de oude fetchActiveTests functie.
-  
-  const todayTestIds = new Set();
-  todaysScoresData.forEach(score => {
-    if (score.test_id) {
-      todayTestIds.add(score.test_id);
-    }
-  });
 
-  let activeTestsData = [];
-  if (todayTestIds.size > 0) {
-    const testPromises = Array.from(todayTestIds).map(testId => getDoc(doc(db, 'testen', testId)));
-    const testSnaps = await Promise.all(testPromises);
-    activeTestsData = testSnaps
-      .filter(snap => snap.exists())
-      .map(snap => ({ id: snap.id, ...snap.data() }));
-  }
-  
-  setBreakingNewsItems(breakingNewsData);
-  setActiveTests(activeTestsData);
-  
+  // Data komt nu uit de state, geen fetch meer nodig.
+  // We gebruiken de states die door de nieuwe useEffect zijn gevuld:
+  // testHighscores, breakingNewsItems, mededelingenData, activeTests
+
   const highscoreItems = testHighscores.map((testData) => ({
     type: CONTENT_TYPES.HIGHSCORES,
     data: testData,
@@ -740,14 +754,15 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     id: `highscore-${testData.test.id}`,
     lastShown: 0
   }));
-  
-  const breakingItems = breakingNewsData.map((item) => ({
+
+  // breakingNewsItems komt al correct geformatteerd uit de API
+  const breakingItems = breakingNewsItems.map((item) => ({
     ...item,
     priority: 15,
     showFrequency: 3
   }));
-  
-  const activeTestItems = activeTestsData.map((test) => ({
+
+  const activeTestItems = activeTests.map((test) => ({
     type: CONTENT_TYPES.ACTIVE_TEST,
     data: {
       text: `📝 Test afgenomen: ${test.naam}`,
@@ -760,11 +775,10 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     id: `active-test-${test.id}`,
     lastShown: 0
   }));
-  
-  const otherContent = [];
-  
-  try {
 
+  const otherContent = [];
+
+  try {
     const shuffledQuotes = shuffleArray([...SPORT_QUOTES]);
     for (let i = 0; i < 2; i++) otherContent.push({
       type: CONTENT_TYPES.QUOTE,
@@ -792,7 +806,8 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
   } catch (error) {
     console.error("Fout bij het aanmaken van statische content:", error);
   }
-// 1. Maak EERST de mededeling-items aan met de data die is opgehaald
+
+  // Gebruik mededelingenData uit de state
   const mededelingItems = mededelingenData.map(item => ({
     type: 'mededeling',
     priority: 20,
@@ -805,7 +820,8 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     },
     id: `mededeling-${item.id}`
   }));
-  // BUILD ALTERNATING PATTERN
+
+  // BUILD ALTERNATING PATTERN (deze logica blijft hetzelfde)
   let diverseContent = [];
   diverseContent.push(...mededelingItems);
   breakingItems.forEach(item => {
@@ -813,10 +829,10 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
   });
   diverseContent.push(...activeTestItems);
   diverseContent.push(...otherContent);
-  
+
   const shuffledDiverseContent = shuffleArray(diverseContent);
   const finalPattern = [];
-  
+
   const highscoreCount = highscoreItems.length;
   let diverseItemsForLoop = [...shuffledDiverseContent];
   if (highscoreCount > 0 && diverseItemsForLoop.length === 0) {
@@ -845,13 +861,10 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
 
   // Creëer de eindeloze, afwisselende lus
   for (let i = 0; i < loopLength; i++) {
-    // Voeg een highscore toe en herhaal de lijst indien nodig (met %)
     finalPattern.push(highscoreItems[i % highscoreCount]);
-    
-    // Voeg een 'ander' item toe en herhaal de lijst indien nodig (met %)
     finalPattern.push(diverseItemsForLoop[i % diverseCount]);
   }
-  
+
   console.log(`📊 Finaal patroon gegenereerd: ${finalPattern.length} items. Beide lijsten worden nu herhaald.`);
   return finalPattern;
 };
@@ -931,71 +944,25 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     };
   }, []);
 
-  // Test scores ophalen
   useEffect(() => {
-    const fetchTestHighscores = async () => {
-      if (!profile?.school_id) {
-        setLoading(false);
-        return;
-      }
-      
-      setLoading(true);
+    // Alleen uitvoeren als de hoofd-data geladen is
+    if (loading) return; 
 
-      try {
-        const testenQuery = query(
-          collection(db, 'testen'),
-          where('school_id', '==', profile.school_id),
-          where('is_actief', '==', true)
-        );
-        const testenSnap = await getDocs(testenQuery);
-        const allTests = testenSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // generateContentItems is nu synchroon
+    const items = generateContentItems(); 
+    setContentItems(items);
+    setUsedContentIndices([]); // Reset de indices
+    console.log(`🎯 ${items.length} content items gegenereerd`);
 
-        const testHighscorePromises = allTests.map(async (test) => {
-          const direction = test.score_richting === 'laag' ? 'asc' : 'desc';
-          const scoreQuery = query(
-            collection(db, 'scores'),
-            where('test_id', '==', test.id),
-            orderBy('score', direction),
-            limit(3)
-          );
-          const scoreSnap = await getDocs(scoreQuery);
-          
-          const scores = scoreSnap.docs.map(doc => ({
-            ...doc.data(),
-            id: doc.id,
-            datum: doc.data().datum?.toDate ? doc.data().datum.toDate() : new Date(doc.data().datum)
-          }));
-
-          return scores.length > 0 ? { test, scores } : null;
-        });
-
-        const results = await Promise.all(testHighscorePromises);
-        const validResults = results.filter(Boolean);
-        setTestHighscores(validResults);
-
-      } catch (error) {
-        console.error('Error fetching test highscores:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTestHighscores();
-  }, [profile?.school_id]);
-
-  // Update content items wanneer data verandert
-  useEffect(() => {
-    const updateContent = async () => {
-      if (loading) return;
-      
-      const items = await generateContentItems();
-      setContentItems(items);
-      setUsedContentIndices([]);
-      console.log(`🎯 ${items.length} content items gegenereerd`);
-    };
-    
-    updateContent();
-  }, [testHighscores, liveNewsData, liveScoresData, loading]);
+}, [
+    testHighscores, 
+    liveNewsData, 
+    liveScoresData, 
+    loading, 
+    mededelingenData,  // <-- NIEUWE DEPENDENCY
+    breakingNewsItems, // <-- NIEUWE DEPENDENCY
+    activeTests        // <-- NIEUWE DEPENDENCY
+]);
 
   // Tijd updaten
   useEffect(() => {
@@ -1074,26 +1041,7 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     
     return seasonalData[month] || null;
   };
-const fetchTodaysScores = async (school_id) => {
-  if (!school_id) return [];
-  try {
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
 
-    const scoresQuery = query(
-      collection(db, 'scores'),
-      where('school_id', '==', school_id),
-      where('datum', '>=', startOfDay),
-      where('datum', '<=', endOfDay)
-    );
-    const scoresSnap = await getDocs(scoresQuery);
-    return scoresSnap.docs.map(doc => doc.data());
-  } catch (error) {
-    console.error("Fout bij ophalen scores van vandaag:", error);
-    return [];
-  }
-};
 
 const canPostMessages = () => {
     // Administrators en super-administrators mogen altijd posten
@@ -1110,101 +1058,8 @@ const canPostMessages = () => {
     return false;
   };
 
-const fetchMededelingen = async (school_id) => {
-  if (!school_id) return [];
-  try {
-    const vandaag = new Date();
-    const mededelingenQuery = query(
-      collection(db, 'mededelingen'),
-      where('school_id', '==', school_id),
-      where('vervalDatum', '>', Timestamp.fromDate(vandaag))
-    );
-    const querySnapshot = await getDocs(mededelingenQuery);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error("Fout bij ophalen mededelingen:", error);
-    return [];
-  }
-};
-
 // Functie om breaking news te detecteren (nieuwe highscores vandaag)
-const detectBreakingNews = async () => {
-  if (!profile?.school_id) return [];
-  
-  try {
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
-    // Haal vandaag's scores op
-    const todayScoresQuery = query(
-      collection(db, 'scores'),
-      where('school_id', '==', profile.school_id),
-      where('datum', '>=', startOfDay)
-    );
-    
-    const todayScoresSnap = await getDocs(todayScoresQuery);
-    const breakingNews = [];
-    
-    for (const scoreDoc of todayScoresSnap.docs) {
-      const scoreData = scoreDoc.data();
-      
-      // Controleer of dit een nieuwe highscore is
-      const testRef = doc(db, 'testen', scoreData.test_id);
-      const testSnap = await getDoc(testRef);
-      
-      if (!testSnap.exists()) continue;
-      
-      const testData = testSnap.data();
-      const direction = testData.score_richting === 'laag' ? 'asc' : 'desc';
-      
-      // Haal beste score vóór vandaag op
-      const previousBestQuery = query(
-        collection(db, 'scores'),
-        where('test_id', '==', scoreData.test_id),
-        where('datum', '<', startOfDay),
-        orderBy('score', direction),
-        limit(1)
-      );
-      
-      const previousBestSnap = await getDocs(previousBestQuery);
-      
-      let isNewRecord = false;
-      if (previousBestSnap.empty) {
-        // Eerste score voor deze test
-        isNewRecord = true;
-      } else {
-        const previousBest = previousBestSnap.docs[0].data();
-        if (testData.score_richting === 'hoog') {
-          isNewRecord = scoreData.score > previousBest.score;
-        } else {
-          isNewRecord = scoreData.score < previousBest.score;
-        }
-      }
-      
-      if (isNewRecord) {
-        breakingNews.push({
-          type: CONTENT_TYPES.BREAKING_NEWS,
-          data: {
-            title: `🏆 NIEUW RECORD! ${testData.naam}`,
-            subtitle: `${scoreData.leerling_naam} behaalde ${formatScoreWithUnit(scoreData.score, testData.eenheid)}`,
-            test: testData,
-            score: scoreData,
-            timestamp: scoreData.datum?.toDate ? scoreData.datum.toDate() : new Date()
-          },
-          priority: 15, // Hoogste prioriteit
-          id: `breaking-${scoreDoc.id}`,
-          createdAt: Date.now()
-        });
-      }
-    }
-    
-    return breakingNews;
-    
-  } catch (error) {
-    console.error('Error detecting breaking news:', error);
-    return [];
-  }
-};
+
   // Manual feed refresh functie
   const handleFeedRefresh = async () => {
     setFeedLoading(true);

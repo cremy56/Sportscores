@@ -1,8 +1,7 @@
 // src/components/MededelingModal.jsx
 import { useState, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { db } from '../firebase';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { auth } from '../firebase';
 import toast from 'react-hot-toast';
 import { Loader2, Megaphone, CheckCircleIcon } from 'lucide-react';
 
@@ -15,38 +14,52 @@ export default function MededelingModal({ isOpen, onClose, onSuccess, profile })
     const daysOptions = Array.from({ length: 30 }, (_, i) => i + 1);
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!tekst.trim()) {
-            toast.error("Het bericht mag niet leeg zijn.");
-            return;
+    e.preventDefault();
+    if (!tekst.trim()) {
+        toast.error("Het bericht mag niet leeg zijn.");
+        return;
+    }
+    setLoading(true);
+    const loadingToast = toast.loading('Bericht opslaan...');
+
+    // De datums worden nu op de server berekend
+
+    try {
+        const user = auth.currentUser;
+        if (!user) {
+            throw new Error("Geen gebruiker ingelogd.");
         }
-        setLoading(true);
-        const loadingToast = toast.loading('Bericht opslaan...');
+        const token = await user.getIdToken();
 
-        const maakDatum = new Date();
-        const vervalDatum = new Date();
-        vervalDatum.setDate(maakDatum.getDate() + parseInt(zichtbaarheidInDagen, 10));
-
-        try {
-            await addDoc(collection(db, 'mededelingen'), {
-                school_id: profile.school_id,
+        const response = await fetch('/api/createMededeling', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
                 type: type,
                 tekst: tekst,
-                auteurNaam: profile.naam,
-                maakDatum: Timestamp.fromDate(maakDatum),
-                vervalDatum: Timestamp.fromDate(vervalDatum)
-            });
-            toast.success('Bericht succesvol geplaatst!');
-            onSuccess();
-            onClose();
-        } catch (err) {
-            console.error("Fout bij opslaan van mededeling:", err);
-            toast.error(`Fout: ${err.message}`);
-        } finally {
-            toast.dismiss(loadingToast);
-            setLoading(false);
+                zichtbaarheidInDagen: parseInt(zichtbaarheidInDagen, 10)
+            })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+             throw new Error(result.error || 'Fout bij opslaan');
         }
-    };
+
+        toast.success('Bericht succesvol geplaatst!');
+        onSuccess();
+        onClose();
+    } catch (err) {
+        console.error("Fout bij opslaan van mededeling:", err);
+        toast.error(`Fout: ${err.message}`);
+    } finally {
+        toast.dismiss(loadingToast);
+        setLoading(false);
+    }
+};
 
     return (
         <Transition.Root show={isOpen} as={Fragment}>
