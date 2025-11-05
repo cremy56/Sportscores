@@ -130,7 +130,7 @@ async function handleGetLeaderboard(req, res, decodedToken) {
         // 3a. Test data
         const testRef = db.collection('testen').doc(testId);
         const testSnap = await testRef.get();
-        if (!testSnap.exists()) {
+        if (!testSnap.exists) {
             return res.status(404).json({ error: 'Test niet gevonden' });
         }
         const testData = testSnap.data();
