@@ -30,7 +30,7 @@ export default async function handler(req, res) {
         const profileRef = db.collection('users').doc(firebaseUid);
         const docSnap = await profileRef.get();
 
-        if (docSnap.exists) {
+       if (docSnap.exists()) {
             console.log('✅ Profile already exists');
             return res.status(200).json({ 
                 success: true, 
