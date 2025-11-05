@@ -1,18 +1,16 @@
 // src/components/Leaderboard.jsx
 import { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { db } from '../firebase';
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
+import { auth } from '../firebase'; // Importeer auth
+// Verwijder alle 'firebase/firestore' imports
 import { formatScoreWithUnit } from '../utils/formatters.js';
-import { Users, User } from 'lucide-react';
-
-// CACHE voor gebruikersdata om duplicate queries te voorkomen
-const usersCache = new Map();
-const cacheExpiry = 5 * 60 * 1000; // 5 minuten
 
 // --- HELPER FUNCTIE 1: Schooljaar veilig berekenen ---
-function getSchoolYear(date) {
-    if (!date || isNaN(new Date(date).getTime())) {
+// (Deze functie blijft hetzelfde, geen Firebase calls)
+function getSchoolYear(dateStr) {
+    if (!dateStr) return 'Onbekend';
+    const date = new Date(dateStr); // Datum komt nu als ISO string van server
+    if (isNaN(date.getTime())) {
         return 'Onbekend';
     }
     const year = date.getFullYear();
@@ -25,101 +23,11 @@ function getSchoolYear(date) {
     }
 }
 
-// --- HELPER FUNCTIE 2: Leeftijd berekenen ---
-function calculateAge(birthDate) {
-    if (!birthDate) return null;
-
-    // Converteer Firestore Timestamp naar JS Date object indien nodig
-    const birth = birthDate.toDate ? birthDate.toDate() : new Date(birthDate);
-
-    // Controleer of de datum geldig is
-    if (isNaN(birth.getTime())) {
-        return null;
-    }
-    
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-    }
-    
-    return age;
-}
-
-
-// --- HELPER FUNCTIE 3: Gecachte gebruikersdata ophalen ---
-async function getCachedUsers(schoolId) {
-    const cacheKey = `users_and_allowed_${schoolId}`; // Aangepaste cache key
-    const cached = usersCache.get(cacheKey);
-    
-    if (cached && (Date.now() - cached.timestamp) < cacheExpiry) {
-        return cached.data;
-    }
-    
-    try {
-        // Query voor beide collecties parallel om tijd te besparen
-        const usersRef = collection(db, 'users');
-        const toegestaneGebruikersRef = collection(db, 'toegestane_gebruikers');
-
-        const usersQuery = query(
-            usersRef, 
-            where('rol', '==', 'leerling'),
-            where('school_id', '==', schoolId)
-        );
-        const toegestaneQuery = query(
-            toegestaneGebruikersRef,
-            where('rol', '==', 'leerling'),
-            where('school_id', '==', schoolId)
-        );
-
-        // Wacht tot beide queries voltooid zijn
-        const [usersSnapshot, toegestaneSnapshot] = await Promise.all([
-            getDocs(usersQuery),
-            getDocs(toegestaneQuery)
-        ]);
-        
-        const usersData = {};
-        
-        // 1. Voeg data toe uit de 'users' collectie
-        usersSnapshot.docs.forEach(doc => {
-            const userData = doc.data();
-            if (userData.email) {
-                usersData[userData.email] = {
-                    geboortedatum: userData.geboortedatum,
-                    naam: userData.naam
-                };
-            }
-        });
-
-        // 2. Voeg data toe uit de 'toegestane_gebruikers' collectie
-        toegestaneSnapshot.docs.forEach(doc => {
-            const userData = doc.data();
-            // Het document ID is hier de email
-            if (doc.id && !usersData[doc.id]) { // Voeg alleen toe als de gebruiker nog niet bestaat
-                 usersData[doc.id] = {
-                    geboortedatum: userData.geboortedatum,
-                    naam: userData.naam
-                };
-            }
-        });
-        
-        // Sla de gecombineerde data op in de cache
-        usersCache.set(cacheKey, {
-            data: usersData,
-            timestamp: Date.now()
-        });
-        
-        return usersData;
-    } catch (error) {
-        console.error('Error fetching combined users data:', error);
-        return {}; // Geef een leeg object terug bij een fout
-    }
-}
+// --- HELPER FUNCTIE 2 & 3 (getCachedUsers, calculateAge) ---
+// Deze zijn VERWIJDERD en verplaatst naar de server.
 
 export default function Leaderboard({ testId, globalAgeFilter, isLearner }) { 
-    const { profile } = useOutletContext();
+    const { profile } = useOutletContext(); // Profile is nog steeds nodig voor school_id
     const [scores, setScores] = useState([]);
     const [testData, setTestData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -128,12 +36,13 @@ export default function Leaderboard({ testId, globalAgeFilter, isLearner }) {
 
     // Cleanup bij unmount
     useEffect(() => {
+        isMountedRef.current = true; // Zet op true bij mount
         return () => {
             isMountedRef.current = false;
         };
     }, []);
 
-    // HOOFDEFFECT: Deze wordt getriggerd bij elke wijziging van testId, school_id of globalAgeFilter
+    // HOOFDEFFECT: Haalt data op via de nieuwe API
     useEffect(() => {
         const fetchScores = async () => {
             if (!testId || !profile?.school_id) {
@@ -145,146 +54,34 @@ export default function Leaderboard({ testId, globalAgeFilter, isLearner }) {
             setError(null);
 
             try {
-                console.log('=== FETCHING SCORES ===');
-                console.log('Test ID:', testId);
-                console.log('School ID:', profile.school_id);
-                console.log('Global Age Filter:', globalAgeFilter);
-                console.log('Profile Role:', profile.rol);
+                const user = auth.currentUser;
+                if (!user) throw new Error("Niet ingelogd");
+                const token = await user.getIdToken();
 
-                // 1. Test data ophalen
-                const testRef = doc(db, 'testen', testId);
-                const testSnap = await getDoc(testRef);
-
-                if (!testSnap.exists()) {
-                    throw new Error("Test niet gevonden.");
-                }
-                const currentTestData = testSnap.data();
-                setTestData(currentTestData);
-
-                // 2. Scores ophalen - meer ophalen als we gaan filteren op leeftijd
-                const scoresRef = collection(db, 'scores');
-                const scoreDirection = currentTestData.score_richting === 'hoog' ? 'desc' : 'asc';
-                
-                const scoresQuery = query(
-                    scoresRef, 
-                    where('test_id', '==', testId),
-                    where('school_id', '==', profile.school_id),
-                    orderBy('score', scoreDirection),
-                    limit(globalAgeFilter ? 200 : 20) // Veel meer ophalen bij filtering
-                );
-
-                const querySnapshot = await getDocs(scoresQuery);
-                let rawScores = querySnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    console.log('📊 Raw score data:', {
-                        leerling_id: data.leerling_id,
-                        leerling_naam: data.leerling_naam,
-                        score: data.score,
-                        school_id: data.school_id
-                    });
-                    return {
-                        ...data,
-                        id: doc.id,
-                        datum: data.datum?.toDate ? data.datum.toDate() : null
-                    };
+                const response = await fetch('/api/getLeaderboard', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        testId: testId,
+                        globalAgeFilter: globalAgeFilter 
+                    })
                 });
 
-                console.log('Raw scores ophgehaald:', rawScores.length);
-
-                // Check if component is still mounted
-                if (!isMountedRef.current) return;
-
-                // 3. LEEFTIJDSFILTERING
-                if (globalAgeFilter && profile?.school_id) {
-                    console.log('=== FILTERING BY AGE ===');
-                    console.log('Target age:', globalAgeFilter);
-                    
-                    // Haal gebruikersdata op
-                    const usersData = await getCachedUsers(profile.school_id);
-                    console.log('Users data keys:', Object.keys(usersData).length);
-                    
-                    if (!isMountedRef.current) return;
-                    
-                    // Filter scores op basis van leeftijd
-                    const filteredScores = [];
-                    
-                    rawScores.forEach((score, index) => {
-                        // Probeer eerst op email
-                        let userData = usersData[score.leerling_id];
-                        
-                        // Als email niet gevonden, probeer naam matching
-                        if (!userData) {
-                            console.log(`No user data found for email: ${score.leerling_id} (${score.leerling_naam})`);
-                            console.log('Available keys:', Object.keys(usersData));
-                            
-                            // Zoek op naam als fallback
-                            const scoreName = score.leerling_naam?.toLowerCase();
-                            if (scoreName) {
-                                for (const [key, user] of Object.entries(usersData)) {
-                                    const userName = user.naam?.toLowerCase();
-                                    if (userName && (
-                                        userName === scoreName ||
-                                        userName.includes(scoreName) ||
-                                        scoreName.includes(userName)
-                                    )) {
-                                        console.log(`🎯 Found name match: "${score.leerling_naam}" matches user "${user.naam}" (${key})`);
-                                        userData = user;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if (!userData) {
-                            console.log(`❌ Could not find user data for: ${score.leerling_id} (${score.leerling_naam})`);
-                            return;
-                        }
-                        
-                        if (!userData.geboortedatum) {
-                            console.log(`❌ No birth date for user: ${score.leerling_id} (${score.leerling_naam})`);
-                            return;
-                        }
-                        const scoreUserAge = calculateAge(userData.geboortedatum);
-                        console.log(`Processing ${score.leerling_naam}: birth date =`, userData.geboortedatum);
-                          if (scoreUserAge === null) {
-                              return; // Sla over als leeftijd niet berekend kan worden
-                          }
-                          
-                          // De logica om te bepalen of de score moet worden opgenomen
-                        const targetAge = globalAgeFilter;
-                    let isMatch = false;
-
-                    if (targetAge === 12) {
-                        isMatch = scoreUserAge <= 12; // Inclusief 12 jaar en jonger
-                    } else if (targetAge === 17) {
-                        isMatch = scoreUserAge >= 17; // Inclusief 17 jaar en ouder
-                    } else {
-                        isMatch = scoreUserAge === targetAge; // Exacte leeftijd voor 13, 14, 15, 16
-                    }
-                    // --- EINDE VAN DE WIJZIGING ---
-                    
-                    if (isMatch) {
-                        console.log(`✓ Including: ${score.leerling_naam} (age ${scoreUserAge}, rule for ${targetAge})`);
-                        filteredScores.push(score);
-                    } else {
-                        console.log(`✗ Excluding: ${score.leerling_naam} (age ${scoreUserAge}, wanted ${targetAge})`);
-                    }
-                });
-                    
-                    rawScores = filteredScores;
-                    console.log(`Filtered to ${rawScores.length} scores for age ${globalAgeFilter}`);
-                } else {
-                    console.log('No age filtering - showing all scores');
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Kon scores niet laden');
                 }
 
-                // 4. Neem de top 5
-                const top5Scores = rawScores.slice(0, 5);
-                console.log('Final top 5 scores:', top5Scores.map(s => `${s.leerling_naam}: ${s.score}`));
-                
-                setScores(top5Scores);
+                if (isMountedRef.current) {
+                    setScores(data.scores);
+                    setTestData(data.testData);
+                }
 
             } catch (err) {
-                console.error('Error fetching highscores:', err);
+                console.error('Error fetching leaderboard via API:', err);
                 if (isMountedRef.current) {
                     setError('Kon de scores niet laden.');
                 }
@@ -296,7 +93,9 @@ export default function Leaderboard({ testId, globalAgeFilter, isLearner }) {
         };
 
         fetchScores();
-    }, [testId, profile?.school_id, globalAgeFilter]); // BELANGRIJKE DEPENDENCY ARRAY
+    }, [testId, profile?.school_id, globalAgeFilter]); // Dependency array blijft hetzelfde
+
+    // --- RENDER LOGICA (blijft grotendeels hetzelfde) ---
 
     if (loading) return (
         <div className="text-center text-gray-500 pt-4">
