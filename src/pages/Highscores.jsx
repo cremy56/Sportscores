@@ -1,7 +1,7 @@
 // src/pages/Highscores.jsx
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { db, auth } from '../firebase';
+import { db, app } from '../firebase';
 import CategoryCard from '../components/CategoryCard';
 import { getAuth } from 'firebase/auth';
 
@@ -63,7 +63,7 @@ export default function Highscores() {
             setError(null);
             setLoading(true); // Zet loading hier
 
-            const auth = getAuth(); // <-- KRIJG DE AUTH INSTANTIE
+            const auth = getAuth(app); // <-- KRIJG DE AUTH INSTANTIE
             const user = auth.currentUser; // <-- KRIJG DE USER VAN DE INSTANTIE
             if (!user) {
                 throw new Error("Geen gebruiker ingelogd.");

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { getAuth } from 'firebase/auth';// Importeer auth
+import { app } from '../firebase';
 // Verwijder alle 'firebase/firestore' imports
 import { formatScoreWithUnit } from '../utils/formatters.js';
 
@@ -54,7 +55,7 @@ export default function Leaderboard({ testId, globalAgeFilter, isLearner }) {
             setError(null);
 
             try {
-                const auth = getAuth(); // <-- KRIJG DE AUTH INSTANTIE
+                const auth = getAuth(app); // <-- KRIJG DE AUTH INSTANTIE
                 const user = auth.currentUser; // <-- KRIJG DE USER VAN DE INSTANTIE
                 if (!user) throw new Error("Niet ingelogd");
                 const token = await user.getIdToken();
