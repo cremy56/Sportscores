@@ -1,5 +1,5 @@
 // pages/api/getAdValvasData.js
-import { db, verifyToken } from './firebaseAdmin.js';
+import { db, verifyToken } from '../../lib/firebaseAdmin.js';
 import { Timestamp } from 'firebase-admin/firestore'; // Belangrijk! Gebruik de Admin Timestamp
 
 // Helper functie (kopiëren uit je client-side utils)
@@ -163,53 +163,117 @@ async function getBreakingNewsAndActiveTests(schoolId) {
 }
 
 
-// --- HOOFD HANDLER ---
-export default async function handler(req, res) {
-    if (req.method !== 'GET') {
-        return res.status(405).json({ error: 'Method Not Allowed' });
-    }
-
+// --- FUNCTIE 2: CREATE MEDEDELING (Logica van createMededeling.js) ---
+async function handleCreateData(req, res, decodedToken) {
+    // try...catch block uit createMededeling.js
     try {
-        // === 1. AUTHENTICATIE ===
-        const decodedToken = await verifyToken(req.headers.authorization);
-        
-        // === 2. HAAL PROFIEL (en school_id) ===
+        // === 2. AUTORISATIE (Haal profiel op) ===
+        // We hebben de token al, we hebben de body nodig
+        const { type, tekst, zichtbaarheidInDagen } = req.body;
+
         const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
         if (!adminUserSnap.exists) {
             return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
         }
-        const schoolId = adminUserSnap.data().school_id;
+        const adminProfile = adminUserSnap.data();
 
-        if (!schoolId) {
-            return res.status(400).json({ error: 'Geen school_id aan jouw profiel gekoppeld.' });
+        // Check of de rol wel mededelingen mag posten
+        if (!['leerkracht', 'super-administrator'].includes(adminProfile.rol)) {
+            return res.status(403).json({ error: 'Je hebt geen rechten om dit te doen.' });
         }
 
-        // === 3. VOER ALLE QUERIES PARALLEL UIT ===
-        const [
-            highscoresData, 
-            mededelingenData, 
-            newsAndTestData
-        ] = await Promise.all([
-            getTestHighscores(schoolId),
-            getMededelingen(schoolId),
-            getBreakingNewsAndActiveTests(schoolId)
-        ]);
+        // === 3. VALIDATIE ===
+        if (!tekst || !tekst.trim()) {
+            return res.status(400).json({ error: 'Bericht mag niet leeg zijn.' });
+        }
+        if (!['event', 'prestatie'].includes(type)) {
+            return res.status(400).json({ error: 'Ongeldig type bericht.' });
+        }
+        const dagen = parseInt(zichtbaarheidInDagen, 10);
+        if (isNaN(dagen) || dagen < 1 || dagen > 30) {
+            return res.status(400).json({ error: 'Ongeldige zichtbaarheid (1-30 dagen).' });
+        }
 
-        // === 4. STUUR GECOMBINEERD ANTWOORD TERUG ===
-        res.status(200).json({
-            success: true,
-            testHighscores: highscoresData,
-            mededelingen: mededelingenData,
-            breakingNews: newsAndTestData.breakingNews,
-            activeTests: newsAndTestData.activeTests,
-            todayScores: newsAndTestData.todayScores // Optioneel, maar kan nuttig zijn
-        });
+        // === 4. DATA VERWERKEN (Veilig) ===
+        const maakDatum = new Date();
+        const vervalDatum = new Date();
+        vervalDatum.setDate(maakDatum.getDate() + dagen);
+
+        const mededelingData = {
+            school_id: adminProfile.school_id,
+            auteurNaam: adminProfile.naam,
+            type: type,
+            tekst: tekst.trim(),
+            maakDatum: Timestamp.fromDate(maakDatum),
+            vervalDatum: Timestamp.fromDate(vervalDatum)
+        };
+
+        await db.collection('mededelingen').add(mededelingData);
+
+        res.status(200).json({ success: true, message: 'Bericht succesvol geplaatst!' });
 
     } catch (error) {
+        console.error('❌ API Error in POST /content:', error);
+        res.status(500).json({ error: 'Fout bij opslaan van mededeling' });
+    }
+}
+
+
+// --- HOOFD HANDLER (Router) ---
+// VERVANG je oude 'export default' handler met DEZE
+export default async function handler(req, res) {
+    try {
+        // Stap 1 (Authenticatie) gebeurt hier voor BEIDE routes
+        const decodedToken = await verifyToken(req.headers.authorization);
+        
+        if (req.method === 'GET') {
+            // === 2. HAAL PROFIEL (en school_id) ===
+            const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
+            if (!adminUserSnap.exists) {
+                return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
+            }
+            const schoolId = adminUserSnap.data().school_id;
+
+            if (!schoolId) {
+                return res.status(400).json({ error: 'Geen school_id aan jouw profiel gekoppeld.' });
+            }
+
+            // === 3. VOER ALLE QUERIES PARALLEL UIT ===
+            const [
+                highscoresData, 
+                mededelingenData, 
+                newsAndTestData
+            ] = await Promise.all([
+                getTestHighscores(schoolId),
+                getMededelingen(schoolId),
+                getBreakingNewsAndActiveTests(schoolId)
+            ]);
+
+            // === 4. STUUR GECOMBINEERD ANTWOORD TERUG ===
+            return res.status(200).json({
+                success: true,
+                testHighscores: highscoresData,
+                mededelingen: mededelingenData,
+                breakingNews: newsAndTestData.breakingNews,
+                activeTests: newsAndTestData.activeTests,
+                todayScores: newsAndTestData.todayScores
+            });
+        }
+
+        if (req.method === 'POST') {
+            return await handleCreateData(req, res, decodedToken);
+        }
+        
+        // Als het geen GET of POST is
+        res.setHeader('Allow', ['GET', 'POST']);
+        return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+
+    } catch (error) {
+        // Vangt token-fouten op
         if (error.message.includes('token')) {
             return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
         }
-        console.error('❌ API Error in getAdValvasData:', error);
-        res.status(500).json({ error: 'Fout bij ophalen van dashboard data' });
+        console.error('❌ API Hoofd-error in /content:', error);
+        res.status(500).json({ error: 'Interne serverfout' });
     }
 }

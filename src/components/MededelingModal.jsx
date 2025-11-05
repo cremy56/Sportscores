@@ -31,7 +31,7 @@ export default function MededelingModal({ isOpen, onClose, onSuccess, profile })
         }
         const token = await user.getIdToken();
 
-        const response = await fetch('/api/createMededeling', {
+        const response = await fetch('/api/content', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

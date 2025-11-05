@@ -1,8 +1,46 @@
-// pages/api/getLeaderboard.js
-import { db, verifyToken } from './firebaseAdmin.js';
+// pages/api/tests.js
+import { db, verifyToken } from '../../lib/firebaseAdmin.js';
 import { Timestamp } from 'firebase-admin/firestore';
 
-// --- HELPER FUNCTIE 1: Leeftijd berekenen (Server-side) ---
+// --- FUNCTIE 1: GET TESTS (Logica van getTests.js) ---
+async function handleGetTests(req, res, decodedToken) {
+    try {
+        // === 2. AUTORISATIE (Haal school_id van de gebruiker) ===
+        const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
+        if (!adminUserSnap.exists) {
+            return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
+        }
+        const schoolId = adminUserSnap.data().school_id;
+
+        if (!schoolId) {
+            return res.status(400).json({ error: 'Geen school_id aan jouw profiel gekoppeld.' });
+        }
+
+        // === 3. DATA OPHALEN ===
+        const testenRef = db.collection('testen');
+        const q = testenRef
+            .where('school_id', '==', schoolId)
+            .where('is_actief', '==', true)
+            .orderBy('naam');
+        
+        const querySnapshot = await q.get();
+        const testenData = querySnapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data() 
+        }));
+
+        return res.status(200).json({ success: true, testen: testenData });
+
+    } catch (error) {
+        console.error('❌ API Error in handleGetTests:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen van testen' });
+    }
+}
+
+
+// --- FUNCTIE 2: GET LEADERBOARD (Logica van getLeaderboard.js) ---
+
+// --- Plak hier de helpers van getLeaderboard.js ---
 function calculateAge(birthDate) {
     if (!birthDate) return null;
     // Converteer Firestore Timestamp naar JS Date
@@ -17,9 +55,6 @@ function calculateAge(birthDate) {
     }
     return age;
 }
-
-// --- HELPER FUNCTIE 2: Gebruikersdata ophalen (Server-side) ---
-// We gebruiken een simpele cache om herhaalde aanroepen te versnellen
 const usersCache = new Map();
 const cacheExpiry = 5 * 60 * 1000; // 5 minuten
 
@@ -76,33 +111,22 @@ async function getCachedUsers(schoolId) {
         return new Map();
     }
 }
+// --- Einde helpers ---
 
-
-// --- HOOFD HANDLER ---
-export default async function handler(req, res) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method Not Allowed' });
-    }
-
+async function handleGetLeaderboard(req, res, decodedToken) {
+    // Plak hier de 'try...catch' block uit getLeaderboard.js
+    // MAAR... sla de 'verifyToken' en 'adminUserSnap' stappen over.
     try {
-        // === 1. AUTHENTICATIE & INPUT ===
-        const decodedToken = await verifyToken(req.headers.authorization);
-        const { testId, globalAgeFilter } = req.body;
-
-        if (!testId) {
-            return res.status(400).json({ error: 'Test ID is verplicht' });
-        }
+        const { testId, globalAgeFilter } = req.body; // Haal payload op
         
-        // === 2. AUTORISATIE (Haal profiel op) ===
+        // === 2. AUTORISATIE (Alleen schoolId nodig) ===
         const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
         if (!adminUserSnap.exists) {
             return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
         }
-        const profile = adminUserSnap.data();
-        const schoolId = profile.school_id;
+        const schoolId = adminUserSnap.data().school_id;
 
         // === 3. HAAL BENODIGDE DATA OP ===
-        
         // 3a. Test data
         const testRef = db.collection('testen').doc(testId);
         const testSnap = await testRef.get();
@@ -166,12 +190,42 @@ export default async function handler(req, res) {
             scores: top5Scores,
             testData: testData // Stuur testdata mee
         });
+        
 
     } catch (error) {
-        if (error.message.includes('token')) {
+        console.error('❌ API Error in handleGetLeaderboard:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen van leaderboard' });
+    }
+}
+
+
+// --- HOOFD HANDLER (Router) ---
+export default async function handler(req, res) {
+    if (req.method !== 'POST') {
+        res.setHeader('Allow', ['POST']);
+        return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+    }
+    
+    try {
+        const decodedToken = await verifyToken(req.headers.authorization);
+        const { action } = req.body; // We gebruiken 'action' om te routeren
+
+        switch (action) {
+            case 'get_tests':
+                return await handleGetTests(req, res, decodedToken);
+            
+            case 'get_leaderboard':
+                return await handleGetLeaderboard(req, res, decodedToken);
+            
+            default:
+                return res.status(400).json({ error: 'Invalid action' });
+        }
+
+    } catch (error) {
+         if (error.message.includes('token')) {
             return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
         }
-        console.error('❌ API Error in getLeaderboard:', error);
-        res.status(500).json({ error: 'Fout bij ophalen van leaderboard' });
+        console.error('❌ API Hoofd-error in /tests:', error);
+        return res.status(500).json({ error: 'Fout bij verwerken test data' });
     }
 }

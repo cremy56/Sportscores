@@ -58,17 +58,15 @@ export default function Leaderboard({ testId, globalAgeFilter, isLearner }) {
                 if (!user) throw new Error("Niet ingelogd");
                 const token = await user.getIdToken();
 
-                const response = await fetch('/api/getLeaderboard', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        testId: testId,
-                        globalAgeFilter: globalAgeFilter 
-                    })
-                });
+                const response = await fetch('/api/tests', { // <-- GEWIJZIGD
+                method: 'POST',
+                // ... headers ...
+                body: JSON.stringify({
+                    action: 'get_leaderboard', // <-- TOEGEVOEGD
+                    testId: testId,
+                    globalAgeFilter: globalAgeFilter 
+                })
+            });
 
                 const data = await response.json();
                 if (!response.ok) {

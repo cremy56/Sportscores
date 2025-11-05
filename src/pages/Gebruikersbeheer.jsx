@@ -79,13 +79,16 @@ export default function Gebruikersbeheer() {
                 // We hergebruiken de getAuthToken helper
                 const token = await getAuthToken(); 
                 
-                const response = await fetch('/api/getUsersCount', {
+                const response = await fetch('/api/users', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ schoolId: profile.school_id })
+                    body: JSON.stringify({ 
+                        action: 'get_count', // <-- HIER TOEVOEGEN
+                        schoolId: profile.school_id 
+                    })
                 });
 
                 const result = await response.json();
@@ -118,13 +121,14 @@ export default function Gebruikersbeheer() {
         try {
             const token = await getAuthToken(); // <-- HAAL AUTH TOKEN OP
 
-            const response = await fetch('/api/getUsers', {
+            const response = await fetch('/api/users', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}` // <-- VOEG TOKEN TOE
                 },
                 body: JSON.stringify({
+                    action: 'get_users',
                     schoolId: profile.school_id,
                     filterKlas: filterKlas || null,
                     filterRol: filterRol || null
@@ -200,13 +204,16 @@ export default function Gebruikersbeheer() {
                 currentUserProfileHash: profile.smartschool_id_hash
             };
 
-            const response = await fetch('/api/bulkCreateUsers', {
+            const response = await fetch('/api/users', { // <-- URL GEWIJZIGD
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` // <-- VOEG TOKEN TOE
+                    'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(apiPayload),
+                body: JSON.stringify({
+                    action: 'bulk_create', // <-- ACTION HIER TOEVOEGEN
+                    ...apiPayload // De rest van je data (csvData, etc.)
+                }),
             });
 
             const result = await response.json();
@@ -277,13 +284,15 @@ export default function Gebruikersbeheer() {
         try {
             const token = await getAuthToken(); // <-- HAAL AUTH TOKEN OP
 
-            const response = await fetch('/api/deleteUser', {
+            const response = await fetch('/api/users', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}` // <-- VOEG TOKEN TOE
                 },
-                body: JSON.stringify({ userId: user.id })
+                body: JSON.stringify({ 
+                    action: 'delete_user',
+                    userId: user.id })
             });
 
             if (response.status === 401) {

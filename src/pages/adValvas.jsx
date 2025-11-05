@@ -705,7 +705,7 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
             if (!user) throw new Error("Gebruiker niet ingelogd");
             const token = await user.getIdToken();
 
-            const response = await fetch('/api/getAdValvasData', {
+            const response = await fetch('/api/content', {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

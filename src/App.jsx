@@ -112,7 +112,7 @@ function App() {
             const token = await firebaseUser.getIdToken();
 
             // 2. Roep de nieuwe, veilige API-route aan
-            const response = await fetch('/api/checkAndCreateUser', {
+            const response = await fetch('/api/auth', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -174,14 +174,16 @@ export default function UserFormModal({
                     currentUserProfileHash: currentUserProfile?.smartschool_id_hash
                 };
 
-                response = await fetch('/api/updateUser', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // <-- 2. VOEG TOKEN TOE
-                    },
-                    body: JSON.stringify(apiPayload),
-                });
+                response = await fetch('/api/users', {
+                method: 'POST',
+                headers: { /* ... */ },
+                body: JSON.stringify({
+                    action: 'update_user', // <-- TOEGEVOEGD
+                    userId: userData.id,
+                    updates: updates, // (je 'updates' object)
+                    currentUserProfileHash: currentUserProfile.smartschool_id_hash
+                })
+            })
                 result = await response.json();
 
             } else {
@@ -194,14 +196,18 @@ export default function UserFormModal({
                     currentUserProfileHash: currentUserProfile?.smartschool_id_hash
                 };
 
-                response = await fetch('/api/createUser', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // <-- 3. VOEG TOKEN TOE
-                    },
-                    body: JSON.stringify(apiPayload),
-                });
+                
+                response = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    action: 'create_user',
+                    formData: formData,
+                    targetSchoolId: targetSchoolId, // <-- CORRECT
+                    currentUserRole: currentUserRole, // <-- CORRECT
+                    currentUserProfileHash: currentUserProfile?.smartschool_id_hash
+                })
+            })
                 result = await response.json();
             }
 

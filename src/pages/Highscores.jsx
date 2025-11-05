@@ -68,12 +68,14 @@ export default function Highscores() {
             }
             const token = await user.getIdToken();
 
-            const response = await fetch('/api/getTests', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const response = await fetch('/api/tests', {
+            method: 'POST', // <-- GEWIJZIGD
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json' // <-- TOEGEVOEGD
+            },
+            body: JSON.stringify({ action: 'get_tests' }) // <-- TOEGEVOEGD
+        });
 
             const data = await response.json();
             if (!response.ok) {
