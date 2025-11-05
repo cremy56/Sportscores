@@ -665,7 +665,34 @@ class LiveSportsFeedAPI {
     return this.fetchLiveSportsData();
   }
 }
-useEffect(() => {
+
+
+export default function AdValvas() {
+  const { profile, school } = useOutletContext();
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [contentItems, setContentItems] = useState([]);
+  const [currentContentIndex, setCurrentContentIndex] = useState(0);
+  const [animationClass, setAnimationClass] = useState('');
+  const [testHighscores, setTestHighscores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newsIndex, setNewsIndex] = useState(0);
+  const [liveNewsData, setLiveNewsData] = useState([]);
+  const [liveScoresData, setLiveScoresData] = useState([]);
+  const [liveFeedAPI] = useState(() => new LiveSportsFeedAPI());
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [lastFeedRefresh, setLastFeedRefresh] = useState(null);
+  const [usedContentIndices, setUsedContentIndices] = useState([]);
+  const [feedStatus, setFeedStatus] = useState('connecting');
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [breakingNewsItems, setBreakingNewsItems] = useState([]);
+const [activeTests, setActiveTests] = useState([]);
+const [contentPattern, setContentPattern] = useState([]); // Alternerend patroon
+const [patternIndex, setPatternIndex] = useState(0);
+const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
+ const [schoolSettings, setSchoolSettings] = useState(null);
+ const [mededelingenData, setMededelingenData] = useState([]);
+
+ useEffect(() => {
     if (!profile?.school_id) {
         setLoading(false);
         return;
@@ -704,31 +731,6 @@ useEffect(() => {
 
     fetchAllAdValvasData();
 }, [profile?.school_id]);
-
-export default function AdValvas() {
-  const { profile, school } = useOutletContext();
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [contentItems, setContentItems] = useState([]);
-  const [currentContentIndex, setCurrentContentIndex] = useState(0);
-  const [animationClass, setAnimationClass] = useState('');
-  const [testHighscores, setTestHighscores] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [newsIndex, setNewsIndex] = useState(0);
-  const [liveNewsData, setLiveNewsData] = useState([]);
-  const [liveScoresData, setLiveScoresData] = useState([]);
-  const [liveFeedAPI] = useState(() => new LiveSportsFeedAPI());
-  const [feedLoading, setFeedLoading] = useState(true);
-  const [lastFeedRefresh, setLastFeedRefresh] = useState(null);
-  const [usedContentIndices, setUsedContentIndices] = useState([]);
-  const [feedStatus, setFeedStatus] = useState('connecting');
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [breakingNewsItems, setBreakingNewsItems] = useState([]);
-const [activeTests, setActiveTests] = useState([]);
-const [contentPattern, setContentPattern] = useState([]); // Alternerend patroon
-const [patternIndex, setPatternIndex] = useState(0);
-const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
- const [schoolSettings, setSchoolSettings] = useState(null);
- const [mededelingenData, setMededelingenData] = useState([]);
 
 // Functie om de content te vernieuwen (belangrijk voor na het toevoegen)
   const refreshContent = () => {
