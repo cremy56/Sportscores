@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import CategoryCard from '../components/CategoryCard';
+import { getAuth } from 'firebase/auth';
 
 // Importeer de calculateAge helper functie (of definieer hem hier)
 function calculateAge(birthDate) {
@@ -62,20 +63,21 @@ export default function Highscores() {
             setError(null);
             setLoading(true); // Zet loading hier
 
-            const user = auth.currentUser;
+            const auth = getAuth(); // <-- KRIJG DE AUTH INSTANTIE
+            const user = auth.currentUser; // <-- KRIJG DE USER VAN DE INSTANTIE
             if (!user) {
                 throw new Error("Geen gebruiker ingelogd.");
             }
             const token = await user.getIdToken();
 
-            const response = await fetch('/api/tests', {
-            method: 'POST', // <-- GEWIJZIGD
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json' // <-- TOEGEVOEGD
-            },
-            body: JSON.stringify({ action: 'get_tests' }) // <-- TOEGEVOEGD
-        });
+            const response = await fetch('/api/tests', { // <-- URL GEWIJZIGD
+                method: 'POST', // <-- METHOD GEWIJZIGD
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json' // <-- HEADER TOEGEVOEGD
+                },
+                body: JSON.stringify({ action: 'get_tests' }) // <-- BODY TOEGEVOEGD
+            });
 
             const data = await response.json();
             if (!response.ok) {

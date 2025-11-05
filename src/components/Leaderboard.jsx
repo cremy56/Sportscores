@@ -1,7 +1,7 @@
 // src/components/Leaderboard.jsx
 import { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { auth } from '../firebase'; // Importeer auth
+import { getAuth } from 'firebase/auth';// Importeer auth
 // Verwijder alle 'firebase/firestore' imports
 import { formatScoreWithUnit } from '../utils/formatters.js';
 
@@ -54,7 +54,8 @@ export default function Leaderboard({ testId, globalAgeFilter, isLearner }) {
             setError(null);
 
             try {
-                const user = auth.currentUser;
+                const auth = getAuth(); // <-- KRIJG DE AUTH INSTANTIE
+                const user = auth.currentUser; // <-- KRIJG DE USER VAN DE INSTANTIE
                 if (!user) throw new Error("Niet ingelogd");
                 const token = await user.getIdToken();
 
