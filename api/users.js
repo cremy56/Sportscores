@@ -1,6 +1,6 @@
 // pages/api/users.js
-import { db, verifyToken } from '../../lib/firebaseAdmin.js';
-import { getMasterKey } from '../../lib/keyManager.js';
+import { db, verifyToken } from '../lib/firebaseAdmin.js';
+import { getMasterKey } from '../lib/keyManager.js';
 import CryptoJS from 'crypto-js';
 
 // --- HELPER FUNCTIES (Vanuit alle bestanden) ---

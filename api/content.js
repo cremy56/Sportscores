@@ -1,5 +1,5 @@
 // pages/api/getAdValvasData.js
-import { db, verifyToken } from '../../lib/firebaseAdmin.js';
+import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { Timestamp } from 'firebase-admin/firestore'; // Belangrijk! Gebruik de Admin Timestamp
 
 // Helper functie (kopiëren uit je client-side utils)

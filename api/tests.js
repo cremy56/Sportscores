@@ -1,5 +1,5 @@
 // pages/api/tests.js
-import { db, verifyToken } from '../../lib/firebaseAdmin.js';
+import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { Timestamp } from 'firebase-admin/firestore';
 
 // --- FUNCTIE 1: GET TESTS (Logica van getTests.js) ---

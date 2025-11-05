@@ -1,5 +1,5 @@
 // api/checkAndCreateUser.js - ULTRA SAFE VERSION
-import { db, verifyToken } from '../../lib/firebaseAdmin.js';
+import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import CryptoJS from 'crypto-js';
 
 
