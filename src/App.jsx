@@ -108,38 +108,51 @@ function App() {
     // Deze functie roept nu de veilige API-route aan.
     const checkAndCreateProfile = async (firebaseUser) => {
         try {
-            // 1. Haal het token van de zojuist ingelogde gebruiker op
-            const token = await firebaseUser.getIdToken();
+        // 1. Haal het token van de zojuist ingelogde gebruiker op
+        const token = await firebaseUser.getIdToken(); // <--
 
-            // 2. Roep de nieuwe, veilige API-route aan
-            const response = await fetch('/api/auth', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-                // Body is niet nodig, de API leest de ID uit het token
-            });
-            
-            const result = await response.json();
-
-            if (!response.ok) {
-                // Als de API een 403 (verboden) of 500 stuurt, gooi een fout
-                throw new Error(result.error || 'Kon profiel niet valideren');
+        // 2. Roep de veilige API-route aan
+        const response = await fetch('/api/auth', { // <-- (Dit was al /api/auth)
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             }
-            
-            console.log("Profiel check succesvol:", result.status);
-            
-            // 3. Zet de listener op (dit blijft hetzelfde)
-            // Deze check is nodig omdat onSnapshot faalt als het document nog niet bestaat
-            if (result.status === 'profile_created') {
-                // Wacht even tot het profiel is gerepliceerd
-                setTimeout(setupListener, 500); 
-            } else {
-                setupListener();
-            }
+        });
 
-        } catch (error) {
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Kon profiel niet valideren');
+        }
+
+        console.log("Profiel check succesvol:", result.status);
+
+        // 3. Zet de listener op
+        // *** NIEUWE WIJZIGING HIER ***
+        const setupListenerWithToken = () => {
+          unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
+            if (docSnap.exists()) {
+              const profileData = { 
+                  id: docSnap.id, 
+                  ...docSnap.data(),
+                  _token: token // <-- VOEG TOKEN TOE AAN DE PROFILE STATE
+              };
+              setProfile(profileData);
+
+              if (!activeRole) {
+                setActiveRole(profileData.rol);
+              }
+            }
+          });
+        };
+
+        if (result.status === 'profile_created') {
+            setTimeout(setupListenerWithToken, 500); 
+        } else {
+            setupListenerWithToken();
+        }
+
+    } catch (error) {
             // Als de check mislukt (bv. 403 Forbidden), log de gebruiker uit
             console.error("Fout bij het controleren/aanmaken van profiel:", error.message);
             toast.error(error.message);
