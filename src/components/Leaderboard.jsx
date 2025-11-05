@@ -1,8 +1,7 @@
 // src/components/Leaderboard.jsx
 import { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { getAuth } from 'firebase/auth';// Importeer auth
-import { app } from '../firebase';
+
 // Verwijder alle 'firebase/firestore' imports
 import { formatScoreWithUnit } from '../utils/formatters.js';
 
@@ -55,20 +54,25 @@ export default function Leaderboard({ testId, globalAgeFilter, isLearner }) {
             setError(null);
 
             try {
-                const auth = getAuth(app); // <-- KRIJG DE AUTH INSTANTIE
-                const user = auth.currentUser; // <-- KRIJG DE USER VAN DE INSTANTIE
-                if (!user) throw new Error("Niet ingelogd");
-                const token = await user.getIdToken();
+        // *** NIEUWE TOKEN LOGICA ***
+        if (!profile?._token) { // Wacht tot de token in de profile context zit
+            throw new Error("Authenticatie-token nog niet beschikbaar.");
+        }
+        const token = profile._token;
+        // *** EINDE NIEUWE LOGICA ***
 
-                const response = await fetch('/api/tests', { // <-- GEWIJZIGD
-                method: 'POST',
-                // ... headers ...
-                body: JSON.stringify({
-                    action: 'get_leaderboard', // <-- TOEGEVOEGD
-                    testId: testId,
-                    globalAgeFilter: globalAgeFilter 
-                })
-            });
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`, // <-- Gebruik de context token
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'get_leaderboard',
+                testId: testId,
+                globalAgeFilter: globalAgeFilter 
+            })
+        });
 
                 const data = await response.json();
                 if (!response.ok) {

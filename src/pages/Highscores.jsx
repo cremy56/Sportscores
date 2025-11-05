@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db, app } from '../firebase';
 import CategoryCard from '../components/CategoryCard';
-import { getAuth } from 'firebase/auth';
+
 
 // Importeer de calculateAge helper functie (of definieer hem hier)
 function calculateAge(birthDate) {
@@ -60,24 +60,24 @@ export default function Highscores() {
 
     const fetchTesten = async () => {
         try {
-            setError(null);
-            setLoading(true); // Zet loading hier
+        setError(null);
+        setLoading(true); 
 
-            const auth = getAuth(app); // <-- KRIJG DE AUTH INSTANTIE
-            const user = auth.currentUser; // <-- KRIJG DE USER VAN DE INSTANTIE
-            if (!user) {
-                throw new Error("Geen gebruiker ingelogd.");
-            }
-            const token = await user.getIdToken();
+        // *** NIEUWE TOKEN LOGICA ***
+        if (!profile?._token) { // Wacht tot de token in de profile context zit
+            throw new Error("Authenticatie-token nog niet beschikbaar.");
+        }
+        const token = profile._token;
+        // *** EINDE NIEUWE LOGICA ***
 
-            const response = await fetch('/api/tests', { // <-- URL GEWIJZIGD
-                method: 'POST', // <-- METHOD GEWIJZIGD
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json' // <-- HEADER TOEGEVOEGD
-                },
-                body: JSON.stringify({ action: 'get_tests' }) // <-- BODY TOEGEVOEGD
-            });
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ action: 'get_tests' })
+        });
 
             const data = await response.json();
             if (!response.ok) {
