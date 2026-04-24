@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useOutletContext, useNavigate } from 'react-router-dom';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+
 
 // Helper om de datum van vandaag in JJJJ-MM-DD formaat te krijgen
 const getTodayString = () => {
@@ -29,7 +30,8 @@ const MijnGezondheid = () => {
   const todayString = getTodayString();
 
   // NIEUWE LOGICA: Bepaal welke gebruiker ID te gebruiken
-  const effectiveUserId = profile?.id;
+ 
+const effectiveUserId = getAuth().currentUser?.uid;
   console.log('DEBUG: Effective User ID:', effectiveUserId);
   console.log('DEBUG: Profile structure:', profile);
   
