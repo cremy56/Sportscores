@@ -843,7 +843,7 @@ const loadWelzijnStats = async ({ groupId, studentId }) => {
     const result = await getStats({
       schoolId: profile.school_id,
       classId: groupId,
-      studentId: selectedStudent?.email || selectedStudent?.id,  // ← Dit wordt waarschijnlijk niet goed verwerkt in de backend
+      studentId: selectedStudent?.id, 
     });
     
     console.log('🔍 WELZIJN RESPONSE:', JSON.stringify(result.data, null, 2));

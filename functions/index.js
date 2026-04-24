@@ -12,5 +12,6 @@ module.exports = {
   ...require('./src/welzijn-functions'),
   ...require('./src/class-challenge-functions'),
   ...require('./src/admin-functions'),
-  ...require('./src/auth-functions')
+  ...require('./src/auth-functions'),
+  ...require('./src/migration-functions') 
 };

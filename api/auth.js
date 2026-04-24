@@ -20,11 +20,6 @@ export default async function handler(req, res) {
         const decodedToken = await verifyToken(req.headers.authorization);
         const firebaseUid = decodedToken.uid;
         
-        console.log('Token verified:', {
-            firebase_uid: firebaseUid,
-            email: decodedToken.email || 'no email',
-            has_provider_data: !!decodedToken.providerData
-        });
         
         // === 2. CONTROLEER OF 'users' PROFIEL AL BESTAAT ===
         console.log('Step 2: Checking if profile exists...');
@@ -155,6 +150,7 @@ export default async function handler(req, res) {
             rol: whitelistData.rol,
             klas: whitelistData.klas || null,
             gender: whitelistData.gender || null,
+            klassen: whitelistData.klassen || [],
             onboarding_complete: true,
             created_at: new Date(),
             last_login: new Date(),

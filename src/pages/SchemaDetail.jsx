@@ -36,7 +36,8 @@ export default function SchemaDetail() {
     const [loading, setLoading] = useState(true);
 
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator';
-    const isCurrentUser = profile?.id === leerlingProfiel?.id || profile?.email === leerlingProfiel?.email;
+    const isCurrentUser = profile?.id === leerlingProfiel?.id ||
+    (profile?.smartschool_id_hash && profile.smartschool_id_hash === leerlingProfiel?.smartschool_id_hash);
 
   useEffect(() => {
     // Voorkom multiple fetches
@@ -59,37 +60,35 @@ export default function SchemaDetail() {
             const { userId, schemaTemplateId } = schemaData;
                 const schemaId = `${userId}_${schemaTemplateId}`;
 
-                const leerlingRef = doc(db, 'users', userId);
-                const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
-                const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-
-                const [leerlingSnap, schemaDetailsSnap, actiefSchemaSnap] = await Promise.all([
-                    getDoc(leerlingRef),
-                    getDoc(schemaDetailsRef),
-                    getDoc(actiefSchemaRef)
-                ]);
-
-            // Zoek leerling data
-            if (leerlingSnap.exists()) {
-                setLeerlingProfiel(leerlingSnap.data());
+                // ✅ Stap 1: Zoek Firebase UID via smartschool_id_hash in users
+            const usersQuery = query(
+                collection(db, 'users'),
+                where('smartschool_id_hash', '==', userId)
+            );
+            const usersSnapshot = await getDocs(usersQuery);
+ 
+            if (!usersSnapshot.empty) {
+                // ✅ Gevonden in users (leerling heeft al ingelogd)
+                const userDoc = usersSnapshot.docs[0];
+                setLeerlingProfiel({ id: userDoc.id, ...userDoc.data() });
             } else {
-                // Fallback zoeken in verschillende collecties
-                const toegestaneQuery = query(
-                    collection(db, 'toegestane_gebruikers'),
-                    where('email', '==', userId)
-                );
-                const toegestaneSnapshot = await getDocs(toegestaneQuery);
-                
-                if (!toegestaneSnapshot.empty) {
-                    setLeerlingProfiel(toegestaneSnapshot.docs[0].data());
-                } else {
-                    const toegestaneRef = doc(db, 'toegestane_gebruikers', userId);
-                    const toegestaneSnap = await getDoc(toegestaneRef);
-                    if (toegestaneSnap.exists()) {
-                        setLeerlingProfiel(toegestaneSnap.data());
-                    }
+                // ✅ Fallback: zoek in toegestane_gebruikers op hash (doc ID = hash)
+                const toegestaneRef = doc(db, 'toegestane_gebruikers', userId);
+                const toegestaneSnap = await getDoc(toegestaneRef);
+                if (toegestaneSnap.exists()) {
+                    setLeerlingProfiel({ id: toegestaneSnap.id, ...toegestaneSnap.data() });
                 }
             }
+ 
+            // leerling_schemas blijft: schemaId = `${userId}_${schemaTemplateId}` ✅
+            // userId hier = smartschool_id_hash (consistent met Groeiplan.jsx)
+            const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
+            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
+ 
+            const [schemaDetailsSnap, actiefSchemaSnap] = await Promise.all([
+                getDoc(schemaDetailsRef),
+                getDoc(actiefSchemaRef)
+            ]);
 
             if (schemaDetailsSnap.exists()) {
                 setSchemaDetails({ id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() });
@@ -137,7 +136,7 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
             [taakId]: {
                 voltooid_op: ervaringData.datum,
                 ervaring: ervaringData.ervaring,
-                ingevuld_door: profile.naam || profile.email
+                ingevuld_door: profile.naam || 'Leerling'  // 
             }
         };
 
@@ -265,7 +264,7 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                 if (gevalideerd) {
                     updatedGevalideerdeWeken[`week${weekNummer}`] = {
                         gevalideerd: true,
-                        gevalideerd_door: profile.naam || profile.email,
+                        gevalideerd_door: profile.naam || 'Leerkracht', //
                         gevalideerd_op: new Date().toISOString(),
                         trainingsXP: weekXP
                     };
@@ -299,7 +298,7 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                         
                         if (!alleTakenIngevuld || !weekIsGevalideerd) {
                             nieuweHuidigeWeek = week.week_nummer;
-                            console.log(`Week ${week.week_nummer} niet volledig -> huidige week = ${nieuweHuidigeWeek}`);
+                            
                             break;
                         } else {
                             // Week is volledig, ga naar volgende week (als die bestaat)

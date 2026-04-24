@@ -18,6 +18,7 @@ exports.awardTestScore = onCall({
   if (!userDoc.exists || !testDoc.exists) throw new Error('User or test not found');
 
   const userData = userDoc.data();
+  const studentHash = userData.smartschool_id_hash;
   const batch = db.batch();
 
   // 1. ATTITUDE BELONING: Deelname
@@ -33,7 +34,7 @@ exports.awardTestScore = onCall({
   // 2. PRESTATIE BELONING: Records
   if (newScore !== null && newScore !== undefined) {
     // A. Persoonlijk Record
-    const prInfo = await checkPersonalRecord(userId, testId, newScore, testDoc.data());
+    const prInfo = await checkPersonalRecord(studentHash, testId, newScore, testDoc.data());
     if (prInfo.isPersonalRecord) {
       const prXP = 500;
       // --- START CORRECTIE ---
@@ -66,7 +67,7 @@ exports.awardTestScore = onCall({
 });
 
 // Helper functies voor test XP functie
-async function checkLeaderboardPositions(userId, testId, newScore, userData) {
+async function checkLeaderboardPositions(testId, newScore, userData) {
   const testData = (await db.collection('testen').doc(testId).get()).data();
   const schoolId = userData.school_id;
   const userAge = calculateAge(userData.geboortedatum);
@@ -104,18 +105,14 @@ async function checkLeaderboardPositions(userId, testId, newScore, userData) {
 
 // Voeg ook de checkPersonalRecord functie toe zoals eerder gedefinieerd
 // HOUD ALLEEN DEZE VERSIE - verwijder de andere duplicaten
-async function checkPersonalRecord(userId, testId, newScore, testData) {
+async function checkPersonalRecord(studentHash, testId, newScore, testData) {
   
   
   try {
-    console.log('=== CHECK PERSONAL RECORD ===');
-    console.log('User ID:', userId);
-    console.log('Test ID:', testId);
-    console.log('New Score:', newScore);
-    
+   
     // Use admin SDK query methods
     const historicalScoresRef = db.collection('scores')
-      .where('leerling_id', '==', userId)
+      .where('leerling_id', '==', studentHash)  // ✅ smartschool_id_hash
       .where('test_id', '==', testId)
       .where('score', '!=', null);
     

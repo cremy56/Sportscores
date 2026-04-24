@@ -28,25 +28,198 @@ const encryptName = (name, masterKey) => {
     return CryptoJS.AES.encrypt(name, masterKey).toString();
 };
 
+async function handleUpdateTeacherKlassen(req, res, decodedToken) {
+    try {
+        const { userId, klassen } = req.body;
+ 
+        // === 1. VALIDATIE ===
+        if (!userId) {
+            return res.status(400).json({ error: 'userId is verplicht' });
+        }
+        if (!Array.isArray(klassen)) {
+            return res.status(400).json({ error: 'klassen moet een array zijn' });
+        }
+ 
+        // === 2. AUTORISATIE ===
+        // Alleen admins mogen klassen toewijzen
+        const adminSnap = await db.collection('users').doc(decodedToken.uid).get();
+        if (!adminSnap.exists) {
+            return res.status(403).json({ error: 'Jouw gebruikersprofiel niet gevonden.' });
+        }
+        const adminProfile = adminSnap.data();
+ 
+        if (!['administrator', 'super-administrator'].includes(adminProfile.rol)) {
+            return res.status(403).json({ error: 'Alleen administrators kunnen klassen toewijzen.' });
+        }
+ 
+        // === 3. CHECK LEERKRACHT BESTAAT ===
+        // userId = smartschool_id_hash (document ID in toegestane_gebruikers)
+        const leerkrachtSnap = await db.collection('toegestane_gebruikers').doc(userId).get();
+        if (!leerkrachtSnap.exists) {
+            return res.status(404).json({ error: 'Leerkracht niet gevonden.' });
+        }
+ 
+        const leerkrachtData = leerkrachtSnap.data();
+ 
+        // Controleer dat het effectief een leerkracht is
+        if (leerkrachtData.rol !== 'leerkracht') {
+            return res.status(400).json({ error: 'Gebruiker is geen leerkracht.' });
+        }
+ 
+        // Controleer dat admin en leerkracht tot dezelfde school behoren
+        if (adminProfile.rol !== 'super-administrator' &&
+            leerkrachtData.school_id !== adminProfile.school_id) {
+            return res.status(403).json({ error: 'Toegang geweigerd: andere school.' });
+        }
+ 
+        // === 4. UPDATE TOEGESTANE_GEBRUIKERS ===
+        await db.collection('toegestane_gebruikers').doc(userId).update({
+            klassen: klassen,
+            last_updated: new Date()
+        });
+ 
+        // === 5. UPDATE USERS COLLECTIE ===
+        // Zoek de users doc op basis van smartschool_id_hash
+        const usersQuery = await db.collection('users')
+            .where('smartschool_id_hash', '==', userId)
+            .limit(1)
+            .get();
+ 
+        if (!usersQuery.empty) {
+            await usersQuery.docs[0].ref.update({
+                klassen: klassen,
+                last_updated: new Date()
+            });
+            console.log(`✅ users collectie bijgewerkt voor leerkracht ${userId.substring(0, 16)}...`);
+        } else {
+            // Leerkracht heeft nog niet ingelogd → alleen toegestane_gebruikers updaten
+            // Bij eerste login wordt users automatisch aangemaakt via checkAndCreateUser
+            console.warn(`⚠️ Geen users doc gevonden voor leerkracht ${userId.substring(0, 16)}... - nog niet ingelogd`);
+        }
+ 
+        // === 6. AUDIT LOG ===
+        await db.collection('audit_logs').add({
+            admin_user_id: decodedToken.uid,
+            action: 'update_teacher_klassen',
+            target_leerkracht_hash: userId,
+            school_id: leerkrachtData.school_id,
+            klassen_toegewezen: klassen,
+            timestamp: new Date()
+        });
+ 
+        console.log(`✅ Klassen bijgewerkt voor leerkracht: ${klassen.join(', ')}`);
+ 
+        return res.status(200).json({
+            success: true,
+            message: `Klassen bijgewerkt: ${klassen.join(', ') || 'geen'}`,
+            klassen
+        });
+ 
+    } catch (error) {
+        console.error('❌ API Error in handleUpdateTeacherKlassen:', error);
+        return res.status(500).json({ error: 'Fout bij bijwerken klassen: ' + error.message });
+    }
+}
+
 // --- LOGICA 1: Get Users (van getUsers.js) ---
+
+
 async function handleGetUsers(req, res, decodedToken) {
     try {
-        const { schoolId, filterKlas, filterRol } = req.body; // payload uit body
+        const { schoolId, filterKlas, filterRol } = req.body;
 
         if (!schoolId) {
             return res.status(400).json({ error: 'School ID is verplicht' });
         }
-        
+
+        // === 1. HAAL PROFIEL OP ===
         const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
         if (!adminUserSnap.exists) {
             return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
         }
         const adminUserProfile = adminUserSnap.data();
 
+        // === 2. SCHOOL CHECK ===
         if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== schoolId) {
             return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
         }
 
+        // === 3. KLASSEN CHECK VOOR LEERKRACHTEN (GDPR!) ===
+        // Leerkrachten mogen ALLEEN leerlingen zien van hun eigen klassen
+        if (adminUserProfile.rol === 'leerkracht') {
+            const toegestaneKlassen = adminUserProfile.klassen || [];
+
+            // Als leerkracht geen klassen heeft toegewezen → geen toegang
+            if (toegestaneKlassen.length === 0) {
+                return res.status(403).json({
+                    error: 'Je hebt nog geen klassen toegewezen gekregen. Contacteer de administrator.'
+                });
+            }
+
+            // Als een specifieke klas gevraagd wordt → check of leerkracht die klas heeft
+            if (filterKlas && !toegestaneKlassen.includes(filterKlas)) {
+                return res.status(403).json({
+                    error: `Je hebt geen toegang tot klas ${filterKlas}.`
+                });
+            }
+
+            // Als geen klas gevraagd wordt → beperk tot eigen klassen
+            // (voorkomt dat leerkracht alle leerlingen van de school ziet)
+            if (!filterKlas) {
+                // We gaan queries per klas uitvoeren en samenvoegen
+                const masterKey = await getMasterKey();
+                if (!masterKey) {
+                    return res.status(500).json({ error: 'Server configuratie fout (key)' });
+                }
+
+                const alleResults = [];
+                for (const klas of toegestaneKlassen) {
+                    let q = db.collection('toegestane_gebruikers')
+                        .where('school_id', '==', schoolId)
+                        .where('klas', '==', klas);
+
+                    if (filterRol) {
+                        q = q.where('rol', '==', filterRol);
+                    }
+
+                    const snapshot = await q.get();
+                    snapshot.docs.forEach(doc => {
+                        const data = doc.data();
+                        const decryptedName = data.encrypted_name
+                            ? decryptName(data.encrypted_name, masterKey)
+                            : (data.naam || '[Naam ontbreekt]');
+
+                        alleResults.push({
+                            id: doc.id,
+                            ...data,
+                            decrypted_name: decryptedName,
+                            // Verwijder encrypted_name uit response (niet nodig op client)
+                            encrypted_name: undefined
+                        });
+                    });
+                }
+
+                // Audit log
+                await db.collection('audit_logs').add({
+                    user_id: decodedToken.uid,
+                    rol: adminUserProfile.rol,
+                    action: 'get_users',
+                    target_school_id: schoolId,
+                    klassen_opgevraagd: toegestaneKlassen,
+                    filters_used: { filterKlas: 'alle_eigen_klassen', filterRol },
+                    users_returned: alleResults.length,
+                    timestamp: new Date()
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    users: alleResults,
+                    count: alleResults.length
+                });
+            }
+        }
+
+        // === 4. ADMINS: Volledige toegang (met optionele filters) ===
         const masterKey = await getMasterKey();
         if (!masterKey) {
             return res.status(500).json({ error: 'Server configuratie fout (key)' });
@@ -65,17 +238,23 @@ async function handleGetUsers(req, res, decodedToken) {
         const snapshot = await q.get();
         const users = snapshot.docs.map(doc => {
             const data = doc.data();
-            const decryptedName = data.encrypted_name 
+            const decryptedName = data.encrypted_name
                 ? decryptName(data.encrypted_name, masterKey)
                 : (data.naam || '[Naam ontbreekt]');
-            
-            return { id: doc.id, ...data, decrypted_name: decryptedName };
+
+            return {
+                id: doc.id,
+                ...data,
+                decrypted_name: decryptedName,
+                // Verwijder encrypted_name uit response
+                encrypted_name: undefined
+            };
         });
 
-        // Audit Log
+        // Audit log
         await db.collection('audit_logs').add({
-            admin_user_id: decodedToken.uid,
-            admin_email: decodedToken.email || decodedToken.uid,
+            user_id: decodedToken.uid,
+            rol: adminUserProfile.rol,
             action: 'get_users',
             target_school_id: schoolId,
             filters_used: { filterKlas, filterRol },
@@ -83,7 +262,11 @@ async function handleGetUsers(req, res, decodedToken) {
             timestamp: new Date()
         });
 
-        return res.status(200).json({ success: true, users: users, count: users.length });
+        return res.status(200).json({
+            success: true,
+            users,
+            count: users.length
+        });
 
     } catch (error) {
         console.error('❌ API Error in handleGetUsers:', error);
@@ -212,39 +395,47 @@ async function handleCreateUser(req, res, decodedToken) {
     }
 }
 
-// --- LOGICA 4: Update User (van updateUser.js) ---
+// =============================================
+// GECORRIGEERDE FUNCTIES VOOR users.js
+// Vervang de volledige handleUpdateUser en handleDeleteUser
+// =============================================
+
+// --- LOGICA 4: Update User ---
 async function handleUpdateUser(req, res, decodedToken) {
     try {
         const { userId, updates, currentUserProfileHash } = req.body;
-       if (!userId) {
+
+        if (!userId) {
             return res.status(400).json({ error: 'userId is verplicht' });
         }
         if (!updates || typeof updates !== 'object') {
             return res.status(400).json({ error: 'updates object is verplicht' });
         }
-        
-        // === 3. DATA OPHALEN ===
+
+        // === 1. ADMIN PROFIEL OPHALEN ===
         const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
         if (!adminUserSnap.exists) {
             return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
         }
         const adminUserProfile = adminUserSnap.data();
 
+        // === 2. DOELGEBRUIKER OPHALEN (toegestane_gebruikers) ===
+        // userId = smartschool_id_hash (= doc ID in toegestane_gebruikers)
         const userRef = db.collection('toegestane_gebruikers').doc(userId);
         const userDoc = await userRef.get();
         if (!userDoc.exists()) {
             return res.status(404).json({ error: 'De te bewerken gebruiker is niet gevonden.' });
         }
-        
-        // === 4. AUTORISATIE ===
+
+        // === 3. AUTORISATIE ===
         const targetSchoolId = userDoc.data().school_id;
-        
+
         if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== targetSchoolId) {
-            console.warn(`[${decodedToken.email || decodedToken.uid}] probeerde gebruiker (${userId}) te bewerken van school ${targetSchoolId}, maar hoort zelf bij ${adminUserProfile.school_id}`); // <-- FIX HIER
+            console.warn(`[${decodedToken.email || decodedToken.uid}] probeerde gebruiker (${userId.substring(0, 16)}...) te bewerken van school ${targetSchoolId}`);
             return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
         }
 
-        // === 5. UPDATE LOGICA ===
+        // === 4. UPDATE VALIDATIE ===
         const allowedFields = ['klas', 'gender', 'is_active'];
         const updateData = {};
         for (const field of allowedFields) {
@@ -265,104 +456,114 @@ async function handleUpdateUser(req, res, decodedToken) {
         updateData.last_updated = new Date();
         updateData.updated_by_hash = currentUserProfileHash || 'admin';
 
-        console.log(`🔄 [${decodedToken.email || decodedToken.uid}] Updating user ${userId.substring(0, 16)}...`);
-
+        // === 5. UPDATE TOEGESTANE_GEBRUIKERS ===
         await userRef.update(updateData);
 
-        const userProfileRef = db.collection('users').doc(userId);
-        const userProfileSnap = await userProfileRef.get();
+        // === 6. UPDATE USERS COLLECTIE (als leerling al ingelogd heeft) ===
+        // ✅ FIX: Zoek via smartschool_id_hash, niet via userId als doc ID
+        //         (users collectie gebruikt Firebase UID als doc ID, niet de hash!)
+        const usersQuery = await db.collection('users')
+            .where('smartschool_id_hash', '==', userId)
+            .limit(1)
+            .get();
 
-        if (userProfileSnap.exists) {
-            console.log('User profiel bestaat, ook updaten...');
-            await userProfileRef.update(updateData);
+        if (!usersQuery.empty) {
+            await usersQuery.docs[0].ref.update(updateData);
+            console.log(`✅ [${decodedToken.email || decodedToken.uid}] User ${userId.substring(0, 16)}... bijgewerkt in beide collecties`);
         } else {
-            console.log('User profiel bestaat nog niet, update overgeslagen.');
+            console.log(`ℹ️ Geen users doc voor ${userId.substring(0, 16)}... (nog niet ingelogd) - alleen toegestane_gebruikers bijgewerkt`);
         }
 
-        console.log(`✅ User updated successfully`);
-
-        // === 6. AUDIT LOG ===
+        // === 7. AUDIT LOG ===
         await db.collection('audit_logs').add({
             admin_user_id: decodedToken.uid,
-            admin_email: decodedToken.email || decodedToken.uid, // <-- HIER IS DE FIX
+            admin_email: decodedToken.email || decodedToken.uid,
             action: 'update_user',
-            target_user_id: userId,
+            target_user_hash: userId,
             target_school_id: targetSchoolId,
-            fields_updated: Object.keys(updateData).filter(k => !k.includes('updated')),
+            fields_updated: Object.keys(updateData).filter(k => !k.includes('updated') && !k.includes('by')),
             timestamp: new Date(),
             ip_address: req.headers['x-forwarded-for'] || req.socket.remoteAddress
         });
 
-        return res.status(200).json({ 
-            success: true, 
+        return res.status(200).json({
+            success: true,
             message: 'Gebruiker succesvol bijgewerkt',
         });
+
     } catch (error) {
         console.error('❌ API Error in handleUpdateUser:', error);
         return res.status(500).json({ error: 'Fout bij bijwerken: ' + error.message });
     }
 }
 
-// --- LOGICA 5: Delete User (van deleteUser.js) ---
+// --- LOGICA 5: Delete User ---
 async function handleDeleteUser(req, res, decodedToken) {
     try {
         const { userId } = req.body;
-        // === 2. VALIDATIE ===
+
         if (!userId) {
             return res.status(400).json({ error: 'userId is verplicht' });
         }
 
-        // === 3. DATA OPHALEN ===
+        // === 1. ADMIN PROFIEL OPHALEN ===
         const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
         if (!adminUserSnap.exists) {
             return res.status(403).json({ error: 'Jouw gebruikersprofiel is niet gevonden.' });
         }
         const adminUserProfile = adminUserSnap.data();
 
+        // === 2. DOELGEBRUIKER OPHALEN (toegestane_gebruikers) ===
+        // userId = smartschool_id_hash (= doc ID in toegestane_gebruikers)
         const userRef = db.collection('toegestane_gebruikers').doc(userId);
         const userDoc = await userRef.get();
         if (!userDoc.exists()) {
             return res.status(404).json({ error: 'De te verwijderen gebruiker is niet gevonden.' });
         }
-        
-        // === 4. AUTORISATIE ===
+
+        // === 3. AUTORISATIE ===
         const targetSchoolId = userDoc.data().school_id;
-        
+
         if (adminUserProfile.rol !== 'super-administrator' && adminUserProfile.school_id !== targetSchoolId) {
-            console.warn(`[${decodedToken.email || decodedToken.uid}] probeerde gebruiker (${userId}) te verwijderen van school ${targetSchoolId}, maar hoort zelf bij ${adminUserProfile.school_id}`); // <-- FIX HIER
+            console.warn(`[${decodedToken.email || decodedToken.uid}] probeerde gebruiker (${userId.substring(0, 16)}...) te verwijderen van school ${targetSchoolId}`);
             return res.status(403).json({ error: 'Toegang geweigerd: je hebt geen rechten voor deze school.' });
         }
-        
-        console.log(`🗑️ [${decodedToken.email || decodedToken.uid}] Deleting user ${userId.substring(0, 16)}...`);
 
-        // === 5. DATA VERWERKEN ===
-        await db.collection('toegestane_gebruikers').doc(userId).delete();
+        // === 4. VERWIJDER UIT TOEGESTANE_GEBRUIKERS ===
+        await userRef.delete();
+        console.log(`🗑️ [${decodedToken.email || decodedToken.uid}] Gebruiker ${userId.substring(0, 16)}... verwijderd uit toegestane_gebruikers`);
 
-        const userProfileRef = db.collection('users').doc(userId);
-        const userProfileSnap = await userProfileRef.get();
+        // === 5. VERWIJDER UIT USERS COLLECTIE (als leerling al ingelogd heeft) ===
+        // ✅ FIX: Zoek via smartschool_id_hash, niet via userId als doc ID
+        //         (users collectie gebruikt Firebase UID als doc ID, niet de hash!)
+        const usersQuery = await db.collection('users')
+            .where('smartschool_id_hash', '==', userId)
+            .limit(1)
+            .get();
 
-        if (userProfileSnap.exists) {
-            await userProfileRef.delete();
-            console.log('User profiel (uit users collectie) ook verwijderd.');
+        if (!usersQuery.empty) {
+            await usersQuery.docs[0].ref.delete();
+            console.log(`✅ User profiel (Firebase UID: ${usersQuery.docs[0].id}) ook verwijderd uit users collectie`);
+        } else {
+            console.log(`ℹ️ Geen users doc gevonden voor ${userId.substring(0, 16)}... (nog niet ingelogd)`);
         }
-
-        console.log(`✅ User deleted successfully`);
 
         // === 6. AUDIT LOG ===
         await db.collection('audit_logs').add({
             admin_user_id: decodedToken.uid,
-            admin_email: decodedToken.email || decodedToken.uid, // <-- HIER IS DE FIX
+            admin_email: decodedToken.email || decodedToken.uid,
             action: 'delete_user',
-            target_user_id: userId,
+            target_user_hash: userId,
             target_school_id: targetSchoolId,
             timestamp: new Date(),
             ip_address: req.headers['x-forwarded-for'] || req.socket.remoteAddress
         });
 
-        return res.status(200).json({ 
-            success: true, 
+        return res.status(200).json({
+            success: true,
             message: 'Gebruiker succesvol verwijderd'
         });
+
     } catch (error) {
         console.error('❌ API Error in handleDeleteUser:', error);
         return res.status(500).json({ error: 'Fout bij verwijderen: ' + error.message });
@@ -542,6 +743,8 @@ export default async function handler(req, res) {
                 return await handleDeleteUser(req, res, decodedToken);
             case 'bulk_create':
                 return await handleBulkCreate(req, res, decodedToken);
+            case 'update_teacher_klassen': 
+                return await handleUpdateTeacherKlassen(req, res, decodedToken);
             default:
                 return res.status(400).json({ error: 'Invalid action' });
         }

@@ -47,7 +47,7 @@ async function removeRewardsFromNonStudents() {
         });
         
         cleanupCount++;
-        console.log(`  - Removing rewards from ${userData.rol}: ${userData.naam || userData.email}`);
+        console.log(`  - Removing rewards from ${userData.rol}: ${userData.naam || userDoc.id}`);
       }
     });
     
@@ -98,7 +98,7 @@ async function addRewardsToStudentsOnly() {
         });
         
         addCount++;
-        console.log(`  - Adding rewards to student: ${userData.naam || userData.email}`);
+        console.log(`  - Adding rewards to student: ${userData.naam || userDoc.id}`);
       }
     });
     

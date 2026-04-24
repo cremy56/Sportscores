@@ -2,109 +2,292 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
 import { db, auth } from '../firebase';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import {
+  collection, query, where, onSnapshot,
+  addDoc, serverTimestamp, doc, updateDoc, deleteDoc, getDoc
+} from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
-import { PlusIcon, UsersIcon, AcademicCapIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+  PlusIcon, UsersIcon, AcademicCapIcon,
+  PencilIcon, TrashIcon, XMarkIcon,
+  BookOpenIcon, CheckIcon
+} from '@heroicons/react/24/outline';
 import ConfirmModal from '../components/ConfirmModal';
 
-// Helper function to get user identifier for database queries
-const getUserIdentifier = (user, profile) => {
-    // Try different identifiers in order of preference
-    if (profile?.smartschool_username) {
-        return profile.smartschool_username;
-    }
-    if (profile?.email) {
-        return profile.email;
-    }
-    if (user?.email) {
-        return user.email;
-    }
-    // Fallback to uid
-    return user?.uid;
-};
+// =============================================
+// HELPER: Haal ontsleutelde leerlingen op via API
+// (gefilterd op klas)
+// =============================================
+async function fetchLeerlingenVanKlas(klas, schoolId, token) {
+  try {
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        action: 'get_users',
+        schoolId,
+        filterKlas: klas,
+        filterRol: 'leerling'
+      })
+    });
 
+    if (!response.ok) throw new Error('Fout bij ophalen leerlingen');
+    const data = await response.json();
+
+    // Geeft terug: [{ id: smartschool_id_hash, decrypted_name, klas, ... }]
+    return data.users || [];
+  } catch (error) {
+    console.error('❌ fetchLeerlingenVanKlas error:', error);
+    toast.error('Kon leerlingen niet ophalen.');
+    return [];
+  }
+}
+
+// =============================================
+// HOOFD COMPONENT
+// =============================================
 export default function Groepsbeheer() {
   const { profile } = useOutletContext();
+
+  // Tab: 'groepen' of 'klassen'
+  const [activeTab, setActiveTab] = useState('groepen');
+
+  // Manuele groepen
   const [groepen, setGroepen] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingGroepen, setLoadingGroepen] = useState(true);
+
+  // Klassen van leerkracht (uit toegestane_gebruikers)
+  const [mijnKlassen, setMijnKlassen] = useState([]);
+  const [loadingKlassen, setLoadingKlassen] = useState(false);
+
+  // Modal: nieuwe groep
   const [showModal, setShowModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Modal: leerlingen selecteren bij aanmaken groep
+  const [stapModal, setStapModal] = useState(1); // 1=naam, 2=klas kiezen, 3=leerlingen kiezen
+  const [geselecteerdeKlas, setGeselecteerdeKlas] = useState('');
+  const [leerlingenVanKlas, setLeerlingenVanKlas] = useState([]);
+  const [geselecteerdeLeerlingen, setGeselecteerdeLeerlingen] = useState([]);
+  const [loadingLeerlingen, setLoadingLeerlingen] = useState(false);
+
+  // Modal: bewerken
+  const [showEditModal, setShowEditModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
   const [editGroupName, setEditGroupName] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Modal: verwijderen
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState(null);
 
+  // =============================================
+  // EFFECT 1: Laad manuele groepen (realtime)
+  // =============================================
   useEffect(() => {
-    // Stop als het profiel (en dus de school_id) nog niet geladen is.
     if (!auth.currentUser || !profile?.school_id) {
-        setLoading(false);
-        return;
+      setLoadingGroepen(false);
+      return;
     }
 
-    const groepenCollectionRef = collection(db, 'groepen');
-    const userIdentifier = getUserIdentifier(auth.currentUser, profile); // ✅ Nieuwe regel
-    // ✅ Debug logging toevoegen
-    console.log('🔍 GROEPSBEHEER DEBUG:', {
-        currentUser: auth.currentUser,
-        profile: profile,
-        userIdentifier: userIdentifier,
-        school_id: profile.school_id
-    });
+    const userId = auth.currentUser.uid;
+
     const q = query(
-        groepenCollectionRef, 
-        where('school_id', '==', profile.school_id), 
-        where('leerkracht_id', '==', userIdentifier) // ✅ Gebruik userIdentifier
+      collection(db, 'groepen'),
+      where('school_id', '==', profile.school_id),
+      where('leerkracht_id', '==', userId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log('📚 Found groups:', snapshot.docs.length);
-      snapshot.docs.forEach(doc => {
-            console.log('Group data:', doc.data());
-        });
-        const groepenData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        setGroepen(groepenData);
-        setLoading(false);
+      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setGroepen(data);
+      setLoadingGroepen(false);
     }, (error) => {
-        console.error("Fout bij ophalen groepen:", error);
-        toast.error("Kon de groepen niet laden.");
-        setLoading(false);
+      console.error('Fout bij ophalen groepen:', error);
+      toast.error('Kon de groepen niet laden.');
+      setLoadingGroepen(false);
     });
 
     return () => unsubscribe();
-}, [profile?.school_id]);
+  }, [profile?.school_id]);
 
-  const handleCreateGroup = async (e) => {
-    e.preventDefault();
+  // =============================================
+  // EFFECT 2: Laad klassen van leerkracht
+  // Uit: toegestane_gebruikers.klassen (veld op leerkracht doc)
+  // Fallback: alle klassen van school tonen (tijdelijk, tot optie 1/2 beschikbaar)
+  // =============================================
+  useEffect(() => {
+    if (activeTab !== 'klassen' || !profile?.school_id) return;
+
+    const laadKlassen = async () => {
+      setLoadingKlassen(true);
+      try {
+        const userId = auth.currentUser.uid;
+
+        // Stap 1: Haal leerkracht profiel op uit toegestane_gebruikers
+        // via smartschool_id_hash (opgeslagen in users profiel)
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (!userDoc.exists()) return;
+
+        const userData = userDoc.data();
+        const leerkrachtHash = userData.smartschool_id_hash;
+
+        // Stap 2: Haal leerkracht uit toegestane_gebruikers
+        // om te zien welke klassen hem/haar zijn toegewezen
+        if (leerkrachtHash) {
+          const toegestaneDoc = await getDoc(
+            doc(db, 'toegestane_gebruikers', leerkrachtHash)
+          );
+
+          if (toegestaneDoc.exists()) {
+            const toegestaneData = toegestaneDoc.data();
+
+            // Optie 1/2: klassen veld bestaat al
+            if (toegestaneData.klassen && toegestaneData.klassen.length > 0) {
+              setMijnKlassen(toegestaneData.klassen);
+              setLoadingKlassen(false);
+              return;
+            }
+          }
+        }
+
+        // ⚠️ FALLBACK (tijdelijk): Toon alle unieke klassen van de school
+        // Dit wordt later vervangen door optie 1 (admin wijst klassen toe)
+        // of optie 2 (Smartschool API via Cron Job)
+        console.warn('⚠️ Geen klassen gevonden voor leerkracht - fallback naar alle klassen van school');
+
+        const leerlingenSnap = await query(
+          collection(db, 'toegestane_gebruikers'),
+          where('school_id', '==', profile.school_id),
+          where('rol', '==', 'leerling'),
+          where('is_active', '==', true)
+        );
+
+        // Gebruik API om klassen op te halen
+        const token = profile._token;
+        if (token) {
+          const response = await fetch('/api/users', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              action: 'get_users',
+              schoolId: profile.school_id,
+              filterRol: 'leerling'
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const alleKlassen = [...new Set(
+              (data.users || [])
+                .map(u => u.klas)
+                .filter(Boolean)
+                .sort()
+            )];
+            setMijnKlassen(alleKlassen);
+          }
+        }
+
+      } catch (error) {
+        console.error('Fout bij laden klassen:', error);
+        toast.error('Kon klassen niet laden.');
+      } finally {
+        setLoadingKlassen(false);
+      }
+    };
+
+    laadKlassen();
+  }, [activeTab, profile?.school_id]);
+
+  // =============================================
+  // HANDLERS: Nieuwe groep aanmaken
+  // =============================================
+
+  const handleKlasSelecteren = async (klas) => {
+    setGeselecteerdeKlas(klas);
+    setGeselecteerdeLeerlingen([]);
+    setLoadingLeerlingen(true);
+
+    const leerlingen = await fetchLeerlingenVanKlas(
+      klas,
+      profile.school_id,
+      profile._token
+    );
+
+    setLeerlingenVanKlas(leerlingen);
+    setLoadingLeerlingen(false);
+    setStapModal(3);
+  };
+
+  const toggleLeerling = (leerling) => {
+    setGeselecteerdeLeerlingen(prev => {
+      const bestaat = prev.find(l => l.id === leerling.id);
+      if (bestaat) {
+        return prev.filter(l => l.id !== leerling.id);
+      } else {
+        return [...prev, {
+          id: leerling.id,                          // smartschool_id_hash
+          naam: leerling.decrypted_name || leerling.naam,
+          klas: leerling.klas
+        }];
+      }
+    });
+  };
+
+  const handleCreateGroup = async () => {
     if (!newGroupName.trim()) {
-        toast.error("Groepsnaam mag niet leeg zijn.");
-        return;
+      toast.error('Groepsnaam mag niet leeg zijn.');
+      return;
     }
+    if (geselecteerdeLeerlingen.length === 0) {
+      toast.error('Selecteer minstens 1 leerling.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-        const userIdentifier = getUserIdentifier(auth.currentUser, profile); // ✅ Nieuwe regel
-        await addDoc(collection(db, 'groepen'), {
-            naam: newGroupName,
-            leerkracht_id: userIdentifier, // ✅ Gebruik userIdentifier
-            school_id: profile.school_id,
-            leerling_ids: [],
-            created_at: serverTimestamp()
-        });
-        toast.success(`Groep "${newGroupName}" succesvol aangemaakt!`);
-        setShowModal(false);
-        setNewGroupName('');
+      const userId = auth.currentUser.uid;
+
+      await addDoc(collection(db, 'groepen'), {
+        naam: newGroupName.trim(),
+        type: 'manueel',
+        leerkracht_id: userId,                      // Firebase UID
+        school_id: profile.school_id,
+        leerling_ids: geselecteerdeLeerlingen.map(l => l.id), // smartschool_id_hash
+        leerlingen_cache: geselecteerdeLeerlingen,  // naam cache voor display
+        auto_sync: false,
+        created_at: serverTimestamp()
+      });
+
+      toast.success(`Groep "${newGroupName}" aangemaakt!`);
+      resetModal();
     } catch (error) {
-        console.error("Fout bij aanmaken groep:", error);
-        toast.error("Kon de groep niet aanmaken.");
+      console.error('Fout bij aanmaken groep:', error);
+      toast.error('Kon de groep niet aanmaken.');
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
-};
+  };
+
+  const resetModal = () => {
+    setShowModal(false);
+    setNewGroupName('');
+    setStapModal(1);
+    setGeselecteerdeKlas('');
+    setLeerlingenVanKlas([]);
+    setGeselecteerdeLeerlingen([]);
+  };
+
+  // =============================================
+  // HANDLERS: Bewerken & Verwijderen
+  // =============================================
 
   const handleEditGroup = (group) => {
     setEditingGroup(group);
@@ -115,286 +298,391 @@ export default function Groepsbeheer() {
   const handleUpdateGroup = async (e) => {
     e.preventDefault();
     if (!editGroupName.trim()) {
-      toast.error("Groepsnaam mag niet leeg zijn.");
+      toast.error('Groepsnaam mag niet leeg zijn.');
       return;
     }
     setIsSubmitting(true);
-
     try {
-      const groupRef = doc(db, 'groepen', editingGroup.id);
-      await updateDoc(groupRef, {
-        naam: editGroupName
+      await updateDoc(doc(db, 'groepen', editingGroup.id), {
+        naam: editGroupName.trim()
       });
-      toast.success(`Groepsnaam bijgewerkt naar "${editGroupName}"`);
+      toast.success('Groepsnaam bijgewerkt!');
       setShowEditModal(false);
-      setEditingGroup(null);
-      setEditGroupName('');
     } catch (error) {
-      console.error("Fout bij wijzigen groep:", error);
-      toast.error("Kon de groepsnaam niet wijzigen.");
+      toast.error('Kon naam niet wijzigen.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteGroup = (group) => {
-    setGroupToDelete(group);
-    setShowDeleteModal(true);
-  };
-
   const confirmDeleteGroup = async () => {
     if (!groupToDelete) return;
-    
     try {
       await deleteDoc(doc(db, 'groepen', groupToDelete.id));
-      toast.success(`Groep "${groupToDelete.naam}" is verwijderd.`);
+      toast.success(`Groep "${groupToDelete.naam}" verwijderd.`);
       setShowDeleteModal(false);
       setGroupToDelete(null);
     } catch (error) {
-      console.error("Fout bij verwijderen groep:", error);
-      toast.error("Kon de groep niet verwijderen.");
+      toast.error('Kon de groep niet verwijderen.');
     }
   };
 
-  if (loading) {
-    return (
-        <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
-            <div className="bg-white p-8 rounded-2xl shadow-sm">
-                <div className="flex items-center space-x-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                    <span className="text-gray-700 font-medium">Groepen laden...</span>
-                </div>
-            </div>
-        </div>
-    );
-  }
-
+  // =============================================
+  // RENDER
+  // =============================================
   return (
     <>
       <Toaster position="top-center" />
       <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
-        
-          {/* --- MOBILE HEADER: Zichtbaar op kleine schermen, verborgen op lg en groter --- */}
-          <div className="lg:hidden mb-8">
-            <div className="flex justify-between items-center">
-              <h1 className="text-2xl font-bold text-gray-800">Mijn groepen</h1>
+
+          {/* HEADER */}
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Groepsbeheer</h1>
+            {activeTab === 'groepen' && (
               <button
-                onClick={() => setShowModal(true)}
-                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg"
+                onClick={() => { setShowModal(true); setStapModal(1); }}
+                className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-2.5 rounded-full shadow-lg hover:from-purple-700 hover:to-blue-700 transition-all"
               >
-                <PlusIcon className="h-6 w-6" />
+                <PlusIcon className="h-5 w-5" />
+                <span className="hidden sm:inline">Nieuwe Groep</span>
               </button>
-            </div>
+            )}
           </div>
 
-          {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
-          <div className="hidden lg:block mb-12">
-            <div className="flex justify-between items-center">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-                          Mijn groepen
-                      </h1>
-                      <button
-                onClick={() => setShowModal(true)}
-                className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
-              >
-                <PlusIcon className="h-6 w-6" />
-                <span className="ml-2">Nieuwe Groep</span>
-              </button>
-            </div>
+          {/* TABS */}
+          <div className="flex space-x-2 mb-8 bg-white rounded-2xl p-1.5 shadow-sm border border-slate-200 w-fit">
+            <button
+              onClick={() => setActiveTab('groepen')}
+              className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                activeTab === 'groepen'
+                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow'
+                  : 'text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <UsersIcon className="h-4 w-4" />
+              <span>Mijn Groepen</span>
+              {groepen.length > 0 && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                  activeTab === 'groepen' ? 'bg-white/20' : 'bg-gray-100'
+                }`}>
+                  {groepen.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('klassen')}
+              className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                activeTab === 'klassen'
+                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow'
+                  : 'text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <BookOpenIcon className="h-4 w-4" />
+              <span>Mijn Klassen</span>
+            </button>
           </div>
 
-          {groepen.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 text-center p-12 max-w-2xl mx-auto">
-              <div className="mb-6">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <UsersIcon className="w-8 h-8 text-purple-600" />
+          {/* TAB: MIJN GROEPEN */}
+          {activeTab === 'groepen' && (
+            <>
+              {loadingGroepen ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">Geen Groepen Gevonden</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Er zijn nog geen groepen aangemaakt. Klik op de knop hierboven om uw eerste groep te creëren 
-                  en begin met het organiseren van uw leerlingen.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-              {groepen.map((groep) => {
-                const studentCount = (groep.leerling_ids || []).length;
-                return (
-                  <div key={groep.id} className="group relative">
-                    <Link 
-                      to={`/groep/${groep.id}`} 
-                      className="block transform transition-all duration-300 hover:scale-105"
-                    >
-                      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group-hover:shadow-lg transition-all duration-300">
-                        <div className="p-6">
+              ) : groepen.length === 0 ? (
+                <div className="text-center py-20">
+                  <UsersIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-500 mb-2">Nog geen groepen</h3>
+                  <p className="text-gray-400 mb-6">Maak je eerste groep aan om leerlingen te beheren.</p>
+                  <button
+                    onClick={() => { setShowModal(true); setStapModal(1); }}
+                    className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-full shadow-lg"
+                  >
+                    <PlusIcon className="h-5 w-5" />
+                    <span>Eerste Groep Aanmaken</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {groepen.map((groep) => (
+                    <div key={groep.id} className="relative group">
+                      <Link to={`/groep/${groep.id}`}>
+                        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all hover:-translate-y-1">
                           <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-gray-900 group-hover:text-purple-700 transition-colors duration-300 line-clamp-2 flex-1">
+                            <h2 className="text-xl font-bold text-gray-900 group-hover:text-purple-700 transition-colors line-clamp-2 flex-1">
                               {groep.naam}
                             </h2>
                             <div className="bg-purple-100 p-3 rounded-2xl ml-4">
                               <AcademicCapIcon className="h-6 w-6 text-purple-600" />
                             </div>
                           </div>
-                          
                           <div className="flex items-center space-x-2 text-gray-600">
                             <UsersIcon className="h-5 w-5" />
                             <span className="text-sm font-medium">
-                              {studentCount} {studentCount === 1 ? 'leerling' : 'leerlingen'}
+                              {(groep.leerling_ids || []).length} leerlingen
                             </span>
                           </div>
                         </div>
+                      </Link>
+
+                      {/* Actie knoppen */}
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
+                        <button
+                          onClick={(e) => { e.preventDefault(); handleEditGroup(groep); }}
+                          className="p-2 bg-white/90 backdrop-blur-sm text-gray-600 hover:text-purple-600 rounded-full shadow-md"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.preventDefault(); setGroupToDelete(groep); setShowDeleteModal(true); }}
+                          className="p-2 bg-white/90 backdrop-blur-sm text-gray-600 hover:text-red-600 rounded-full shadow-md"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
                       </div>
-                    </Link>
-                    
-                    {/* Action buttons - appear on hover */}
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-2">
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleEditGroup(groep);
-                        }}
-                        className="p-2 bg-white/90 backdrop-blur-sm text-gray-600 hover:text-purple-600 rounded-full shadow-md hover:shadow-lg transition-all duration-200"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleDeleteGroup(groep);
-                        }}
-                        className="p-2 bg-white/90 backdrop-blur-sm text-gray-600 hover:text-red-600 rounded-full shadow-md hover:shadow-lg transition-all duration-200"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          
-          {groepen.length > 0 && (
-            <div className="mt-16 text-center">
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4 inline-block">
-                <div className="flex items-center justify-center space-x-8 text-sm text-slate-600 flex-wrap gap-4">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                    <span>{groepen.length} {groepen.length === 1 ? 'Groep' : 'Groepen'}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full"></div>
-                    <span>{groepen.reduce((total, groep) => total + (groep.leerling_ids || []).length, 0)} Totaal Leerlingen</span>
-                  </div>
+                  ))}
                 </div>
-              </div>
-            </div>
+              )}
+            </>
+          )}
+
+          {/* TAB: MIJN KLASSEN */}
+          {activeTab === 'klassen' && (
+            <>
+              {loadingKlassen ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </div>
+              ) : mijnKlassen.length === 0 ? (
+                <div className="text-center py-20">
+                  <BookOpenIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-500 mb-2">Geen klassen gevonden</h3>
+                  <p className="text-gray-400 text-sm">
+                    Klassen worden automatisch toegewezen door de admin of via Smartschool synchronisatie.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500 mb-6">
+                    ⚠️ <span className="font-medium">Tijdelijk:</span> Alle klassen van je school worden getoond. Klassen worden later gefilterd op basis van jouw opdracht.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {mijnKlassen.map((klas) => (
+                      <div
+                        key={klas}
+                        className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer"
+                        onClick={() => handleKlasSelecteren(klas)}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <h2 className="text-xl font-bold text-gray-900">{klas}</h2>
+                          <div className="bg-blue-100 p-3 rounded-2xl">
+                            <BookOpenIcon className="h-6 w-6 text-blue-600" />
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-500">Klik om leerlingen te bekijken</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {/* Create Group Modal */}
+      {/* =============================================
+          MODAL: Nieuwe Groep Aanmaken (3 stappen)
+      ============================================= */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20 w-full max-w-md transform transition-all duration-300 scale-100">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <PlusIcon className="w-8 h-8 text-purple-600" />
+          <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+
+            {/* Stap indicator */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {stapModal === 1 && 'Groepsnaam'}
+                {stapModal === 2 && 'Kies een klas'}
+                {stapModal === 3 && `Selecteer leerlingen`}
+              </h2>
+              <div className="flex items-center space-x-1">
+                {[1, 2, 3].map(s => (
+                  <div key={s} className={`h-2 w-8 rounded-full transition-all ${
+                    s <= stapModal ? 'bg-purple-600' : 'bg-gray-200'
+                  }`} />
+                ))}
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Nieuwe Groep Aanmaken</h2>
             </div>
-            
-            <form onSubmit={handleCreateGroup} className="space-y-6">
-              <div>
-                <label htmlFor="group-name" className="block text-sm font-semibold text-gray-700 mb-3">
-                  Groepsnaam
-                </label>
-                <input
-                  type="text"
-                  id="group-name"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  className="w-full px-4 py-4 bg-white/60 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-gray-900 placeholder-gray-500"
-                  placeholder="bv. Algemene Sport derde graad"
-                />
+
+            {/* STAP 1: Naam */}
+            {stapModal === 1 && (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Naam van de groep
+                  </label>
+                  <input
+                    type="text"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && newGroupName.trim() && setStapModal(2)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
+                    placeholder="bv. Basketbalgroep 3de graad"
+                    autoFocus
+                  />
+                </div>
+                <div className="flex justify-end space-x-3">
+                  <button onClick={resetModal} className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-2xl font-semibold">
+                    Annuleren
+                  </button>
+                  <button
+                    onClick={() => setStapModal(2)}
+                    disabled={!newGroupName.trim()}
+                    className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold disabled:opacity-50"
+                  >
+                    Volgende →
+                  </button>
+                </div>
               </div>
-              
-              <div className="flex justify-end space-x-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-6 py-3 bg-gray-100 text-gray-800 font-semibold rounded-2xl hover:bg-gray-200 transition-all duration-200 transform hover:scale-105"
-                >
-                  Annuleren
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-2xl hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transform hover:scale-105 transition-all duration-200"
-                >
-                  {isSubmitting ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Aanmaken...</span>
-                    </div>
-                  ) : (
-                    'Groep Aanmaken'
-                  )}
-                </button>
+            )}
+
+            {/* STAP 2: Klas kiezen */}
+            {stapModal === 2 && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-500">Kies de klas waaruit je leerlingen wil selecteren.</p>
+                {mijnKlassen.length === 0 ? (
+                  <p className="text-center text-gray-400 py-8">Geen klassen beschikbaar.</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {mijnKlassen.map((klas) => (
+                      <button
+                        key={klas}
+                        onClick={() => handleKlasSelecteren(klas)}
+                        className="flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-purple-50 hover:border-purple-300 border border-slate-200 rounded-2xl font-semibold text-gray-800 transition-all"
+                      >
+                        <span>{klas}</span>
+                        <BookOpenIcon className="h-4 w-4 text-gray-400" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="flex justify-between pt-4">
+                  <button onClick={() => setStapModal(1)} className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-2xl font-semibold">
+                    ← Terug
+                  </button>
+                </div>
               </div>
-            </form>
+            )}
+
+            {/* STAP 3: Leerlingen selecteren */}
+            {stapModal === 3 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-500">
+                    Klas: <span className="font-semibold text-purple-700">{geselecteerdeKlas}</span>
+                  </p>
+                  <button
+                    onClick={() => setGeselecteerdeLeerlingen(
+                      geselecteerdeLeerlingen.length === leerlingenVanKlas.length
+                        ? []
+                        : leerlingenVanKlas.map(l => ({
+                            id: l.id,
+                            naam: l.decrypted_name || l.naam,
+                            klas: l.klas
+                          }))
+                    )}
+                    className="text-xs text-purple-600 font-semibold hover:underline"
+                  >
+                    {geselecteerdeLeerlingen.length === leerlingenVanKlas.length
+                      ? 'Deselecteer alles'
+                      : 'Selecteer alles'}
+                  </button>
+                </div>
+
+                {loadingLeerlingen ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {leerlingenVanKlas.map((leerling) => {
+                      const isSelected = geselecteerdeLeerlingen.some(l => l.id === leerling.id);
+                      return (
+                        <button
+                          key={leerling.id}
+                          onClick={() => toggleLeerling(leerling)}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all ${
+                            isSelected
+                              ? 'bg-purple-50 border-purple-300 text-purple-800'
+                              : 'bg-slate-50 border-slate-200 text-gray-800 hover:bg-purple-50/50'
+                          }`}
+                        >
+                          <span className="font-medium">
+                            {leerling.decrypted_name || leerling.naam || '[Naam]'}
+                          </span>
+                          {isSelected && <CheckIcon className="h-5 w-5 text-purple-600" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <p className="text-xs text-gray-400">
+                  {geselecteerdeLeerlingen.length} van {leerlingenVanKlas.length} geselecteerd
+                </p>
+
+                <div className="flex justify-between pt-4">
+                  <button onClick={() => setStapModal(2)} className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-2xl font-semibold">
+                    ← Terug
+                  </button>
+                  <button
+                    onClick={handleCreateGroup}
+                    disabled={isSubmitting || geselecteerdeLeerlingen.length === 0}
+                    className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold disabled:opacity-50 flex items-center space-x-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Aanmaken...</span>
+                      </>
+                    ) : (
+                      <span>Groep Aanmaken ✓</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Edit Group Modal */}
+      {/* MODAL: Groepsnaam bewerken */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20 w-full max-w-md transform transition-all duration-300 scale-100">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Groep Wijzigen</h2>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-gray-800">
-                <XMarkIcon className="h-6 w-6" />
+              <button onClick={() => setShowEditModal(false)}>
+                <XMarkIcon className="h-6 w-6 text-gray-500" />
               </button>
             </div>
-            
             <form onSubmit={handleUpdateGroup} className="space-y-6">
-              <div>
-                <label htmlFor="edit-group-name" className="block text-sm font-semibold text-gray-700 mb-3">
-                  Groepsnaam
-                </label>
-                <input
-                  type="text"
-                  id="edit-group-name"
-                  value={editGroupName}
-                  onChange={(e) => setEditGroupName(e.target.value)}
-                  className="w-full px-4 py-4 bg-white/60 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500 transition-all duration-300 text-gray-900 placeholder-gray-500"
-                  placeholder="bv. Algemene Sport derde graad"
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="px-6 py-3 bg-gray-100 text-gray-800 font-semibold rounded-2xl hover:bg-gray-200 transition-all duration-200 transform hover:scale-105"
-                >
+              <input
+                type="text"
+                value={editGroupName}
+                onChange={(e) => setEditGroupName(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
+                autoFocus
+              />
+              <div className="flex justify-end space-x-3">
+                <button type="button" onClick={() => setShowEditModal(false)}
+                  className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-2xl font-semibold">
                   Annuleren
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-2xl hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transform hover:scale-105 transition-all duration-200"
-                >
-                  {isSubmitting ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Wijzigen...</span>
-                    </div>
-                  ) : (
-                    'Wijzigingen Opslaan'
-                  )}
+                <button type="submit" disabled={isSubmitting}
+                  className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold disabled:opacity-50">
+                  Opslaan
                 </button>
               </div>
             </form>
@@ -402,14 +690,14 @@ export default function Groepsbeheer() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* MODAL: Verwijderen bevestigen */}
       <ConfirmModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDeleteGroup}
         title="Groep Verwijderen"
       >
-        Weet u zeker dat u de groep "{groupToDelete?.naam}" wilt verwijderen? 
+        Weet u zeker dat u de groep "{groupToDelete?.naam}" wilt verwijderen?
         Deze actie kan niet ongedaan gemaakt worden.
       </ConfirmModal>
     </>

@@ -44,11 +44,18 @@ exports.onTrainingWeekValidated = onDocumentUpdated('leerling_schemas/{schemaId}
 // Functie om XP toe te kennen aan een leerling
 // In training-functions.js
 
-async function awardTrainingXP(leerlingEmail, validatedWeeks, schemaId) {
+async function awardTrainingXP(leerlingHash, validatedWeeks, schemaId) {
   try {
-    const userQuery = await db.collection('users').where('email', '==', leerlingEmail).get();
-    if (userQuery.empty) return;
-    
+    // ✅ FIX: leerling_id in leerling_schemas = smartschool_id_hash
+    // Zoek gebruiker op basis van smartschool_id_hash
+    const userQuery = await db.collection('users')
+      .where('smartschool_id_hash', '==', leerlingHash)
+      .limit(1)
+      .get();
+    if (userQuery.empty) {
+      console.warn(`Geen gebruiker gevonden voor hash: ${leerlingHash}`);
+      return;
+    }
     const userDoc = userQuery.docs[0];
     const userData = userDoc.data();
     if (userData.rol !== 'leerling') return;
@@ -118,10 +125,17 @@ function checkIfProgramFullyCompleted(schemaData) {
   return validatedCount >= completionThreshold;
 }
 
-async function awardProgramCompletionReward(leerlingEmail, schemaId, schemaData) {
+async function awardProgramCompletionReward(leerlingHash, schemaId, schemaData) {
   try {
-    const usersQuery = await db.collection('users').where('email', '==', leerlingEmail).get();
-    if (usersQuery.empty) return;
+    // ✅ FIX: gebruik smartschool_id_hash
+    const usersQuery = await db.collection('users')
+      .where('smartschool_id_hash', '==', leerlingHash)
+      .limit(1)
+      .get();
+    if (usersQuery.empty) {
+      console.warn(`Geen gebruiker gevonden voor hash: ${leerlingHash}`);
+      return;
+    }
 
     const userDoc = usersQuery.docs[0];
     const completionXP = 800; // De beloning is 800 XP

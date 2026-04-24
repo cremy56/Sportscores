@@ -7,21 +7,7 @@ import { TrashIcon, PlusIcon, ChevronRightIcon, FunnelIcon, MagnifyingGlassIcon,
 import ConfirmModal from '../components/ConfirmModal';
 import TestFormModal from '../components/TestFormModal';
 
-// Helper function to get user identifier for database queries
-const getUserIdentifier = (user, profile) => {
-    // Try different identifiers in order of preference
-    if (profile?.smartschool_username) {
-        return profile.smartschool_username;
-    }
-    if (profile?.email) {
-        return profile.email;
-    }
-    if (user?.email) {
-        return user.email;
-    }
-    // Fallback to uid
-    return user?.uid;
-};
+
 
 // Helper component voor de filterbalk
 function FilterBar({ filters, onFiltersChange, groepen, testen }) {
@@ -109,23 +95,32 @@ export default function Sporttesten() {
 
     const canManage = ['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol);
 
+  // =============================================
+// CORRECTE useEffect voor Sporttesten.jsx
+// Vervang de volledige useEffect (Hook 1) door dit:
+// =============================================
+
     // Hook 1: Haalt alle data op en zet de listeners op
     useEffect(() => {
         if (!profile?.school_id) {
             setLoading(false);
             return;
         }
+
+        // ✅ FIX: Altijd Firebase UID gebruiken
         const currentUser = auth.currentUser;
         if (!currentUser) return;
 
         setLoading(true);
 
+        // ✅ Groepen listener
         const groepenRef = collection(db, 'groepen');
         const qGroepen = query(groepenRef, where('school_id', '==', profile.school_id));
         const unsubscribeGroepen = onSnapshot(qGroepen, (snapshot) => {
             setGroepen(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
 
+        // ✅ Testen listener
         const testenRef = collection(db, 'testen');
         const qTesten = query(testenRef, where('school_id', '==', profile.school_id));
         const unsubscribeTesten = onSnapshot(qTesten, (snapshot) => {
@@ -134,29 +129,14 @@ export default function Sporttesten() {
             setTesten(testenData);
         });
 
-        // Simplified scores query now that leerkracht_id uses smartschool ID
+        // ✅ FIX: Scores gefilterd op Firebase UID 
         const scoresRef = collection(db, 'scores');
-        const userIdentifier = getUserIdentifier(currentUser, profile);
-        
-        console.log('=== DEBUG INFO ===');
-        console.log('Current user:', currentUser);
-        console.log('Profile object:', profile);
-        console.log('Profile smartschool_username:', profile?.smartschool_username);
-        console.log('Profile email:', profile?.email);
-        console.log('Calculated userIdentifier:', userIdentifier);
-        console.log('School ID:', profile.school_id);
-        console.log('==================');
-        
         const qScores = query(
-            scoresRef, 
-            where('school_id', '==', profile.school_id), 
-            where('leerkracht_id', '==', userIdentifier)
+            scoresRef,
+            where('school_id', '==', profile.school_id),
+            where('leerkracht_id', '==', currentUser.uid)  // ✅ Firebase UID
         );
         const unsubscribeScores = onSnapshot(qScores, (scoresSnapshot) => {
-            console.log(`Found ${scoresSnapshot.docs.length} scores for user:`, userIdentifier);
-            if (scoresSnapshot.docs.length > 0) {
-                console.log('First score data:', scoresSnapshot.docs[0].data());
-            }
             const scoresData = scoresSnapshot.docs.map(doc => {
                 const data = doc.data();
                 return { id: doc.id, ...data, datum: data.datum.toDate() };

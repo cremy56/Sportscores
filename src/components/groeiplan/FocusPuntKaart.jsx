@@ -2,21 +2,22 @@
 import { useNavigate } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../../firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'; // ✅ FIX: deleteDoc toegevoegd
 import toast from 'react-hot-toast';
 import { Target, X } from 'lucide-react';
 import { useState } from 'react';
 import ConfirmModal from '../ConfirmModal';
 
-// De component is nu veel simpeler en heeft geen eigen state of useEffect meer.
 export default function FocusPuntKaart({ test, schema, student, isVerplicht = false, isActief = false,
     isImproved = false }) {
     const navigate = useNavigate();
     const { profile } = useOutletContext();
     const [showConfirmRemove, setShowConfirmRemove] = useState(false);
-    
+
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator';
-    const studentIdentifier = student?.email;
+
+    // ✅ FIX: smartschool_id_hash als identifier 
+    const studentIdentifier = student?.smartschool_id_hash || student?.id;
 
     if (!studentIdentifier) {
         console.error('Geen geldige student identifier gevonden:', student);
@@ -25,12 +26,11 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
 
     const schemaInstanceId = `${studentIdentifier}_${schema.id}`;
 
-
     const handleRemoveImproved = async () => {
         try {
-            await deleteDoc(doc(db, 'leerling_schemas', schemaInstanceId));
+            await deleteDoc(doc(db, 'leerling_schemas', schemaInstanceId)); // ✅ deleteDoc nu geïmporteerd
             toast.success("Trainingsschema verwijderd - goed gedaan!");
-            window.location.reload(); // Of gebruik callback naar parent
+            window.location.reload();
         } catch (error) {
             toast.error("Kon schema niet verwijderen");
             console.error(error);
@@ -42,7 +42,7 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
         const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
         try {
             await setDoc(actiefSchemaRef, {
-                leerling_id: studentIdentifier,
+                leerling_id: studentIdentifier,   // ✅ smartschool_id_hash
                 schema_id: schema.id,
                 start_datum: serverTimestamp(),
                 huidige_week: 1,
@@ -59,14 +59,13 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
 
     const handleContinueSchema = () => {
         sessionStorage.setItem('currentSchema', JSON.stringify({
-            userId: studentIdentifier,
+            userId: studentIdentifier,            // ✅ smartschool_id_hash
             schemaTemplateId: schema.id,
             timestamp: Date.now()
         }));
         navigate('/groeiplan/schema');
     };
-    
-    // AANGEPAST: Styling op basis van verbeterde status
+
     const theme = {
         border: isImproved ? 'border-orange-300' : (isVerplicht ? 'border-red-300' : 'border-blue-200'),
         background: isImproved ? 'bg-gradient-to-br from-orange-50 to-yellow-50' : '',
@@ -84,9 +83,8 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
                     {theme.badgeText}
                 </div>
 
-                {/* NIEUW: X-knop voor verbeterde schema's */}
                 {isImproved && !isTeacherOrAdmin && (
-                    <button 
+                    <button
                         onClick={() => setShowConfirmRemove(true)}
                         className="absolute -top-2 -right-2 w-8 h-8 bg-orange-500 text-white rounded-full hover:bg-orange-600 shadow-lg flex items-center justify-center transition-colors"
                     >
@@ -131,14 +129,13 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
                 </div>
             </div>
 
-            {/* NIEUW: Confirm modal */}
             <ConfirmModal
                 isOpen={showConfirmRemove}
                 onClose={() => setShowConfirmRemove(false)}
                 onConfirm={handleRemoveImproved}
                 title="Schema Verwijderen"
             >
-                Je hebt je doel bereikt voor <strong>{test.test_naam || test.naam}</strong>! 
+                Je hebt je doel bereikt voor <strong>{test.test_naam || test.naam}</strong>!
                 Wil je dit trainingsschema verwijderen?
             </ConfirmModal>
         </>

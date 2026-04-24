@@ -157,18 +157,7 @@ export const getStudentEvolutionData = async (studentId) => {
       ...doc.data()
     }));
 
-    let leerlingId = studentId;
-    
-    if (studentId && !studentId.includes('@')) {
-      try {
-        const userDoc = await getDoc(doc(db, 'users', studentId));
-        if (userDoc.exists() && userDoc.data().email) {
-          leerlingId = userDoc.data().email;
-        }
-      } catch (error) {
-        console.warn('Could not fetch user document, using original studentId:', error);
-      }
-    }
+    const leerlingId = studentId;
 
     const testDataPromises = tests.map(async (test) => {
       const scoresQuery = query(
@@ -685,7 +674,7 @@ export async function calculateTestRanking(testId, score, leeftijd, geslacht) {
       // Haal student info op voor leeftijd/geslacht indien nog niet gekend
       if (!studentAgeGender[studentId]) {
         try {
-          // Zoek in 'toegestane_gebruikers' op basis van email/ID
+          // Zoek in 'toegestane_gebruikers' op basis van smartschool_id_hash
           const userDoc = await getDoc(doc(db, 'toegestane_gebruikers', studentId));
           if (userDoc.exists()) {
             const studentData = userDoc.data();

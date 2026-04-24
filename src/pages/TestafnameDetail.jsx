@@ -4,6 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { getAuth } from 'firebase/auth';
 import { 
     TrashIcon, 
     PencilSquareIcon, 
@@ -383,34 +384,60 @@ const [currentDate, setCurrentDate] = useState(datum);
         });
 
         let leerlingenData = [];
-
+ 
         if (leerlingIds.length > 0) {
-            // ✅ Normale flow: groep bestaat, gebruik leerling_ids
+            // Haal leerling basisdata op (geboortedatum, geslacht voor puntberekening)
             const leerlingenQuery = query(
-                collection(db, 'toegestane_gebruikers'), 
+                collection(db, 'toegestane_gebruikers'),
                 where('__name__', 'in', leerlingIds)
             );
             const leerlingenSnap = await getDocs(leerlingenQuery);
-            
+ 
+            // ✅ Haal ontsleutelde namen op via API
+            let namenMap = new Map();
+            try {
+                const auth = getAuth();
+                const token = await auth.currentUser?.getIdToken();
+                if (token && groupData?.school_id) {
+                    const response = await fetch('/api/users', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            action: 'get_users',
+                            schoolId: groupData.school_id,
+                            filterRol: 'leerling'
+                        })
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        (data.users || []).forEach(u => {
+                            namenMap.set(u.id, u.decrypted_name || '[Naam]');
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('Fout bij ophalen namen:', err);
+            }
+ 
             leerlingenData = leerlingenSnap.docs.map(d => {
                 const userData = d.data();
-                let scoreInfo = scoresMap.get(d.id);
-                
-                if (!scoreInfo && userData.email) {
-                    scoreInfo = scoresMap.get(userData.email);
-                }
-                if (!scoreInfo && userData.smartschool_username) {
-                    scoreInfo = scoresMap.get(userData.smartschool_username);
-                }
-                
+                // ✅ CORRECT: Scores opgeslagen met smartschool_id_hash als leerling_id
+                const scoreInfo = scoresMap.get(d.id);
+ 
                 return {
                     id: d.id,
-                    ...userData, 
+                    ...userData,
+                    // ✅ Gebruik ontsleutelde naam uit API
+                    naam: namenMap.get(d.id) || '[Naam niet beschikbaar]',
                     score: scoreInfo?.score ?? null,
                     punt: scoreInfo?.rapportpunt ?? null,
                     score_id: scoreInfo?.id
                 };
             });
+        
         } else if (scoresSnap.docs.length > 0) {
             // ✅ Fallback: groep bestaat niet, maar we hebben scores
             // Haal leerlingen op via de leerling_id's in de scores
@@ -444,8 +471,8 @@ const [currentDate, setCurrentDate] = useState(datum);
                             });
                         }
                     }
-                } catch (error) {
-                    console.warn(`Could not find student ${leerlingId}:`, error);
+                 } catch (error) {
+                    // Leerling niet gevonden - sla over
                 }
             }
         }
@@ -540,12 +567,6 @@ const handleUpdateScore = async () => {
         const leerling = details.leerlingen.find(l => l.score_id === editingScore.id);
         const testDatum = new Date(datum);
         const newPunt = await calculatePuntFromScore(details.test_volledig, leerling, scoreValue, testDatum);
-
-        console.log('=== SCORE UPDATE ===');
-        console.log('User ID:', leerling.id);
-        console.log('Test ID:', testId);
-        console.log('New Score:', scoreValue);
-        console.log('Will trigger onScoreUpdated automatically');
 
         // Update de score - dit zal automatisch onScoreUpdated triggeren
         await updateDoc(scoreRef, { 

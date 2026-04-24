@@ -3,10 +3,9 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { auth, db } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-// 'getDoc' en 'setDoc' zijn verwijderd, 'onSnapshot' en 'doc' blijven
 import { doc, onSnapshot } from 'firebase/firestore'; 
 import { setupNetworkMonitoring } from './utils/firebaseUtils';
-import toast from 'react-hot-toast'; // We hebben toast nodig voor de foutmelding
+import toast from 'react-hot-toast';
 
 // Component Imports
 import Layout from './components/Layout';
@@ -14,7 +13,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import UniversalLogin from './components/UniversalLogin';
 import SchoolBeheer from './pages/SchoolBeheer';
 
-// Pagina Imports (alle imports blijven hetzelfde)
+// Pagina Imports
 import AdValvas from './pages/adValvas';
 import Highscores from './pages/Highscores';
 import Evolutie from './pages/Evolutie';
@@ -40,10 +39,7 @@ import EHBODetail from './pages/EHBODetail';
 import Instellingen from './pages/Instellingen';
 import AlgemeenInstellingen from './pages/AlgemeenInstellingen';
 
-// generateHash functie is hier verwijderd, die staat nu op de server
-
 function DynamicHomepage({ schoolSettings }) {
-  console.log('🏠 DynamicHomepage rendering, schoolSettings:', schoolSettings);
   if (schoolSettings?.sportdashboardAsHomepage) {
     return <Highscores />;
   }
@@ -60,6 +56,7 @@ function App() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [activeRole, setActiveRole] = useState(null);
 
+  // Auth state listener
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       console.log('Auth state changed:', currentUser ? 'Logged in' : 'Logged out');
@@ -81,61 +78,46 @@ function App() {
     setupNetworkMonitoring();
   }, []);
 
+  // Profile listener + checkAndCreateProfile
   useEffect(() => {
     if (!user) {
       setLoading(false);
       return;
     }
 
-    // Gebruik de Firebase Auth UID als de sleutel voor de 'users' collectie
+    // users collectie gebruikt Firebase UID als document ID
     const profileRef = doc(db, 'users', user.uid);
     let unsubscribeProfile;
 
-    const setupListener = () => {
-      unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const profileData = { id: docSnap.id, ...docSnap.data() };
-          setProfile(profileData);
-          
-          if (!activeRole) {
-            setActiveRole(profileData.rol);
-          }
-        }
-      });
-    };
-
-    // --- 4. VERVANGEN checkAndCreateProfile FUNCTIE ---
-    // Deze functie roept nu de veilige API-route aan.
     const checkAndCreateProfile = async (firebaseUser) => {
-        try {
-        // 1. Haal het token van de zojuist ingelogde gebruiker op
-        const token = await firebaseUser.getIdToken(); // <--
+      try {
+        // 1. Haal Firebase token op
+        const token = await firebaseUser.getIdToken();
 
         // 2. Roep de veilige API-route aan
-        const response = await fetch('/api/auth', { // <-- (Dit was al /api/auth)
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
+        const response = await fetch('/api/auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
         });
 
         const result = await response.json();
         if (!response.ok) {
-            throw new Error(result.error || 'Kon profiel niet valideren');
+          throw new Error(result.error || 'Kon profiel niet valideren');
         }
 
         console.log("Profiel check succesvol:", result.status);
 
-        // 3. Zet de listener op
-        // *** NIEUWE WIJZIGING HIER ***
+        // 3. Start Firestore listener met token
         const setupListenerWithToken = () => {
           unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
             if (docSnap.exists()) {
               const profileData = { 
-                  id: docSnap.id, 
-                  ...docSnap.data(),
-                  _token: token // <-- VOEG TOKEN TOE AAN DE PROFILE STATE
+                id: docSnap.id,           // ✅ id = Firebase UID
+                ...docSnap.data(),
+                _token: token             // Token meegeven voor API calls
               };
               setProfile(profileData);
 
@@ -146,21 +128,21 @@ function App() {
           });
         };
 
+        // Kleine delay als profiel net aangemaakt is
         if (result.status === 'profile_created') {
-            setTimeout(setupListenerWithToken, 500); 
+          setTimeout(setupListenerWithToken, 500); 
         } else {
-            setupListenerWithToken();
+          setupListenerWithToken();
         }
 
-    } catch (error) {
-            // Als de check mislukt (bv. 403 Forbidden), log de gebruiker uit
-            console.error("Fout bij het controleren/aanmaken van profiel:", error.message);
-            toast.error(error.message);
-            auth.signOut();
-        }
+      } catch (error) {
+        // Bij fout (bv. 403 Forbidden) → uitloggen
+        console.error("Fout bij profielcontrole:", error.message);
+        toast.error(error.message);
+        auth.signOut();
+      }
     };
 
-    // Roep de nieuwe functie aan met het 'user' object
     checkAndCreateProfile(user);
 
     return () => {
@@ -168,9 +150,9 @@ function App() {
         unsubscribeProfile();
       }
     };
-  }, [user, activeRole]); // Dependency array is correct
+  }, [user, activeRole]);
 
-  // School listener - ongewijzigd
+  // School listener
   useEffect(() => {
     if (profile?.school_id) {
       const schoolRef = doc(db, 'scholen', profile.school_id);
@@ -187,66 +169,75 @@ function App() {
       });
       return () => unsubscribeSchool;
     } else {
-        if(user) setLoading(false);
+      if (user) setLoading(false);
     }
   }, [profile, user]);
 
+  // Laadscherm
   if (authLoading || loading) {
-     // ... (je laadscherm)
-     return <div className="fixed inset-0 bg-white flex items-center justify-center"><div>Laden...</div></div>;
+    return (
+      <div className="fixed inset-0 bg-white flex items-center justify-center">
+        <div>Laden...</div>
+      </div>
+    );
   }
 
-  // --- 5. OPGESCHOONDE ROUTES ---
   return (
     <BrowserRouter>
       <Routes>
         {!user ? (
-            <>
-                {/* Alleen Smartschool is nog relevant */}
-                <Route path="/auth/smartschool/callback" element={<UniversalLogin />} />
-                <Route path="*" element={<UniversalLogin />} />
-            </>
+          <>
+            {/* Niet ingelogd: alleen Smartschool login */}
+            <Route path="/auth/smartschool/callback" element={<UniversalLogin />} />
+            <Route path="*" element={<UniversalLogin />} />
+          </>
         ) : (
-            <>
-                <Route path="/auth/smartschool/callback" element={<Navigate to="/" replace />} />
+          <>
+            {/* Ingelogd: callback redirect naar homepage */}
+            <Route path="/auth/smartschool/callback" element={<Navigate to="/" replace />} />
+            
+            <Route element={<ProtectedRoute profile={profile} school={school} />}>
+              <Route element={
+                <Layout
+                  profile={profile}
+                  school={school}
+                  selectedStudent={selectedStudent}
+                  setSelectedStudent={setSelectedStudent}
+                  activeRole={activeRole}
+                  setActiveRole={setActiveRole}
+                />
+              }>
+                <Route index element={<DynamicHomepage schoolSettings={schoolSettings} />} />
+                <Route path="/advalvas" element={<AdValvas />} />
+                <Route path="/highscores" element={<Highscores />} />
+                <Route path="/evolutie" element={<Evolutie />} />
+                <Route path="/groeiplan" element={<Groeiplan />} />
+                <Route path="/rewards" element={<Rewards />} />
+                <Route path="/groepsbeheer" element={<Groepsbeheer />} />
+                <Route path="/groep/:groepId" element={<GroupDetail />} />
+                <Route path="/sporttesten" element={<Sporttesten />} />
+                <Route path="/sporttesten/:testId" element={<TestDetailBeheer />} />
+                <Route path="/testafname/new/:groepId" element={<NieuweTestafname />} />
+                <Route path="/testafname/:testafnameId" element={<TestafnameDetail />} />
+                <Route path="/trainingsbeheer/schema/:schemaId" element={<SchemaDetail />} />
+                <Route path="/gezondheid" element={<Gezondheid />} />
+                <Route path="/gezondheid/welzijn" element={<Welzijnsmonitor />} />
+                <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
+                <Route path="/gezondheid/mentaal" element={<MentaalDetail />} />
+                <Route path="/gezondheid/voeding" element={<VoedingDetail />} />
+                <Route path="/gezondheid/slaap" element={<SlaapDetail />} />
+                <Route path="/gezondheid/hart" element={<HartDetail />} />
+                <Route path="/gezondheid/ehbo" element={<EHBODetail />} />
                 
-                <Route element={<ProtectedRoute profile={profile} school={school} />}>
-                  <Route element={<Layout profile={profile} school={school} selectedStudent={selectedStudent} setSelectedStudent={setSelectedStudent} activeRole={activeRole} setActiveRole={setActiveRole} />}>
-                    <Route index element={<DynamicHomepage schoolSettings={schoolSettings} />} />
-                    <Route path="/advalvas" element={<AdValvas />} />
-                    <Route path="/highscores" element={<Highscores />} />
-                    <Route path="/evolutie" element={<Evolutie />} />
-                    <Route path="/groeiplan" element={<Groeiplan />} />
-                    <Route path="/rewards" element={<Rewards />} />
-                    <Route path="/groepsbeheer" element={<Groepsbeheer />} />
-                    <Route path="/groep/:groepId" element={<GroupDetail />} />
-                    <Route path="/sporttesten" element={<Sporttesten />} />
-                    <Route path="/sporttesten/:testId" element={<TestDetailBeheer />} />
-                    <Route path="/testafname/new/:groepId" element={<NieuweTestafname />} />
-                    <Route path="/testafname/:testafnameId" element={<TestafnameDetail />} />
-                    <Route path="/trainingsbeheer/schema/:schemaId" element={<SchemaDetail />} />
-                    <Route path="/gezondheid" element={<Gezondheid />} />
-                    <Route path="/gezondheid/welzijn" element={<Welzijnsmonitor />} />
-                    <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
-                    <Route path="/gezondheid/mentaal" element={<MentaalDetail />} />
-                    <Route path="/gezondheid/voeding" element={<VoedingDetail />} />
-                    <Route path="/gezondheid/slaap" element={<SlaapDetail />} />
-                    <Route path="/gezondheid/hart" element={<HartDetail />} />
-                    <Route path="/gezondheid/ehbo" element={<EHBODetail />} />
-                    
-                    <Route path="/instellingen" element={<Instellingen />}>
-                      <Route index element={<AlgemeenInstellingen />} />
-                      <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
-                      <Route path="gebruikersbeheer" element={<Gebruikersbeheer />} />
-                      <Route path="schoolbeheer" element={<SchoolBeheer />} />
-                    </Route>
-                  </Route>
+                <Route path="/instellingen" element={<Instellingen />}>
+                  <Route index element={<AlgemeenInstellingen />} />
+                  <Route path="trainingsbeheer" element={<Trainingsbeheer />} />
+                  <Route path="gebruikersbeheer" element={<Gebruikersbeheer />} />
+                  <Route path="schoolbeheer" element={<SchoolBeheer />} />
                 </Route>
-                
-                {/* Stuur /login en /register ook naar de homepage */}
-                <Route path="/login" element={<Navigate to="/" />} />
-                <Route path="/register" element={<Navigate to="/" />} />
-           </>
+              </Route>
+            </Route>
+          </>
         )}
       </Routes>
     </BrowserRouter>
