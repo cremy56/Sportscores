@@ -181,6 +181,7 @@ const ProfileMenu = ({
               <StudentSearch
                 onStudentSelect={handleImpersonatedStudentSelect}
                 schoolId={profile?.school_id}
+                token={profile?._token}
                 placeholder="Selecteer leerling..."
                 compact={true}
               />

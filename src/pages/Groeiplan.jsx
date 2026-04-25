@@ -409,6 +409,7 @@ export default function Groeiplan() {
                                     <StudentSearch
                                         onStudentSelect={setSelectedStudent}
                                         schoolId={profile?.school_id}
+                                        token={profile?._token}
                                         initialStudent={selectedStudent}
                                     />
                                 </div>
