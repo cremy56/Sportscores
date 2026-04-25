@@ -1,11 +1,24 @@
 // src/components/groeiplan/GroeiplanLeerling.jsx
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { db } from '../../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import FocusPuntKaart from './FocusPuntKaart';
 import { getStudentEvolutionData } from '../../utils/firebaseUtils';
 import { analyseerEvolutieData } from '../../utils/analyseUtils';
+
+// ─── API helper (zelfde patroon als rest van de app) ──────────────────────────
+async function apiPost(action, body, token) {
+    const response = await fetch('/api/tests', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action, ...body }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'API fout');
+    return data;
+}
 
 export default function GroeiplanLeerling({ studentProfile }) {
     const context = useOutletContext();
@@ -23,40 +36,39 @@ export default function GroeiplanLeerling({ studentProfile }) {
 
         const fetchData = async () => {
             setLoading(true);
-            // ✅ token en school_id expliciet meegeven
             const token = profile._token;
             const schoolId = profile.school_id;
             if (!token || !schoolId) { setLoading(false); return; }
 
             const evolutionData = await getStudentEvolutionData(profile.id, schoolId, token);
-            
-            // 1. Haalt nu een LIJST van zwakke testen op
+
+            // 1. Haal lijst van zwakke testen op
             const zwakkeTesten = analyseerEvolutieData(evolutionData);
             setFocusPunten(zwakkeTesten);
 
             if (zwakkeTesten.length > 0) {
-                // 2. Zoek voor ELKE zwakke test een bijbehorend schema
-                const schemaPromises = zwakkeTesten.map(test => {
-                    const schemasQuery = query(
-                        collection(db, 'trainingsschemas'),
-                        where('gekoppelde_test_id', '==', test.test_id)
-                    );
-                    return getDocs(schemasQuery);
-                });
+                // 2. Zoek voor ELKE zwakke test een bijbehorend schema via API
+                //    (was: directe Firestore query op 'trainingsschemas' collection)
+                const schemaPromises = zwakkeTesten.map(test =>
+                    apiPost('get_trainingsschema_for_test', {
+                        schoolId,
+                        testId: test.test_id,
+                    }, token).catch(() => null) // null als er geen schema bestaat
+                );
 
-                const schemaSnapshots = await Promise.all(schemaPromises);
+                const schemaResults = await Promise.all(schemaPromises);
 
-                const schemas = schemaSnapshots.map((snapshot, index) => {
-                    if (!snapshot.empty) {
-                        const schemaDoc = snapshot.docs[0];
-                        return { 
-                            gekoppeldAanTestId: zwakkeTesten[index].test_id,
-                            ...schemaDoc.data(),
-                            id: schemaDoc.id
-                        };
-                    }
-                    return null;
-                }).filter(Boolean); // Verwijder null-waarden
+                const schemas = schemaResults
+                    .map((result, index) => {
+                        if (result?.schema) {
+                            return {
+                                gekoppeldAanTestId: zwakkeTesten[index].test_id,
+                                ...result.schema,
+                            };
+                        }
+                        return null;
+                    })
+                    .filter(Boolean); // Verwijder null-waarden
 
                 setGekoppeldeSchemas(schemas);
             }
@@ -70,7 +82,6 @@ export default function GroeiplanLeerling({ studentProfile }) {
         return <div className="text-center p-12">Je persoonlijke groeiplan wordt berekend...</div>;
     }
 
-    // Aangepast: toon de "Alles goed" boodschap als de LIJST leeg is
     if (focusPunten.length === 0 || gekoppeldeSchemas.length === 0) {
         return (
             <div className="bg-white rounded-2xl p-8 text-center max-w-2xl mx-auto">
@@ -79,21 +90,20 @@ export default function GroeiplanLeerling({ studentProfile }) {
             </div>
         );
     }
-    
-    // We moeten 'test_naam' gebruiken omdat de 'naam' in het test-object zit
-   return (
+
+    return (
         <div className="space-y-8">
             {focusPunten.map(punt => {
                 const bijbehorendSchema = gekoppeldeSchemas.find(s => s.gekoppeldAanTestId === punt.test_id);
                 if (!bijbehorendSchema) return null;
 
                 return (
-                    <FocusPuntKaart 
+                    <FocusPuntKaart
                         key={punt.test_id}
-                        test={{...punt, test_naam: punt.naam}}
+                        test={{ ...punt, test_naam: punt.naam }}
                         schema={bijbehorendSchema}
                         student={profile}
-                        isVerplicht={true} // Markeer deze als verplicht
+                        isVerplicht={true}
                     />
                 );
             })}
