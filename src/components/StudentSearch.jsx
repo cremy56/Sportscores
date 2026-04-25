@@ -58,11 +58,12 @@ export default function StudentSearch({
                     .filter(u => (u.decrypted_name || u.naam || '').toLowerCase().includes(searchLower))
                     .slice(0, 10)
                     .map(u => ({
-                        id: u.id,                                    // smartschool_id_hash
+                        id: u.id,
                         naam: u.decrypted_name || u.naam || '[Naam]',
                         klas: u.klas || '',
+                        geslacht: (u.gender || '').toLowerCase() || null,  // ✅ voeg toe
                         school_id: schoolId
-                    }));
+                    }))
 
                 setPeople(filtered);
             } catch (error) {
