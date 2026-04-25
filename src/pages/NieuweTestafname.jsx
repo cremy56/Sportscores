@@ -1,8 +1,9 @@
 // src/pages/NieuweTestafname.jsx
+// ✅ VOLLEDIG GEMIGREERD — geen directe Firestore calls meer
+// Alle data gaat via /api/tests (Admin SDK server-side)
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useOutletContext, useNavigate, Link } from 'react-router-dom';
-import { db, auth } from '../firebase';
-import { collection, query, where, getDocs, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
+import { auth } from '../firebase';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, PencilIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { Fragment } from 'react';
@@ -10,7 +11,22 @@ import { Dialog, Transition } from '@headlessui/react';
 import { parseTimeInputToSeconds } from '../utils/formatters.js';
 import { GENDER_MAPPING } from '../utils/firebaseUtils.js';
 
-// --- HELPER FUNCTIES (ongewijzigd) ---
+// --- API HELPER ---
+async function apiPost(action, body, token) {
+    const response = await fetch('/api/tests', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action, ...body })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'API fout');
+    return data;
+}
+
+// --- HELPER FUNCTIES ---
 function calculateAge(birthDate, testDate) {
     if (!birthDate || !testDate) return null;
     let age = testDate.getFullYear() - birthDate.getFullYear();
@@ -19,26 +35,34 @@ function calculateAge(birthDate, testDate) {
     return age;
 }
 
-async function calculatePuntFromScore(test, leerling, score, testDatum) {
-    if (!test || !leerling || score === null || isNaN(score)) return null;
+// ✅ GEMIGREERD: accepteert normenData als parameter i.p.v. Firestore query
+function calculatePuntFromScore(test, leerling, score, testDatum, normenData) {
+    if (!test || !leerling || score === null || isNaN(score) || !normenData) return null;
     try {
         const { score_richting } = test;
         if (!score_richting) return null;
         const { geboortedatum, geslacht } = leerling;
         if (!geboortedatum || !geslacht) return null;
-        const leeftijd = calculateAge(geboortedatum.toDate(), testDatum);
+
+        // geboortedatum komt als ISO string van API (niet als Firestore Timestamp)
+        const geboortedatumDate = typeof geboortedatum === 'string'
+            ? new Date(geboortedatum)
+            : geboortedatum?.toDate?.() ?? new Date(geboortedatum);
+
+        const leeftijd = calculateAge(geboortedatumDate, testDatum);
         if (leeftijd === null) return null;
+
         const normAge = Math.min(leeftijd, 17);
-        const normenQuery = query(collection(db, 'normen'), where('test_id', '==', test.id));
-        const normenSnapshot = await getDocs(normenQuery);
-        if (normenSnapshot.empty) return null;
-        const { punten_schaal } = normenSnapshot.docs[0].data();
+        const { punten_schaal } = normenData;
         if (!punten_schaal || punten_schaal.length === 0) return null;
+
         const mappedGender = GENDER_MAPPING[geslacht?.toLowerCase() || ''];
         const relevantNorms = punten_schaal
             .filter(n => n.leeftijd === normAge && n.geslacht === mappedGender)
             .sort((a, b) => a.punt - b.punt);
+
         if (relevantNorms.length === 0) return null;
+
         let behaaldeNorm = null;
         let volgendeNorm = null;
         if (score_richting === 'laag') {
@@ -58,6 +82,7 @@ async function calculatePuntFromScore(test, leerling, score, testDatum) {
                 }
             }
         }
+
         if (!behaaldeNorm || !volgendeNorm) {
             const exactMatch = relevantNorms.find(n => n.score_min === score);
             return exactMatch ? exactMatch.punt : (behaaldeNorm ? behaaldeNorm.punt : 0);
@@ -107,36 +132,26 @@ export default function NieuweTestafname() {
     const debounceTimeoutRef = useRef(null);
     const [warningModal, setWarningModal] = useState({ isOpen: false });
     const [normenInfo, setNormenInfo] = useState({ M: true, V: true, loading: false });
+    // ✅ NIEUW: gecachede normenData voor puntberekening (geen Firestore call per keystroke)
+    const [cachedNormenData, setCachedNormenData] = useState(null);
     const [uitgeslotenLeerlingen, setUitgeslotenLeerlingen] = useState([]);
     const [filtersZijnOpen, setFiltersZijnOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
 
     // =============================================
-    // EFFECT 1: Groepen en testen laden
+    // EFFECT 1: Groepen en testen laden via API
+    // ✅ GEMIGREERD van directe Firestore queries
     // =============================================
     useEffect(() => {
-        if (!profile?.school_id) return;
+        if (!profile?.school_id || !profile?._token) return;
         setLoading(true);
         const fetchData = async () => {
             try {
-                // ✅ Filter groepen op leerkracht_id (Firebase UID)
-                const userId = auth.currentUser.uid;
-                const groepenQuery = query(
-                    collection(db, 'groepen'),
-                    where('school_id', '==', profile.school_id),
-                    where('leerkracht_id', '==', userId)   // ✅ Alleen eigen groepen
-                );
-                const testenQuery = query(
-                    collection(db, 'testen'),
-                    where('school_id', '==', profile.school_id),
-                    where('is_actief', '==', true)
-                );
-                const [groepenSnap, testenSnap] = await Promise.all([
-                    getDocs(groepenQuery),
-                    getDocs(testenQuery)
-                ]);
-                setGroepen(groepenSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-                setTesten(testenSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+                const data = await apiPost('get_setup_data', {
+                    schoolId: profile.school_id
+                }, profile._token);
+                setGroepen(data.groepen || []);
+                setTesten(data.testen || []);
             } catch (error) {
                 toast.error("Kon groepen of testen niet laden.");
             }
@@ -147,8 +162,7 @@ export default function NieuweTestafname() {
 
     // =============================================
     // EFFECT 2: Leerlingen ophalen via API
-    // ✅ FIX: Gebruikt API voor ontsleutelde namen
-    // ✅ FIX: Haalt geboortedatum + geslacht op via toegestane_gebruikers
+    // ✅ GEMIGREERD: geen toegestane_gebruikers query meer
     // =============================================
     useEffect(() => {
         if (!selectedGroep) {
@@ -161,55 +175,14 @@ export default function NieuweTestafname() {
                 setVolledigeLeerlingen([]);
                 return;
             }
-
             try {
-                // Haal leerlingdata op uit toegestane_gebruikers (voor geboortedatum, geslacht)
-                // én naam via API
-                const q = query(
-                    collection(db, 'toegestane_gebruikers'),
-                    where('__name__', 'in', selectedGroep.leerling_ids)
-                );
-                const snap = await getDocs(q);
-
-                // Haal ontsleutelde namen op via API
-                let namenMap = new Map();
-                if (profile?._token) {
-                    try {
-                        const response = await fetch('/api/users', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${profile._token}`
-                            },
-                            body: JSON.stringify({
-                                action: 'get_users',
-                                schoolId: profile.school_id,
-                                filterRol: 'leerling'
-                            })
-                        });
-                        if (response.ok) {
-                            const data = await response.json();
-                            (data.users || []).forEach(u => {
-                                namenMap.set(u.id, u.decrypted_name || '[Naam]');
-                            });
-                        }
-                    } catch (err) {
-                        console.error('Fout bij ophalen namen:', err);
-                    }
-                }
-
-                // Combineer data
-                const leerlingenData = snap.docs.map(d => ({
-                    id: d.id,
-                    data: {
-                        ...d.data(),
-                        // ✅ Gebruik ontsleutelde naam uit API, fallback naar encrypted
-                        naam: namenMap.get(d.id) || '[Naam niet beschikbaar]'
-                    }
-                }));
+                const data = await apiPost('get_leerlingen_voor_groep', {
+                    groepId: selectedGroep.id,
+                    schoolId: profile.school_id
+                }, profile._token);
 
                 setVolledigeLeerlingen(
-                    leerlingenData.sort((a, b) => a.data.naam.localeCompare(b.data.naam))
+                    (data.leerlingen || []).sort((a, b) => a.data.naam.localeCompare(b.data.naam))
                 );
             } catch (error) {
                 console.error('Fout bij laden leerlingen:', error);
@@ -222,25 +195,31 @@ export default function NieuweTestafname() {
     }, [selectedGroep, profile]);
 
     // =============================================
-    // EFFECT 3: Normen controleren
+    // EFFECT 3: Normen controleren + cachen via API
+    // ✅ GEMIGREERD: normen worden gecached voor puntberekening
     // =============================================
     useEffect(() => {
         if (!selectedTest) {
             setNormenInfo({ M: true, V: true, loading: false });
+            setCachedNormenData(null);
             return;
         }
         const checkNormen = async () => {
             setNormenInfo({ M: false, V: false, loading: true });
             try {
-                const normenQuery = query(collection(db, 'normen'), where('test_id', '==', selectedTest.id));
-                const normenSnapshot = await getDocs(normenQuery);
-                if (normenSnapshot.empty) {
+                const data = await apiPost('get_normen', {
+                    testId: selectedTest.id
+                }, profile._token);
+
+                const normenData = data.normen || null;
+                setCachedNormenData(normenData);
+
+                if (!normenData) {
                     setNormenInfo({ M: false, V: false, loading: false });
                     return;
                 }
-                const normData = normenSnapshot.docs[0].data();
-                const hasMaleNorms = normData.punten_schaal.some(n => n.geslacht === 'M');
-                const hasFemaleNorms = normData.punten_schaal.some(n => n.geslacht === 'V');
+                const hasMaleNorms = normenData.punten_schaal?.some(n => n.geslacht === 'M') ?? false;
+                const hasFemaleNorms = normenData.punten_schaal?.some(n => n.geslacht === 'V') ?? false;
                 setNormenInfo({ M: hasMaleNorms, V: hasFemaleNorms, loading: false });
             } catch (error) {
                 console.error("Fout bij ophalen normen:", error);
@@ -248,7 +227,7 @@ export default function NieuweTestafname() {
             }
         };
         checkNormen();
-    }, [selectedTest]);
+    }, [selectedTest, profile]);
 
     // Sluit filters na testselectie op mobiel
     useEffect(() => {
@@ -282,67 +261,48 @@ export default function NieuweTestafname() {
     }, [volledigeLeerlingen, normenInfo]);
 
     // =============================================
-    // EFFECT 4: Check recente testafnames
-    // ✅ FIX: leerling_ids = smartschool_id_hash
-    // ✅ FIX: leerkracht naam via encrypted naam (geen plain text query)
+    // EFFECT 4: Check recente testafnames via API
+    // ✅ GEMIGREERD: geen directe scores query meer
     // =============================================
     useEffect(() => {
         if (!selectedGroep || !selectedTest || !datum || gefilterdeLeerlingen.length === 0) return;
 
-        const leerlingIds = gefilterdeLeerlingen.map(l => l.id);  // smartschool_id_hash
-        if (leerlingIds.length === 0) return;
-
-        const geselecteerdeDatum = new Date(datum);
-        const oneMonthAgo = new Date(geselecteerdeDatum);
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-        const scoresQuery = query(
-            collection(db, 'scores'),
-            where('test_id', '==', selectedTest.id),
-            where('leerling_id', 'in', leerlingIds),   // ✅ smartschool_id_hash
-            where('datum', '>=', oneMonthAgo),
-            where('datum', '<', geselecteerdeDatum)
-        );
-
         const checkForRecentTests = async () => {
-            const querySnapshot = await getDocs(scoresQuery);
-            if (!querySnapshot.empty) {
-                const recentScores = querySnapshot.docs.map(d => d.data());
-                const mostRecentAfname = recentScores.sort((a, b) => b.datum.toMillis() - a.datum.toMillis())[0];
-                const afnameDatum = mostRecentAfname.datum.toDate();
+            try {
+                const data = await apiPost('get_recent_scores', {
+                    testId: selectedTest.id,
+                    groepId: selectedGroep.id,
+                    datum: datum,
+                    schoolId: profile.school_id
+                }, profile._token);
 
-                // ✅ FIX: leerkracht_id = Firebase UID
-                // Gebruik 'jezelf' als het de huidige gebruiker is
-                const teacherIds = [...new Set(recentScores.map(s => s.leerkracht_id).filter(Boolean))];
-                let teacherNames = [];
-                if (teacherIds.length > 0) {
-                    teacherNames = teacherIds.map(id =>
-                        id === auth.currentUser.uid ? 'jezelf' : 'een leerkracht'
-                    );
-                    // ✅ Geen naam opzoeken via Firestore (encrypted!)
-                    // Namen zijn niet beschikbaar zonder API call → generieke tekst
+                if (data.hasRecentScores) {
+                    const { message, afnameDatum, isEigenAfname } = data;
+                    const afnameDate = new Date(afnameDatum);
+                    const geselecteerdeDatum = new Date(datum);
+
+                    const leerkrachtTekst = isEigenAfname ? 'jezelf' : 'een leerkracht';
+                    const { affectedStudentsCount } = data;
+                    const noun = affectedStudentsCount === 1 ? 'leerling' : 'leerlingen';
+                    const verb = affectedStudentsCount === 1 ? 'heeft' : 'hebben';
+
+                    setWarningModal({
+                        isOpen: true,
+                        message: `${affectedStudentsCount} ${noun} van deze groep ${verb} deze test ${formatTimeAgo(afnameDate, geselecteerdeDatum)} reeds afgelegd bij ${leerkrachtTekst}.`,
+                        onConfirm: () => setWarningModal({ isOpen: false }),
+                        onCancel: () => { setSelectedTest(null); setWarningModal({ isOpen: false }); }
+                    });
                 }
-
-                const leerkrachtTekst = teacherNames.length > 0
-                    ? new Intl.ListFormat('nl-BE').format(teacherNames)
-                    : 'een leerkracht';
-                const affectedStudentsCount = new Set(recentScores.map(s => s.leerling_id)).size;
-                const noun = affectedStudentsCount === 1 ? 'leerling' : 'leerlingen';
-                const verb = affectedStudentsCount === 1 ? 'heeft' : 'hebben';
-
-                setWarningModal({
-                    isOpen: true,
-                    message: `${affectedStudentsCount} ${noun} van deze groep ${verb} deze test ${formatTimeAgo(afnameDatum, geselecteerdeDatum)} reeds afgelegd bij ${leerkrachtTekst}.`,
-                    onConfirm: () => setWarningModal({ isOpen: false }),
-                    onCancel: () => { setSelectedTest(null); setWarningModal({ isOpen: false }); }
-                });
+            } catch (error) {
+                console.error('Fout bij controleren recente afnames:', error);
             }
         };
         checkForRecentTests();
-    }, [selectedGroep, selectedTest, datum, gefilterdeLeerlingen]);
+    }, [selectedGroep, selectedTest, datum, gefilterdeLeerlingen, profile]);
 
     // =============================================
-    // EFFECT 5: Debounced puntberekening (ongewijzigd)
+    // EFFECT 5: Debounced puntberekening
+    // ✅ GEMIGREERD: gebruikt cachedNormenData i.p.v. Firestore query
     // =============================================
     useEffect(() => {
         if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
@@ -360,65 +320,73 @@ export default function NieuweTestafname() {
                     setScores(prev => ({ ...prev, [studentIdToProcess]: { ...scoreData, isValid: false, isCalculating: false } }));
                 } else {
                     const leerling = gefilterdeLeerlingen.find(l => l.id === studentIdToProcess);
-                    const newPunt = await calculatePuntFromScore(selectedTest, leerling.data, parsedValue, new Date(datum));
+                    // ✅ Geef cachedNormenData mee — geen Firestore call per keystroke
+                    const newPunt = calculatePuntFromScore(
+                        selectedTest,
+                        leerling.data,
+                        parsedValue,
+                        new Date(datum),
+                        cachedNormenData
+                    );
                     setScores(prev => ({ ...prev, [studentIdToProcess]: { ...scoreData, rapportpunt: newPunt, isValid: true, isCalculating: false } }));
                 }
             }, 750);
         }
         return () => clearTimeout(debounceTimeoutRef.current);
-    }, [scores, selectedTest, datum, gefilterdeLeerlingen]);
+    }, [scores, selectedTest, datum, gefilterdeLeerlingen, cachedNormenData]);
 
     const handleScoreChange = (leerlingId, newScore) => {
         setScores(prev => ({ ...prev, [leerlingId]: { ...prev[leerlingId], score: newScore, rapportpunt: null, isValid: true, isCalculating: true } }));
     };
 
     // =============================================
-    // SCORES OPSLAAN
-    // ✅ FIX 1: leerling_id = smartschool_id_hash (consistent met groepen)
-    // ✅ FIX 2: leerling_naam = ontsleutelde naam (al aanwezig in leerling.data.naam)
-    // ✅ FIX 3: leerkracht_id = Firebase UID 
-    // ✅ FIX 4: Console logs verwijderd
+    // SCORES OPSLAAN via API
+    // ✅ GEMIGREERD: geen writeBatch meer via client
     // =============================================
     const handleSaveScores = async () => {
         if (!selectedGroep || !selectedTest) return toast.error("Selecteer een groep en een test.");
 
         setIsSaving(true);
 
-        const batch = writeBatch(db);
         const eenheidLower = selectedTest.eenheid?.toLowerCase();
+        const scoresToSave = [];
 
-        try {
-            for (const leerlingId in scores) {
-                const scoreData = scores[leerlingId];
-                if (scoreData.score && String(scoreData.score).trim() !== '') {
-                    let finalScoreValue = (eenheidLower.includes('min') || eenheidLower.includes('sec'))
-                        ? parseTimeInputToSeconds(scoreData.score)
-                        : parseFloat(String(scoreData.score).replace(',', '.'));
+        for (const leerlingId in scores) {
+            const scoreData = scores[leerlingId];
+            if (scoreData.score && String(scoreData.score).trim() !== '') {
+                let finalScoreValue = (eenheidLower.includes('min') || eenheidLower.includes('sec'))
+                    ? parseTimeInputToSeconds(scoreData.score)
+                    : parseFloat(String(scoreData.score).replace(',', '.'));
 
-                    if (finalScoreValue !== null && !isNaN(finalScoreValue)) {
-                        const leerling = gefilterdeLeerlingen.find(l => l.id === leerlingId);
-
-                        const newScoreRef = doc(collection(db, 'scores'));
-                        batch.set(newScoreRef, {
-                            datum: new Date(datum),
-                            groep_id: selectedGroep.id,
-                            leerling_id: leerling.id,               // ✅ smartschool_id_hash
-                            leerling_naam: leerling?.data?.naam || 'Onbekend',  // ✅ Ontsleutelde naam
-                            score: finalScoreValue,
-                            rapportpunt: scoreData.rapportpunt ?? null,
-                            school_id: profile.school_id,
-                            test_id: selectedTest.id,
-                            leerkracht_id: auth.currentUser.uid,    // ✅ Firebase UID 
-                            created_at: serverTimestamp()
-                        });
-                    }
+                if (finalScoreValue !== null && !isNaN(finalScoreValue)) {
+                    const leerling = gefilterdeLeerlingen.find(l => l.id === leerlingId);
+                    scoresToSave.push({
+                        leerling_id: leerling.id,                          // ✅ smartschool_id_hash
+                        leerling_naam: leerling?.data?.naam || 'Onbekend', // ✅ ontsleutelde naam
+                        score: finalScoreValue,
+                        rapportpunt: scoreData.rapportpunt ?? null,
+                    });
                 }
             }
+        }
 
-            await batch.commit();
+        if (scoresToSave.length === 0) {
+            toast.error("Geen geldige scores om op te slaan.");
+            setIsSaving(false);
+            return;
+        }
+
+        try {
+            await apiPost('save_scores', {
+                groepId: selectedGroep.id,
+                testId: selectedTest.id,
+                schoolId: profile.school_id,
+                datum: datum,
+                scores: scoresToSave
+            }, profile._token);
+
             toast.success("Scores succesvol opgeslagen!");
             navigate('/Sporttesten');
-
         } catch (error) {
             console.error('❌ Save error:', error);
             toast.error("Kon de scores niet opslaan: " + error.message);
