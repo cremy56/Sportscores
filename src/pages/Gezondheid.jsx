@@ -31,7 +31,7 @@ const MijnGezondheid = () => {
 
   // NIEUWE LOGICA: Bepaal welke gebruiker ID te gebruiken
  
-const effectiveUserId = getAuth().currentUser?.uid;
+const effectiveUserId = auth.currentUser?.uid;
   console.log('DEBUG: Effective User ID:', effectiveUserId);
   console.log('DEBUG: Profile structure:', profile);
   
