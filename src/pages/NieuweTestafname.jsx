@@ -119,6 +119,10 @@ function formatTimeAgo(pastDate, referenceDate) {
 // --- HOOFDCOMPONENT ---
 export default function NieuweTestafname() {
     const { profile } = useOutletContext();
+    console.log("🔍 NieuweTestafname:", { 
+        token: profile?._token ? "aanwezig" : "ONTBREEKT", 
+        school_id: profile?.school_id || "ONTBREEKT"
+    });
     const [groepen, setGroepen] = useState([]);
     const [testen, setTesten] = useState([]);
     const [selectedGroep, setSelectedGroep] = useState(null);
