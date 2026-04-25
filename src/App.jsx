@@ -222,7 +222,7 @@ function App() {
                 <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
                 <Route path="/trainingsbeheer/schema/:schemaId" element={<SchemaDetail />} />
                 <Route path="/gezondheid" element={<Gezondheid />} />
-                <Route path="/gezondheid/welzijn" element={<Welzijnsmonitor />} />
+                <Route path="/welzijnsmonitor" element={<Welzijnsmonitor />} />
                 <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
                 <Route path="/gezondheid/mentaal" element={<MentaalDetail />} />
                 <Route path="/gezondheid/voeding" element={<VoedingDetail />} />
