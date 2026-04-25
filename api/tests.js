@@ -1,6 +1,6 @@
 // pages/api/tests.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { getMasterKey } from '../lib/keyManager.js';
 import CryptoJS from 'crypto-js';
 
@@ -854,19 +854,19 @@ async function handleGetMijnKlassen(req, res, decodedToken) {
 // ─────────────────────────────────────────────────────────
 async function handleCreateGroep(req, res, decodedToken) {
     try {
-        const { naam, leerling_ids, leerlingen_cache, schoolId } = req.body;
+        const { naam, leerling_ids, schoolId } = req.body;
         const verifiedSchoolId = await getSchoolId(decodedToken.uid);
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
         if (!naam?.trim()) return res.status(400).json({ error: 'Groepsnaam is verplicht.' });
         if (!Array.isArray(leerling_ids) || leerling_ids.length === 0) return res.status(400).json({ error: 'Selecteer minstens 1 leerling.' });
 
+        // ✅ GDPR: geen leerlingen_cache — namen worden nooit plaintext opgeslagen
         const docRef = await db.collection('groepen').add({
             naam: naam.trim(),
             type: 'manueel',
             leerkracht_id: decodedToken.uid,
             school_id: verifiedSchoolId,
-            leerling_ids,
-            leerlingen_cache: leerlingen_cache || [],
+            leerling_ids,  // ✅ enkel smartschool_id_hash
             auto_sync: false,
             created_at: Timestamp.now()
         });
@@ -919,6 +919,164 @@ async function handleDeleteGroep(req, res, decodedToken) {
     } catch (error) {
         console.error('❌ handleDeleteGroep:', error);
         return res.status(500).json({ error: 'Fout bij verwijderen groep' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 20: GET GROEP DETAIL
+// Haalt groep, leden (met namen) en scores op
+// ─────────────────────────────────────────────────────────
+async function handleGetGroepDetail(req, res, decodedToken) {
+    try {
+        const { groepId, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const masterKey = await getMasterKey();
+
+        // Haal groep op
+        const groepSnap = await db.collection('groepen').doc(groepId).get();
+        if (!groepSnap.exists) return res.status(404).json({ error: 'Groep niet gevonden.' });
+        const groepData = { id: groepSnap.id, ...groepSnap.data() };
+        if (groepData.school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const leerlingIds = groepData.leerling_ids || [];
+
+        // Haal leerlingendata op uit toegestane_gebruikers
+        let members = [];
+        if (leerlingIds.length > 0) {
+            const chunks = [];
+            for (let i = 0; i < leerlingIds.length; i += 30) chunks.push(leerlingIds.slice(i, i + 30));
+
+            const toegestaneData = new Map();
+            for (const chunk of chunks) {
+                const snap = await db.collection('toegestane_gebruikers').where('__name__', 'in', chunk).get();
+                snap.docs.forEach(d => toegestaneData.set(d.id, d.data()));
+            }
+
+            members = leerlingIds
+                .filter(id => toegestaneData.has(id))
+                .map(id => {
+                    const tgData = toegestaneData.get(id);
+                    return {
+                        id,
+                        naam: decryptName(tgData.encrypted_name, masterKey),
+                        klas: tgData.klas || ''
+                    };
+                })
+                .sort((a, b) => a.naam.localeCompare(b.naam));
+        }
+
+        // Haal scores op voor dit schooljaar
+        const nu = new Date();
+        const startJaar = nu.getMonth() >= 8 ? nu.getFullYear() : nu.getFullYear() - 1;
+        const schoolYearStart = Timestamp.fromDate(new Date(startJaar, 8, 1));
+        const schoolYearEnd = Timestamp.fromDate(new Date(startJaar + 1, 7, 31, 23, 59, 59));
+
+        let scoresByLeerling = {};
+        let testenVoorSorteren = [];
+
+        if (leerlingIds.length > 0) {
+            // Scores in chunks van max 30
+            const allScores = [];
+            const chunks = [];
+            for (let i = 0; i < leerlingIds.length; i += 30) chunks.push(leerlingIds.slice(i, i + 30));
+
+            for (const chunk of chunks) {
+                const scoresSnap = await db.collection('scores')
+                    .where('leerling_id', 'in', chunk)
+                    .where('datum', '>=', schoolYearStart)
+                    .where('datum', '<=', schoolYearEnd)
+                    .get();
+                allScores.push(...scoresSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            }
+
+            // Haal testnamen op
+            const testIds = [...new Set(allScores.map(s => s.test_id))];
+            const testNamen = new Map();
+            if (testIds.length > 0) {
+                const testChunks = [];
+                for (let i = 0; i < testIds.length; i += 30) testChunks.push(testIds.slice(i, i + 30));
+                for (const chunk of testChunks) {
+                    const testenSnap = await db.collection('testen').where('__name__', 'in', chunk).get();
+                    testenSnap.docs.forEach(d => {
+                        testNamen.set(d.id, d.data().naam);
+                        testenVoorSorteren.push({ id: d.id, naam: d.data().naam });
+                    });
+                }
+            }
+
+            // Groepeer per leerling
+            allScores.forEach(score => {
+                if (!scoresByLeerling[score.leerling_id]) scoresByLeerling[score.leerling_id] = [];
+                scoresByLeerling[score.leerling_id].push({
+                    ...score,
+                    datum: score.datum?.toDate ? score.datum.toDate().toISOString() : null,
+                    test_naam: testNamen.get(score.test_id) || 'Onbekende Test'
+                });
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            groep: groepData,
+            members,
+            scoresByLeerling,
+            availableTests: testenVoorSorteren.sort((a, b) => a.naam.localeCompare(b.naam))
+        });
+    } catch (error) {
+        console.error('❌ handleGetGroepDetail:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen groepdetail' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 21: ADD LEERLING AAN GROEP
+// ─────────────────────────────────────────────────────────
+async function handleAddLeerling(req, res, decodedToken) {
+    try {
+        const { groepId, leerlingId, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const groepRef = db.collection('groepen').doc(groepId);
+        const groepSnap = await groepRef.get();
+        if (!groepSnap.exists) return res.status(404).json({ error: 'Groep niet gevonden.' });
+        if (groepSnap.data().leerkracht_id !== decodedToken.uid) return res.status(403).json({ error: 'Geen toegang.' });
+
+        await groepRef.update({
+            leerling_ids: FieldValue.arrayUnion(leerlingId)
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('❌ handleAddLeerling:', error);
+        return res.status(500).json({ error: 'Fout bij toevoegen leerling' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 22: REMOVE LEERLING UIT GROEP
+// ─────────────────────────────────────────────────────────
+async function handleRemoveLeerling(req, res, decodedToken) {
+    try {
+        const { groepId, leerlingId, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const groepRef = db.collection('groepen').doc(groepId);
+        const groepSnap = await groepRef.get();
+        if (!groepSnap.exists) return res.status(404).json({ error: 'Groep niet gevonden.' });
+        if (groepSnap.data().leerkracht_id !== decodedToken.uid) return res.status(403).json({ error: 'Geen toegang.' });
+
+        await groepRef.update({
+            leerling_ids: FieldValue.arrayRemove(leerlingId)
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('❌ handleRemoveLeerling:', error);
+        return res.status(500).json({ error: 'Fout bij verwijderen leerling' });
     }
 }
 
@@ -996,6 +1154,16 @@ export default async function handler(req, res) {
 
             case 'delete_groep':
                 return await handleDeleteGroep(req, res, decodedToken);
+
+            // ✅ NIEUW — GroupDetail migratie
+            case 'get_groep_detail':
+                return await handleGetGroepDetail(req, res, decodedToken);
+
+            case 'add_leerling':
+                return await handleAddLeerling(req, res, decodedToken);
+
+            case 'remove_leerling':
+                return await handleRemoveLeerling(req, res, decodedToken);
 
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
