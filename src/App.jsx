@@ -218,7 +218,7 @@ function App() {
                 <Route path="/sporttesten" element={<Sporttesten />} />
                 <Route path="/sporttesten/:testId" element={<TestDetailBeheer />} />
                 <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
-                <Route path="/testafname/:testafnameId" element={<TestafnameDetail />} />
+                <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
                 <Route path="/trainingsbeheer/schema/:schemaId" element={<SchemaDetail />} />
                 <Route path="/gezondheid" element={<Gezondheid />} />
                 <Route path="/gezondheid/welzijn" element={<Welzijnsmonitor />} />
