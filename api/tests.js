@@ -783,6 +783,146 @@ async function handleDeleteTest(req, res, decodedToken) {
 }
 
 // ─────────────────────────────────────────────────────────
+// FUNCTIE 15: GET GROEPEN (voor Groepsbeheer)
+// ─────────────────────────────────────────────────────────
+async function handleGetGroepen(req, res, decodedToken) {
+    try {
+        const { schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const snap = await db.collection('groepen')
+            .where('school_id', '==', verifiedSchoolId)
+            .where('leerkracht_id', '==', decodedToken.uid)
+            .get();
+
+        return res.status(200).json({
+            success: true,
+            groepen: snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        });
+    } catch (error) {
+        console.error('❌ handleGetGroepen:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen groepen' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 16: GET MIJN KLASSEN (voor Groepsbeheer)
+// Haalt klassen op van de leerkracht via toegestane_gebruikers
+// Fallback: alle klassen van de school
+// ─────────────────────────────────────────────────────────
+async function handleGetMijnKlassen(req, res, decodedToken) {
+    try {
+        const { schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        // Haal smartschool_id_hash op uit users profiel
+        const userSnap = await db.collection('users').doc(decodedToken.uid).get();
+        const leerkrachtHash = userSnap.data()?.smartschool_id_hash;
+
+        if (leerkrachtHash) {
+            const toegestaneSnap = await db.collection('toegestane_gebruikers').doc(leerkrachtHash).get();
+            if (toegestaneSnap.exists) {
+                const klassen = toegestaneSnap.data()?.klassen || [];
+                if (klassen.length > 0) {
+                    return res.status(200).json({ success: true, klassen });
+                }
+            }
+        }
+
+        // Fallback: alle klassen van de school via toegestane_gebruikers
+        const leerlingenSnap = await db.collection('toegestane_gebruikers')
+            .where('school_id', '==', verifiedSchoolId)
+            .where('rol', '==', 'leerling')
+            .where('is_active', '==', true)
+            .get();
+
+        const alleKlassen = [...new Set(
+            leerlingenSnap.docs.map(d => d.data().klas).filter(Boolean).sort()
+        )];
+
+        return res.status(200).json({ success: true, klassen: alleKlassen, isFallback: true });
+    } catch (error) {
+        console.error('❌ handleGetMijnKlassen:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen klassen' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 17: CREATE GROEP
+// ─────────────────────────────────────────────────────────
+async function handleCreateGroep(req, res, decodedToken) {
+    try {
+        const { naam, leerling_ids, leerlingen_cache, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+        if (!naam?.trim()) return res.status(400).json({ error: 'Groepsnaam is verplicht.' });
+        if (!Array.isArray(leerling_ids) || leerling_ids.length === 0) return res.status(400).json({ error: 'Selecteer minstens 1 leerling.' });
+
+        const docRef = await db.collection('groepen').add({
+            naam: naam.trim(),
+            type: 'manueel',
+            leerkracht_id: decodedToken.uid,
+            school_id: verifiedSchoolId,
+            leerling_ids,
+            leerlingen_cache: leerlingen_cache || [],
+            auto_sync: false,
+            created_at: Timestamp.now()
+        });
+
+        return res.status(200).json({ success: true, id: docRef.id });
+    } catch (error) {
+        console.error('❌ handleCreateGroep:', error);
+        return res.status(500).json({ error: 'Fout bij aanmaken groep' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 18: UPDATE GROEP (naam wijzigen)
+// ─────────────────────────────────────────────────────────
+async function handleUpdateGroep(req, res, decodedToken) {
+    try {
+        const { groepId, naam, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const groepRef = db.collection('groepen').doc(groepId);
+        const groepSnap = await groepRef.get();
+        if (!groepSnap.exists) return res.status(404).json({ error: 'Groep niet gevonden.' });
+        if (groepSnap.data().leerkracht_id !== decodedToken.uid) return res.status(403).json({ error: 'Geen toegang.' });
+
+        await groepRef.update({ naam: naam.trim() });
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('❌ handleUpdateGroep:', error);
+        return res.status(500).json({ error: 'Fout bij wijzigen groep' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 19: DELETE GROEP
+// ─────────────────────────────────────────────────────────
+async function handleDeleteGroep(req, res, decodedToken) {
+    try {
+        const { groepId, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const groepRef = db.collection('groepen').doc(groepId);
+        const groepSnap = await groepRef.get();
+        if (!groepSnap.exists) return res.status(404).json({ error: 'Groep niet gevonden.' });
+        if (groepSnap.data().leerkracht_id !== decodedToken.uid) return res.status(403).json({ error: 'Geen toegang.' });
+
+        await groepRef.delete();
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('❌ handleDeleteGroep:', error);
+        return res.status(500).json({ error: 'Fout bij verwijderen groep' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
 // HOOFD HANDLER (Router)
 // ─────────────────────────────────────────────────────────
 export default async function handler(req, res) {
@@ -840,6 +980,22 @@ export default async function handler(req, res) {
 
             case 'delete_test':
                 return await handleDeleteTest(req, res, decodedToken);
+
+            // ✅ NIEUW — Groepsbeheer migratie
+            case 'get_groepen':
+                return await handleGetGroepen(req, res, decodedToken);
+
+            case 'get_mijn_klassen':
+                return await handleGetMijnKlassen(req, res, decodedToken);
+
+            case 'create_groep':
+                return await handleCreateGroep(req, res, decodedToken);
+
+            case 'update_groep':
+                return await handleUpdateGroep(req, res, decodedToken);
+
+            case 'delete_groep':
+                return await handleDeleteGroep(req, res, decodedToken);
 
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
