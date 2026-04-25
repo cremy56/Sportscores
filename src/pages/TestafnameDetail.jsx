@@ -1,10 +1,9 @@
 // src/pages/TestafnameDetail.jsx
+// ✅ VOLLEDIG GEMIGREERD — geen directe Firestore calls meer
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { auth } from '../firebase';
 import toast from 'react-hot-toast';
-import { getAuth } from 'firebase/auth';
 import { 
     TrashIcon, 
     PencilSquareIcon, 
@@ -21,114 +20,29 @@ import {
 } from '@heroicons/react/24/solid';
 import { parseTimeInputToSeconds, formatScoreWithUnit, getPointColorClass } from '../utils/formatters.js';
 import ConfirmModal from '../components/ConfirmModal';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../firebase';
+import { useOutletContext } from 'react-router-dom';
 
-
-async function calculatePuntFromScore(test, leerling, score, testDatum) {
-    if (!test || !leerling || score === null || isNaN(score)) return null;
-    try {
-        const { score_richting } = test; 
-        if (!score_richting) return null;
-
-        const { geboortedatum, geslacht } = leerling;
-        if (!geboortedatum || !geslacht) return null;
-
-        const ageDate = geboortedatum.toDate ? geboortedatum.toDate() : new Date(geboortedatum);
-        
-        let leeftijd = testDatum.getFullYear() - ageDate.getFullYear();
-        const m = testDatum.getMonth() - ageDate.getMonth();
-        if (m < 0 || (m === 0 && testDatum.getDate() < ageDate.getDate())) {
-            leeftijd--;
-        }
-
-        const normAge = Math.min(leeftijd, 17);
-
-        const normenQuery = query(collection(db, 'normen'), where('test_id', '==', test.id));
-        const normenSnapshot = await getDocs(normenQuery);
-        
-        if (normenSnapshot.empty) return null;
-        
-        const normSnap = normenSnapshot.docs[0];
-        const { punten_schaal } = normSnap.data(); 
-        if (!punten_schaal || punten_schaal.length === 0) return null;
-
-        const genderMapping = { 'man': 'M', 'vrouw': 'V', 'jongen': 'M', 'meisje': 'V' };
-        const mappedGender = genderMapping[geslacht.toLowerCase()] || geslacht.toUpperCase();
-
-        const relevantNorms = punten_schaal
-            .filter(n => n.leeftijd === normAge && n.geslacht === mappedGender)
-            .sort((a, b) => a.punt - b.punt);
-
-        if (relevantNorms.length === 0) return null;
-
-        let behaaldeNorm = null;
-        let volgendeNorm = null;
-
-        if (score_richting === 'laag') {
-            if (score <= relevantNorms[relevantNorms.length - 1].score_min) return relevantNorms[relevantNorms.length - 1].punt;
-            if (score >= relevantNorms[0].score_min) return relevantNorms[0].punt;
-
-            for (let i = 0; i < relevantNorms.length - 1; i++) {
-                if (score < relevantNorms[i].score_min && score >= relevantNorms[i + 1].score_min) {
-                    behaaldeNorm = relevantNorms[i];
-                    volgendeNorm = relevantNorms[i + 1];
-                    break;
-                }
-            }
-        } else { // 'hoog'
-            if (score >= relevantNorms[relevantNorms.length - 1].score_min) return relevantNorms[relevantNorms.length - 1].punt;
-            if (score <= relevantNorms[0].score_min) return relevantNorms[0].punt;
-
-            for (let i = 0; i < relevantNorms.length - 1; i++) {
-                if (score >= relevantNorms[i].score_min && score < relevantNorms[i + 1].score_min) {
-                    behaaldeNorm = relevantNorms[i];
-                    volgendeNorm = relevantNorms[i + 1];
-                    break;
-                }
-            }
-        }
-
-        if (!behaaldeNorm || !volgendeNorm) {
-            const exactMatch = relevantNorms.find(n => n.score_min === score);
-            return exactMatch ? exactMatch.punt : (behaaldeNorm ? behaaldeNorm.punt : 0);
-        }
-
-        const midpoint = (behaaldeNorm.score_min + volgendeNorm.score_min) / 2;
-        let finalPunt = behaaldeNorm.punt;
-
-        if (score_richting === 'laag') {
-            if (score < midpoint) finalPunt += 0.5;
-        } else {
-            if (score > midpoint) finalPunt += 0.5;
-        }
-        
-        return finalPunt;
-    } catch (error) {
-        console.error("Fout tijdens puntberekening:", error);
-        return null;
-    }
+// --- API HELPER ---
+async function apiPost(action, body, token) {
+    const response = await fetch('/api/tests', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action, ...body })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'API fout');
+    return data;
 }
 
-
 function validateScore(score, eenheid) {
-    if (!score || score.toString().trim() === '') {
-        return { valid: true, message: '' };
-    }
-    
+    if (!score || score.toString().trim() === '') return { valid: true, message: '' };
     const numericScore = parseFloat(score.toString().replace(',', '.'));
-    if (isNaN(numericScore)) {
-        return { valid: false, message: 'Ongeldige score' };
-    }
-    
-    if (numericScore < 0) {
-        return { valid: false, message: 'Score kan niet negatief zijn' };
-    }
-    
-    if (eenheid === 'seconden' && numericScore > 3600) {
-        return { valid: false, message: 'Score te hoog (max 1 uur)' };
-    }
-    
+    if (isNaN(numericScore)) return { valid: false, message: 'Ongeldige score' };
+    if (numericScore < 0) return { valid: false, message: 'Score kan niet negatief zijn' };
+    if (eenheid === 'seconden' && numericScore > 3600) return { valid: false, message: 'Score te hoog (max 1 uur)' };
     return { valid: true, message: '' };
 }
 
@@ -140,7 +54,6 @@ function StatCard({ icon: Icon, title, value, subtitle, color = "gray" }) {
         red: "from-red-500 to-red-600",
         gray: "from-gray-500 to-gray-600"
     };
-
     return (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <div className="flex items-center">
@@ -159,117 +72,55 @@ function StatCard({ icon: Icon, title, value, subtitle, color = "gray" }) {
 
 function ScoreDistributionChart({ leerlingen, maxPunten = 20 }) {
     const distribution = useMemo(() => {
-        const punten = leerlingen
-            .filter(l => l.punt !== null)
-            .map(l => l.punt);
-        
+        const punten = leerlingen.filter(l => l.punt !== null).map(l => l.punt);
         if (punten.length === 0) return null;
-
-        const uitstekendDrempel = 18; // Alles van 18 en hoger
-        const goedDrempel = 14;       // Goed: 14, 15, 16, 17
-        const voldoendeDrempel = 10;    // Voldoende: 10, 11, 12, 13
-        // Onvoldoende is alles onder de 10
-
-        const uitstekend = punten.filter(p => p >= uitstekendDrempel).length;
-        const goed = punten.filter(p => p >= goedDrempel && p < uitstekendDrempel).length;
-        const voldoende = punten.filter(p => p >= voldoendeDrempel && p < goedDrempel).length;
-        const onvoldoende = punten.filter(p => p < voldoendeDrempel).length;
-        
+        const uitstekend = punten.filter(p => p >= 18).length;
+        const goed = punten.filter(p => p >= 14 && p < 18).length;
+        const voldoende = punten.filter(p => p >= 10 && p < 14).length;
+        const onvoldoende = punten.filter(p => p < 10).length;
         const total = punten.length;
         const average = (punten.reduce((sum, p) => sum + p, 0) / total).toFixed(1);
-
         return {
             uitstekend: { count: uitstekend, percentage: Math.round((uitstekend / total) * 100) },
             goed: { count: goed, percentage: Math.round((goed / total) * 100) },
             voldoende: { count: voldoende, percentage: Math.round((voldoende / total) * 100) },
             onvoldoende: { count: onvoldoende, percentage: Math.round((onvoldoende / total) * 100) },
-            average,
-            total,
-            maxPunten
+            average, total, maxPunten
         };
     }, [leerlingen, maxPunten]);
 
-    if (!distribution) {
-        return (
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <ChartBarIcon className="h-5 w-5 mr-2" />
-                    Score Verdeling
-                </h3>
-                <p className="text-gray-500 text-center py-8">Geen scores beschikbaar voor analyse</p>
-            </div>
-        );
-    }
+    if (!distribution) return (
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <ChartBarIcon className="h-5 w-5 mr-2" />Score Verdeling
+            </h3>
+            <p className="text-gray-500 text-center py-8">Geen scores beschikbaar voor analyse</p>
+        </div>
+    );
 
     return (
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <ChartBarIcon className="h-5 w-5 mr-2" />
-                Score Verdeling
+                <ChartBarIcon className="h-5 w-5 mr-2" />Score Verdeling
             </h3>
-            
             <div className="space-y-3 mb-6">
-                <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-green-700">
-                        Uitstekend (18-{distribution.maxPunten})
-                    </span>
-                    <div className="flex items-center">
-                        <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                            <div 
-                                className="bg-green-500 h-2 rounded-full" 
-                                style={{ width: `${distribution.uitstekend.percentage}%` }}
-                            ></div>
+                {[
+                    { label: `Uitstekend (18-${distribution.maxPunten})`, data: distribution.uitstekend, color: 'bg-green-500', textColor: 'text-green-700' },
+                    { label: 'Goed (14-17)', data: distribution.goed, color: 'bg-blue-500', textColor: 'text-blue-700' },
+                    { label: 'Voldoende (10-13)', data: distribution.voldoende, color: 'bg-yellow-500', textColor: 'text-yellow-700' },
+                    { label: 'Onvoldoende (<10)', data: distribution.onvoldoende, color: 'bg-red-500', textColor: 'text-red-700' },
+                ].map(({ label, data, color, textColor }) => (
+                    <div key={label} className="flex items-center justify-between">
+                        <span className={`text-sm font-medium ${textColor}`}>{label}</span>
+                        <div className="flex items-center">
+                            <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                <div className={`${color} h-2 rounded-full`} style={{ width: `${data.percentage}%` }}></div>
+                            </div>
+                            <span className="text-sm text-gray-600 w-12">{data.count}/{distribution.total}</span>
                         </div>
-                        <span className="text-sm text-gray-600 w-12">{distribution.uitstekend.count}/{distribution.total}</span>
                     </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-blue-700">
-                        Goed (14-17)
-                    </span>
-                    <div className="flex items-center">
-                        <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                            <div 
-                                className="bg-blue-500 h-2 rounded-full" 
-                                style={{ width: `${distribution.goed.percentage}%` }}
-                            ></div>
-                        </div>
-                        <span className="text-sm text-gray-600 w-12">{distribution.goed.count}/{distribution.total}</span>
-                    </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-yellow-700">
-                        Voldoende (10-13)
-                    </span>
-                    <div className="flex items-center">
-                        <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                            <div 
-                                className="bg-yellow-500 h-2 rounded-full" 
-                                style={{ width: `${distribution.voldoende.percentage}%` }}
-                            ></div>
-                        </div>
-                        <span className="text-sm text-gray-600 w-12">{distribution.voldoende.count}/{distribution.total}</span>
-                    </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                   <span className="text-sm font-medium text-red-700">
-                       Onvoldoende (&lt;10)
-                   </span>
-                    <div className="flex items-center">
-                        <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                            <div 
-                                className="bg-red-500 h-2 rounded-full" 
-                                style={{ width: `${distribution.onvoldoende.percentage}%` }}
-                            ></div>
-                        </div>
-                        <span className="text-sm text-gray-600 w-12">{distribution.onvoldoende.count}/{distribution.total}</span>
-                    </div>
-                </div>
+                ))}
             </div>
-            
             <div className="border-t pt-4">
                 <p className="text-center">
                     <span className="text-sm text-gray-600">Gemiddelde: </span>
@@ -283,14 +134,11 @@ function ScoreDistributionChart({ leerlingen, maxPunten = 20 }) {
 
 export default function TestafnameDetail() {
     const { groepId, testId, datum } = useParams();
+    const { profile } = useOutletContext();
     const navigate = useNavigate();
     const [details, setDetails] = useState({ 
-       groep_naam: '', 
-        test_naam: '', 
-        test_volledig: null,
-        leerlingen: [],
-        eenheid: '',
-        max_punten: 20
+        groep_naam: '', test_naam: '', test_volledig: null,
+        leerlingen: [], eenheid: '', max_punten: 20
     });
     const [loading, setLoading] = useState(true);
     const [editingScore, setEditingScore] = useState({ id: null, score: '', validation: null });
@@ -299,411 +147,199 @@ export default function TestafnameDetail() {
     const [updating, setUpdating] = useState(false);
     const [swipeState, setSwipeState] = useState({ id: null, translateX: 0, isDeleting: false });
     const [longPressTimer, setLongPressTimer] = useState(null);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // FIXED: Added missing state
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, scoreId: null, leerlingNaam: '' });
-const [currentDate, setCurrentDate] = useState(datum);
+    const [currentDate, setCurrentDate] = useState(datum);
 
     const stats = useMemo(() => {
         const leerlingenMetScore = details.leerlingen.filter(l => l.score !== null);
         const totaalLeerlingen = details.leerlingen.length;
-        const percentageCompleet = totaalLeerlingen > 0 
-            ? Math.round((leerlingenMetScore.length / totaalLeerlingen) * 100) 
-            : 0;
-
         return {
             totaal: totaalLeerlingen,
             compleet: leerlingenMetScore.length,
-            percentage: percentageCompleet
+            percentage: totaalLeerlingen > 0 ? Math.round((leerlingenMetScore.length / totaalLeerlingen) * 100) : 0
         };
     }, [details.leerlingen]);
 
-    // FIXED: Remove fetchDetails from dependency array to prevent infinite loop
+    // =============================================
+    // FETCH DETAILS via API
+    // ✅ GEMIGREERD: geen directe Firestore calls
+    // =============================================
     const fetchDetails = useCallback(async () => {
-    if (!groepId || !testId || !datum) {
-        console.warn('Missing required params:', { groepId, testId, datum });
-        setLoading(false);
-        return;
-    }
-    
-    setLoading(true);
-
-    try {
-        const [groupSnap, testSnap] = await Promise.all([
-            getDoc(doc(db, 'groepen', groepId)),
-            getDoc(doc(db, 'testen', testId)),
-        ]);
-
-        // ✅ Alleen stoppen als de test niet bestaat - groep mag ontbreken
-        if (!testSnap.exists()) {
-            toast.error("Test niet gevonden");
+        if (!groepId || !testId || !datum || !profile?._token || !profile?.school_id) {
             setLoading(false);
             return;
         }
-
-        // ✅ Graceful handling van ontbrekende groep
-        const groupData = groupSnap.exists() ? groupSnap.data() : null;
-        const groupName = groupData?.naam || 'Verwijderde Groep';
-        const leerlingIds = groupData?.leerling_ids || [];
-        
-        const testData = { id: testSnap.id, ...testSnap.data() };
-
-        // Date parsing blijft hetzelfde...
-        let targetDate;
+        setLoading(true);
         try {
-            targetDate = new Date(datum);
-            if (isNaN(targetDate.getTime())) {
-                throw new Error('Invalid date');
-            }
-        } catch (error) {
-            console.error('Invalid date format:', datum);
-            toast.error("Ongeldige datum");
-            setLoading(false);
-            return;
-        }
+            const data = await apiPost('get_testafname_detail', {
+                groepId, testId, datum,
+                schoolId: profile.school_id
+            }, profile._token);
 
-        const dayStart = new Date(targetDate);
-        dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(targetDate);
-        dayEnd.setHours(23, 59, 59, 999);
-
-        // Haal scores op
-        const scoresQuery = query(collection(db, 'scores'), 
-            where('groep_id', '==', groepId),
-            where('test_id', '==', testId),
-            where('datum', '>=', dayStart),
-            where('datum', '<=', dayEnd)
-        );
-
-        const scoresSnap = await getDocs(scoresQuery);
-        const scoresMap = new Map();
-
-        scoresSnap.docs.forEach(scoreDoc => {
-            const scoreData = { id: scoreDoc.id, ...scoreDoc.data() };
-            const leerlingId = scoreData.leerling_id;
-            scoresMap.set(leerlingId, scoreData);
-        });
-
-        let leerlingenData = [];
- 
-        if (leerlingIds.length > 0) {
-            // Haal leerling basisdata op (geboortedatum, geslacht voor puntberekening)
-            const leerlingenQuery = query(
-                collection(db, 'toegestane_gebruikers'),
-                where('__name__', 'in', leerlingIds)
-            );
-            const leerlingenSnap = await getDocs(leerlingenQuery);
- 
-            // ✅ Haal ontsleutelde namen op via API
-            let namenMap = new Map();
-            try {
-                const auth = getAuth();
-                const token = await auth.currentUser?.getIdToken();
-                if (token && groupData?.school_id) {
-                    const response = await fetch('/api/users', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            action: 'get_users',
-                            schoolId: groupData.school_id,
-                            filterRol: 'leerling'
-                        })
-                    });
-                    if (response.ok) {
-                        const data = await response.json();
-                        (data.users || []).forEach(u => {
-                            namenMap.set(u.id, u.decrypted_name || '[Naam]');
-                        });
-                    }
-                }
-            } catch (err) {
-                console.error('Fout bij ophalen namen:', err);
-            }
- 
-            leerlingenData = leerlingenSnap.docs.map(d => {
-                const userData = d.data();
-                // ✅ CORRECT: Scores opgeslagen met smartschool_id_hash als leerling_id
-                const scoreInfo = scoresMap.get(d.id);
- 
-                return {
-                    id: d.id,
-                    ...userData,
-                    // ✅ Gebruik ontsleutelde naam uit API
-                    naam: namenMap.get(d.id) || '[Naam niet beschikbaar]',
-                    score: scoreInfo?.score ?? null,
-                    punt: scoreInfo?.rapportpunt ?? null,
-                    score_id: scoreInfo?.id
-                };
+            setDetails({
+                groep_naam: data.groep_naam,
+                test_naam: data.test_naam,
+                eenheid: data.eenheid,
+                max_punten: data.max_punten,
+                test_volledig: data.test_volledig,
+                leerlingen: data.leerlingen,
+                isOrphanedGroup: data.isOrphanedGroup
             });
-        
-        } else if (scoresSnap.docs.length > 0) {
-            // ✅ Fallback: groep bestaat niet, maar we hebben scores
-            // Haal leerlingen op via de leerling_id's in de scores
-            const leerlingIdsFromScores = [...new Set(scoresSnap.docs.map(doc => doc.data().leerling_id))];
-            
-            for (const leerlingId of leerlingIdsFromScores) {
-                try {
-                    // Probeer eerst als document ID
-                    const leerlingDoc = await getDoc(doc(db, 'toegestane_gebruikers', leerlingId));
-                    if (leerlingDoc.exists()) {
-                        const userData = leerlingDoc.data();
-                        const scoreInfo = scoresMap.get(leerlingId);
-                        leerlingenData.push({
-                            id: leerlingDoc.id,
-                            ...userData,
-                            score: scoreInfo?.score ?? null,
-                            punt: scoreInfo?.rapportpunt ?? null,
-                            score_id: scoreInfo?.id
-                        });
-                    } else {
-                        // Als document ID niet werkt, gebruik de naam uit de score
-                        const scoreInfo = scoresMap.get(leerlingId);
-                        if (scoreInfo && scoreInfo.leerling_naam) {
-                            leerlingenData.push({
-                                id: leerlingId,
-                                naam: scoreInfo.leerling_naam,
-                                score: scoreInfo.score,
-                                punt: scoreInfo.rapportpunt,
-                                score_id: scoreInfo.id,
-                                isOrphaned: true // Flag dat deze leerling niet meer als gebruiker bestaat
-                            });
-                        }
-                    }
-                 } catch (error) {
-                    // Leerling niet gevonden - sla over
-                }
-            }
+        } catch (error) {
+            console.error("Error fetching details:", error);
+            toast.error("Details konden niet worden geladen: " + error.message);
+        } finally {
+            setLoading(false);
         }
-        
-        setDetails({
-            groep_naam: groupName,
-            test_naam: testData.naam,
-            eenheid: testData.eenheid,
-            max_punten: testData.max_punten || 20,
-            test_volledig: testData,
-            leerlingen: leerlingenData.sort((a,b) => a.naam.localeCompare(b.naam)),
-            isOrphanedGroup: !groupSnap.exists() // Flag voor UI
-        });
+    }, [groepId, testId, datum, profile]);
 
-    } catch (error) {
-        console.error("Error fetching details:", error);
-        toast.error("Details konden niet worden geladen: " + error.message);
-    } finally {
-        setLoading(false);
-    }
-}, []);
-
-    // FIXED: Separate useEffect with proper dependencies
     useEffect(() => {
-        if (groepId && testId && datum) {
+        if (groepId && testId && datum && profile?._token) {
             fetchDetails();
             setNewDate(datum.split('T')[0]);
         }
-    }, [groepId, testId, datum, fetchDetails]);
+    }, [groepId, testId, datum, profile, fetchDetails]);
 
-    // Background effect
     useEffect(() => {
         const root = document.getElementById('root');
-        if (root) {
-            root.classList.add('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
-        }
-        return () => {
-            if (root) {
-                root.classList.remove('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
-            }
-        };
+        if (root) root.classList.add('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50');
+        return () => { if (root) root.classList.remove('bg-gradient-to-br', 'from-slate-50', 'via-purple-50', 'to-blue-50'); };
     }, []);
 
     const handleEditClick = (leerling) => {
-        const initialValue = leerling.score !== null 
-            ? leerling.score.toString().replace('.', ',') // Gebruik de ruwe score voor bewerken
-            : '';
-        setEditingScore({ 
-            id: leerling.score_id, 
-            score: initialValue, 
-            validation: { valid: true }
-        });
+        const initialValue = leerling.score !== null ? leerling.score.toString().replace('.', ',') : '';
+        setEditingScore({ id: leerling.score_id, score: initialValue, validation: { valid: true } });
     };
 
     const handleScoreChange = (value) => {
         const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
         let isValid = true;
-
-        if(isTimeTest) {
+        if (isTimeTest) {
             const parsed = parseTimeInputToSeconds(value);
             if (value.trim() !== '' && isNaN(parsed)) {
                 isValid = false;
                 toast.error("Ongeldige notatie. Gebruik bv. 1:15 of 12.5", { id: 'time-validation-toast' });
             }
         }
-        
         setEditingScore(prev => ({ ...prev, score: value, validation: { valid: isValid } }));
     };
 
+    // =============================================
+    // UPDATE SCORE via API
+    // ✅ GEMIGREERD: server herberekent punt via klas
+    // =============================================
+    const handleUpdateScore = async () => {
+        if (!editingScore.id || !editingScore.validation?.valid) return;
 
-const handleUpdateScore = async () => {
-    if (!editingScore.id || !editingScore.validation?.valid) return;
+        const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
+        let scoreValue = isTimeTest
+            ? parseTimeInputToSeconds(editingScore.score)
+            : parseFloat(String(editingScore.score).replace(',', '.'));
 
-    const isTimeTest = details.test_volledig?.eenheid?.toLowerCase().includes('sec') || details.test_volledig?.eenheid?.toLowerCase().includes('min');
-    
-    let scoreValue;
-    if (isTimeTest) {
-        scoreValue = parseTimeInputToSeconds(editingScore.score);
-    } else {
-        scoreValue = parseFloat(String(editingScore.score).replace(',', '.'));
-    }
+        if (scoreValue === null || isNaN(scoreValue)) { toast.error("Voer een geldige score in."); return; }
 
-    if (scoreValue === null || isNaN(scoreValue)) {
-        toast.error("Voer een geldige score in.");
-        return;
-    }
+        setUpdating(true);
+        try {
+            const leerling = details.leerlingen.find(l => l.score_id === editingScore.id);
+            const data = await apiPost('update_score', {
+                scoreId: editingScore.id,
+                score: scoreValue,
+                testId,
+                klas: leerling?.klas || null,
+                geslacht: leerling?.geslacht || null,
+                schoolId: profile.school_id
+            }, profile._token);
 
-    setUpdating(true);
-    const scoreRef = doc(db, 'scores', editingScore.id);
-    
-    try {
-        const leerling = details.leerlingen.find(l => l.score_id === editingScore.id);
-        const testDatum = new Date(datum);
-        const newPunt = await calculatePuntFromScore(details.test_volledig, leerling, scoreValue, testDatum);
-
-        // Update de score - dit zal automatisch onScoreUpdated triggeren
-        await updateDoc(scoreRef, { 
-            score: scoreValue,
-            rapportpunt: newPunt 
-        });
-        
-        toast.success("Score bijgewerkt! XP wordt automatisch toegekend...");
-        
-        // Update lokale state
-        setDetails(prevDetails => ({
-            ...prevDetails,
-            leerlingen: prevDetails.leerlingen.map(l => 
-                l.score_id === editingScore.id 
-                    ? { ...l, score: scoreValue, punt: newPunt } 
-                    : l
-            )
-        }));
-        
-        setEditingScore({ id: null, score: '', validation: null });
-
-    } catch (error) {
-        console.error("Fout bij bijwerken:", error);
-        toast.error(`Fout bij bijwerken: ${error.message}`);
-    } finally {
-        setUpdating(false);
-    }
-};
+            toast.success("Score bijgewerkt!");
+            setDetails(prev => ({
+                ...prev,
+                leerlingen: prev.leerlingen.map(l =>
+                    l.score_id === editingScore.id ? { ...l, score: scoreValue, punt: data.newPunt } : l
+                )
+            }));
+            setEditingScore({ id: null, score: '', validation: null });
+        } catch (error) {
+            toast.error(`Fout bij bijwerken: ${error.message}`);
+        } finally {
+            setUpdating(false);
+        }
+    };
 
     const handleDeleteScore = (scoreId, leerlingNaam) => {
         setDeleteModalState({ isOpen: true, scoreId, leerlingNaam });
     };
 
+    // =============================================
+    // DELETE SCORE via API
+    // =============================================
     const confirmDeleteScore = async () => {
         const { scoreId } = deleteModalState;
         if (!scoreId) return;
-
         const loadingToast = toast.loading('Score verwijderen...');
         try {
-            await deleteDoc(doc(db, 'scores', scoreId));
+            await apiPost('delete_score', { scoreId, schoolId: profile.school_id }, profile._token);
             toast.success("Score succesvol verwijderd!");
-            
-            // Lokale state bijwerken voor een snelle UI update
             setDetails(prev => ({
                 ...prev,
-                leerlingen: prev.leerlingen.map(l => 
+                leerlingen: prev.leerlingen.map(l =>
                     l.score_id === scoreId ? { ...l, score: null, punt: null, score_id: null } : l
                 )
             }));
-
         } catch (error) {
-            console.error("Fout bij verwijderen:", error);
             toast.error("Fout bij verwijderen van de score.");
         } finally {
             toast.dismiss(loadingToast);
-            setDeleteModalState({ isOpen: false, scoreId: null, leerlingNaam: '' }); // Sluit de modal
+            setDeleteModalState({ isOpen: false, scoreId: null, leerlingNaam: '' });
         }
     };
 
-const handleUpdateDate = async () => {
-    if (!newDate || newDate === currentDate.split('T')[0]) {
-        setEditingDate(false);
-        return;
-    }
-    
-    setUpdating(true);
-    const loadingToast = toast.loading('Datum bijwerken...');
-    
-    try {
-        const scoresFromState = details.leerlingen
-            .filter(l => l.score_id)
-            .map(l => l.score_id);
-        
-        if (scoresFromState.length === 0) {
-            toast.error('Geen scores gevonden om bij te werken.');
-            return;
-        }
-        
-        // Update database
-        const batch = writeBatch(db);
-        const newDateObj = new Date(newDate + 'T02:00:00.000Z');
-        
-        scoresFromState.forEach(scoreId => {
-            const scoreRef = doc(db, 'scores', scoreId);
-            batch.update(scoreRef, { datum: newDateObj });
-        });
-        
-        await batch.commit();
-        
-        // Update lokale state (dit update de datum op het scherm)
-        setCurrentDate(newDate);
-        
-        // Update URL zonder pagina reload
-        const newUrl = `/testafname/${groepId}/${testId}/${newDate}`;
-        window.history.replaceState(null, '', newUrl);
-        
-        toast.success(`${scoresFromState.length} score(s) bijgewerkt naar nieuwe datum!`);
-        
-    } catch (error) {
-        console.error('Error updating date:', error);
-        toast.error('Fout bij bijwerken van de datum: ' + error.message);
-        setNewDate(currentDate.split('T')[0]);
-    } finally {
-        toast.dismiss(loadingToast);
-        setUpdating(false);
-        setEditingDate(false);
-    }
-};
+    // =============================================
+    // UPDATE DATUM via API
+    // =============================================
+    const handleUpdateDate = async () => {
+        if (!newDate || newDate === currentDate.split('T')[0]) { setEditingDate(false); return; }
+        setUpdating(true);
+        const loadingToast = toast.loading('Datum bijwerken...');
+        try {
+            const scoreIds = details.leerlingen.filter(l => l.score_id).map(l => l.score_id);
+            if (scoreIds.length === 0) { toast.error('Geen scores gevonden om bij te werken.'); return; }
 
+            await apiPost('update_score_date', {
+                scoreIds, newDate, schoolId: profile.school_id
+            }, profile._token);
+
+            setCurrentDate(newDate);
+            window.history.replaceState(null, '', `/testafname/${groepId}/${testId}/${newDate}`);
+            toast.success(`${scoreIds.length} score(s) bijgewerkt naar nieuwe datum!`);
+        } catch (error) {
+            toast.error('Fout bij bijwerken van de datum: ' + error.message);
+            setNewDate(currentDate.split('T')[0]);
+        } finally {
+            toast.dismiss(loadingToast);
+            setUpdating(false);
+            setEditingDate(false);
+        }
+    };
+
+    // =============================================
+    // DELETE TESTAFNAME via API
+    // =============================================
     const handleDeleteTestafname = async () => {
         const loadingToast = toast.loading('Testafname verwijderen...');
         try {
-            // Delete all scores for this test session
-            const scoresQuery = query(collection(db, 'scores'), 
-                where('groep_id', '==', groepId),
-                where('test_id', '==', testId),
-                where('datum', '==', new Date(datum))
-            );
-            const scoresSnap = await getDocs(scoresQuery);
-            
-            const batch = writeBatch(db);
-            scoresSnap.docs.forEach(doc => {
-                batch.delete(doc.ref);
-            });
-            await batch.commit();
-
+            await apiPost('delete_testafname', {
+                groepId, testId, datum, schoolId: profile.school_id
+            }, profile._token);
             toast.success("Testafname succesvol verwijderd!");
-            navigate('/scores');
+            navigate('/sporttesten');
         } catch (error) {
-            console.error("Fout bij verwijderen:", error);
             toast.error("Fout bij verwijderen van de testafname.");
         } finally {
             toast.dismiss(loadingToast);
             setShowDeleteConfirm(false);
         }
     };
-
 
     const exportToCSV = () => {
         const headers = ['Naam', 'Score', 'Punten'];
@@ -712,15 +348,10 @@ const handleUpdateDate = async () => {
             leerling.score !== null ? formatScoreWithUnit(leerling.score, details.eenheid) : '',
             leerling.punt !== null ? leerling.punt : ''
         ]);
-
-        const csvContent = [headers, ...rows]
-            .map(row => row.map(cell => `"${cell}"`).join(','))
-            .join('\n');
-
+        const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
+        link.setAttribute('href', URL.createObjectURL(blob));
         link.setAttribute('download', `${details.test_naam}_${details.groep_naam}_${datum.split('T')[0]}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
@@ -728,27 +359,21 @@ const handleUpdateDate = async () => {
         document.body.removeChild(link);
     };
 
-    const cancelEdit = () => {
-        setEditingScore({ id: null, score: '', validation: null });
-    };
+    const cancelEdit = () => setEditingScore({ id: null, score: '', validation: null });
 
-    // FIXED: Single loading check at the top
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="bg-white p-8 rounded-2xl shadow-sm">
-                    <div className="flex items-center space-x-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                        <span className="text-gray-700 font-medium">Details laden...</span>
-                    </div>
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-screen">
+            <div className="bg-white p-8 rounded-2xl shadow-sm">
+                <div className="flex items-center space-x-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                    <span className="text-gray-700 font-medium">Details laden...</span>
                 </div>
             </div>
-        );
-    }
+        </div>
+    );
 
     return (
         <div>
-            {/* AANGEPAST: padding (py, lg:py) en margin (mb) aangepast voor minder witruimte */}
             <div className="max-w-6xl mx-auto px-4 lg:px-8 pt-2 pb-16 space-y-6">
                 <Link to="/sporttesten" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 font-medium transition-colors">
                     <ArrowLeftIcon className="h-4 w-4 mr-2" />
@@ -757,8 +382,7 @@ const handleUpdateDate = async () => {
                     
                 <div className="space-y-6">
                     {/* Header */}
-                   <div className="bg-white/80 p-6 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-lg">
-                        {/* AANGEPAST: Nieuwe header layout */}
+                    <div className="bg-white/80 p-6 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-lg">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-800">{details.test_naam}</h1>
                             <div className="flex items-center flex-wrap gap-x-6 gap-y-2 text-gray-600 mt-2">
@@ -770,29 +394,14 @@ const handleUpdateDate = async () => {
                                     <CalendarIcon className="h-4 w-4 mr-1.5" />
                                     {editingDate ? (
                                         <div className="flex items-center gap-2">
-                                            <input
-                                                type="date"
-                                                value={newDate}
-                                                onChange={(e) => setNewDate(e.target.value)}
-                                                className="px-2 py-1 border border-gray-300 rounded text-sm"
-                                            />
-                                            <button onClick={handleUpdateDate} className="text-green-600 hover:text-green-800">
-                                                <CheckIcon className="h-4 w-4" />
-                                            </button>
-                                            <button onClick={() => {setEditingDate(false); setNewDate(datum.split('T')[0]);}} className="text-red-600 hover:text-red-800">
-                                                <XMarkIcon className="h-4 w-4" />
-                                            </button>
+                                            <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded text-sm" />
+                                            <button onClick={handleUpdateDate} className="text-green-600 hover:text-green-800"><CheckIcon className="h-4 w-4" /></button>
+                                            <button onClick={() => { setEditingDate(false); setNewDate(datum.split('T')[0]); }} className="text-red-600 hover:text-red-800"><XMarkIcon className="h-4 w-4" /></button>
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2">
-                                           <span className="text-sm">{new Date(currentDate).toLocaleDateString('nl-BE', { 
-                                                day: '2-digit',
-                                                month: '2-digit',
-                                                year: 'numeric'
-                                            })}</span>
-                                            <button onClick={() => setEditingDate(true)} className="text-blue-600 hover:text-blue-800" title="Datum wijzigen">
-                                                <PencilSquareIcon className="h-4 w-4" />
-                                            </button>
+                                            <span className="text-sm">{new Date(currentDate).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                                            <button onClick={() => setEditingDate(true)} className="text-blue-600 hover:text-blue-800" title="Datum wijzigen"><PencilSquareIcon className="h-4 w-4" /></button>
                                         </div>
                                     )}
                                 </div>
@@ -800,13 +409,10 @@ const handleUpdateDate = async () => {
                         </div>
                     </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Score Verdeling - HIDDEN ON MOBILE */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Score Verdeling */}
                         <div className="hidden lg:block lg:col-span-1">
-                            <ScoreDistributionChart 
-                                leerlingen={details.leerlingen} 
-                                maxPunten={details.max_punten}
-                            />
+                            <ScoreDistributionChart leerlingen={details.leerlingen} maxPunten={details.max_punten} />
                         </div>
 
                         {/* Scores Lijst */}
@@ -814,12 +420,7 @@ const handleUpdateDate = async () => {
                             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
                                 <div className="p-6 border-b border-gray-200/70">
                                     <div className="flex justify-between items-center">
-                                        <div>
-                                            <h2 className="text-xl font-semibold text-gray-900">
-                                                Individuele Scores
-                                            </h2>
-                                            
-                                        </div>
+                                        <h2 className="text-xl font-semibold text-gray-900">Individuele Scores</h2>
                                         <div className="text-right">
                                             <div className="text-sm text-gray-600">Gemiddelde</div>
                                             <div className="text-lg font-bold text-purple-700">
@@ -837,247 +438,122 @@ const handleUpdateDate = async () => {
                                         {details.leerlingen?.map(lid => (
                                             <li 
                                                 key={lid.id} 
-                                                className="relative overflow-hidden hover:bg-gray-50/50 transition-colors px-4 py-3 lg:px-0 lg:py-0" // Padding voor mobiel
+                                                className="relative overflow-hidden hover:bg-gray-50/50 transition-colors px-4 py-3 lg:px-0 lg:py-0"
                                                 style={{
                                                     transform: swipeState.id === lid.id ? `translateX(${swipeState.translateX}px)` : 'translateX(0)',
                                                     transition: swipeState.id === lid.id && swipeState.translateX === 0 ? 'transform 0.3s ease' : 'none'
                                                 }}
                                                 onTouchStart={(e) => {
                                                     if (editingScore.id === lid.score_id) return;
-                                                    
                                                     const touch = e.touches[0];
                                                     const startX = touch.clientX;
                                                     const startTime = Date.now();
-                                                    
-                                                    // Long press timer for edit
                                                     const timer = setTimeout(() => {
                                                         navigator.vibrate && navigator.vibrate(50);
                                                         handleEditClick(lid);
                                                     }, 500);
                                                     setLongPressTimer(timer);
-                                                    
                                                     const handleTouchMove = (e) => {
-                                                        const currentTouch = e.touches[0];
-                                                        const deltaX = currentTouch.clientX - startX;
-                                                        const deltaTime = Date.now() - startTime;
-                                                        
-                                                        // Cancel long press if moving
-                                                        if (Math.abs(deltaX) > 10) {
-                                                            clearTimeout(timer);
-                                                        }
-                                                        
-                                                        // Only allow swipe left and after 100ms to avoid conflicts
-                                                        if (deltaX < -20 && deltaTime > 100) {
+                                                        const deltaX = e.touches[0].clientX - startX;
+                                                        if (Math.abs(deltaX) > 10) clearTimeout(timer);
+                                                        if (deltaX < -20 && Date.now() - startTime > 100) {
                                                             e.preventDefault();
-                                                            const constrainedDelta = Math.max(deltaX, -100);
-                                                            setSwipeState({ id: lid.id, translateX: constrainedDelta, isDeleting: false });
+                                                            setSwipeState({ id: lid.id, translateX: Math.max(deltaX, -100), isDeleting: false });
                                                         }
                                                     };
-                                                    
-                                                    const handleTouchEnd = (e) => {
+                                                    const handleTouchEnd = () => {
                                                         clearTimeout(timer);
                                                         setLongPressTimer(null);
-                                                        
                                                         if (swipeState.id === lid.id) {
-                                                            if (swipeState.translateX < -50) {
-                                                                // Show delete confirmation
-                                                                if (lid.score !== null) {
-                                                                    handleDeleteScore(lid.score_id, lid.naam);
-                                                                }
-                                                            }
-                                                            // Reset swipe
+                                                            if (swipeState.translateX < -50 && lid.score !== null) handleDeleteScore(lid.score_id, lid.naam);
                                                             setSwipeState({ id: null, translateX: 0, isDeleting: false });
                                                         }
-                                                        
                                                         document.removeEventListener('touchmove', handleTouchMove);
                                                         document.removeEventListener('touchend', handleTouchEnd);
                                                     };
-                                                    
                                                     document.addEventListener('touchmove', handleTouchMove, { passive: false });
                                                     document.addEventListener('touchend', handleTouchEnd);
                                                 }}
-                                                onTouchEnd={() => {
-                                                    if (longPressTimer) {
-                                                        clearTimeout(longPressTimer);
-                                                        setLongPressTimer(null);
-                                                    }
-                                                }}
+                                                onTouchEnd={() => { if (longPressTimer) { clearTimeout(longPressTimer); setLongPressTimer(null); } }}
                                             >
-                                                {/* Delete indicator - only visible when swiping */}
-                                                {swipeState.id === lid.id && swipeState.translateX < -20 && lid.score !== null && (
-                                                    <div className="absolute right-0 top-0 h-full w-20 bg-red-500 flex items-center justify-center">
-                                                        <TrashIcon className="h-6 w-6 text-white" />
+                                                {/* Delete achtergrond */}
+                                                {swipeState.id === lid.id && swipeState.translateX < -20 && (
+                                                    <div className="absolute right-0 top-0 bottom-0 flex items-center justify-center bg-red-500 text-white px-4" style={{ width: '80px' }}>
+                                                        <TrashIcon className="h-5 w-5" />
                                                     </div>
                                                 )}
-                                                
-                                                <div className="p-0 lg:p-4">
-                                                    {/* AANGEPAST: Desktop Layout met flexbox voor centreren */}
-                                                    <div className="hidden lg:flex lg:items-center">
-                                                        {/* Naam (links) */}
-                                                        <div className="w-1/3 font-medium text-gray-900 text-lg truncate">
-                                                            {lid.naam}
-                                                        </div>
-                                                        
-                                                        {/* Scores (midden) */}
-                                                        <div className="flex-grow flex justify-center items-center gap-8">
-                                                            <div className="text-center w-36">
-                                                                {editingScore.id === lid.score_id ? (
-                                                                    <div className="relative">
-                                                                        <input
-                                                                            type="number"
-                                                                            step="any"
-                                                                            value={editingScore.score}
-                                                                            onChange={e => handleScoreChange(e.target.value)}
-                                                                            onKeyPress={e => e.key === 'Enter' && handleUpdateScore()}
-                                                                            className={`w-32 p-2 border-2 rounded-lg text-center ${
-                                                                                editingScore.validation?.valid === false 
-                                                                                    ? 'border-red-500 bg-red-50' 
-                                                                                    : 'border-purple-500 bg-purple-50'
-                                                                            }`}
-                                                                            placeholder="Score"
-                                                                            autoFocus
-                                                                        />
-                                                                        {editingScore.validation?.valid === false && (
-                                                                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 text-xs text-red-600 whitespace-nowrap">
-                                                                                {editingScore.validation.message}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="font-bold text-xl text-purple-700">
-                                                                        {lid.score !== null ? formatScoreWithUnit(lid.score, details.test_volledig.eenheid) : '-'}
 
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-center w-24">
-                                                                <span className={`font-bold text-xl ${getPointColorClass(lid.punt, details.max_punten)}`}>
-                                                                   {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
-
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Acties (rechts) */}
-                                                        <div className="w-1/3 flex justify-end items-center gap-2">
-                                                            {editingScore.id === lid.score_id ? (
-                                                                <>
-                                                                    <button 
-                                                                        onClick={handleUpdateScore}
-                                                                        disabled={updating || !editingScore.validation?.valid}
-                                                                        title="Opslaan" 
-                                                                        className="p-2 text-green-600 hover:bg-green-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                    >
-                                                                        <CheckIcon className="h-5 w-5"/>
-                                                                    </button>
-                                                                    <button 
-                                                                        onClick={cancelEdit}
-                                                                        disabled={updating}
-                                                                        title="Annuleren" 
-                                                                        className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-colors disabled:opacity-50"
-                                                                    >
-                                                                        <XMarkIcon className="h-5 w-5"/>
-                                                                    </button>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <button 
-                                                                        onClick={() => handleEditClick(lid)}
-                                                                        title="Wijzigen" 
-                                                                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
-                                                                    >
-                                                                        <PencilSquareIcon className="h-5 w-5"/>
-                                                                    </button>
-                                                                    {lid.score !== null && (
-                                                                        <button 
-                                                                            onClick={() => handleDeleteScore(lid.score_id, lid.naam)}
-                                                                            title="Verwijderen" 
-                                                                            className="p-2 text-red-500 hover:bg-red-100 rounded-full transition-colors"
-                                                                        >
-                                                                            <TrashIcon className="h-5 w-5"/>
-                                                                        </button>
-                                                                    )}
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Mobile Layout - gestapeld */}
-                                                    <div className="lg:hidden space-y-3">
-                                                        <div className="font-medium text-gray-900 text-lg">
-                                                            {lid.naam}
-                                                        </div>
-                                                        
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="text-center">
-                                                                {editingScore.id === lid.score_id ? (
-                                                                    <div className="relative">
-                                                                        <input
-                                                                            type="number"
-                                                                            step="any"
-                                                                            value={editingScore.score}
-                                                                            onChange={e => handleScoreChange(e.target.value)}
-                                                                            onKeyPress={e => e.key === 'Enter' && handleUpdateScore()}
-                                                                            className={`w-32 p-3 border-2 rounded-lg text-center ${
-                                                                                editingScore.validation?.valid === false 
-                                                                                    ? 'border-red-500 bg-red-50' 
-                                                                                    : 'border-purple-500 bg-purple-50'
-                                                                            }`}
-                                                                            placeholder="Score"
-                                                                            autoFocus
-                                                                        />
-                                                                        {editingScore.validation?.valid === false && (
-                                                                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 text-xs text-red-600 whitespace-nowrap">
-                                                                                {editingScore.validation.message}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="font-bold text-2xl text-purple-700">
-                                                                        {lid.score !== null ? formatScoreWithUnit(lid.score, details.test_volledig.eenheid) : '-'}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            
-                                                            <div className="text-center">
-                                                                <span className={`font-bold text-2xl ${getPointColorClass(lid.punt, details.max_punten)}`}>
-                                                                    {lid.punt !== null ? `${lid.punt}/${details.max_punten}` : '-'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Mobile actie knoppen - alleen bij editing */}
-                                                        {editingScore.id === lid.score_id && (
-                                                            <div className="flex justify-center items-center gap-3 pt-2">
-                                                                <button 
-                                                                    onClick={handleUpdateScore}
-                                                                    disabled={updating || !editingScore.validation?.valid}
-                                                                    title="Opslaan" 
-                                                                    className="p-3 text-green-600 hover:bg-green-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                >
-                                                                    <CheckIcon className="h-6 w-6"/>
-                                                                </button>
-                                                                <button 
-                                                                    onClick={cancelEdit}
-                                                                    disabled={updating}
-                                                                    title="Annuleren" 
-                                                                    className="p-3 text-red-600 hover:bg-red-100 rounded-full transition-colors disabled:opacity-50"
-                                                                >
-                                                                    <XMarkIcon className="h-6 w-6"/>
-                                                                </button>
-                                                            </div>
+                                                {/* Desktop rij */}
+                                                <div className="hidden lg:flex items-center p-4">
+                                                    <div className="flex-1 font-medium text-gray-900">{lid.naam}</div>
+                                                    <div className="w-48 text-right mr-4">
+                                                        {editingScore.id === lid.score_id ? (
+                                                            <input
+                                                                type="text"
+                                                                className={`w-32 px-3 py-1 border rounded-lg text-right text-sm ${editingScore.validation?.valid === false ? 'border-red-500' : 'border-gray-300'}`}
+                                                                value={editingScore.score}
+                                                                onChange={(e) => handleScoreChange(e.target.value)}
+                                                                autoFocus
+                                                            />
+                                                        ) : (
+                                                            <span className="text-gray-700">
+                                                                {lid.score !== null ? formatScoreWithUnit(lid.score, details.eenheid) : <span className="text-gray-400 italic text-sm">Geen score</span>}
+                                                            </span>
                                                         )}
-                                                        
-                                                        {/* Mobile instructies */}
-                                                        {editingScore.id !== lid.score_id && (
+                                                    </div>
+                                                    <div className={`w-16 text-center font-bold text-lg ${getPointColorClass(lid.punt, details.max_punten)}`}>
+                                                        {lid.punt !== null ? `${lid.punt}` : '-'}
+                                                    </div>
+                                                    <div className="w-24 flex justify-end gap-1">
+                                                        {editingScore.id === lid.score_id ? (
+                                                            <>
+                                                                <button onClick={handleUpdateScore} disabled={updating} className="p-2 text-green-600 hover:bg-green-100 rounded-full disabled:opacity-50"><CheckIcon className="h-5 w-5"/></button>
+                                                                <button onClick={cancelEdit} disabled={updating} className="p-2 text-red-600 hover:bg-red-100 rounded-full disabled:opacity-50"><XMarkIcon className="h-5 w-5"/></button>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <button onClick={() => handleEditClick(lid)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-full"><PencilSquareIcon className="h-5 w-5"/></button>
+                                                                {lid.score !== null && (
+                                                                    <button onClick={() => handleDeleteScore(lid.score_id, lid.naam)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><TrashIcon className="h-5 w-5"/></button>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Mobiele kaart */}
+                                                <div className="lg:hidden">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <span className="font-medium text-gray-900">{lid.naam}</span>
+                                                        <span className={`text-xl font-bold ${getPointColorClass(lid.punt, details.max_punten)}`}>
+                                                            {lid.punt !== null ? `${lid.punt} pt` : '-'}
+                                                        </span>
+                                                    </div>
+                                                    {editingScore.id === lid.score_id ? (
+                                                        <div className="flex items-center gap-3 mt-2">
+                                                            <input
+                                                                type="text"
+                                                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-right"
+                                                                value={editingScore.score}
+                                                                onChange={(e) => handleScoreChange(e.target.value)}
+                                                                autoFocus
+                                                            />
+                                                            <button onClick={handleUpdateScore} disabled={updating} className="p-3 text-green-600 hover:bg-green-100 rounded-full disabled:opacity-50"><CheckIcon className="h-6 w-6"/></button>
+                                                            <button onClick={cancelEdit} disabled={updating} className="p-3 text-red-600 hover:bg-red-100 rounded-full disabled:opacity-50"><XMarkIcon className="h-6 w-6"/></button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-gray-600 text-sm">
+                                                                {lid.score !== null ? formatScoreWithUnit(lid.score, details.eenheid) : <span className="text-gray-400 italic">Geen score</span>}
+                                                            </span>
                                                             <div className="text-center">
                                                                 <p className="text-xs text-gray-500 mt-2">
                                                                     Houd ingedrukt om te bewerken
                                                                     {lid.score !== null && " • Swipe links om te verwijderen"}
                                                                 </p>
                                                             </div>
-                                                        )}
-                                                    </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </li>
                                         ))}
@@ -1092,80 +568,48 @@ const handleUpdateDate = async () => {
                             </div>
                         </div>
 
-                        {/* Testafname Details - HIDDEN ON MOBILE */}
+                        {/* Testafname Details - Desktop only */}
                         <div className="hidden lg:block lg:col-span-1">
                             <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-lg">
                                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Testafname Details</h3>
                                 <div className="space-y-4">
-                                    <div className="flex items-center" title="Totaal aantal leerlingen">
+                                    <div className="flex items-center">
                                         <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
-                                        <div>
-                                            <div className="text-sm text-gray-600">Totaal Leerlingen: {stats.totaal}</div>
-                                        </div>
+                                        <div className="text-sm text-gray-600">Totaal Leerlingen: {stats.totaal}</div>
                                     </div>
-                                    <div className="flex items-center" title="Aantal ingevoerde scores">
+                                    <div className="flex items-center">
                                         <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                                        <div>
-                                            <div className="text-sm text-gray-600">Scores Ingevoerd: {stats.compleet} ({stats.percentage}%)</div>
-                                        </div>
+                                        <div className="text-sm text-gray-600">Scores Ingevoerd: {stats.compleet} ({stats.percentage}%)</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    {/* Enhanced Testafname Acties */}
+                    {/* Testafname Acties */}
                     <div className="bg-white/80 p-6 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-lg">
                         <div className="mb-6">
                             <h3 className="text-xl font-semibold text-gray-900 mb-2">Testafname Beheer</h3>
-                            <p className="text-sm text-gray-600">
-                                Beheer deze testafname en de bijbehorende scores
-                            </p>
+                            <p className="text-sm text-gray-600">Beheer deze testafname en de bijbehorende scores</p>
                         </div>
-
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4">
-                            {/* Export Data */}
-                            <button
-                                onClick={exportToCSV}
-                                disabled={details.leerlingen.length === 0}
-                                className="flex flex-col items-center justify-center px-3 py-4 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <DocumentArrowDownIcon className="h-6 w-6 mb-1" />
-                                <span className="text-sm text-center">Exporteer CSV</span>
+                            <button onClick={exportToCSV} disabled={details.leerlingen.length === 0} className="flex flex-col items-center justify-center px-3 py-4 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors font-medium disabled:opacity-50">
+                                <DocumentArrowDownIcon className="h-6 w-6 mb-1" /><span className="text-sm text-center">Exporteer CSV</span>
                             </button>
-
-                            {/* Print Report */}
-                            <button
-                                onClick={() => window.print()}
-                                className="flex flex-col items-center justify-center px-3 py-4 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
-                            >
-                                <ClipboardDocumentListIcon className="h-6 w-6 mb-1" />
-                                <span className="text-sm text-center">Print Rapport</span>
+                            <button onClick={() => window.print()} className="flex flex-col items-center justify-center px-3 py-4 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium">
+                                <ClipboardDocumentListIcon className="h-6 w-6 mb-1" /><span className="text-sm text-center">Print Rapport</span>
                             </button>
-
-                            {/* Refresh Data */}
-                            <button
-                                onClick={fetchDetails}
-                                disabled={loading}
-                                className="flex flex-col items-center justify-center px-3 py-4 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium disabled:opacity-50"
-                            >
-                                <ArrowPathIcon className={`h-6 w-6 mb-1 ${loading ? 'animate-spin' : ''}`} />
-                                <span className="text-sm text-center">Vernieuwen</span>
+                            <button onClick={fetchDetails} disabled={loading} className="flex flex-col items-center justify-center px-3 py-4 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors font-medium disabled:opacity-50">
+                                <ArrowPathIcon className={`h-6 w-6 mb-1 ${loading ? 'animate-spin' : ''}`} /><span className="text-sm text-center">Vernieuwen</span>
                             </button>
-
-                            {/* Delete Test Session */}
-                            <button
-                                onClick={() => setShowDeleteConfirm(true)}
-                                className="flex flex-col items-center justify-center px-3 py-4 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium"
-                            >
-                                <ExclamationTriangleIcon className="h-6 w-6 mb-1" />
-                                <span className="text-sm text-center">Verwijder Testafname</span>
+                            <button onClick={() => setShowDeleteConfirm(true)} className="flex flex-col items-center justify-center px-3 py-4 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium">
+                                <ExclamationTriangleIcon className="h-6 w-6 mb-1" /><span className="text-sm text-center">Verwijder Testafname</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Delete Confirmation Modal */}
+                {/* Delete Testafname Modal */}
                 {showDeleteConfirm && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-2xl p-6 max-w-md w-full">
@@ -1175,36 +619,25 @@ const handleUpdateDate = async () => {
                             </div>
                             <p className="text-gray-600 mb-6">
                                 Weet je zeker dat je deze testafname wilt verwijderen? Dit zal alle scores 
-                                voor <strong>{details.test_naam}</strong> van groep <strong>{details.groep_naam}</strong> 
-                                op {new Date(datum).toLocaleDateString('nl-BE')} permanent verwijderen.
+                                voor <strong>{details.test_naam}</strong> van groep <strong>{details.groep_naam}</strong> permanent verwijderen.
                             </p>
                             <div className="flex justify-end gap-3">
-                                <button
-                                    onClick={() => setShowDeleteConfirm(false)}
-                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-                                >
-                                    Annuleren
-                                </button>
-                                <button
-                                    onClick={handleDeleteTestafname}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-                                >
-                                    Verwijderen
-                                </button>
+                                <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium">Annuleren</button>
+                                <button onClick={handleDeleteTestafname} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Verwijderen</button>
                             </div>
                         </div>
                     </div>
                 )}
+
+                <ConfirmModal
+                    isOpen={deleteModalState.isOpen}
+                    onClose={() => setDeleteModalState({ isOpen: false, scoreId: null, leerlingNaam: '' })}
+                    onConfirm={confirmDeleteScore}
+                    title="Score Verwijderen"
+                >
+                    Weet je zeker dat je de score van <strong>{deleteModalState.leerlingNaam}</strong> permanent wilt verwijderen?
+                </ConfirmModal>
             </div>
-            {/* V- VOEG DEZE COMPONENT TOE V-- */}
-            <ConfirmModal
-                isOpen={deleteModalState.isOpen}
-                onClose={() => setDeleteModalState({ isOpen: false, scoreId: null, leerlingNaam: '' })}
-                onConfirm={confirmDeleteScore}
-                title="Score Verwijderen"
-            >
-                Weet je zeker dat je de score van <strong>{deleteModalState.leerlingNaam}</strong> permanent wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
-            </ConfirmModal>
         </div>
     );
 }

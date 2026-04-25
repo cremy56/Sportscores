@@ -5,7 +5,7 @@ import { getMasterKey } from '../lib/keyManager.js';
 import CryptoJS from 'crypto-js';
 
 // ─────────────────────────────────────────────────────────
-// HELPERS: naam versleutelen / ontsleutelen
+// HELPER: naam ontsleutelen (zelfde logica als users.js)
 // ─────────────────────────────────────────────────────────
 const decryptName = (encryptedName, masterKey) => {
     try {
@@ -17,12 +17,6 @@ const decryptName = (encryptedName, masterKey) => {
         console.error('Decryptie fout:', error);
         return '[Naam niet beschikbaar]';
     }
-};
-
-// ✅ GDPR: naam versleuteld opslaan in scores collectie
-const encryptName = (name, masterKey) => {
-    if (!name || !masterKey) return null;
-    return CryptoJS.AES.encrypt(name, masterKey).toString();
 };
 
 // ─────────────────────────────────────────────────────────
@@ -130,21 +124,11 @@ async function handleGetLeaderboard(req, res, decodedToken) {
             .limit(globalAgeFilter ? 200 : 20);
 
         const scoresSnapshot = await scoresQuery.get();
-
-        // ✅ GDPR: naam ontsleutelen bij weergave
-        const masterKey = await getMasterKey();
-
-        let rawScores = scoresSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                ...data,
-                id: doc.id,
-                datum: data.datum?.toDate ? data.datum.toDate().toISOString() : null,
-                leerling_naam: data.leerling_naam
-                    ? decryptName(data.leerling_naam, masterKey)
-                    : '[Onbekend]'
-            };
-        });
+        let rawScores = scoresSnapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+            datum: doc.data().datum?.toDate ? doc.data().datum.toDate().toISOString() : null
+        }));
 
         if (globalAgeFilter) {
             const usersData = await getCachedUsers(schoolId);
@@ -410,9 +394,6 @@ async function handleSaveScores(req, res, decodedToken) {
         const scoreDatum = new Date(datum);
         const batch = db.batch();
 
-        // ✅ GDPR: naam versleutelen voor opslag
-        const masterKey = await getMasterKey();
-
         for (const scoreItem of scores) {
             const { leerling_id, leerling_naam, score, rapportpunt } = scoreItem;
 
@@ -423,13 +404,13 @@ async function handleSaveScores(req, res, decodedToken) {
             batch.set(newScoreRef, {
                 datum: Timestamp.fromDate(scoreDatum),
                 groep_id: groepId,
-                leerling_id,                                        // ✅ smartschool_id_hash
-                leerling_naam: encryptName(leerling_naam, masterKey) || null, // ✅ AES versleuteld
+                leerling_id,                            // ✅ smartschool_id_hash
+                leerling_naam: leerling_naam || 'Onbekend',
                 score: Number(score),
                 rapportpunt: rapportpunt ?? null,
                 school_id: verifiedSchoolId,
                 test_id: testId,
-                leerkracht_id: decodedToken.uid,                    // ✅ Firebase UID
+                leerkracht_id: decodedToken.uid,        // ✅ Firebase UID
                 created_at: Timestamp.now()
             });
         }
@@ -439,6 +420,284 @@ async function handleSaveScores(req, res, decodedToken) {
     } catch (error) {
         console.error('❌ handleSaveScores:', error);
         return res.status(500).json({ error: 'Fout bij opslaan scores: ' + error.message });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 8: GET TESTAFNAME DETAIL
+// Haalt alle data op voor TestafnameDetail pagina
+// ─────────────────────────────────────────────────────────
+async function handleGetTestafnameDetail(req, res, decodedToken) {
+    try {
+        const { groepId, testId, datum, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const masterKey = await getMasterKey();
+
+        // Haal groep en test parallel op
+        const [groepSnap, testSnap] = await Promise.all([
+            db.collection('groepen').doc(groepId).get(),
+            db.collection('testen').doc(testId).get()
+        ]);
+
+        if (!testSnap.exists) return res.status(404).json({ error: 'Test niet gevonden.' });
+
+        const groepData = groepSnap.exists ? groepSnap.data() : null;
+        const testData = { id: testSnap.id, ...testSnap.data() };
+        const leerlingIds = groepData?.leerling_ids || [];
+
+        // Datum range voor de dag
+        const targetDate = new Date(datum);
+        const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(targetDate); dayEnd.setHours(23, 59, 59, 999);
+
+        // Haal scores op voor deze testafname
+        const scoresSnap = await db.collection('scores')
+            .where('groep_id', '==', groepId)
+            .where('test_id', '==', testId)
+            .where('datum', '>=', Timestamp.fromDate(dayStart))
+            .where('datum', '<=', Timestamp.fromDate(dayEnd))
+            .get();
+
+        const scoresMap = new Map();
+        scoresSnap.docs.forEach(d => {
+            const data = { id: d.id, ...d.data() };
+            scoresMap.set(data.leerling_id, data);
+        });
+
+        let leerlingenData = [];
+
+        if (leerlingIds.length > 0) {
+            // Haal toegestane_gebruikers op in chunks van 30
+            const chunks = [];
+            for (let i = 0; i < leerlingIds.length; i += 30) chunks.push(leerlingIds.slice(i, i + 30));
+
+            const toegestaneData = new Map();
+            for (const chunk of chunks) {
+                const snap = await db.collection('toegestane_gebruikers').where('__name__', 'in', chunk).get();
+                snap.docs.forEach(d => toegestaneData.set(d.id, d.data()));
+            }
+
+            // Haal namen op via users (voor ontsleuteling)
+            const namenMap = new Map();
+            const usersSnap = await db.collection('users').where('school_id', '==', verifiedSchoolId).get();
+            usersSnap.docs.forEach(d => {
+                const data = d.data();
+                if (data.smartschool_id_hash && data.encrypted_name) {
+                    namenMap.set(data.smartschool_id_hash, decryptName(data.encrypted_name, masterKey));
+                }
+            });
+
+            leerlingenData = leerlingIds
+                .filter(id => toegestaneData.has(id))
+                .map(id => {
+                    const tgData = toegestaneData.get(id);
+                    const scoreInfo = scoresMap.get(id);
+                    // Naam: eerst uit users (ontsleuteld), dan uit score (ontsleuteld), dan fallback
+                    let naam = namenMap.get(id);
+                    if (!naam && scoreInfo?.leerling_naam) {
+                        naam = decryptName(scoreInfo.leerling_naam, masterKey);
+                    }
+                    return {
+                        id,
+                        naam: naam || '[Naam niet beschikbaar]',
+                        klas: tgData.klas || null,
+                        geslacht: (tgData.gender || '').toLowerCase() || null,
+                        score: scoreInfo?.score ?? null,
+                        punt: scoreInfo?.rapportpunt ?? null,
+                        score_id: scoreInfo?.id || null
+                    };
+                })
+                .sort((a, b) => a.naam.localeCompare(b.naam));
+
+        } else if (scoresSnap.docs.length > 0) {
+            // Fallback: groep bestaat niet meer, gebruik scores
+            scoresSnap.docs.forEach(d => {
+                const data = d.data();
+                leerlingenData.push({
+                    id: data.leerling_id,
+                    naam: data.leerling_naam ? decryptName(data.leerling_naam, masterKey) : '[Onbekend]',
+                    score: data.score ?? null,
+                    punt: data.rapportpunt ?? null,
+                    score_id: d.id,
+                    isOrphaned: true
+                });
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            groep_naam: groepData?.naam || 'Verwijderde Groep',
+            test_naam: testData.naam,
+            eenheid: testData.eenheid,
+            max_punten: testData.max_punten || 20,
+            test_volledig: testData,
+            isOrphanedGroup: !groepSnap.exists,
+            leerlingen: leerlingenData
+        });
+    } catch (error) {
+        console.error('❌ handleGetTestafnameDetail:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen testafname detail' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// HELPER: puntberekening server-side (klas → leeftijd)
+// ─────────────────────────────────────────────────────────
+function getLeeftijdFromKlas(klas) {
+    if (!klas) return null;
+    const match = klas.toString().match(/^(\d+)/);
+    if (!match) return null;
+    const leerjaar = parseInt(match[1]);
+    if (leerjaar < 1 || leerjaar > 6) return null;
+    return 11 + leerjaar; // 1→12, 2→13, ..., 6→17
+}
+
+function berekenPunt(test, klas, geslacht, score, normenData) {
+    if (!test || !klas || !geslacht || score === null || isNaN(score) || !normenData) return null;
+    try {
+        const { score_richting } = test;
+        if (!score_richting) return null;
+        const leeftijd = getLeeftijdFromKlas(klas);
+        if (leeftijd === null) return null;
+        const normAge = Math.min(leeftijd, 17);
+        const { punten_schaal } = normenData;
+        if (!punten_schaal?.length) return null;
+        const genderMap = { 'm': 'M', 'v': 'V', 'x': 'X', 'man': 'M', 'vrouw': 'V', 'jongen': 'M', 'meisje': 'V' };
+        const mappedGender = genderMap[geslacht.toLowerCase()] || geslacht.toUpperCase();
+        const relevantNorms = punten_schaal
+            .filter(n => n.leeftijd === normAge && n.geslacht === mappedGender)
+            .sort((a, b) => a.punt - b.punt);
+        if (!relevantNorms.length) return null;
+        if (score_richting === 'laag') {
+            if (score <= relevantNorms[relevantNorms.length - 1].score_min) return relevantNorms[relevantNorms.length - 1].punt;
+            if (score >= relevantNorms[0].score_min) return relevantNorms[0].punt;
+            for (let i = 0; i < relevantNorms.length - 1; i++) {
+                if (score < relevantNorms[i].score_min && score >= relevantNorms[i + 1].score_min) {
+                    const mid = (relevantNorms[i].score_min + relevantNorms[i + 1].score_min) / 2;
+                    return relevantNorms[i].punt + (score < mid ? 0.5 : 0);
+                }
+            }
+        } else {
+            if (score >= relevantNorms[relevantNorms.length - 1].score_min) return relevantNorms[relevantNorms.length - 1].punt;
+            if (score <= relevantNorms[0].score_min) return relevantNorms[0].punt;
+            for (let i = 0; i < relevantNorms.length - 1; i++) {
+                if (score >= relevantNorms[i].score_min && score < relevantNorms[i + 1].score_min) {
+                    const mid = (relevantNorms[i].score_min + relevantNorms[i + 1].score_min) / 2;
+                    return relevantNorms[i].punt + (score > mid ? 0.5 : 0);
+                }
+            }
+        }
+        return null;
+    } catch { return null; }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 9: UPDATE SCORE
+// ─────────────────────────────────────────────────────────
+async function handleUpdateScore(req, res, decodedToken) {
+    try {
+        const { scoreId, score, testId, klas, geslacht, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const scoreRef = db.collection('scores').doc(scoreId);
+        const scoreSnap = await scoreRef.get();
+        if (!scoreSnap.exists) return res.status(404).json({ error: 'Score niet gevonden.' });
+        if (scoreSnap.data().school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        // Haal normen op voor puntberekening
+        const normenSnap = await db.collection('normen').where('test_id', '==', testId).limit(1).get();
+        const normenData = normenSnap.empty ? null : normenSnap.docs[0].data();
+        const testSnap = await db.collection('testen').doc(testId).get();
+        const testData = testSnap.exists ? { id: testSnap.id, ...testSnap.data() } : null;
+
+        const newPunt = berekenPunt(testData, klas, geslacht, score, normenData);
+
+        await scoreRef.update({ score: Number(score), rapportpunt: newPunt });
+
+        return res.status(200).json({ success: true, newPunt });
+    } catch (error) {
+        console.error('❌ handleUpdateScore:', error);
+        return res.status(500).json({ error: 'Fout bij updaten score' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 10: DELETE SCORE
+// ─────────────────────────────────────────────────────────
+async function handleDeleteScore(req, res, decodedToken) {
+    try {
+        const { scoreId, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const scoreRef = db.collection('scores').doc(scoreId);
+        const scoreSnap = await scoreRef.get();
+        if (!scoreSnap.exists) return res.status(404).json({ error: 'Score niet gevonden.' });
+        if (scoreSnap.data().school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        await scoreRef.delete();
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('❌ handleDeleteScore:', error);
+        return res.status(500).json({ error: 'Fout bij verwijderen score' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 11: UPDATE SCORE DATE (alle scores van een testafname)
+// ─────────────────────────────────────────────────────────
+async function handleUpdateScoreDate(req, res, decodedToken) {
+    try {
+        const { scoreIds, newDate, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+        if (!Array.isArray(scoreIds) || scoreIds.length === 0) return res.status(400).json({ error: 'Geen score IDs.' });
+
+        const newDateObj = new Date(newDate + 'T02:00:00.000Z');
+        const batch = db.batch();
+        for (const scoreId of scoreIds) {
+            batch.update(db.collection('scores').doc(scoreId), { datum: Timestamp.fromDate(newDateObj) });
+        }
+        await batch.commit();
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('❌ handleUpdateScoreDate:', error);
+        return res.status(500).json({ error: 'Fout bij updaten datum' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 12: DELETE TESTAFNAME (alle scores van een sessie)
+// ─────────────────────────────────────────────────────────
+async function handleDeleteTestafname(req, res, decodedToken) {
+    try {
+        const { groepId, testId, datum, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const targetDate = new Date(datum);
+        const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(targetDate); dayEnd.setHours(23, 59, 59, 999);
+
+        const scoresSnap = await db.collection('scores')
+            .where('groep_id', '==', groepId)
+            .where('test_id', '==', testId)
+            .where('school_id', '==', verifiedSchoolId)
+            .where('datum', '>=', Timestamp.fromDate(dayStart))
+            .where('datum', '<=', Timestamp.fromDate(dayEnd))
+            .get();
+
+        const batch = db.batch();
+        scoresSnap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+
+        return res.status(200).json({ success: true, verwijderd: scoresSnap.docs.length });
+    } catch (error) {
+        console.error('❌ handleDeleteTestafname:', error);
+        return res.status(500).json({ error: 'Fout bij verwijderen testafname' });
     }
 }
 
@@ -477,6 +736,22 @@ export default async function handler(req, res) {
 
             case 'save_scores':
                 return await handleSaveScores(req, res, decodedToken);
+
+            // ✅ NIEUW — TestafnameDetail migratie
+            case 'get_testafname_detail':
+                return await handleGetTestafnameDetail(req, res, decodedToken);
+
+            case 'update_score':
+                return await handleUpdateScore(req, res, decodedToken);
+
+            case 'delete_score':
+                return await handleDeleteScore(req, res, decodedToken);
+
+            case 'update_score_date':
+                return await handleUpdateScoreDate(req, res, decodedToken);
+
+            case 'delete_testafname':
+                return await handleDeleteTestafname(req, res, decodedToken);
 
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
