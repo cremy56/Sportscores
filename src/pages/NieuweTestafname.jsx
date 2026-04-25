@@ -156,6 +156,7 @@ export default function NieuweTestafname() {
                 }, profile._token);
                 setGroepen(data.groepen || []);
                 setTesten(data.testen || []);
+                console.log('✅ Testen geladen:', data.testen?.length); // tijdelijk
             } catch (error) {
                 toast.error("Kon groepen of testen niet laden.");
             }
