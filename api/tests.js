@@ -392,6 +392,7 @@ async function handleSaveScores(req, res, decodedToken) {
         }
 
         const scoreDatum = new Date(datum);
+        const masterKey = await getMasterKey(); // ✅ voor encryptie naam
         const batch = db.batch();
 
         for (const scoreItem of scores) {
@@ -405,7 +406,7 @@ async function handleSaveScores(req, res, decodedToken) {
                 datum: Timestamp.fromDate(scoreDatum),
                 groep_id: groepId,
                 leerling_id,                            // ✅ smartschool_id_hash
-                leerling_naam: leerling_naam || 'Onbekend',
+                leerling_naam: encryptName(leerling_naam, masterKey) || null, // ✅ AES versleuteld
                 score: Number(score),
                 rapportpunt: rapportpunt ?? null,
                 school_id: verifiedSchoolId,
