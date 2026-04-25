@@ -480,14 +480,7 @@ async function handleGetTestafnameDetail(req, res, decodedToken) {
             }
 
             // Haal namen op via users (voor ontsleuteling)
-            const namenMap = new Map();
-            const usersSnap = await db.collection('users').where('school_id', '==', verifiedSchoolId).get();
-            usersSnap.docs.forEach(d => {
-                const data = d.data();
-                if (data.smartschool_id_hash && data.encrypted_name) {
-                    namenMap.set(data.smartschool_id_hash, decryptName(data.encrypted_name, masterKey));
-                }
-            });
+            
 
             leerlingenData = leerlingIds
                 .filter(id => toegestaneData.has(id))
@@ -495,10 +488,7 @@ async function handleGetTestafnameDetail(req, res, decodedToken) {
                     const tgData = toegestaneData.get(id);
                     const scoreInfo = scoresMap.get(id);
                     // Naam: eerst uit users (ontsleuteld), dan uit score (ontsleuteld), dan fallback
-                    let naam = namenMap.get(id);
-                    if (!naam && scoreInfo?.leerling_naam) {
-                        naam = decryptName(scoreInfo.leerling_naam, masterKey);
-                    }
+                   const naam = decryptName(tgData.encrypted_name, masterKey);
                     return {
                         id,
                         naam: naam || '[Naam niet beschikbaar]',
@@ -729,8 +719,8 @@ async function handleGetEvaluaties(req, res, decodedToken) {
         scoresSnap.docs.forEach(d => {
             const data = d.data();
             const datum = data.datum?.toDate ? data.datum.toDate() : new Date(data.datum);
-            const datumISO = datum.toISOString();
-            const key = `${data.groep_id}-${data.test_id}-${datumISO}`;
+            const datumDag = datum.toISOString().split('T')[0];
+            const key = `${data.groep_id}-${data.test_id}-${datumDag}`;
 
             if (!grouped[key]) {
                 const groep = groepen.find(g => g.id === data.groep_id);
