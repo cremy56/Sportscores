@@ -10,6 +10,7 @@ import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { parseTimeInputToSeconds } from '../utils/formatters.js';
 import { GENDER_MAPPING } from '../utils/firebaseUtils.js';
+import { getLeeftijdFromKlas } from '../utils/klasUtils.js';
 
 // --- API HELPER ---
 async function apiPost(action, body, token) {
@@ -26,30 +27,17 @@ async function apiPost(action, body, token) {
     return data;
 }
 
-// --- HELPER FUNCTIES ---
-function calculateAge(birthDate, testDate) {
-    if (!birthDate || !testDate) return null;
-    let age = testDate.getFullYear() - birthDate.getFullYear();
-    const m = testDate.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && testDate.getDate() < birthDate.getDate())) age--;
-    return age;
-}
-
-// ✅ GEMIGREERD: accepteert normenData als parameter i.p.v. Firestore query
-function calculatePuntFromScore(test, leerling, score, testDatum, normenData) {
+// --- HELPER FUNCTIES ---// ✅ GDPR: geen geboortedatum — leeftijd wordt bepaald via klas
+function calculatePuntFromScore(test, leerling, score, normenData) {
     if (!test || !leerling || score === null || isNaN(score) || !normenData) return null;
     try {
         const { score_richting } = test;
         if (!score_richting) return null;
-        const { geboortedatum, geslacht } = leerling;
-        if (!geboortedatum || !geslacht) return null;
+        const { klas, geslacht } = leerling;
+        if (!klas || !geslacht) return null;
 
-        // geboortedatum komt als ISO string van API (niet als Firestore Timestamp)
-        const geboortedatumDate = typeof geboortedatum === 'string'
-            ? new Date(geboortedatum)
-            : geboortedatum?.toDate?.() ?? new Date(geboortedatum);
-
-        const leeftijd = calculateAge(geboortedatumDate, testDatum);
+        // Klas → leeftijd via klasUtils
+        const leeftijd = getLeeftijdFromKlas(klas);
         if (leeftijd === null) return null;
 
         const normAge = Math.min(leeftijd, 17);
@@ -119,10 +107,6 @@ function formatTimeAgo(pastDate, referenceDate) {
 // --- HOOFDCOMPONENT ---
 export default function NieuweTestafname() {
     const { profile } = useOutletContext();
-    console.log("🔍 NieuweTestafname:", { 
-        token: profile?._token ? "aanwezig" : "ONTBREEKT", 
-        school_id: profile?.school_id || "ONTBREEKT"
-    });
     const [groepen, setGroepen] = useState([]);
     const [testen, setTesten] = useState([]);
     const [selectedGroep, setSelectedGroep] = useState(null);
@@ -156,7 +140,6 @@ export default function NieuweTestafname() {
                 }, profile._token);
                 setGroepen(data.groepen || []);
                 setTesten(data.testen || []);
-                console.log('✅ Testen geladen:', data.testen?.length); // tijdelijk
             } catch (error) {
                 toast.error("Kon groepen of testen niet laden.");
             }
@@ -330,7 +313,6 @@ export default function NieuweTestafname() {
                         selectedTest,
                         leerling.data,
                         parsedValue,
-                        new Date(datum),
                         cachedNormenData
                     );
                     setScores(prev => ({ ...prev, [studentIdToProcess]: { ...scoreData, rapportpunt: newPunt, isValid: true, isCalculating: false } }));

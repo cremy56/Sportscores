@@ -242,7 +242,8 @@ async function handleGetLeerlingenVoorGroep(req, res, decodedToken) {
         }
 
         // Combineer data — naam ontsleutelen uit encrypted_name in toegestane_gebruikers
-        // gender (M/V/X) staat ook in toegestane_gebruikers (niet geslacht)
+        // ✅ GDPR: geen geboortedatum — klas wordt gebruikt voor leeftijdsbepaling
+        // klas (bv. "1A", "6LO") → leerjaar → normatieve leeftijd in frontend
         const leerlingen = leerlingIds
             .filter(id => toegestaneData.has(id))
             .map(id => {
@@ -250,8 +251,7 @@ async function handleGetLeerlingenVoorGroep(req, res, decodedToken) {
                 return {
                     id,  // smartschool_id_hash
                     data: {
-                        geboortedatum: tgData.geboortedatum || null,
-                        // ✅ gender → geslacht mapping (GENDER_MAPPING in frontend verwacht lowercase)
+                        klas: tgData.klas || null,           // ✅ bv. "1A", "6LO"
                         geslacht: (tgData.gender || '').toLowerCase() || null,
                         naam: decryptName(tgData.encrypted_name, masterKey)
                     }
