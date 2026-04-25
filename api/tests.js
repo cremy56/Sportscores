@@ -5,7 +5,7 @@ import { getMasterKey } from '../lib/keyManager.js';
 import CryptoJS from 'crypto-js';
 
 // ─────────────────────────────────────────────────────────
-// HELPER: naam ontsleutelen (zelfde logica als users.js)
+// HELPERS: naam versleutelen / ontsleutelen
 // ─────────────────────────────────────────────────────────
 const decryptName = (encryptedName, masterKey) => {
     try {
@@ -17,6 +17,12 @@ const decryptName = (encryptedName, masterKey) => {
         console.error('Decryptie fout:', error);
         return '[Naam niet beschikbaar]';
     }
+};
+
+// ✅ GDPR: naam versleuteld opslaan in scores collectie
+const encryptName = (name, masterKey) => {
+    if (!name || !masterKey) return null;
+    return CryptoJS.AES.encrypt(name, masterKey).toString();
 };
 
 // ─────────────────────────────────────────────────────────
@@ -124,11 +130,21 @@ async function handleGetLeaderboard(req, res, decodedToken) {
             .limit(globalAgeFilter ? 200 : 20);
 
         const scoresSnapshot = await scoresQuery.get();
-        let rawScores = scoresSnapshot.docs.map(doc => ({
-            ...doc.data(),
-            id: doc.id,
-            datum: doc.data().datum?.toDate ? doc.data().datum.toDate().toISOString() : null
-        }));
+
+        // ✅ GDPR: naam ontsleutelen bij weergave
+        const masterKey = await getMasterKey();
+
+        let rawScores = scoresSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                ...data,
+                id: doc.id,
+                datum: data.datum?.toDate ? data.datum.toDate().toISOString() : null,
+                leerling_naam: data.leerling_naam
+                    ? decryptName(data.leerling_naam, masterKey)
+                    : '[Onbekend]'
+            };
+        });
 
         if (globalAgeFilter) {
             const usersData = await getCachedUsers(schoolId);
@@ -394,6 +410,9 @@ async function handleSaveScores(req, res, decodedToken) {
         const scoreDatum = new Date(datum);
         const batch = db.batch();
 
+        // ✅ GDPR: naam versleutelen voor opslag
+        const masterKey = await getMasterKey();
+
         for (const scoreItem of scores) {
             const { leerling_id, leerling_naam, score, rapportpunt } = scoreItem;
 
@@ -404,13 +423,13 @@ async function handleSaveScores(req, res, decodedToken) {
             batch.set(newScoreRef, {
                 datum: Timestamp.fromDate(scoreDatum),
                 groep_id: groepId,
-                leerling_id,                            // ✅ smartschool_id_hash
-                leerling_naam: leerling_naam || 'Onbekend',
+                leerling_id,                                        // ✅ smartschool_id_hash
+                leerling_naam: encryptName(leerling_naam, masterKey) || null, // ✅ AES versleuteld
                 score: Number(score),
                 rapportpunt: rapportpunt ?? null,
                 school_id: verifiedSchoolId,
                 test_id: testId,
-                leerkracht_id: decodedToken.uid,        // ✅ Firebase UID
+                leerkracht_id: decodedToken.uid,                    // ✅ Firebase UID
                 created_at: Timestamp.now()
             });
         }
