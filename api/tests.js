@@ -728,7 +728,7 @@ async function handleGetEvaluaties(req, res, decodedToken) {
                 grouped[key] = {
                     groep_id: data.groep_id,
                     test_id: data.test_id,
-                    datum: datumISO,
+                    datum: datumDag,
                     groep_naam: groep?.naam || 'Verwijderde Groep',
                     test_naam: test?.naam || 'Onbekende Test',
                     score_ids: [],
