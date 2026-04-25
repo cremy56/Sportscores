@@ -117,7 +117,7 @@ function formatTimeAgo(pastDate, referenceDate) {
 }
 
 // --- HOOFDCOMPONENT ---
-console.log("NieuweTestafname render start");
+console.log("NieuweTestafname render start", { token: profile?._token ? "aanwezig" : "ONTBREEKT", school_id: profile?.school_id });
 export default function NieuweTestafname() {
     const { profile } = useOutletContext();
     const [groepen, setGroepen] = useState([]);
