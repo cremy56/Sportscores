@@ -117,6 +117,7 @@ function formatTimeAgo(pastDate, referenceDate) {
 }
 
 // --- HOOFDCOMPONENT ---
+console.log("NieuweTestafname render start");
 export default function NieuweTestafname() {
     const { profile } = useOutletContext();
     const [groepen, setGroepen] = useState([]);
