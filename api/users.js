@@ -257,7 +257,7 @@ async function handleGetUsers(req, res, decodedToken) {
             rol: adminUserProfile.rol,
             action: 'get_users',
             target_school_id: schoolId,
-            filters_used: { filterKlas, filterRol },
+            filters_used: { filterKlas: filterKlas || null, filterRol: filterRol || null },
             users_returned: users.length,
             timestamp: new Date()
         });
