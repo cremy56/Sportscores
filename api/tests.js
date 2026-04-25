@@ -702,6 +702,87 @@ async function handleDeleteTestafname(req, res, decodedToken) {
 }
 
 // ─────────────────────────────────────────────────────────
+// FUNCTIE 13: GET EVALUATIES (voor Sporttesten overzicht)
+// Haalt alle testafnames op gegroepeerd per groep+test+datum
+// ─────────────────────────────────────────────────────────
+async function handleGetEvaluaties(req, res, decodedToken) {
+    try {
+        const { schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        // Haal groepen, testen en scores parallel op
+        const [groepenSnap, testenSnap, scoresSnap] = await Promise.all([
+            db.collection('groepen').where('school_id', '==', verifiedSchoolId).get(),
+            db.collection('testen').where('school_id', '==', verifiedSchoolId).where('is_actief', '==', true).orderBy('naam').get(),
+            db.collection('scores')
+                .where('school_id', '==', verifiedSchoolId)
+                .where('leerkracht_id', '==', decodedToken.uid)
+                .get()
+        ]);
+
+        const groepen = groepenSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const testen = testenSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Groepeer scores per groep+test+datum
+        const grouped = {};
+        scoresSnap.docs.forEach(d => {
+            const data = d.data();
+            const datum = data.datum?.toDate ? data.datum.toDate() : new Date(data.datum);
+            const datumISO = datum.toISOString();
+            const key = `${data.groep_id}-${data.test_id}-${datumISO}`;
+
+            if (!grouped[key]) {
+                const groep = groepen.find(g => g.id === data.groep_id);
+                const test = testen.find(t => t.id === data.test_id);
+                grouped[key] = {
+                    groep_id: data.groep_id,
+                    test_id: data.test_id,
+                    datum: datumISO,
+                    groep_naam: groep?.naam || 'Verwijderde Groep',
+                    test_naam: test?.naam || 'Onbekende Test',
+                    score_ids: [],
+                    leerling_count: 0,
+                    isOrphanedGroup: !groep
+                };
+            }
+            grouped[key].score_ids.push(d.id);
+            grouped[key].leerling_count++;
+        });
+
+        const evaluaties = Object.values(grouped).sort((a, b) => new Date(b.datum) - new Date(a.datum));
+
+        return res.status(200).json({ success: true, evaluaties, groepen, testen });
+    } catch (error) {
+        console.error('❌ handleGetEvaluaties:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen evaluaties' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// FUNCTIE 14: DELETE TEST
+// ─────────────────────────────────────────────────────────
+async function handleDeleteTest(req, res, decodedToken) {
+    try {
+        const { testId, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        // Controleer of er nog scores zijn
+        const scoresSnap = await db.collection('scores').where('test_id', '==', testId).limit(1).get();
+        if (!scoresSnap.empty) {
+            return res.status(400).json({ error: 'Kan test niet verwijderen: er zijn nog scores aan gekoppeld.' });
+        }
+
+        await db.collection('testen').doc(testId).delete();
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('❌ handleDeleteTest:', error);
+        return res.status(500).json({ error: 'Fout bij verwijderen test' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
 // HOOFD HANDLER (Router)
 // ─────────────────────────────────────────────────────────
 export default async function handler(req, res) {
@@ -752,6 +833,13 @@ export default async function handler(req, res) {
 
             case 'delete_testafname':
                 return await handleDeleteTestafname(req, res, decodedToken);
+
+            // ✅ NIEUW — Sporttesten migratie
+            case 'get_evaluaties':
+                return await handleGetEvaluaties(req, res, decodedToken);
+
+            case 'delete_test':
+                return await handleDeleteTest(req, res, decodedToken);
 
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
