@@ -3,7 +3,9 @@ const {onCall} = require('firebase-functions/v2/https');
 const {onDocumentUpdated} = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const {FieldValue} = require('firebase-admin/firestore');
-const db = admin.firestore();
+
+if (admin.apps.length === 0) admin.initializeApp();  // ✅ zeker geïnitialiseerd
+const db = admin.firestore();  // ✅ nu veilig
 
 exports.onUserNameChange = onDocumentUpdated('users/{userId}', async (event) => {
     const change = event.data;
