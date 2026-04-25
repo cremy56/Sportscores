@@ -1,8 +1,7 @@
 // src/pages/Groeiplan.jsx
+// ✅ VOLLEDIG GEMIGREERD — geen directe Firestore calls meer
 import React, { useState, useEffect, useMemo } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import FocusPuntKaart from '../components/groeiplan/FocusPuntKaart';
@@ -10,6 +9,18 @@ import StudentSearch from '../components/StudentSearch';
 import ConfirmModal from '../components/ConfirmModal';
 import { analyseerEvolutieData } from '../utils/analyseUtils';
 import { getStudentEvolutionData } from '../utils/firebaseUtils';
+
+// ✅ API helper
+async function apiPost(action, body, token) {
+    const response = await fetch('/api/tests', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...body })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'API fout');
+    return data;
+}
 
 // =============================================
 // HELPER: Haal de smartschool_id_hash op van een profiel
@@ -25,77 +36,53 @@ function getStudentHash(profile) {
 // ✅ FIX: Typo opgelost (student?.emai → studentHash)
 // ✅ FIX: smartschool_id_hash als identifier
 // =============================================
-const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin }) => {
+const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin, token, schoolId }) => {
     const navigate = useNavigate();
     const [schemaExists, setSchemaExists] = useState(!schema.isNew);
     const [loading, setLoading] = useState(!schema.isNew);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-    // ✅ FIX: Typo was student?.emai (ontbrak 'l')
-    // Gebruik smartschool_id_hash als universele identifier
     const studentHash = getStudentHash(student);
     const schemaInstanceId = `${studentHash}_${schema.id}`;
 
     useEffect(() => {
-        if (schema.isNew) {
-            setLoading(false);
-            return;
-        }
-
+        if (schema.isNew) { setLoading(false); return; }
         const checkSchemaExists = async () => {
-            if (!isTeacherOrAdmin && studentHash) {
-                const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
-                const docSnap = await getDoc(actiefSchemaRef);
-                setSchemaExists(docSnap.exists());
+            if (!isTeacherOrAdmin && studentHash && token) {
+                try {
+                    const data = await apiPost('check_schema_exists', { leerlingId: studentHash, schemaId: schema.id, schoolId }, token);
+                    setSchemaExists(data.exists);
+                } catch { setSchemaExists(false); }
             }
             setLoading(false);
         };
         checkSchemaExists();
-    }, [schemaInstanceId, isTeacherOrAdmin, studentHash, schema.isNew]);
+    }, [schemaInstanceId, isTeacherOrAdmin, studentHash, schema.isNew, token, schoolId]);
 
     const handleStartOrContinue = async () => {
-        if (!schemaExists) {
-            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
+        if (!schemaExists && token) {
             try {
-                const existingDoc = await getDoc(actiefSchemaRef);
-                if (!existingDoc.exists()) {
-                    await setDoc(actiefSchemaRef, {
-                        leerling_id: studentHash,    // ✅ smartschool_id_hash
-                        schema_id: schema.id,
-                        start_datum: serverTimestamp(),
-                        huidige_week: 1,
-                        voltooide_taken: {},
-                        type: 'optioneel'
-                    });
-                    toast.success("Optioneel schema gestart!");
-                }
+                await apiPost('start_schema', { leerlingId: studentHash, schemaId: schema.id, type: 'optioneel', schoolId }, token);
                 setSchemaExists(true);
+                toast.success("Optioneel schema gestart!");
             } catch (error) {
                 toast.error("Kon schema niet starten.");
                 return;
             }
         }
-
         sessionStorage.setItem('currentSchema', JSON.stringify({
-            userId: studentHash,             // ✅ smartschool_id_hash
-            schemaTemplateId: schema.id,
-            timestamp: Date.now()
+            userId: studentHash, schemaTemplateId: schema.id, timestamp: Date.now()
         }));
         navigate('/groeiplan/schema');
     };
 
     const handleConfirmRemove = async () => {
         try {
-            const optioneelSchemaRef = doc(db, 'leerling_optionele_schemas', `${studentHash}_${schema.id}`);
-            await deleteDoc(optioneelSchemaRef).catch(() => {});
-            if (schemaExists) {
-                await deleteDoc(doc(db, 'leerling_schemas', schemaInstanceId));
-            }
+            await apiPost('remove_optioneel_schema', { leerlingId: studentHash, schemaId: schema.id, schoolId }, token);
             onRemove(schema.id);
             toast.success("Trainingsplan verwijderd.");
         } catch (error) {
             toast.error("Kon plan niet verwijderen.");
-            console.error("Fout bij verwijderen:", error);
         }
         setIsConfirmOpen(false);
     };
@@ -174,7 +161,7 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin })
 // =============================================
 // SUB-COMPONENT: Modal voor trainingsplan kiezen
 // =============================================
-const TrainingsplanModal = ({ isOpen, onClose, onSelect, alGekozenIds }) => {
+const TrainingsplanModal = ({ isOpen, onClose, onSelect, alGekozenIds, token }) => {
     const [alleSchemas, setAlleSchemas] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('Alle');
@@ -183,16 +170,17 @@ const TrainingsplanModal = ({ isOpen, onClose, onSelect, alGekozenIds }) => {
     const categories = useMemo(() => ['Alle', ...new Set(alleSchemas.map(s => s.categorie))], [alleSchemas]);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !token) return;
         const fetchSchemas = async () => {
             setLoading(true);
-            const schemasQuery = query(collection(db, 'trainingsschemas'));
-            const snapshot = await getDocs(schemasQuery);
-            setAlleSchemas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            try {
+                const data = await apiPost('get_trainingsschemas', {}, token);
+                setAlleSchemas(data.schemas || []);
+            } catch { toast.error('Kon trainingsschemas niet laden.'); }
             setLoading(false);
         };
         fetchSchemas();
-    }, [isOpen]);
+    }, [isOpen, token]);
 
     const gefilterdePlannen = alleSchemas.filter(plan => {
         if (alGekozenIds.includes(plan.id)) return false;
@@ -278,75 +266,35 @@ export default function Groeiplan() {
 
         const fetchData = async () => {
             setLoading(true);
-
-            // ✅ FIX: Gebruik smartschool_id_hash als universele identifier
-            // - Voor leerlingen (ingelogd): profile.smartschool_id_hash
-            // - Voor selectedStudent (leerkracht view): doc.id van toegestane_gebruikers
             const studentHash = getStudentHash(currentProfile);
+            if (!studentHash || !profile._token) { setLoading(false); return; }
 
-            if (!studentHash) {
-                setLoading(false);
-                return;
-            }
+            // Stap 1: Haal groeiplan data op via API
+            const groeiplanData = await apiPost('get_groeiplan_data', {
+                leerlingId: studentHash, schoolId: profile.school_id
+            }, profile._token);
+            const actieveSchemaMap = new Map(Object.entries(groeiplanData.actieveSchemaMap || {}));
+            setOptioneleSchemas(groeiplanData.optioneleSchemas || []);
 
-            // Stap 1: Haal actieve schema-instanties op
-            // ✅ FIX: Alleen smartschool_id_hash gebruiken 
-            const actieveSchemasQuery = query(
-                collection(db, 'leerling_schemas'),
-                where('leerling_id', '==', studentHash)
-            );
-            const actieveSchemasSnapshot = await getDocs(actieveSchemasQuery);
-            const actieveSchemaMap = new Map();
-            actieveSchemasSnapshot.docs.forEach(doc => {
-                const data = doc.data();
-                actieveSchemaMap.set(data.schema_id, data.type || 'verplicht');
-            });
-
-            // Stap 2: Bepaal verplichte focuspunten op basis van testresultaten
-            // ✅ token en school_id expliciet meegeven
+            // Stap 2: Evolutiedata + verplichte focuspunten
             const evolutionData = await getStudentEvolutionData(studentHash, profile.school_id, profile._token);
             const zwakkeTesten = analyseerEvolutieData(evolutionData);
             const verplichteFocusPuntenData = [];
 
             for (const testResult of zwakkeTesten) {
-                const schemaQuery = query(
-                    collection(db, 'trainingsschemas'),
-                    where('gekoppelde_test_id', '==', testResult.test_id)
-                );
-                const schemaSnapshot = await getDocs(schemaQuery);
-
-                if (!schemaSnapshot.empty) {
-                    const schemaDoc = schemaSnapshot.docs[0];
-                    const schemaData = { id: schemaDoc.id, ...schemaDoc.data() };
-
+                const schemaData = await apiPost('get_trainingsschema_for_test', {
+                    testId: testResult.test_id
+                }, profile._token);
+                if (schemaData.schema) {
                     verplichteFocusPuntenData.push({
                         test: { ...testResult, test_naam: testResult.naam },
-                        schema: schemaData,
-                        isActief: actieveSchemaMap.has(schemaData.id),
+                        schema: schemaData.schema,
+                        isActief: actieveSchemaMap.has(schemaData.schema.id),
                         isImproved: testResult.isImproved
                     });
                 }
             }
-
             setVerplichteFocusPunten(verplichteFocusPuntenData);
-
-            // Stap 3: Optionele schema's
-            const optioneleSchemaIds = [];
-            for (const [schemaId, type] of actieveSchemaMap.entries()) {
-                if (type === 'optioneel') optioneleSchemaIds.push(schemaId);
-            }
-
-            if (optioneleSchemaIds.length > 0) {
-                const schemasQuery = query(
-                    collection(db, 'trainingsschemas'),
-                    where('__name__', 'in', optioneleSchemaIds)
-                );
-                const schemasSnapshot = await getDocs(schemasQuery);
-                setOptioneleSchemas(schemasSnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-            } else {
-                setOptioneleSchemas([]);
-            }
-
             setLoading(false);
         };
 
@@ -360,22 +308,15 @@ export default function Groeiplan() {
     const handleSelectTrainingPlan = async (plan) => {
         const studentHash = getStudentHash(currentProfile);
         if (!studentHash) return toast.error('Geen student geselecteerd.');
-
         try {
-            await setDoc(doc(db, 'leerling_schemas', `${studentHash}_${plan.id}`), {
-                leerling_id: studentHash,    // ✅ smartschool_id_hash
-                schema_id: plan.id,
-                start_datum: serverTimestamp(),
-                huidige_week: 1,
-                voltooide_taken: {},
-                type: 'optioneel'
-            });
+            await apiPost('add_optioneel_schema', {
+                leerlingId: studentHash, schemaId: plan.id, schoolId: profile.school_id
+            }, profile._token);
             setOptioneleSchemas(prev => [...prev, { ...plan, isNew: true }]);
             setShowModal(false);
             toast.success("Trainingsplan toegevoegd!");
         } catch (error) {
             toast.error("Kon plan niet toevoegen");
-            console.error(error);
         }
     };
 
@@ -476,6 +417,8 @@ export default function Groeiplan() {
                                             student={currentProfile}
                                             onRemove={handleRemoveOptionalPlan}
                                             isTeacherOrAdmin={isTeacherOrAdmin}
+                                            token={profile._token}
+                                            schoolId={profile.school_id}
                                         />
                                     ))}
                                 </>
@@ -489,6 +432,7 @@ export default function Groeiplan() {
                     onClose={() => setShowModal(false)}
                     onSelect={handleSelectTrainingPlan}
                     alGekozenIds={alGekozenIds}
+                    token={profile._token}
                 />
             </div>
         </div>

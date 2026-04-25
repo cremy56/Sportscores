@@ -1278,6 +1278,155 @@ async function handleGetScoreNorms(req, res, decodedToken) {
     }
 }
 // ─────────────────────────────────────────────────────────
+// GROEIPLAN ACTIONS
+// ─────────────────────────────────────────────────────────
+async function handleGetGroeiplanData(req, res, decodedToken) {
+    try {
+        const { leerlingId, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        // Haal actieve schema-instanties op
+        const schemasSnap = await db.collection('leerling_schemas')
+            .where('leerling_id', '==', leerlingId).get();
+        const actieveSchemaMap = new Map();
+        schemasSnap.docs.forEach(d => {
+            const data = d.data();
+            actieveSchemaMap.set(data.schema_id, data.type || 'verplicht');
+        });
+
+        // Haal trainingsschemas op voor optionele schema's
+        const optioneleSchemaIds = [...actieveSchemaMap.entries()]
+            .filter(([_, type]) => type === 'optioneel')
+            .map(([id]) => id);
+
+        let optioneleSchemas = [];
+        if (optioneleSchemaIds.length > 0) {
+            const chunks = [];
+            for (let i = 0; i < optioneleSchemaIds.length; i += 30) chunks.push(optioneleSchemaIds.slice(i, i + 30));
+            for (const chunk of chunks) {
+                const snap = await db.collection('trainingsschemas').where('__name__', 'in', chunk).get();
+                optioneleSchemas.push(...snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            }
+        }
+
+        return res.status(200).json({
+            success: true,
+            actieveSchemaMap: Object.fromEntries(actieveSchemaMap),
+            optioneleSchemas
+        });
+    } catch (error) {
+        console.error('❌ handleGetGroeiplanData:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen groeiplan data' });
+    }
+}
+
+async function handleGetTrainingsschemas(req, res, decodedToken) {
+    try {
+        await getSchoolId(decodedToken.uid); // ✅ verificeer token
+        const snap = await db.collection('trainingsschemas').get();
+        return res.status(200).json({
+            success: true,
+            schemas: snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        });
+    } catch (error) {
+        console.error('❌ handleGetTrainingsschemas:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen trainingsschemas' });
+    }
+}
+
+async function handleGetTrainingsschemaForTest(req, res, decodedToken) {
+    try {
+        const { testId } = req.body;
+        await getSchoolId(decodedToken.uid);
+        const snap = await db.collection('trainingsschemas')
+            .where('gekoppelde_test_id', '==', testId).limit(1).get();
+        if (snap.empty) return res.status(200).json({ success: true, schema: null });
+        return res.status(200).json({ success: true, schema: { id: snap.docs[0].id, ...snap.docs[0].data() } });
+    } catch (error) {
+        console.error('❌ handleGetTrainingsschemaForTest:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen trainingsschema' });
+    }
+}
+
+async function handleAddOptioneelSchema(req, res, decodedToken) {
+    try {
+        const { leerlingId, schemaId, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const docId = `${leerlingId}_${schemaId}`;
+        await db.collection('leerling_schemas').doc(docId).set({
+            leerling_id: leerlingId,
+            schema_id: schemaId,
+            start_datum: Timestamp.now(),
+            huidige_week: 1,
+            voltooide_taken: {},
+            type: 'optioneel'
+        });
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('❌ handleAddOptioneelSchema:', error);
+        return res.status(500).json({ error: 'Fout bij toevoegen schema' });
+    }
+}
+
+async function handleRemoveOptioneelSchema(req, res, decodedToken) {
+    try {
+        const { leerlingId, schemaId, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const docId = `${leerlingId}_${schemaId}`;
+        await db.collection('leerling_schemas').doc(docId).delete().catch(() => {});
+        await db.collection('leerling_optionele_schemas').doc(docId).delete().catch(() => {});
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('❌ handleRemoveOptioneelSchema:', error);
+        return res.status(500).json({ error: 'Fout bij verwijderen schema' });
+    }
+}
+
+async function handleCheckSchemaExists(req, res, decodedToken) {
+    try {
+        const { leerlingId, schemaId, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const docId = `${leerlingId}_${schemaId}`;
+        const snap = await db.collection('leerling_schemas').doc(docId).get();
+        return res.status(200).json({ success: true, exists: snap.exists });
+    } catch (error) {
+        console.error('❌ handleCheckSchemaExists:', error);
+        return res.status(500).json({ error: 'Fout bij controleren schema' });
+    }
+}
+
+async function handleStartSchema(req, res, decodedToken) {
+    try {
+        const { leerlingId, schemaId, type, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const docId = `${leerlingId}_${schemaId}`;
+        const snap = await db.collection('leerling_schemas').doc(docId).get();
+        if (!snap.exists) {
+            await db.collection('leerling_schemas').doc(docId).set({
+                leerling_id: leerlingId,
+                schema_id: schemaId,
+                start_datum: Timestamp.now(),
+                huidige_week: 1,
+                voltooide_taken: {},
+                type: type || 'optioneel'
+            });
+        }
+        return res.status(200).json({ success: true, exists: snap.exists });
+    } catch (error) {
+        console.error('❌ handleStartSchema:', error);
+        return res.status(500).json({ error: 'Fout bij starten schema' });
+    }
+}
+// ─────────────────────────────────────────────────────────
 // HOOFD HANDLER (Router)
 // ─────────────────────────────────────────────────────────
 export default async function handler(req, res) {
@@ -1307,6 +1456,22 @@ export default async function handler(req, res) {
             case 'get_normen':
                 return await handleGetNormen(req, res, decodedToken);
             
+            case 'get_groeiplan_data': 
+            return await handleGetGroeiplanData(req, res, decodedToken);
+            
+            case 'get_trainingsschemas': 
+            return await handleGetTrainingsschemas(req, res, decodedToken);
+            case 'get_trainingsschema_for_test': 
+            return await handleGetTrainingsschemaForTest(req, res, decodedToken);
+            case 'add_optioneel_schema': 
+            return await handleAddOptioneelSchema(req, res, decodedToken);
+            case 'remove_optioneel_schema': 
+            return await handleRemoveOptioneelSchema(req, res, decodedToken);
+            case 'check_schema_exists': 
+            return await handleCheckSchemaExists(req, res, decodedToken);
+            case 'start_schema': 
+            return await handleStartSchema(req, res, decodedToken);    
+
             case 'get_score_norms':
                 return await handleGetScoreNorms(req, res, decodedToken);
                 
