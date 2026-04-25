@@ -117,14 +117,16 @@ export default function Groepsbeheer() {
     // HANDLERS: Nieuwe groep aanmaken
     // =============================================
     const handleKlasSelecteren = async (klas) => {
-        setGeselecteerdeKlas(klas);
-        setGeselecteerdeLeerlingen([]);
-        setLoadingLeerlingen(true);
-        const leerlingen = await fetchLeerlingenVanKlas(klas, profile.school_id, profile._token);
-        setLeerlingenVanKlas(leerlingen);
-        setLoadingLeerlingen(false);
-        setStapModal(3);
-    };
+    setGeselecteerdeKlas(klas);
+    setGeselecteerdeLeerlingen([]);
+    setNewGroupName('');     // reset naam
+    setShowModal(true);      // ✅ open de modal
+    setStapModal(3);         // ✅ ga direct naar stap 3
+    setLoadingLeerlingen(true);
+    const leerlingen = await fetchLeerlingenVanKlas(klas, profile.school_id, profile._token);
+    setLeerlingenVanKlas(leerlingen);
+    setLoadingLeerlingen(false);
+};
 
     const toggleLeerling = (leerling) => {
         setGeselecteerdeLeerlingen(prev => {
