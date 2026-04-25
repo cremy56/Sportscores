@@ -142,92 +142,55 @@ export function getNetworkStatus() {
 /**
  * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
  */
-export const getStudentEvolutionData = async (studentId) => {
-  const operation = async () => {
-    const testsQuery = query(
-      collection(db, 'testen'),
-      where('is_actief', '==', true),
-      orderBy('categorie'),
-      orderBy('naam')
-    );
-    
-    const testsSnapshot = await getDocs(testsQuery);
-    const tests = testsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+/**
+ * Haalt evolutiegegevens op voor een student via de API
+ * ✅ GEMIGREERD: geen directe Firestore calls meer
+ */
+export const getStudentEvolutionData = async (studentId, schoolId) => {
+  try {
+    // Haal token op uit Firebase Auth
+    const { getAuth } = await import('firebase/auth');
+    const auth = getAuth();
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) throw new Error('Niet ingelogd');
 
-    const leerlingId = studentId;
+    // schoolId ophalen uit users profiel als niet meegegeven
+    let resolvedSchoolId = schoolId;
+    if (!resolvedSchoolId) {
+      const { getFirestore, doc, getDoc } = await import('firebase/firestore');
+      const firestore = getFirestore();
+      const userSnap = await getDoc(doc(firestore, 'users', auth.currentUser.uid));
+      resolvedSchoolId = userSnap.data()?.school_id;
+    }
 
-    const testDataPromises = tests.map(async (test) => {
-      const scoresQuery = query(
-        collection(db, 'scores'),
-        where('test_id', '==', test.id),
-        where('leerling_id', '==', leerlingId),
-        orderBy('datum', 'desc')
-      );
-
-      const scoresSnapshot = await getDocs(scoresQuery);
-      const scores = scoresSnapshot.docs.map(doc => {
-        const data = doc.data();
-        let parsedDatum = null;
-        
-        if (data.datum) {
-          if (typeof data.datum === 'string') {
-            parsedDatum = new Date(data.datum);
-          } else if (data.datum.toDate && typeof data.datum.toDate === 'function') {
-            parsedDatum = data.datum.toDate();
-          } else if (data.datum instanceof Date) {
-            parsedDatum = data.datum;
-          }
-        }
-        
-        if (!parsedDatum || isNaN(parsedDatum.getTime())) {
-          console.warn(`Could not parse datum for score ${doc.id}:`, data.datum);
-          parsedDatum = new Date();
-        }
-
-        return {
-          id: doc.id,
-          ...data,
-          datum: parsedDatum
-        };
-      });
-
-      if (scores.length === 0) {
-        return null;
-      }
-
-      const sortedScores = scores.sort((a, b) => new Date(b.datum) - new Date(a.datum));
-      const personalBest = calculatePersonalBest(sortedScores, test.score_richting);
-
-      return {
-        test_id: test.id,
-        test_naam: test.naam,
-        categorie: test.categorie,
-        eenheid: test.eenheid,
-        score_richting: test.score_richting,
-        personal_best_score: personalBest.score,
-        personal_best_datum: personalBest.datum,
-        all_scores: sortedScores.map(score => ({
-          score: score.score,
-          datum: score.datum,
-          id: score.id,
-          rapportpunt: score.rapportpunt || null
-        }))
-      };
+    const response = await fetch('/api/tests', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'get_student_evolution',
+        leerlingId: studentId,
+        schoolId: resolvedSchoolId
+      })
     });
 
-    const results = await Promise.all(testDataPromises);
-    return results.filter(result => result !== null);
-  };
+    if (!response.ok) throw new Error('API fout bij ophalen evolutiedata');
+    const data = await response.json();
 
-  try {
-    return await retryOperation(operation);
+    // Converteer datum strings terug naar Date objecten voor compatibiliteit
+    return (data.evolutionData || []).map(test => ({
+      ...test,
+      all_scores: (test.all_scores || []).map(score => ({
+        ...score,
+        datum: score.datum ? new Date(score.datum) : new Date()
+      })),
+      personal_best_datum: test.personal_best_datum ? new Date(test.personal_best_datum) : null
+    }));
   } catch (error) {
-    const errorMessage = handleFirestoreError(error, 'Laden van evolutiegegevens');
-    console.error("Error getting student evolution data:", error);
-    throw new Error(errorMessage);
+    console.error('Error getting student evolution data:', error);
+    throw new Error('Kon de evolutiegegevens niet laden.');
   }
 };
 

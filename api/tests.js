@@ -1168,6 +1168,76 @@ async function handleGetKlasDetail(req, res, decodedToken) {
 }
 
 // ─────────────────────────────────────────────────────────
+// FUNCTIE 24: GET STUDENT EVOLUTION
+// Haalt alle testdata + scores op voor een leerling
+// ─────────────────────────────────────────────────────────
+async function handleGetStudentEvolution(req, res, decodedToken) {
+    try {
+        const { leerlingId, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        // Haal alle actieve testen op
+        const testenSnap = await db.collection('testen')
+            .where('school_id', '==', verifiedSchoolId)
+            .where('is_actief', '==', true)
+            .orderBy('categorie')
+            .orderBy('naam')
+            .get();
+
+        const testen = testenSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Haal scores op per test voor deze leerling
+        const evolutionData = [];
+
+        for (const test of testen) {
+            const scoresSnap = await db.collection('scores')
+                .where('test_id', '==', test.id)
+                .where('leerling_id', '==', leerlingId)
+                .orderBy('datum', 'desc')
+                .get();
+
+            if (scoresSnap.empty) continue;
+
+            const scores = scoresSnap.docs.map(d => {
+                const data = d.data();
+                return {
+                    id: d.id,
+                    score: data.score,
+                    rapportpunt: data.rapportpunt || null,
+                    datum: data.datum?.toDate ? data.datum.toDate().toISOString() : null
+                };
+            });
+
+            // Personal best
+            const sorted = [...scores].sort((a, b) => {
+                if (test.score_richting === 'hoog') return b.score - a.score;
+                return a.score - b.score;
+            });
+            const best = sorted[0];
+
+            evolutionData.push({
+                test_id: test.id,
+                test_naam: test.naam,
+                naam: test.naam,
+                categorie: test.categorie,
+                eenheid: test.eenheid,
+                score_richting: test.score_richting,
+                personal_best_score: best.score,
+                personal_best_datum: best.datum,
+                personal_best_points: best.rapportpunt,
+                all_scores: scores
+            });
+        }
+
+        return res.status(200).json({ success: true, evolutionData });
+    } catch (error) {
+        console.error('❌ handleGetStudentEvolution:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen evolutiedata' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
 // HOOFD HANDLER (Router)
 // ─────────────────────────────────────────────────────────
 export default async function handler(req, res) {
@@ -1252,9 +1322,9 @@ export default async function handler(req, res) {
             case 'remove_leerling':
                 return await handleRemoveLeerling(req, res, decodedToken);
 
-            // ✅ NIEUW — KlasDetail (read-only)
-            case 'get_klas_detail':
-                return await handleGetKlasDetail(req, res, decodedToken);
+            // ✅ NIEUW — Evolutie/Groeiplan
+            case 'get_student_evolution':
+                return await handleGetStudentEvolution(req, res, decodedToken);
 
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
