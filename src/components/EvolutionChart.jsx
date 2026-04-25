@@ -19,12 +19,14 @@ const coloredZonesPlugin = {
     const y14 = y.getPixelForValue(norm_14);
     const zoneOpacity = 0.25;
 
-    if (score_richting === 'omlaag') {
-      ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;
+    if (score_richting === 'omlaag' || score_richting === 'laag') {
+      // Laag is beter: groen bovenaan (lage waarden), rood onderaan (hoge waarden)
+      // Maar op de Y-as staan hoge waarden bovenaan → zones zijn omgekeerd
+      ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;   // rood bovenaan (slechte tijd)
       ctx.fillRect(left, top, width, y14 - top);
-      ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;
+      ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;  // oranje midden
       ctx.fillRect(left, y14, width, y10 - y14);
-      ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
+      ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;   // groen onderaan (goede tijd)
       ctx.fillRect(left, y10, width, bottom - y10);
     } else {
       ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
@@ -70,34 +72,37 @@ const thresholdLinesPlugin = {
   }
 };
 
-// Y-as schaling met nieuwe, conditionele logica.
+// Y-as schaling — werkt voor zowel hoog-is-beter als laag-is-beter
 const calculateOptimalYRange = (scoreValues, scoreNorms) => {
-  // Fallback als normen niet beschikbaar zijn: baseer op scores.
+  // Fallback als normen niet beschikbaar zijn
   if (!scoreNorms || scoreNorms['1'] === undefined || scoreNorms['20'] === undefined) {
     if (!scoreValues || scoreValues.length === 0) return { minValue: 0, maxValue: 100 };
     const minScore = Math.min(...scoreValues);
     const maxScore = Math.max(...scoreValues);
-    // ✅ Fix: bij 1 score (min === max) geef een zinvol bereik
     const range = maxScore - minScore;
-    const padding = range === 0 ? Math.max(minScore * 0.2, 10) : range * 0.2;
+    const padding = range === 0 ? Math.max(minScore * 0.1, 30) : range * 0.2;
     return { minValue: minScore - padding, maxValue: maxScore + padding };
   }
 
-  const lowestNorm = scoreNorms['1'];
-  const highestNorm = scoreNorms['20'];
-  const normRange = highestNorm - lowestNorm;
+  // ✅ Gebruik altijd numerisch min/max — werkt voor beide richtingen
+  const allNormValues = [scoreNorms['1'], scoreNorms['10'], scoreNorms['14'], scoreNorms['20']].filter(v => v !== undefined);
+  const normMin = Math.min(...allNormValues);
+  const normMax = Math.max(...allNormValues);
+  const normRange = normMax - normMin;
+  const padding = normRange * 0.15;
 
-  let finalMinValue = lowestNorm + (normRange * 0.15);
-  let finalMaxValue = highestNorm - (normRange * 0.10);
+  let finalMin = normMin - padding;
+  let finalMax = normMax + padding;
 
+  // Zorg dat scores altijd zichtbaar zijn
   if (scoreValues && scoreValues.length > 0) {
     const actualMin = Math.min(...scoreValues);
     const actualMax = Math.max(...scoreValues);
-    if (actualMax > finalMaxValue) finalMaxValue = actualMax + (normRange * 0.05);
-    if (actualMin < finalMinValue) finalMinValue = actualMin - (normRange * 0.05);
+    if (actualMin < finalMin) finalMin = actualMin - padding * 0.5;
+    if (actualMax > finalMax) finalMax = actualMax + padding * 0.5;
   }
 
-  return { minValue: finalMinValue, maxValue: finalMaxValue };
+  return { minValue: finalMin, maxValue: finalMax };
 };
 
 export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNorms, scoreRichting }) {
