@@ -1,5 +1,6 @@
 // src/pages/GroupDetail.jsx
 // ✅ VOLLEDIG GEMIGREERD — geen directe Firestore calls meer
+// Ondersteunt zowel groepen (/groep/:groepId) als klassen (/klas/:klasNaam)
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, useOutletContext } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
@@ -151,7 +152,8 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded, token, profil
 // HOOFD COMPONENT
 // =============================================
 export default function GroupDetail() {
-    const { groepId } = useParams();
+    const { groepId, klasNaam } = useParams();  // ✅ beide params
+    const isKlas = !!klasNaam;                   // read-only modus
     const { profile } = useOutletContext();
 
     const [group, setGroup] = useState(null);
@@ -170,24 +172,23 @@ export default function GroupDetail() {
     // ALLE DATA LADEN via API
     // =============================================
     const fetchGroupData = useCallback(async () => {
-        if (!groepId || !profile?._token || !profile?.school_id) return;
+        if (!profile?._token || !profile?.school_id) return;
         setLoading(true);
         try {
-            const data = await apiPost('get_groep_detail', {
-                groepId,
-                schoolId: profile.school_id
-            }, profile._token);
+            const data = isKlas
+                ? await apiPost('get_klas_detail', { klasNaam, schoolId: profile.school_id }, profile._token)
+                : await apiPost('get_groep_detail', { groepId, schoolId: profile.school_id }, profile._token);
 
             setGroup(data.groep);
             setMembers(data.members || []);
             setScoresByLeerling(data.scoresByLeerling || {});
             setAvailableTests(data.availableTests || []);
         } catch (error) {
-            toast.error('Groepsdetails konden niet worden geladen: ' + error.message);
+            toast.error('Details konden niet worden geladen: ' + error.message);
         } finally {
             setLoading(false);
         }
-    }, [groepId, profile]);
+    }, [groepId, klasNaam, isKlas, profile]);
 
     useEffect(() => {
         fetchGroupData();
@@ -297,9 +298,11 @@ export default function GroupDetail() {
                                 </Link>
                                 <h1 className="text-2xl font-bold text-gray-800 truncate">{group.naam}</h1>
                             </div>
-                            <button onClick={() => setIsAddStudentModalOpen(true)} className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg ml-4">
-                                <PlusIcon className="h-6 w-6" />
-                            </button>
+                            {!isKlas && (
+                                <button onClick={() => setIsAddStudentModalOpen(true)} className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg ml-4">
+                                    <PlusIcon className="h-6 w-6" />
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -309,11 +312,16 @@ export default function GroupDetail() {
                             <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />Terug naar groepenoverzicht
                         </Link>
                         <div className="flex justify-between items-center">
-                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{group.naam}</h1>
-                            <button onClick={() => setIsAddStudentModalOpen(true)} className="flex items-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all">
-                                <PlusIcon className="h-6 w-6" />
-                                <span className="ml-2">Leerling Toevoegen</span>
-                            </button>
+                            <div>
+                                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{group.naam}</h1>
+                                {isKlas && <p className="text-sm text-gray-500 mt-1">Klas — overzicht</p>}
+                            </div>
+                            {!isKlas && (
+                                <button onClick={() => setIsAddStudentModalOpen(true)} className="flex items-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all">
+                                    <PlusIcon className="h-6 w-6" />
+                                    <span className="ml-2">Leerling Toevoegen</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -358,9 +366,11 @@ export default function GroupDetail() {
                                                 )}
                                             </div>
                                         </div>
-                                        <button onClick={() => handleRemoveStudentClick(lid)} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors">
-                                            <TrashIcon className="h-5 w-5" />
-                                        </button>
+                                        {!isKlas && (
+                                            <button onClick={() => handleRemoveStudentClick(lid)} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors">
+                                                <TrashIcon className="h-5 w-5" />
+                                            </button>
+                                        )}
                                     </li>
                                 );
                             }) : (

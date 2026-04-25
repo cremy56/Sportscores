@@ -215,6 +215,7 @@ function App() {
                 <Route path="/rewards" element={<Rewards />} />
                 <Route path="/groepsbeheer" element={<Groepsbeheer />} />
                 <Route path="/groep/:groepId" element={<GroupDetail />} />
+                <Route path="/klas/:klasNaam" element={<GroupDetail />} />
                 <Route path="/sporttesten" element={<Sporttesten />} />
                 <Route path="/sporttesten/:testId" element={<TestDetailBeheer />} />
                 <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />

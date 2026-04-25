@@ -1,7 +1,7 @@
 // src/pages/Groepsbeheer.jsx
 // ✅ VOLLEDIG GEMIGREERD — geen directe Firestore calls meer
 import { useState, useEffect, useCallback } from 'react';
-import { useOutletContext, Link } from 'react-router-dom';
+import { useOutletContext, Link, useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import {
     PlusIcon, UsersIcon, AcademicCapIcon,
@@ -44,6 +44,7 @@ async function fetchLeerlingenVanKlas(klas, schoolId, token) {
 
 export default function Groepsbeheer() {
     const { profile } = useOutletContext();
+    const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState('groepen');
     const [groepen, setGroepen] = useState([]);
@@ -116,17 +117,9 @@ export default function Groepsbeheer() {
     // =============================================
     // HANDLERS: Nieuwe groep aanmaken
     // =============================================
-    const handleKlasSelecteren = async (klas) => {
-    setGeselecteerdeKlas(klas);
-    setGeselecteerdeLeerlingen([]);
-    setNewGroupName('');     // reset naam
-    setShowModal(true);      // ✅ open de modal
-    setStapModal(3);         // ✅ ga direct naar stap 3
-    setLoadingLeerlingen(true);
-    const leerlingen = await fetchLeerlingenVanKlas(klas, profile.school_id, profile._token);
-    setLeerlingenVanKlas(leerlingen);
-    setLoadingLeerlingen(false);
-};
+    const handleKlasSelecteren = (klas) => {
+        navigate(`/klas/${klas}`);
+    };
 
     const toggleLeerling = (leerling) => {
         setGeselecteerdeLeerlingen(prev => {
@@ -145,7 +138,6 @@ export default function Groepsbeheer() {
             const data = await apiPost('create_groep', {
                 naam: newGroupName.trim(),
                 leerling_ids: geselecteerdeLeerlingen.map(l => l.id),
-                leerlingen_cache: geselecteerdeLeerlingen,
                 schoolId: profile.school_id
             }, profile._token);
 

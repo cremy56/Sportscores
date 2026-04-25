@@ -1081,6 +1081,93 @@ async function handleRemoveLeerling(req, res, decodedToken) {
 }
 
 // ─────────────────────────────────────────────────────────
+// FUNCTIE 23: GET KLAS DETAIL (read-only)
+// Zelfde als get_groep_detail maar gefilterd op klas
+// ─────────────────────────────────────────────────────────
+async function handleGetKlasDetail(req, res, decodedToken) {
+    try {
+        const { klasNaam, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const masterKey = await getMasterKey();
+
+        // Haal alle leerlingen van deze klas op
+        const leerlingenSnap = await db.collection('toegestane_gebruikers')
+            .where('school_id', '==', verifiedSchoolId)
+            .where('klas', '==', klasNaam)
+            .where('rol', '==', 'leerling')
+            .where('is_active', '==', true)
+            .get();
+
+        const leerlingIds = leerlingenSnap.docs.map(d => d.id);
+        const members = leerlingenSnap.docs.map(d => ({
+            id: d.id,
+            naam: decryptName(d.data().encrypted_name, masterKey),
+            klas: d.data().klas || ''
+        })).sort((a, b) => a.naam.localeCompare(b.naam));
+
+        // Haal scores op voor dit schooljaar
+        const nu = new Date();
+        const startJaar = nu.getMonth() >= 8 ? nu.getFullYear() : nu.getFullYear() - 1;
+        const schoolYearStart = Timestamp.fromDate(new Date(startJaar, 8, 1));
+        const schoolYearEnd = Timestamp.fromDate(new Date(startJaar + 1, 7, 31, 23, 59, 59));
+
+        let scoresByLeerling = {};
+        let testenVoorSorteren = [];
+
+        if (leerlingIds.length > 0) {
+            const allScores = [];
+            const chunks = [];
+            for (let i = 0; i < leerlingIds.length; i += 30) chunks.push(leerlingIds.slice(i, i + 30));
+
+            for (const chunk of chunks) {
+                const scoresSnap = await db.collection('scores')
+                    .where('leerling_id', 'in', chunk)
+                    .where('datum', '>=', schoolYearStart)
+                    .where('datum', '<=', schoolYearEnd)
+                    .get();
+                allScores.push(...scoresSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            }
+
+            const testIds = [...new Set(allScores.map(s => s.test_id))];
+            const testNamen = new Map();
+            if (testIds.length > 0) {
+                const testChunks = [];
+                for (let i = 0; i < testIds.length; i += 30) testChunks.push(testIds.slice(i, i + 30));
+                for (const chunk of testChunks) {
+                    const testenSnap = await db.collection('testen').where('__name__', 'in', chunk).get();
+                    testenSnap.docs.forEach(d => {
+                        testNamen.set(d.id, d.data().naam);
+                        testenVoorSorteren.push({ id: d.id, naam: d.data().naam });
+                    });
+                }
+            }
+
+            allScores.forEach(score => {
+                if (!scoresByLeerling[score.leerling_id]) scoresByLeerling[score.leerling_id] = [];
+                scoresByLeerling[score.leerling_id].push({
+                    ...score,
+                    datum: score.datum?.toDate ? score.datum.toDate().toISOString() : null,
+                    test_naam: testNamen.get(score.test_id) || 'Onbekende Test'
+                });
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            groep: { id: klasNaam, naam: klasNaam, isKlas: true },
+            members,
+            scoresByLeerling,
+            availableTests: testenVoorSorteren.sort((a, b) => a.naam.localeCompare(b.naam))
+        });
+    } catch (error) {
+        console.error('❌ handleGetKlasDetail:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen klasdetail' });
+    }
+}
+
+// ─────────────────────────────────────────────────────────
 // HOOFD HANDLER (Router)
 // ─────────────────────────────────────────────────────────
 export default async function handler(req, res) {
@@ -1164,6 +1251,10 @@ export default async function handler(req, res) {
 
             case 'remove_leerling':
                 return await handleRemoveLeerling(req, res, decodedToken);
+
+            // ✅ NIEUW — KlasDetail (read-only)
+            case 'get_klas_detail':
+                return await handleGetKlasDetail(req, res, decodedToken);
 
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
