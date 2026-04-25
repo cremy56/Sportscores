@@ -47,7 +47,7 @@ export default function Evolutie() {
             setLoading(true);
             setError(null);
             try {
-                const allData = await getStudentEvolutionData(selectedStudent.id);
+                const allData = await getStudentEvolutionData(selectedStudent.id, profile.school_id, profile._token);
                 const dataToShow = (selectedYear === 'all')
                     ? allData
                     : filterTestDataBySchoolYear(allData, selectedYear);
@@ -534,7 +534,7 @@ const exportToCSV = () => {
                                         const fetchData = async () => {
                                             setLoading(true);
                                             try {
-                                                const allData = await getStudentEvolutionData(selectedStudent.id);
+                                                const allData = await getStudentEvolutionData(selectedStudent.id, profile.school_id, profile._token);
                                                 const filteredData = filterTestDataBySchoolYear(allData, selectedYear);
                                                 setEvolutionData(filteredData);
                                             } catch (err) {

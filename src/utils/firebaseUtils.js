@@ -144,25 +144,14 @@ export function getNetworkStatus() {
  */
 /**
  * Haalt evolutiegegevens op voor een student via de API
- * ✅ GEMIGREERD: geen directe Firestore calls meer
+ * ✅ GEMIGREERD: geen directe Firestore calls
+ * ✅ VEILIG: token en schoolId altijd expliciet meegeven
  */
-export const getStudentEvolutionData = async (studentId, schoolId) => {
+export const getStudentEvolutionData = async (studentId, schoolId, token) => {
+  if (!studentId || !schoolId || !token) {
+    throw new Error('studentId, schoolId en token zijn verplicht');
+  }
   try {
-    // Haal token op uit Firebase Auth
-    const { getAuth } = await import('firebase/auth');
-    const auth = getAuth();
-    const token = await auth.currentUser?.getIdToken();
-    if (!token) throw new Error('Niet ingelogd');
-
-    // schoolId ophalen uit users profiel als niet meegegeven
-    let resolvedSchoolId = schoolId;
-    if (!resolvedSchoolId) {
-      const { getFirestore, doc, getDoc } = await import('firebase/firestore');
-      const firestore = getFirestore();
-      const userSnap = await getDoc(doc(firestore, 'users', auth.currentUser.uid));
-      resolvedSchoolId = userSnap.data()?.school_id;
-    }
-
     const response = await fetch('/api/tests', {
       method: 'POST',
       headers: {
@@ -172,21 +161,24 @@ export const getStudentEvolutionData = async (studentId, schoolId) => {
       body: JSON.stringify({
         action: 'get_student_evolution',
         leerlingId: studentId,
-        schoolId: resolvedSchoolId
+        schoolId
       })
     });
-
-    if (!response.ok) throw new Error('API fout bij ophalen evolutiedata');
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'API fout');
+    }
     const data = await response.json();
-
     // Converteer datum strings terug naar Date objecten voor compatibiliteit
     return (data.evolutionData || []).map(test => ({
       ...test,
-      all_scores: (test.all_scores || []).map(score => ({
-        ...score,
-        datum: score.datum ? new Date(score.datum) : new Date()
+      all_scores: (test.all_scores || []).map(s => ({
+        ...s,
+        datum: s.datum ? new Date(s.datum) : new Date()
       })),
-      personal_best_datum: test.personal_best_datum ? new Date(test.personal_best_datum) : null
+      personal_best_datum: test.personal_best_datum
+        ? new Date(test.personal_best_datum)
+        : null
     }));
   } catch (error) {
     console.error('Error getting student evolution data:', error);

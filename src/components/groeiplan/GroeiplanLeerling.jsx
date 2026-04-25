@@ -2,8 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../../firebase';
-import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import FocusPuntKaart from './FocusPuntKaart';
+import { getStudentEvolutionData } from '../../utils/firebaseUtils';
+import { analyseerEvolutieData } from '../../utils/analyseUtils';
 
 export default function GroeiplanLeerling({ studentProfile }) {
     const context = useOutletContext();
@@ -21,7 +23,12 @@ export default function GroeiplanLeerling({ studentProfile }) {
 
         const fetchData = async () => {
             setLoading(true);
-            const evolutionData = await getStudentEvolutionData(profile.id, profile);
+            // ✅ token en school_id expliciet meegeven
+            const token = profile._token;
+            const schoolId = profile.school_id;
+            if (!token || !schoolId) { setLoading(false); return; }
+
+            const evolutionData = await getStudentEvolutionData(profile.id, schoolId, token);
             
             // 1. Haalt nu een LIJST van zwakke testen op
             const zwakkeTesten = analyseerEvolutieData(evolutionData);

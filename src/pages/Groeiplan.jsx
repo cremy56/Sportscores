@@ -9,6 +9,7 @@ import FocusPuntKaart from '../components/groeiplan/FocusPuntKaart';
 import StudentSearch from '../components/StudentSearch';
 import ConfirmModal from '../components/ConfirmModal';
 import { analyseerEvolutieData } from '../utils/analyseUtils';
+import { getStudentEvolutionData } from '../utils/firebaseUtils';
 
 // =============================================
 // HELPER: Haal de smartschool_id_hash op van een profiel
@@ -18,53 +19,6 @@ import { analyseerEvolutieData } from '../utils/analyseUtils';
 function getStudentHash(profile) {
     return profile?.smartschool_id_hash || profile?.id || null;
 }
-
-// =============================================
-// HELPER: Evolutiedata ophalen
-// ✅ FIX: Alleen smartschool_id_hash gebruiken als leerling_id
-// =============================================
-const getStudentEvolutionData = async (studentHash) => {
-    try {
-        if (!studentHash) return [];
-
-        // ✅ CORRECT: Scores opgeslagen met smartschool_id_hash als leerling_id
-        const scoresQuery = query(
-            collection(db, 'scores'),
-            where('leerling_id', '==', studentHash)
-        );
-        const scoresSnapshot = await getDocs(scoresQuery);
-        const scores = scoresSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-
-        const testIds = [...new Set(scores.map(s => s.test_id))];
-        if (testIds.length === 0) return [];
-
-        const testenQuery = query(collection(db, 'testen'), where('__name__', 'in', testIds));
-        const testenSnapshot = await getDocs(testenQuery);
-        const testen = new Map();
-        testenSnapshot.docs.forEach(d => testen.set(d.id, d.data()));
-
-        const evolutionData = testIds.map(testId => {
-            const testScores = scores.filter(s => s.test_id === testId);
-            const testData = testen.get(testId);
-            if (!testData || testScores.length === 0) return null;
-
-            const personal_best_points = Math.max(...testScores.map(s => s.rapportpunt || 0));
-
-            return {
-                test_id: testId,
-                naam: testData.naam,
-                personal_best_points,
-                test_data: testData,
-                scores: testScores
-            };
-        }).filter(Boolean);
-
-        return evolutionData;
-    } catch (error) {
-        console.error("Fout bij ophalen evolutiedata:", error);
-        return [];
-    }
-};
 
 // =============================================
 // SUB-COMPONENT: Optioneel schema kaart
@@ -349,7 +303,8 @@ export default function Groeiplan() {
             });
 
             // Stap 2: Bepaal verplichte focuspunten op basis van testresultaten
-            const evolutionData = await getStudentEvolutionData(studentHash);
+            // ✅ token en school_id expliciet meegeven
+            const evolutionData = await getStudentEvolutionData(studentHash, profile.school_id, profile._token);
             const zwakkeTesten = analyseerEvolutieData(evolutionData);
             const verplichteFocusPuntenData = [];
 
