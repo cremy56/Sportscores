@@ -1567,7 +1567,7 @@ export default async function handler(req, res) {
             if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
             
             // Alleen leerkracht en admin mogen dit
-            if (!['leerkracht', 'administrator', 'super-administrator'].includes(verifiedRol)) {
+            if (!['leerkracht', 'administrator', 'super-administrator'].includes(userRol)) {
                 return res.status(403).json({ error: 'Geen toegang' });
             }
             
@@ -1783,8 +1783,10 @@ case 'get_ehbo_stats': {
 
 case 'get_welzijn_stats': {
     const { schoolId: sId, classId, studentId } = body;
+    const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+    const userRol = userDoc.data()?.rol || '';
     if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-    if (!['leerkracht', 'administrator', 'super-administrator'].includes(verifiedRol)) {
+    if (!['leerkracht', 'administrator', 'super-administrator'].includes(userRol)) {
         return res.status(403).json({ error: 'Geen toegang' });
     }
 
