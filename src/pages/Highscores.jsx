@@ -1,7 +1,7 @@
 // src/pages/Highscores.jsx
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { db, app } from '../firebase';
+import { db } from '../firebase';
 import CategoryCard from '../components/CategoryCard';
 
 
