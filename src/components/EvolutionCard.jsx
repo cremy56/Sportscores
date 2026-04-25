@@ -6,7 +6,7 @@ import { formatDate, formatScoreWithUnit } from '../utils/formatters.js';
 
 import { getScoreNorms, calculateTestRanking } from '../utils/firebaseUtils';
 
-export default function EvolutionCard({ categoryName, tests, student }) {
+export default function EvolutionCard({ categoryName, tests, student, token }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedDataPoint, setSelectedDataPoint] = useState(null);
   const [scoreNorms, setScoreNorms] = useState(null);
@@ -195,7 +195,8 @@ export default function EvolutionCard({ categoryName, tests, student }) {
   // FIXED: Enhanced threshold fetching with better error handling
 useEffect(() => {
     const fetchNorms = async () => {
-      if (!currentTest || !student?.geboortedatum || !student?.geslacht) {
+      // ✅ GDPR: gebruik klas ipv geboortedatum voor leeftijdsbepaling
+      if (!currentTest || !student?.klas || !student?.geslacht || !token) {
         setScoreNorms(null);
         setError(null);
         return;
@@ -205,32 +206,22 @@ useEffect(() => {
       setError(null);
       
       try {
-        const testDate = currentTest.personal_best_datum || new Date();
-        const leeftijd = calculateAge(student.geboortedatum, testDate);
-        
-        if (leeftijd === null || isNaN(leeftijd)) {
-          setError("Kon leeftijd niet berekenen voor normwaarden.");
-          setScoreNorms(null);
-          setLoading(false);
-          return;
-        }
-
-        // De nieuwe functie doet al het werk!
+        // getScoreNorms gebruikt nu klas + token ipv geboortedatum
         const normData = await getScoreNorms(
           currentTest.test_id,
-          leeftijd,
-          student.geslacht
+          student.klas,
+          student.geslacht,
+          token
         );
         
         if (normData) {
-          // De data is al correct geformatteerd, we hoeven alleen nog de extra keys voor de chart plugins toe te voegen
           setScoreNorms({
             ...normData,
             norm_10: normData['10'],
             norm_14: normData['14']
           });
         } else {
-          setError("Geen normen (1-20) gevonden voor deze test/leeftijd.");
+          setError("Geen normen gevonden voor deze test/klas.");
           setScoreNorms(null);
         }
       } catch (err) {
@@ -243,40 +234,20 @@ useEffect(() => {
     };
 
     fetchNorms();
-  }, [currentTest, student, calculateAge]);
+  }, [currentTest, student, token]);
 
   useEffect(() => {
   const fetchRanking = async () => {
-    if (!currentTest?.personal_best_score || !currentTest?.test_id || !student?.geboortedatum) {
+    if (!currentTest?.personal_best_score || !currentTest?.test_id || !student?.klas) {
       setRankingData(null);
       return;
     }
-    
-    try {
-      const testDate = currentTest.personal_best_datum || new Date();
-      const leeftijd = calculateAge(student.geboortedatum, testDate);
-      
-      if (leeftijd === null) {
-        setRankingData(null);
-        return;
-      }
-
-      const ranking = await calculateTestRanking(
-        currentTest.test_id,
-        currentTest.personal_best_score,
-        leeftijd,
-        student.geslacht
-      );
-      
-      setRankingData(ranking);
-    } catch (error) {
-      console.error('Error fetching ranking:', error);
-      setRankingData(null);
-    }
+    // Ranking via klas → leeftijd (geen geboortedatum nodig)
+    setRankingData(null); // ranking tijdelijk uitgeschakeld tot API migratie
   };
 
   fetchRanking();
-}, [currentTest, student, calculateAge]);
+}, [currentTest, student]);
 
   // Keyboard navigatie
   useEffect(() => {

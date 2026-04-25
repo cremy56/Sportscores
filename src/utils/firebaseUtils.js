@@ -323,96 +323,29 @@ const calculateP65Threshold = (normenData) => {
  * HERSCHREVEN: Haalt normen op uit een 20-puntenschaal gebaseerd op de NIEUWE datastructuur.
  * Deze functie haalt één document per test_id op en filtert de 'punten_schaal' array client-side.
  */
-export const getScoreNorms = async (testId, leeftijd, geslacht) => {
-  const operation = async () => {
-    if (!testId || leeftijd === null || leeftijd === undefined || isNaN(leeftijd) || !geslacht) {
-      console.warn('getScoreNorms: Ongeldige input', { testId, leeftijd, geslacht });
-      return null;
-    }
-
-    // --- START VAN DE WIJZIGING ---
-    // We gebruiken nu een query om te zoeken naar het document waar het *veld* 'test_id' correct is.
-    const normenQuery = query(
-      collection(db, 'normen'),
-      where('test_id', '==', testId)
-    );
-    const normenSnapshot = await getDocs(normenQuery);
-
-    if (normenSnapshot.empty || !normenSnapshot.docs[0].data().punten_schaal) {
-      console.log(`❌ Geen norm-document of 'punten_schaal' gevonden voor test ${testId}.`);
-      return null;
-    }
-    
-    // We pakken het eerste resultaat van de query
-    const normDocument = normenSnapshot.docs[0].data();
-    // --- EINDE VAN DE WIJZIGING ---
-
-    const puntenSchaal = normDocument.punten_schaal;
-    const scoreRichting = normDocument.score_richting || 'hoog';
-    const numericAge = Number(leeftijd);
-    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
-
-    if (!['M', 'V'].includes(mappedGender)) {
-      console.warn('getScoreNorms: Kon geslacht niet mappen:', geslacht);
-      return null;
-    }
-
-    const extractNormsForAge = (age) => {
-      const relevantNorms = puntenSchaal.filter(
-        norm => norm.leeftijd === age && norm.geslacht === mappedGender
-      );
-
-      if (relevantNorms.length === 0) return null;
-
-      const findScore = (punt) => relevantNorms.find(n => n.punt === punt)?.score_min;
-      
-      const norm_1 = findScore(1);
-      const norm_10 = findScore(10);
-      const norm_14 = findScore(14);
-      const norm_20 = findScore(20);
-
-      if ([norm_1, norm_10, norm_14, norm_20].every(n => n !== undefined)) {
-        console.log(`✅ Normen gevonden voor test ${testId} op leeftijd ${age}.`);
-        return {
-          '1': norm_1,
-          '10': norm_10,
-          '14': norm_14,
-          '20': norm_20,
-          score_richting: scoreRichting,
-          leeftijd: age,
-        };
-      }
-      return null;
-    };
-    
-    const normAge = Math.min(numericAge, 17);
-    let result = extractNormsForAge(normAge);
-    if (result) return { ...result, original_leeftijd: numericAge };
-
-    console.log(`Geen complete normen gevonden voor leeftijd ${normAge}. Proberen van fallback leeftijden...`);
-    const fallbackAges = [17, 16, 15, 14, 13].filter(age => age !== normAge);
-
-    for (const fallbackAge of fallbackAges) {
-      result = extractNormsForAge(fallbackAge);
-      if (result) {
-        console.log(`✅ Fallback succesvol: gebruik van leeftijd ${fallbackAge} voor normen.`);
-        return { 
-          ...result, 
-          original_leeftijd: numericAge, 
-          used_fallback_age: true, 
-          fallback_age: fallbackAge 
-        };
-      }
-    }
-
-    console.log(`❌ Geen volledige 20-punts normen gevonden voor test ${testId} met enige leeftijdsstrategie.`);
+/**
+ * Haalt score normen op via de API
+ * ✅ GEMIGREERD: geen directe Firestore calls — gebruikt klas ipv geboortedatum (GDPR)
+ */
+export const getScoreNorms = async (testId, klas, geslacht, token) => {
+  if (!testId || !klas || !geslacht || !token) {
+    console.warn('getScoreNorms: testId, klas, geslacht en token zijn verplicht');
     return null;
-  };
-
+  }
   try {
-    return await retryOperation(operation);
+    const response = await fetch('/api/tests', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ action: 'get_score_norms', testId, klas, geslacht })
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.normen || null;
   } catch (error) {
-    handleFirestoreError(error, 'Laden van 20-punts normen');
+    console.error('getScoreNorms error:', error);
     return null;
   }
 };

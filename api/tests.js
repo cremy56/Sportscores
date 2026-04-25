@@ -1230,7 +1230,53 @@ async function handleGetStudentEvolution(req, res, decodedToken) {
         return res.status(500).json({ error: 'Fout bij ophalen evolutiedata' });
     }
 }
+// ─────────────────────────────────────────────────────────
+// FUNCTIE: GET SCORE NORMS (voor EvolutionCard)
+// ─────────────────────────────────────────────────────────
+async function handleGetScoreNorms(req, res, decodedToken) {
+    try {
+        const { testId, klas, geslacht } = req.body;
+        const GENDER_MAPPING = { 'm': 'M', 'v': 'V', 'man': 'M', 'vrouw': 'V', 'jongen': 'M', 'meisje': 'V' };
 
+        if (!testId || !klas || !geslacht) return res.status(400).json({ error: 'testId, klas en geslacht zijn verplicht.' });
+
+        // Klas → leeftijd
+        const match = klas.toString().match(/^(\d+)/);
+        if (!match) return res.status(200).json({ normen: null });
+        const leerjaar = parseInt(match[1]);
+        const leeftijd = Math.min(11 + leerjaar, 17);
+
+        const mappedGender = GENDER_MAPPING[geslacht.toLowerCase()] || geslacht.toUpperCase();
+
+        const normenSnap = await db.collection('normen').where('test_id', '==', testId).limit(1).get();
+        if (normenSnap.empty) return res.status(200).json({ normen: null });
+
+        const normData = normenSnap.docs[0].data();
+        const puntenSchaal = normData.punten_schaal || [];
+        const scoreRichting = normData.score_richting || 'hoog';
+
+        // Zoek normen voor leeftijd (fallback naar dichtste leeftijd)
+        const extractNorms = (age) => {
+            const relevant = puntenSchaal.filter(n => n.leeftijd === age && n.geslacht === mappedGender);
+            if (relevant.length === 0) return null;
+            const find = (punt) => relevant.find(n => n.punt === punt)?.score_min;
+            const n1 = find(1), n10 = find(10), n14 = find(14), n20 = find(20);
+            if ([n1, n10, n14, n20].every(n => n !== undefined)) {
+                return { '1': n1, '10': n10, '14': n14, '20': n20, norm_10: n10, norm_14: n14, score_richting: scoreRichting };
+            }
+            return null;
+        };
+
+        let normen = extractNorms(leeftijd);
+        if (!normen) normen = extractNorms(Math.max(leeftijd - 1, 12));
+        if (!normen) normen = extractNorms(Math.min(leeftijd + 1, 17));
+
+        return res.status(200).json({ normen });
+    } catch (error) {
+        console.error('❌ handleGetScoreNorms:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen normen' });
+    }
+}
 // ─────────────────────────────────────────────────────────
 // HOOFD HANDLER (Router)
 // ─────────────────────────────────────────────────────────
@@ -1260,7 +1306,10 @@ export default async function handler(req, res) {
 
             case 'get_normen':
                 return await handleGetNormen(req, res, decodedToken);
-
+            
+            case 'get_score_norms':
+                return await handleGetScoreNorms(req, res, decodedToken);
+                
             case 'get_recent_scores':
                 return await handleGetRecentScores(req, res, decodedToken);
 

@@ -159,11 +159,20 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
         },
         ticks: {
           color: 'rgb(107, 114, 128)',
-          font: {
-            size: isMobile ? 10 : 11
-          },
+          font: { size: isMobile ? 10 : 11 },
           padding: 6,
-          maxTicksLimit: 8
+          maxTicksLimit: 8,
+          // ✅ Formateer tijdwaarden naar M'SS" formaat
+          callback: function(value) {
+            const eenheidLower = (eenheid || '').toLowerCase();
+            const isTime = ['min', 'sec', 'seconden', 'minuten en seconden'].some(u => eenheidLower.includes(u));
+            if (isTime && value >= 60) {
+              const minutes = Math.floor(value / 60);
+              const seconds = Math.round(value % 60);
+              return `${minutes}'${seconds.toString().padStart(2, '0')}"`;
+            }
+            return value;
+          }
         },
         border: {
           display: false

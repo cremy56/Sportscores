@@ -412,7 +412,6 @@ const exportToCSV = () => {
             <StudentSearch 
                 onStudentSelect={setSelectedStudent}
                 schoolId={profile?.school_id}
-                token={profile?._token}
                 initialStudent={selectedStudent}
             />
         </div>
@@ -611,6 +610,7 @@ const exportToCSV = () => {
                                     categoryName={categoryName}
                                     tests={testsInCategory}
                                     student={selectedStudent}
+                                    token={profile._token}
                                 />
                             ))}
                         </div>
