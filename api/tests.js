@@ -18,7 +18,10 @@ const decryptName = (encryptedName, masterKey) => {
         return '[Naam niet beschikbaar]';
     }
 };
-
+const encryptName = (name, masterKey) => {
+    if (!name || !masterKey) return null;
+    return CryptoJS.AES.encrypt(name, masterKey).toString();
+};
 // ─────────────────────────────────────────────────────────
 // HELPER: haal school_id van ingelogde gebruiker
 // ─────────────────────────────────────────────────────────
