@@ -1,6 +1,23 @@
 // pages/api/tests.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { Timestamp } from 'firebase-admin/firestore';
+import { getMasterKey } from '../lib/keyManager.js';
+import CryptoJS from 'crypto-js';
+
+// ─────────────────────────────────────────────────────────
+// HELPER: naam ontsleutelen (zelfde logica als users.js)
+// ─────────────────────────────────────────────────────────
+const decryptName = (encryptedName, masterKey) => {
+    try {
+        if (!encryptedName) return '[Geen naam]';
+        const decrypted = CryptoJS.AES.decrypt(encryptedName, masterKey);
+        const result = decrypted.toString(CryptoJS.enc.Utf8);
+        return result || '[Decryptie fout]';
+    } catch (error) {
+        console.error('Decryptie fout:', error);
+        return '[Naam niet beschikbaar]';
+    }
+};
 
 // ─────────────────────────────────────────────────────────
 // HELPER: haal school_id van ingelogde gebruiker
@@ -206,7 +223,10 @@ async function handleGetLeerlingenVoorGroep(req, res, decodedToken) {
             return res.status(200).json({ success: true, leerlingen: [] });
         }
 
-        // Haal toegestane_gebruikers op voor geboortedatum + geslacht
+        // Haal master key op voor decryptie
+        const masterKey = await getMasterKey();
+
+        // Haal toegestane_gebruikers op voor encrypted_name, geboortedatum, gender
         // Firestore 'in' query max 30 items — splits indien nodig
         const chunks = [];
         for (let i = 0; i < leerlingIds.length; i += 30) {
@@ -221,21 +241,8 @@ async function handleGetLeerlingenVoorGroep(req, res, decodedToken) {
             snap.docs.forEach(d => toegestaneData.set(d.id, d.data()));
         }
 
-        // Haal ontsleutelde namen op via users collectie (smartschool_id_hash join)
-        const namenMap = new Map();
-        const usersSnap = await db.collection('users')
-            .where('school_id', '==', verifiedSchoolId)
-            .where('smartschool_id_hash', 'in', leerlingIds.slice(0, 30)) // max 30
-            .get();
-        usersSnap.docs.forEach(d => {
-            const data = d.data();
-            if (data.smartschool_id_hash) {
-                // Naam is encrypted in users — gebruik display_name indien beschikbaar
-                namenMap.set(data.smartschool_id_hash, data.display_name || data.naam || null);
-            }
-        });
-
-        // Combineer data
+        // Combineer data — naam ontsleutelen uit encrypted_name in toegestane_gebruikers
+        // gender (M/V/X) staat ook in toegestane_gebruikers (niet geslacht)
         const leerlingen = leerlingIds
             .filter(id => toegestaneData.has(id))
             .map(id => {
@@ -244,8 +251,9 @@ async function handleGetLeerlingenVoorGroep(req, res, decodedToken) {
                     id,  // smartschool_id_hash
                     data: {
                         geboortedatum: tgData.geboortedatum || null,
-                        geslacht: tgData.geslacht || null,
-                        naam: namenMap.get(id) || tgData.decrypted_name || '[Naam niet beschikbaar]'
+                        // ✅ gender → geslacht mapping (GENDER_MAPPING in frontend verwacht lowercase)
+                        geslacht: (tgData.gender || '').toLowerCase() || null,
+                        naam: decryptName(tgData.encrypted_name, masterKey)
                     }
                 };
             })
