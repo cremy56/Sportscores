@@ -77,35 +77,24 @@ const calculateOptimalYRange = (scoreValues, scoreNorms) => {
     if (!scoreValues || scoreValues.length === 0) return { minValue: 0, maxValue: 100 };
     const minScore = Math.min(...scoreValues);
     const maxScore = Math.max(...scoreValues);
-    const padding = (maxScore - minScore) * 0.1;
+    // ✅ Fix: bij 1 score (min === max) geef een zinvol bereik
+    const range = maxScore - minScore;
+    const padding = range === 0 ? Math.max(minScore * 0.2, 10) : range * 0.2;
     return { minValue: minScore - padding, maxValue: maxScore + padding };
   }
 
-  // 1. Bepaal het basisbereik op basis van de laagste en hoogste norm.
   const lowestNorm = scoreNorms['1'];
   const highestNorm = scoreNorms['20'];
   const normRange = highestNorm - lowestNorm;
 
-  // 2. Bereken het nieuwe, strakkere bereik.
-  let finalMinValue = lowestNorm + (normRange * 0.15);  // Verhoog de ondergrens met 15%
-  let finalMaxValue = highestNorm - (normRange * 0.10); // Verlaag de bovengrens met 10%
+  let finalMinValue = lowestNorm + (normRange * 0.15);
+  let finalMaxValue = highestNorm - (normRange * 0.10);
 
-  // 3. Controleer of de daadwerkelijke scores binnen dit nieuwe bereik vallen.
   if (scoreValues && scoreValues.length > 0) {
     const actualMin = Math.min(...scoreValues);
     const actualMax = Math.max(...scoreValues);
-
-    // Als de hoogste score van de leerling buiten het nieuwe bereik valt,
-    // negeer de -10% aanpassing en zorg dat de score zichtbaar is.
-    if (actualMax > finalMaxValue) {
-      finalMaxValue = actualMax + (normRange * 0.05); // Zorg voor 5% marge boven de hoogste score
-    }
-
-    // Als de laagste score van de leerling buiten het nieuwe bereik valt,
-    // negeer de +15% aanpassing en zorg dat de score zichtbaar is.
-    if (actualMin < finalMinValue) {
-      finalMinValue = actualMin - (normRange * 0.05); // Zorg voor 5% marge onder de laagste score
-    }
+    if (actualMax > finalMaxValue) finalMaxValue = actualMax + (normRange * 0.05);
+    if (actualMin < finalMinValue) finalMinValue = actualMin - (normRange * 0.05);
   }
 
   return { minValue: finalMinValue, maxValue: finalMaxValue };
@@ -114,6 +103,7 @@ const calculateOptimalYRange = (scoreValues, scoreNorms) => {
 export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNorms, scoreRichting }) {
   const sortedScores = [...scores].sort((a, b) => new Date(a.datum) - new Date(b.datum));
   const isMobile = window.innerWidth < 640;
+  const isSinglePoint = sortedScores.length === 1;
   
   const data = {
     labels: sortedScores.map(s => new Date(s.datum).toLocaleDateString('nl-BE', { 
@@ -129,11 +119,14 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
         pointBackgroundColor: 'rgb(126, 34, 206)',
         pointBorderColor: 'white',
         pointBorderWidth: 2,
-        pointRadius: isMobile ? 5 : 6,
-        pointHoverRadius: isMobile ? 7 : 8,
+        // ✅ Fix: groter punt bij 1 datapunt zodat het zichtbaar is
+        pointRadius: isSinglePoint ? 8 : (isMobile ? 5 : 6),
+        pointHoverRadius: isSinglePoint ? 10 : (isMobile ? 7 : 8),
         tension: 0.3,
         fill: true,
         borderWidth: isMobile ? 2 : 3,
+        // ✅ Fix: geen lijn trekken bij 1 punt
+        showLine: !isSinglePoint,
     }],
   };
   
