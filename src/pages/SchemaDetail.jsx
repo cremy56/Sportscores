@@ -37,7 +37,7 @@ export default function SchemaDetail() {
 
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator';
     const isCurrentUser = profile?.id === leerlingProfiel?.id ||
-    (profile?.smartschool_id_hash && profile.smartschool_id_hash === leerlingProfiel?.smartschool_id_hash);
+    (profile?.toegestane_gebruikers_id && profile.toegestane_gebruikers_id === leerlingProfiel?.toegestane_gebruikers_id);
 
   useEffect(() => {
     // Voorkom multiple fetches
@@ -63,7 +63,7 @@ export default function SchemaDetail() {
                 // ✅ Stap 1: Zoek Firebase UID via smartschool_id_hash in users
             const usersQuery = query(
                 collection(db, 'users'),
-                where('smartschool_id_hash', '==', userId)
+                where('toegestane_gebruikers_id', '==', userId)
             );
             const usersSnapshot = await getDocs(usersQuery);
  

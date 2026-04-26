@@ -315,7 +315,7 @@ export default function Gebruikersbeheer() {
             });
         };
         reader.readAsText(file);
-    }, [profile?.school_id, profile?.smartschool_id_hash]);
+    }, [profile?.school_id, profile?.toegestane_gebruikers_id]);
 
     const handleCSVImport = async (data) => {
         if (!profile?.school_id) return;
@@ -329,7 +329,7 @@ export default function Gebruikersbeheer() {
                     action: 'bulk_create',
                     csvData: data,
                     targetSchoolId: profile.school_id,
-                    currentUserProfileHash: profile.smartschool_id_hash
+                    currentUserProfileHash: profile.toegestane_gebruikers_id
                 })
             });
             const result = await response.json();

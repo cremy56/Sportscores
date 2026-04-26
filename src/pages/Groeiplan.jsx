@@ -24,11 +24,11 @@ async function apiPost(action, body, token) {
 
 // =============================================
 // HELPER: Haal de smartschool_id_hash op van een profiel
-// - Voor leerlingen (ingelogd): profile.smartschool_id_hash
+// - Voor leerlingen (ingelogd): profile.toegestane_gebruikers_id
 // - Voor selectedStudent (door leerkracht): doc.id van toegestane_gebruikers
 // =============================================
 function getStudentHash(profile) {
-    return profile?.smartschool_id_hash || profile?.id || null;
+    return profile?.toegestane_gebruikers_id || profile?.id || null;
 }
 
 // =============================================
