@@ -2,14 +2,14 @@
 import { useState } from 'react';
 import { Pencil, Check, X, RefreshCw } from 'lucide-react';
 
-const ADJECTIEVEN = ['Snelle','Sterke','Vlotte','Felle','Stoere','Wilde','Scherpe','Vinnige','Flinke','Rake','Koene','Ferme','Pittige','Kwieke','Moedige','Taaie'];
-const DIEREN = ['Tijger','Arend','Lynx','Haai','Panter','Valk','Wolf','Cobra','Leeuw','Adelaar','Jaguar','Buffel','Condor','Mamba','Stier','Horzel'];
+const ADJECTIVES = ['Swift','Bold','Fierce','Wild','Sharp','Brave','Rapid','Strong','Iron','Steel','Dark','Storm','Blaze','Frost','Shadow','Thunder','Silver','Golden','Crimson','Blazing','Silent','Mighty','Cosmic','Turbo','Hyper','Ultra','Mega','Super','Flash','Neon','Cyber','Phantom'];
+const ANIMALS = ['Tiger','Eagle','Lynx','Shark','Panther','Falcon','Wolf','Cobra','Lion','Hawk','Jaguar','Viper','Condor','Mamba','Bear','Hornet','Rhino','Cheetah','Bison','Raptor','Stallion','Barracuda','Piranha','Komodo','Wolverine','Scorpion','Mantis','Gecko','Tarantula','Grizzly','Puma','Osprey'];
 
 const generateNickname = () => {
-    const adj = ADJECTIEVEN[Math.floor(Math.random() * ADJECTIEVEN.length)];
-    const dier = DIEREN[Math.floor(Math.random() * DIEREN.length)];
-    const num = Math.floor(Math.random() * 99) + 1;
-    return `${adj}${dier}${num}`;
+    const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIEVEN.length)];
+    const animal = ANIMALS[Math.floor(Math.random() * DIEREN.length)];
+    const num = Math.floor(Math.random() * 999) + 1;
+    return `${adj}${animal}${num}`;
 };
 
 export default function NicknameWijzigen({ profile, onNicknameUpdated, isOnboarding = false }) {
