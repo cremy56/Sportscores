@@ -1475,8 +1475,8 @@ export default async function handler(req, res) {
 
 
             case 'get_ehbo_stats': {
-                console.log('DEBUG get_ehbo_stats start', JSON.stringify(body));
-                const { schoolId: sId, classId, studentId } = body;
+                const { schoolId: sId, classId, studentId } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
                 if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
 
                 try {
@@ -1563,7 +1563,8 @@ export default async function handler(req, res) {
             }
 
             case 'get_welzijn_stats': {
-                const { schoolId: sId, classId, studentId } = body;
+                const { schoolId: sId, classId, studentId } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
                 const userDoc = await db.collection('users').doc(decodedToken.uid).get();
                 const userRol = userDoc.data()?.rol || '';
                 if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
