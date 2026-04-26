@@ -1,10 +1,36 @@
-// api/checkAndCreateUser.js - ULTRA SAFE VERSION
+// api/auth.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import CryptoJS from 'crypto-js';
 
+// ─── Nickname generator ───────────────────────────────────────────────────────
+const ADJECTIEVEN = [
+    'Snelle', 'Sterke', 'Vlotte', 'Felle', 'Stoere', 'Wilde', 'Scherpe', 'Vinnige',
+    'Flinke', 'Rake', 'Koene', 'Ferme', 'Pittige', 'Kwieke', 'Moedige', 'Taaie',
+];
+const DIEREN = [
+    'Tijger', 'Arend', 'Lynx', 'Haai', 'Panter', 'Valk', 'Wolf', 'Cobra',
+    'Leeuw', 'Adelaar', 'Jaguar', 'Buffel', 'Condor', 'Mamba', 'Stier', 'Horzel',
+];
+
+const generateNickname = () => {
+    const adj = ADJECTIEVEN[Math.floor(Math.random() * ADJECTIEVEN.length)];
+    const dier = DIEREN[Math.floor(Math.random() * DIEREN.length)];
+    const num = Math.floor(Math.random() * 99) + 1;
+    return `${adj}${dier}${num}`; // bv. "SnelleTijger42"
+};
 
 const generateHash = (smartschoolUserId) => {
     return CryptoJS.SHA256(smartschoolUserId).toString();
+};
+
+// ─── Nickname validatie ───────────────────────────────────────────────────────
+const validateNickname = (nickname) => {
+    if (!nickname || typeof nickname !== 'string') return 'Nickname is verplicht';
+    const trimmed = nickname.trim();
+    if (trimmed.length < 3) return 'Nickname moet minstens 3 tekens zijn';
+    if (trimmed.length > 20) return 'Nickname mag maximaal 20 tekens zijn';
+    if (!/^[a-zA-Z0-9_\-À-ÿ]+$/.test(trimmed)) return 'Alleen letters, cijfers, _ en - toegestaan';
+    return null; // geldig
 };
 
 export default async function handler(req, res) {
@@ -13,177 +39,143 @@ export default async function handler(req, res) {
     }
 
     try {
-        console.log('=== START checkAndCreateUser ===');
-        
-        // === 1. AUTHENTICATIE ===
-        console.log('Step 1: Verifying token...');
         const decodedToken = await verifyToken(req.headers.authorization);
         const firebaseUid = decodedToken.uid;
-        
-        
-        // === 2. CONTROLEER OF 'users' PROFIEL AL BESTAAT ===
-        console.log('Step 2: Checking if profile exists...');
+        const { action } = req.body || {};
+
+        // ── Nickname wijzigen ─────────────────────────────────────────────────
+        if (action === 'update_nickname') {
+            const { nickname } = req.body;
+            const error = validateNickname(nickname);
+            if (error) return res.status(400).json({ error });
+
+            const trimmed = nickname.trim();
+
+            // Controleer uniciteit binnen school
+            const profileDoc = await db.collection('users').doc(firebaseUid).get();
+            if (!profileDoc.exists) return res.status(404).json({ error: 'Profiel niet gevonden' });
+            const schoolId = profileDoc.data().school_id;
+
+            const bestaand = await db.collection('users')
+                .where('school_id', '==', schoolId)
+                .where('nickname', '==', trimmed)
+                .limit(1)
+                .get();
+
+            if (!bestaand.empty && bestaand.docs[0].id !== firebaseUid) {
+                return res.status(409).json({ error: 'Deze nickname is al in gebruik. Kies een andere.' });
+            }
+
+            await db.collection('users').doc(firebaseUid).update({
+                nickname: trimmed,
+                nickname_updated_at: new Date(),
+            });
+
+            return res.status(200).json({ success: true, nickname: trimmed });
+        }
+
+        // ── Profiel check / aanmaken (default flow) ───────────────────────────
+        console.log('=== START checkAndCreateUser ===');
+
         const profileRef = db.collection('users').doc(firebaseUid);
         const docSnap = await profileRef.get();
 
-       if (docSnap.exists) {
-            console.log('✅ Profile already exists');
-            return res.status(200).json({ 
-                success: true, 
-                status: 'profile_exists', 
-                userProfile: docSnap.data() 
+        if (docSnap.exists) {
+            // ✅ Update last_login bij elke login
+            await profileRef.update({ last_login: new Date() });
+            console.log('✅ Profile already exists — last_login updated');
+            return res.status(200).json({
+                success: true,
+                status: 'profile_exists',
+                userProfile: docSnap.data()
             });
         }
 
         console.log('Profile does not exist, will create...');
 
-        // === 3. GET SMARTSCHOOL USER ID ===
-        console.log('Step 3: Getting Smartschool User ID...');
-        
-        let smartschoolUserId = firebaseUid; // Default fallback
-        
-        // Try custom claim
+        // === Smartschool User ID ophalen ===
+        let smartschoolUserId = firebaseUid;
         if (decodedToken.smartschool_user_id) {
             smartschoolUserId = decodedToken.smartschool_user_id;
-            console.log('Found in custom claim');
-        }
-        // Try provider data (safely)
-        else if (decodedToken.providerData && 
-                 Array.isArray(decodedToken.providerData) && 
-                 decodedToken.providerData.length > 0 &&
-                 decodedToken.providerData[0].uid) {
+        } else if (decodedToken.providerData?.length > 0 && decodedToken.providerData[0].uid) {
             smartschoolUserId = decodedToken.providerData[0].uid;
-            console.log('Found in providerData');
-        } else {
-            console.log('Using Firebase UID as fallback');
         }
-        
-        console.log('Smartschool User ID:', smartschoolUserId);
-        
-        // === 4. GENERATE HASH ===
-        console.log('Step 4: Generating hash...');
+
         const hashedSmartschoolId = generateHash(smartschoolUserId);
-        console.log('Hash:', hashedSmartschoolId.substring(0, 16) + '...');
-        
-        // === 5. QUERY WHITELIST ===
-        console.log('Step 5: Querying whitelist...');
-        
+
+        // === Whitelist zoeken ===
         let whitelistDoc = null;
         let whitelistData = null;
-        
-        // Try query first
+
         try {
-            console.log('Attempting query...');
             const whitelistQuery = await db.collection('toegestane_gebruikers')
                 .where('smartschool_id_hash', '==', hashedSmartschoolId)
                 .limit(1)
                 .get();
-
-            console.log('Query result:', {
-                empty: whitelistQuery.empty,
-                size: whitelistQuery.size
-            });
-
             if (!whitelistQuery.empty) {
                 whitelistDoc = whitelistQuery.docs[0];
                 whitelistData = whitelistDoc.data();
-                console.log('✅ Found via query');
             }
         } catch (queryError) {
-            console.warn('⚠️ Query failed:', queryError.message);
-        }
-        
-        // Fallback: scan all
-        if (!whitelistData) {
-            console.log('Fallback: Scanning all documents...');
-            
+            console.warn('⚠️ Query failed, scanning...', queryError.message);
             const allDocs = await db.collection('toegestane_gebruikers').get();
-            console.log(`Scanning ${allDocs.size} documents...`);
-            
             for (const doc of allDocs.docs) {
-                const data = doc.data();
-                if (data.smartschool_id_hash === hashedSmartschoolId) {
+                if (doc.data().smartschool_id_hash === hashedSmartschoolId) {
                     whitelistDoc = doc;
-                    whitelistData = data;
-                    console.log('✅ Found via scan');
+                    whitelistData = doc.data();
                     break;
                 }
             }
         }
 
-        // === 6. CHECK RESULT ===
         if (!whitelistData) {
-            console.error('❌ NOT FOUND IN WHITELIST');
-            console.error('Searched for:', hashedSmartschoolId);
-            
-            // Debug: show sample data
-            const sampleDocs = await db.collection('toegestane_gebruikers').limit(3).get();
-            console.error('Sample documents:');
-            sampleDocs.docs.forEach(doc => {
-                console.error(`  ID: ${doc.id}`);
-                console.error(`  Hash: ${doc.data().smartschool_id_hash}`);
-            });
-            
-            return res.status(403).json({ 
-                error: 'Je hebt geen toegang tot deze applicatie.',
-                debug: {
-                    searched_hash: hashedSmartschoolId,
-                    smartschool_user_id: smartschoolUserId,
-                    firebase_uid: firebaseUid
-                }
-            });
+            console.error('❌ NOT FOUND IN WHITELIST:', hashedSmartschoolId);
+            return res.status(403).json({ error: 'Je hebt geen toegang tot deze applicatie.' });
         }
 
-        console.log('✅ Found in whitelist:', {
-            doc_id: whitelistDoc.id,
-            rol: whitelistData.rol,
-            school_id: whitelistData.school_id
-        });
-        
-        // === 7. CREATE PROFILE ===
-        console.log('Step 6: Creating profile...');
-        
+        // === Nickname genereren (uniek binnen school) ===
+        let nickname = generateNickname();
+        let attempts = 0;
+        while (attempts < 10) {
+            const bestaand = await db.collection('users')
+                .where('school_id', '==', whitelistData.school_id)
+                .where('nickname', '==', nickname)
+                .limit(1)
+                .get();
+            if (bestaand.empty) break;
+            nickname = generateNickname();
+            attempts++;
+        }
+
+        // === Slanke users collectie aanmaken ===
+        // GDPR: geen naam, klas, gender, hash hier — dat blijft in toegestane_gebruikers
         const initialProfileData = {
-            smartschool_id_hash: hashedSmartschoolId,
-            encrypted_name: whitelistData.encrypted_name,
+            toegestane_gebruikers_id: whitelistDoc.id,  // link naar sensitieve data
             school_id: whitelistData.school_id,
             rol: whitelistData.rol,
-            klas: whitelistData.klas || null,
-            gender: whitelistData.gender || null,
-            klassen: whitelistData.klassen || [],
-            onboarding_complete: true,
+            klassen: whitelistData.klassen || [],        // enkel voor leerkrachten
+            nickname,                                     // random gegenereerd
+            onboarding_complete: false,                  // leerling ziet nickname-keuze bij eerste login
             created_at: new Date(),
             last_login: new Date(),
         };
 
         await profileRef.set(initialProfileData);
-        
-        console.log('✅ Profile created successfully');
+
+        console.log('✅ Profile created — nickname:', nickname);
         console.log('=== END checkAndCreateUser (SUCCESS) ===');
-        
-        return res.status(201).json({ 
-            success: true, 
-            status: 'profile_created', 
-            userProfile: initialProfileData 
+
+        return res.status(201).json({
+            success: true,
+            status: 'profile_created',
+            userProfile: initialProfileData
         });
 
     } catch (error) {
-        console.error('=== ERROR in checkAndCreateUser ===');
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-        console.error('Error name:', error.name);
-        
-        if (error.message && error.message.includes('token')) {
-            return res.status(401).json({ 
-                error: 'Niet geauthenticeerd: ' + error.message 
-            });
+        console.error('=== ERROR in auth.js ===', error.message);
+        if (error.message?.includes('token')) {
+            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
         }
-        
-        res.status(500).json({ 
-            error: 'Serverfout bij profielcontrole',
-            message: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
+        return res.status(500).json({ error: 'Serverfout bij profielcontrole', message: error.message });
     }
 }
-
