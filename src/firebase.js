@@ -2,7 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+// import { getStorage } from "firebase/storage"; // tijdelijk uitgeschakeld
 import { getFunctions } from 'firebase/functions';
 
 // STAP 1: Ga naar uw Firebase Project Instellingen.
@@ -29,5 +29,5 @@ const app = initializeApp(firebaseConfig);
 // Exporteer de diensten die u in de rest van uw app zult gebruiken
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const storage = getStorage(app);
+// export const storage = getStorage(app); // tijdelijk uitgeschakeld
 export const functions = getFunctions(app);
