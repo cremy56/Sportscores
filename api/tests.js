@@ -1674,6 +1674,7 @@ export default async function handler(req, res) {
                             return await handleDeleteGroep(req, res, decodedToken);
 
                         // ✅ NIEUW — GroupDetail migratie
+                        case 'get_groepen': return await handleGetGroepen(req, res, decodedToken);
                         case 'get_groep_detail':
                             return await handleGetGroepDetail(req, res, decodedToken);
 
