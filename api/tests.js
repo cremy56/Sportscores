@@ -506,17 +506,18 @@ async function handleGetTestafnameDetail(req, res, decodedToken) {
 
         } else if (scoresSnap.docs.length > 0) {
             // Fallback: groep bestaat niet meer, gebruik scores
-            scoresSnap.docs.forEach(d => {
+            for (const d of scoresSnap.docs) {
                 const data = d.data();
+                const tgDoc = await db.collection('toegestane_gebruikers').doc(data.leerling_id).get();
                 leerlingenData.push({
                     id: data.leerling_id,
-                    naam: decryptName((await db.collection('toegestane_gebruikers').doc(data.leerling_id).get()).data()?.encrypted_name || '', masterKey) || '[Onbekend]',
+                    naam: decryptName(tgDoc.data()?.encrypted_name || '', masterKey) || '[Onbekend]',
                     score: data.score ?? null,
                     punt: data.rapportpunt ?? null,
                     score_id: d.id,
                     isOrphaned: true
                 });
-            });
+            }
         }
 
         return res.status(200).json({
