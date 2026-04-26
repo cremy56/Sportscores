@@ -1475,6 +1475,7 @@ export default async function handler(req, res) {
 
 
             case 'get_ehbo_stats': {
+                console.log('DEBUG get_ehbo_stats start', JSON.stringify(body));
                 const { schoolId: sId, classId, studentId } = body;
                 if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
 
