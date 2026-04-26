@@ -1127,7 +1127,7 @@ const PodiumCard = ({ score, position, eenheid }) => {
         {formatScoreWithUnit(score.score, eenheid)}
       </div>
       <div className={`${style.text} opacity-80 text-sm font-medium`}>
-        {getRelativeTime(score.datum)}
+        {getRelativeTime(score.datum ? new Date(score.datum) : new Date())}
       </div>
       {position === 1 && (
         <div className="mt-3">
