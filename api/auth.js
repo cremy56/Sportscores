@@ -1,181 +1,197 @@
-// api/auth.js
-import { db, verifyToken } from '../lib/firebaseAdmin.js';
-import CryptoJS from 'crypto-js';
+// src/pages/Highscores.jsx
+import { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import { db } from '../firebase';
+import CategoryCard from '../components/CategoryCard';
+import { getLeeftijdFromKlas } from '../utils/klasUtils';
 
-// ─── Nickname generator ───────────────────────────────────────────────────────
-const ADJECTIEVEN = [
-    'Snelle', 'Sterke', 'Vlotte', 'Felle', 'Stoere', 'Wilde', 'Scherpe', 'Vinnige',
-    'Flinke', 'Rake', 'Koene', 'Ferme', 'Pittige', 'Kwieke', 'Moedige', 'Taaie',
-];
-const DIEREN = [
-    'Tijger', 'Arend', 'Lynx', 'Haai', 'Panter', 'Valk', 'Wolf', 'Cobra',
-    'Leeuw', 'Adelaar', 'Jaguar', 'Buffel', 'Condor', 'Mamba', 'Stier', 'Horzel',
-];
 
-const generateNickname = () => {
-    const adj = ADJECTIEVEN[Math.floor(Math.random() * ADJECTIEVEN.length)];
-    const dier = DIEREN[Math.floor(Math.random() * DIEREN.length)];
-    const num = Math.floor(Math.random() * 99) + 1;
-    return `${adj}${dier}${num}`; // bv. "SnelleTijger42"
-};
+export default function Highscores() {
+    const { profile, school } = useOutletContext(); 
+    const [testen, setTesten] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    
+    // State voor de filter van leerkrachten
+    const [teacherSelectedAge, setTeacherSelectedAge] = useState(null);
+    // State voor de effectieve filter die wordt doorgegeven aan de componenten
+    const [effectiveAgeFilter, setEffectiveAgeFilter] = useState(null);
 
-const generateHash = (smartschoolUserId) => {
-    return CryptoJS.SHA256(smartschoolUserId).toString();
-};
+    // Bepaal de effectieve filter op basis van de rol en selectie
+    useEffect(() => {
+        if (profile?.rol === 'leerling') {
+            const userAge = getLeeftijdFromKlas(profile.klas);
+            
+            if (userAge === null) { // Als de leeftijd niet berekend kan worden, geen filter
+                setEffectiveAgeFilter(null);
+            } else if (userAge >= 17) {
+                setEffectiveAgeFilter(17);
+            } else if (userAge <= 12) {
+                setEffectiveAgeFilter(12);
+            } else {
+                setEffectiveAgeFilter(userAge);
+            }
 
-// ─── Nickname validatie ───────────────────────────────────────────────────────
-const validateNickname = (nickname) => {
-    if (!nickname || typeof nickname !== 'string') return 'Nickname is verplicht';
-    const trimmed = nickname.trim();
-    if (trimmed.length < 3) return 'Nickname moet minstens 3 tekens zijn';
-    if (trimmed.length > 20) return 'Nickname mag maximaal 20 tekens zijn';
-    if (!/^[a-zA-Z0-9_\-À-ÿ]+$/.test(trimmed)) return 'Alleen letters, cijfers, _ en - toegestaan';
-    return null; // geldig
-};
+        } else {
+            setEffectiveAgeFilter(teacherSelectedAge);
+        }
+    }, [profile, teacherSelectedAge]);
 
-export default async function handler(req, res) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method Not Allowed' });
+    useEffect(() => {
+        
+    if (!profile?.school_id) {
+        setLoading(false);
+        return;
     }
 
-    try {
-        const decodedToken = await verifyToken(req.headers.authorization);
-        const firebaseUid = decodedToken.uid;
-        const { action } = req.body || {};
-
-        // ── Nickname wijzigen ─────────────────────────────────────────────────
-        if (action === 'update_nickname') {
-            const { nickname } = req.body;
-            const error = validateNickname(nickname);
-            if (error) return res.status(400).json({ error });
-
-            const trimmed = nickname.trim();
-
-            // Controleer uniciteit binnen school
-            const profileDoc = await db.collection('users').doc(firebaseUid).get();
-            if (!profileDoc.exists) return res.status(404).json({ error: 'Profiel niet gevonden' });
-            const schoolId = profileDoc.data().school_id;
-
-            const bestaand = await db.collection('users')
-                .where('school_id', '==', schoolId)
-                .where('nickname', '==', trimmed)
-                .limit(1)
-                .get();
-
-            if (!bestaand.empty && bestaand.docs[0].id !== firebaseUid) {
-                return res.status(409).json({ error: 'Deze nickname is al in gebruik. Kies een andere.' });
-            }
-
-            await db.collection('users').doc(firebaseUid).update({
-                nickname: trimmed,
-                nickname_updated_at: new Date(),
-            });
-
-            return res.status(200).json({ success: true, nickname: trimmed });
-        }
-
-        // ── Profiel check / aanmaken (default flow) ───────────────────────────
-        console.log('=== START checkAndCreateUser ===');
-
-        const profileRef = db.collection('users').doc(firebaseUid);
-        const docSnap = await profileRef.get();
-
-        if (docSnap.exists) {
-            // ✅ Update last_login bij elke login
-            await profileRef.update({ last_login: new Date() });
-            console.log('✅ Profile already exists — last_login updated');
-            return res.status(200).json({
-                success: true,
-                status: 'profile_exists',
-                userProfile: docSnap.data()
-            });
-        }
-
-        console.log('Profile does not exist, will create...');
-
-        // === Smartschool User ID ophalen ===
-        let smartschoolUserId = firebaseUid;
-        if (decodedToken.smartschool_user_id) {
-            smartschoolUserId = decodedToken.smartschool_user_id;
-        } else if (decodedToken.providerData?.length > 0 && decodedToken.providerData[0].uid) {
-            smartschoolUserId = decodedToken.providerData[0].uid;
-        }
-
-        const hashedSmartschoolId = generateHash(smartschoolUserId);
-
-        // === Whitelist zoeken ===
-        let whitelistDoc = null;
-        let whitelistData = null;
-
+    const fetchTesten = async () => {
         try {
-            const whitelistQuery = await db.collection('toegestane_gebruikers')
-                .where('smartschool_id_hash', '==', hashedSmartschoolId)
-                .limit(1)
-                .get();
-            if (!whitelistQuery.empty) {
-                whitelistDoc = whitelistQuery.docs[0];
-                whitelistData = whitelistDoc.data();
-            }
-        } catch (queryError) {
-            console.warn('⚠️ Query failed, scanning...', queryError.message);
-            const allDocs = await db.collection('toegestane_gebruikers').get();
-            for (const doc of allDocs.docs) {
-                if (doc.data().smartschool_id_hash === hashedSmartschoolId) {
-                    whitelistDoc = doc;
-                    whitelistData = doc.data();
-                    break;
-                }
-            }
+        setError(null);
+        setLoading(true); 
+
+        // *** NIEUWE TOKEN LOGICA ***
+        if (!profile?._token) { // Wacht tot de token in de profile context zit
+            throw new Error("Authenticatie-token nog niet beschikbaar.");
         }
+        const token = profile._token;
+        // *** EINDE NIEUWE LOGICA ***
 
-        if (!whitelistData) {
-            console.error('❌ NOT FOUND IN WHITELIST:', hashedSmartschoolId);
-            return res.status(403).json({ error: 'Je hebt geen toegang tot deze applicatie.' });
-        }
-
-        // === Nickname genereren (uniek binnen school) ===
-        let nickname = generateNickname();
-        let attempts = 0;
-        while (attempts < 10) {
-            const bestaand = await db.collection('users')
-                .where('school_id', '==', whitelistData.school_id)
-                .where('nickname', '==', nickname)
-                .limit(1)
-                .get();
-            if (bestaand.empty) break;
-            nickname = generateNickname();
-            attempts++;
-        }
-
-        // === Slanke users collectie aanmaken ===
-        // GDPR: geen naam, klas, gender, hash hier — dat blijft in toegestane_gebruikers
-        const initialProfileData = {
-            toegestane_gebruikers_id: whitelistDoc.id,  // link naar sensitieve data
-            school_id: whitelistData.school_id,
-            rol: whitelistData.rol,
-            klassen: whitelistData.klassen || [],        // enkel voor leerkrachten
-            nickname,                                     // random gegenereerd
-            onboarding_complete: false,                  // leerling ziet nickname-keuze bij eerste login
-            created_at: new Date(),
-            last_login: new Date(),
-        };
-
-        await profileRef.set(initialProfileData);
-
-        console.log('✅ Profile created — nickname:', nickname);
-        console.log('=== END checkAndCreateUser (SUCCESS) ===');
-
-        return res.status(201).json({
-            success: true,
-            status: 'profile_created',
-            userProfile: initialProfileData
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ action: 'get_tests' })
         });
 
-    } catch (error) {
-        console.error('=== ERROR in auth.js ===', error.message);
-        if (error.message?.includes('token')) {
-            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Kon de testen niet laden via API.');
+            }
+
+            setTesten(data.testen);
+        } catch (err) {
+            console.error('Error fetching testen via API:', err);
+            setError('Kon de testen niet laden. Probeer het later opnieuw.');
+        } finally {
+            setLoading(false);
         }
-        return res.status(500).json({ error: 'Serverfout bij profielcontrole', message: error.message });
-    }
+    };
+
+    fetchTesten();
+}, [profile?.school_id]);
+
+    const grouped_tests = testen.reduce((acc, test) => {
+        const cat = test.categorie || 'Algemeen';
+        (acc[cat] = acc[cat] || []).push(test);
+        return acc;
+    }, {});
+    
+    // Functie om de leeftijdstekst te genereren voor leerlingen
+    const getLearnerAgeText = () => {
+        if (effectiveAgeFilter === null) return "Geen leeftijdsfilter beschikbaar.";
+        if (effectiveAgeFilter === 12) return "Top 5 scores voor 12-jarigen en jonger.";
+        if (effectiveAgeFilter === 17) return "Top 5 scores voor 17-jarigen en ouder.";
+        return `Top 5 scores voor ${effectiveAgeFilter}-jarigen.`;
+    };
+
+    // JSX return
+    return (
+        <div className="fixed inset-0 bg-slate-50 overflow-y-auto pt-20">
+            <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8">
+                
+                <div className="mb-8">
+                    {/* --- START VAN WIJZIGING (Header voor leerlingen) --- */}
+                    {profile?.rol === 'leerling' ? (
+                        <div className="text-left">
+                            <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
+                                {profile?.nickname || 'Sporter'}
+                            </h1>
+                            <p className="text-sm text-slate-600 mb-3">
+                                {getLearnerAgeText()}
+                            </p>
+                            
+                        </div>
+                    ) : (
+                        // Oude header voor leerkrachten/admins (met logo en algemene tekst)
+                        <>
+                           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
+                                {/* Logo en titel links */}
+                                <div className="flex items-center space-x-4">
+                                   
+                                    <div>
+                                        <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">
+                                            {school?.naam} Highscores
+                                        </h1>
+                                        <p className="text-slate-600">
+                                            De beste tijden van onze school!
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                {/* Filter rechts */}
+                                <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4">
+                                    <div className="flex items-center space-x-4">
+                                        <span className="text-sm font-medium text-slate-700">Filter op leeftijd:</span>
+                                        <select
+                                            value={teacherSelectedAge || ''}
+                                            onChange={(e) => setTeacherSelectedAge(e.target.value ? parseInt(e.target.value) : null)}
+                                            className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        >
+                                            <option value="">Alle leeftijden</option>
+                                            {[12, 13, 14, 15, 16, 17].map(age => (
+                                                <option key={age} value={age}>
+                                                    {age} jaar
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                    </>
+                
+)}
+</div>
+                {loading && (
+                    <div className="text-center text-slate-500">Laden van highscores...</div>
+                )}
+
+                {error && (
+                    <div className="text-center text-red-500">{error}</div>
+                )}
+
+                {!loading && !error && Object.keys(grouped_tests).length === 0 && (
+                    <div className="text-center text-slate-500 p-10 bg-white rounded-lg shadow-sm">
+                        <p className="text-xl font-semibold mb-2">Nog geen highscores beschikbaar</p>
+                        <p>Begin met het afnemen van testen om de eerste scores te zien!</p>
+                    </div>
+                )}
+
+                {/* Tests Grid - Geef de effectiveAgeFilter door */}
+                {!error && Object.keys(grouped_tests).length > 0 && (
+                    <div className="space-y-8">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+                            {Object.entries(grouped_tests).map(([categoryName, testsInCategory]) => (
+                                <CategoryCard 
+                                    key={categoryName}
+                                    categoryName={categoryName}
+                                    tests={testsInCategory}
+                                    globalAgeFilter={effectiveAgeFilter}
+                                    // --- START VAN WIJZIGING (Nieuwe prop voor CategoryCard) ---
+                                    isLearner={profile?.rol === 'leerling'} 
+                                    // --- EINDE VAN WIJZIGING ---
+                                />
+                            ))}
+                        </div>
+                        
+                        {/* Stats Footer blijft hetzelfde */}
+                        <div className="text-center text-slate-500 text-sm mt-8">
+                            Laatst bijgewerkt: {new Date().toLocaleDateString()}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }

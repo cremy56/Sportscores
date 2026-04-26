@@ -228,7 +228,7 @@ async function handleCreateData(req, res, decodedToken) {
 
         const mededelingData = {
             school_id: adminProfile.school_id,
-            auteurNaam: adminProfile.nickname || adminProfile.naam || 'Leerkracht',
+
             type: type,
             tekst: tekst.trim(),
             maakDatum: Timestamp.fromDate(maakDatum),
