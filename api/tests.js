@@ -1678,6 +1678,7 @@ export default async function handler(req, res) {
 
                         // ✅ NIEUW — GroupDetail migratie
                         case 'get_groepen': return await handleGetGroepen(req, res, decodedToken);
+                        case 'get_evaluaties': return await handleGetEvaluaties(req, res, decodedToken);
                         case 'get_groep_detail':
                             return await handleGetGroepDetail(req, res, decodedToken);
 
