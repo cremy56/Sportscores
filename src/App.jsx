@@ -25,6 +25,7 @@ import GroupDetail from './pages/GroupDetail';
 import TestDetailBeheer from './pages/TestDetailBeheer';
 import Sporttesten from './pages/Sporttesten';
 import TestafnameDetail from './pages/TestafnameDetail';
+import SetupAccount from './pages/SetupAccount';
 import NieuweTestafname from './pages/NieuweTestafname';
 import SchemaDetail from './pages/SchemaDetail'; 
 import Trainingsbeheer from './pages/Trainingsbeheer';
@@ -115,14 +116,19 @@ function App() {
           unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
             if (docSnap.exists()) {
               const profileData = { 
-                id: docSnap.id,           // ✅ id = Firebase UID
+                id: docSnap.id,
                 ...docSnap.data(),
-                _token: token             // Token meegeven voor API calls
+                _token: token
               };
               setProfile(profileData);
 
               if (!activeRole) {
                 setActiveRole(profileData.rol);
+              }
+
+              // Redirect naar setup-account als onboarding niet voltooid
+              if (!profileData.onboarding_complete && window.location.pathname !== '/setup-account') {
+                window.location.replace('/setup-account');
               }
             }
           });
@@ -195,6 +201,7 @@ function App() {
           <>
             {/* Ingelogd: callback redirect naar homepage */}
             <Route path="/auth/smartschool/callback" element={<Navigate to="/" replace />} />
+            <Route path="/setup-account" element={<SetupAccount />} />
             
             <Route element={<ProtectedRoute profile={profile} school={school} />}>
               <Route element={
