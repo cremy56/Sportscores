@@ -23,40 +23,63 @@ const formatScoreWithUnit = (score, unit) => {
 };
 
 
+// --- Helper 0: Nicknames batch ophalen voor leerling_ids ---
+async function getNicknamesForLeerlingen(leerlingIds) {
+    const nicknameMap = new Map();
+    if (!leerlingIds.length) return nicknameMap;
+    const chunks = [];
+    for (let i = 0; i < leerlingIds.length; i += 30) chunks.push(leerlingIds.slice(i, i + 30));
+    for (const chunk of chunks) {
+        const snap = await db.collection('users')
+            .where('toegestane_gebruikers_id', 'in', chunk)
+            .get();
+        snap.docs.forEach(d => nicknameMap.set(d.data().toegestane_gebruikers_id, d.data().nickname || 'Sporter'));
+    }
+    return nicknameMap;
+}
+
 // --- Helper 1: Haal Test Highscores ---
 async function getTestHighscores(schoolId) {
-    // Logica gekopieerd uit adValvas.jsx (fetchTestHighscores)
     try {
         const testenQuery = db.collection('testen')
             .where('school_id', '==', schoolId)
             .where('is_actief', '==', true);
-        
+
         const testenSnap = await testenQuery.get();
         const allTests = testenSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
         const testHighscorePromises = allTests.map(async (test) => {
             const direction = test.score_richting === 'laag' ? 'asc' : 'desc';
-            const scoreQuery = db.collection('scores')
+            const scoreSnap = await db.collection('scores')
                 .where('test_id', '==', test.id)
                 .orderBy('score', direction)
-                .limit(3);
-            
-            const scoreSnap = await scoreQuery.get();
-            const scores = scoreSnap.docs.map(doc => ({
-                ...doc.data(),
-                id: doc.id,
-                // Converteer server Timestamp naar ISO string
-                datum: doc.data().datum?.toDate ? doc.data().datum.toDate().toISOString() : new Date().toISOString()
-            }));
+                .limit(3)
+                .get();
 
-            return scores.length > 0 ? { test, scores } : null;
+            if (scoreSnap.empty) return null;
+
+            // Nicknames batch ophalen
+            const leerlingIds = scoreSnap.docs.map(d => d.data().leerling_id).filter(Boolean);
+            const nicknameMap = await getNicknamesForLeerlingen(leerlingIds);
+
+            const scores = scoreSnap.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    ...data,
+                    id: doc.id,
+                    leerling_naam: nicknameMap.get(data.leerling_id) || 'Sporter',
+                    datum: data.datum?.toDate ? data.datum.toDate().toISOString() : new Date().toISOString()
+                };
+            });
+
+            return { test, scores };
         });
 
         const results = await Promise.all(testHighscorePromises);
         return results.filter(Boolean);
     } catch (error) {
         console.error('Server error fetching highscores:', error);
-        return []; // Fout, maar crash niet
+        return [];
     }
 }
 
@@ -93,6 +116,10 @@ async function getBreakingNewsAndActiveTests(schoolId) {
         const breakingNews = [];
         const activeTestIds = new Set();
         const todayScoresData = []; // Stuur ook de scores van vandaag mee
+
+        // Nicknames ophalen voor alle scores van vandaag
+        const todayLeerlingIds = todayScoresSnap.docs.map(d => d.data().leerling_id).filter(Boolean);
+        const nicknameMap = await getNicknamesForLeerlingen(todayLeerlingIds);
 
         for (const scoreDoc of todayScoresSnap.docs) {
             const scoreData = scoreDoc.data();
@@ -132,7 +159,7 @@ async function getBreakingNewsAndActiveTests(schoolId) {
                     type: 'breaking_news', // Gebruik het `const CONTENT_TYPES` object niet op de server
                     data: {
                         title: `🏆 NIEUW RECORD! ${testData.naam}`,
-                        subtitle: `${scoreData.leerling_naam} behaalde ${formatScoreWithUnit(scoreData.score, testData.eenheid)}`,
+                        subtitle: `${nicknameMap.get(scoreData.leerling_id) || 'Sporter'} behaalde ${formatScoreWithUnit(scoreData.score, testData.eenheid)}`,
                         test: testData,
                         score: scoreData,
                         timestamp: scoreData.datum?.toDate ? scoreData.datum.toDate().toISOString() : new Date().toISOString()
@@ -201,7 +228,7 @@ async function handleCreateData(req, res, decodedToken) {
 
         const mededelingData = {
             school_id: adminProfile.school_id,
-            auteurNaam: adminProfile.naam,
+            auteurNaam: adminProfile.nickname || adminProfile.naam || 'Leerkracht',
             type: type,
             tekst: tekst.trim(),
             maakDatum: Timestamp.fromDate(maakDatum),
