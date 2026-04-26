@@ -1569,7 +1569,8 @@ export default async function handler(req, res) {
                 if (!['leerkracht', 'administrator', 'super-administrator'].includes(userRol)) {
                     return res.status(403).json({ error: 'Geen toegang' });
                 }
-
+ 
+                
                 try {
                     let leerlingIds = [];
 
