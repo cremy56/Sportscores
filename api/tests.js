@@ -1472,441 +1472,220 @@ export default async function handler(req, res) {
             case 'start_schema': 
             return await handleStartSchema(req, res, decodedToken);    
 
-            // ── get_ehbo_stats ─────────────────────────────────────────────────────────────
+
+
             case 'get_ehbo_stats': {
                 const { schoolId: sId, classId, studentId } = body;
                 if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-                
+
                 try {
                     let leerlingIds = [];
-                
+
                     if (studentId) {
-                    // Individuele leerling
-                    leerlingIds = [studentId];
+                        leerlingIds = [studentId];
                     } else if (classId) {
-                    // Groep ophalen
-                    const groepDoc = await db.collection('groepen').doc(classId).get();
-                    if (!groepDoc.exists) return res.status(404).json({ error: 'Groep niet gevonden' });
-                    const groepData = groepDoc.data();
-                    if (groepData.school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-                    leerlingIds = groepData.leerling_ids || [];
+                        const groepDoc = await db.collection('groepen').doc(classId).get();
+                        if (!groepDoc.exists) return res.status(404).json({ error: 'Groep niet gevonden' });
+                        const groepData = groepDoc.data();
+                        if (groepData.school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                        leerlingIds = groepData.leerling_ids || [];
                     } else {
-                    return res.status(400).json({ error: 'classId of studentId vereist' });
+                        return res.status(400).json({ error: 'classId of studentId vereist' });
                     }
-                
-                    // Haal EHBO data op per leerling
-                    const studentResults = [];
-                    let totalScore = 0;
-                    let studentsCompleted = 0;
-                    const topPerformers = [];
-                    const strugglingStudents = [];
-                
-                    for (const uid of leerlingIds) {
-                    // Leerlingnaam ophalen + decrypten
-                    const userDoc = await db.collection('users').doc(uid).get();
-                    if (!userDoc.exists) {
-                        studentResults.push({ id: uid, name: '[Niet geregistreerd]', isRegistered: false });
-                        continue;
-                    }
-                    const userData = userDoc.data();
-                    const naam = userData.encrypted_name ? decryptName(userData.encrypted_name) : '—';
-                
-                    // EHBO voortgang ophalen
-                    const ehboDoc = await db.collection('ehbo_progress').doc(uid).get();
-                    if (!ehboDoc.exists) {
-                        studentResults.push({ id: uid, name: naam, isRegistered: true,
-                        progressPercentage: 0, averageScore: 0, completedScenarios: 0,
-                        certificationReady: false, lastActivity: null });
-                        continue;
-                    }
-                
-                    const ehboData = ehboDoc.data();
-                    const completedScenarios = ehboData.completed_scenarios?.length || 0;
-                    const totalScenarios = ehboData.total_scenarios || 10;
-                    const progressPercentage = Math.round((completedScenarios / totalScenarios) * 100);
-                    const averageScore = ehboData.average_score || 0;
-                    const certificationReady = progressPercentage >= 80 && averageScore >= 70;
-                
-                    totalScore += averageScore;
-                    if (certificationReady) studentsCompleted++;
-                    if (averageScore >= 80) topPerformers.push({ name: naam, averageScore, completedScenarios });
-                    if (averageScore < 50 || progressPercentage < 30) {
-                        strugglingStudents.push({
-                        name: naam,
-                        issue: averageScore < 50 ? 'low_scores' : 'inactive',
-                        recommendation: averageScore < 50 ? 'Extra oefening nodig' : 'Nog niet gestart'
+
+                    if (leerlingIds.length === 0) {
+                        return res.status(200).json({
+                            success: true,
+                            classStats: { totalStudents: 0, studentsCompleted: 0, averageScore: 0, topPerformers: [], strugglingStudents: [] },
+                            students: []
                         });
                     }
-                
-                    studentResults.push({
-                        id: uid, name: naam, isRegistered: true,
-                        progressPercentage, averageScore, completedScenarios,
-                        certificationReady,
-                        lastActivity: ehboData.last_activity?.toDate?.()?.toISOString() || null
-                    });
+
+                    const masterKey = await getMasterKey();
+
+                    // Namen ophalen uit toegestane_gebruikers (max 30 per query)
+                    const chunks = [];
+                    for (let i = 0; i < leerlingIds.length; i += 30) chunks.push(leerlingIds.slice(i, i + 30));
+                    const toegestaneData = new Map();
+                    for (const chunk of chunks) {
+                        const snap = await db.collection('toegestane_gebruikers').where('__name__', 'in', chunk).get();
+                        snap.docs.forEach(d => toegestaneData.set(d.id, d.data()));
                     }
-                
-                    const classStats = {
-                    totalStudents: leerlingIds.length,
-                    studentsCompleted,
-                    averageScore: leerlingIds.length > 0 ? Math.round(totalScore / studentResults.filter(s => s.isRegistered).length || 0) : 0,
-                    topPerformers: topPerformers.sort((a, b) => b.averageScore - a.averageScore).slice(0, 5),
-                    strugglingStudents: strugglingStudents.slice(0, 5),
-                    };
-                
-                    return res.json({ success: true, classStats, students: studentResults });
+
+                    const studentResults = [];
+                    let totalScore = 0, studentsCompleted = 0;
+                    const topPerformers = [], strugglingStudents = [];
+
+                    for (const uid of leerlingIds) {
+                        const tgData = toegestaneData.get(uid);
+                        const naam = tgData?.encrypted_name ? decryptName(tgData.encrypted_name, masterKey) : '[Onbekend]';
+
+                        const ehboDoc = await db.collection('ehbo_progress').doc(uid).get();
+                        if (!ehboDoc.exists) {
+                            studentResults.push({ id: uid, name: naam, isRegistered: false, progressPercentage: 0, averageScore: 0, completedScenarios: 0, certificationReady: false, lastActivity: null });
+                            continue;
+                        }
+
+                        const ehboData = ehboDoc.data();
+                        const completedScenarios = ehboData.completed_scenarios?.length || 0;
+                        const totalScenarios = ehboData.total_scenarios || 10;
+                        const progressPercentage = Math.round((completedScenarios / totalScenarios) * 100);
+                        const averageScore = ehboData.average_score || 0;
+                        const certificationReady = progressPercentage >= 80 && averageScore >= 70;
+
+                        totalScore += averageScore;
+                        if (certificationReady) studentsCompleted++;
+                        if (averageScore >= 80) topPerformers.push({ name: naam, averageScore, completedScenarios });
+                        if (averageScore < 50 || progressPercentage < 30) {
+                            strugglingStudents.push({ name: naam, issue: averageScore < 50 ? 'low_scores' : 'inactive', recommendation: averageScore < 50 ? 'Extra oefening nodig' : 'Nog niet gestart' });
+                        }
+
+                        studentResults.push({ id: uid, name: naam, isRegistered: true, progressPercentage, averageScore, completedScenarios, certificationReady, lastActivity: ehboData.last_activity?.toDate?.()?.toISOString() || null });
+                    }
+
+                    const registered = studentResults.filter(s => s.isRegistered);
+                    return res.status(200).json({
+                        success: true,
+                        classStats: {
+                            totalStudents: leerlingIds.length,
+                            studentsCompleted,
+                            averageScore: registered.length > 0 ? Math.round(totalScore / registered.length) : 0,
+                            topPerformers: topPerformers.sort((a, b) => b.averageScore - a.averageScore).slice(0, 5),
+                            strugglingStudents: strugglingStudents.slice(0, 5),
+                        },
+                        students: studentResults
+                    });
                 } catch (err) {
-                    console.error('get_ehbo_stats error:', err);
+                    console.error('❌ get_ehbo_stats:', err);
                     return res.status(500).json({ error: err.message });
                 }
-                }
+            }
 
-            // ── get_welzijn_stats ──────────────────────────────────────────────────────────
             case 'get_welzijn_stats': {
-            const { schoolId: sId, classId, studentId } = body;
-            if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-            
-            // Alleen leerkracht en admin mogen dit
-            if (!['leerkracht', 'administrator', 'super-administrator'].includes(userRol)) {
-                return res.status(403).json({ error: 'Geen toegang' });
-            }
-            
-            try {
-                let leerlingIds = [];
-            
-                if (studentId) {
-                leerlingIds = [studentId];
-                } else if (classId) {
-                const groepDoc = await db.collection('groepen').doc(classId).get();
-                if (!groepDoc.exists) return res.status(404).json({ error: 'Groep niet gevonden' });
-                const groepData = groepDoc.data();
-                if (groepData.school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-                leerlingIds = groepData.leerling_ids || [];
-                } else {
-                return res.status(400).json({ error: 'classId of studentId vereist' });
+                const { schoolId: sId, classId, studentId } = body;
+                const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+                const userRol = userDoc.data()?.rol || '';
+                if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                if (!['leerkracht', 'administrator', 'super-administrator'].includes(userRol)) {
+                    return res.status(403).json({ error: 'Geen toegang' });
                 }
-            
-                const now = new Date();
-                const cutoff7 = new Date(now - 7 * 86400000).toISOString().split('T')[0];
-                const cutoff30 = new Date(now - 30 * 86400000).toISOString().split('T')[0];
-            
-                const studentDataArr = [];
-                let totalScore = 0, totalSleep = 0, totalSteps = 0;
-                let totalLogs7 = 0, totalLogs30 = 0, activeCount = 0;
-            
-                for (const uid of leerlingIds) {
-                const userDoc = await db.collection('users').doc(uid).get();
-                if (!userDoc.exists) continue;
-                const userData = userDoc.data();
-                const naam = userData.encrypted_name ? decryptName(userData.encrypted_name) : '—';
-            
-                // Dagelijkse welzijn logs ophalen (enkel COUNT + aggregaten, geen raw data naar frontend)
-                const logsSnap = await db.collection('welzijn').doc(uid)
-                    .collection('dagelijkse_data')
-                    .orderBy('__name__', 'desc')
-                    .limit(30)
-                    .get();
-            
-                const logs = logsSnap.docs.map(d => ({ date: d.id, ...d.data() }));
-                const logs7 = logs.filter(l => l.date >= cutoff7).length;
-                const logs30 = logs.length;
-            
-                // Aggregaten berekenen (slaap, stappen, score)
-                const slaapWaarden = logs.filter(l => l.slaap_uren).map(l => l.slaap_uren);
-                const stappenWaarden = logs.filter(l => l.stappen).map(l => l.stappen);
-                const humeurWaarden = logs.filter(l => l.humeur).map(l =>
-                    ({ 'Slecht': 20, 'Matig': 40, 'Neutraal': 60, 'Goed': 80, 'Uitstekend': 100 }[l.humeur] || 60)
-                );
-            
-                const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
-                const avgSleep = avg(slaapWaarden);
-                const avgSteps = avg(stappenWaarden);
-                const avgScore = avg(humeurWaarden);
-            
-                totalScore += avgScore;
-                totalSleep += avgSleep;
-                totalSteps += avgSteps;
-                totalLogs7 += logs7;
-                totalLogs30 += logs30;
-                if (logs7 >= 3) activeCount++;
-            
-                studentDataArr.push({
-                    id: uid, naam,
-                    avgScore, avgSleep, avgSteps,
-                    logs: { last7days: logs7, last30days: logs30 },
-                });
+
+                try {
+                    let leerlingIds = [];
+
+                    if (studentId) {
+                        leerlingIds = [studentId];
+                    } else if (classId) {
+                        const groepDoc = await db.collection('groepen').doc(classId).get();
+                        if (!groepDoc.exists) return res.status(404).json({ error: 'Groep niet gevonden' });
+                        const groepData = groepDoc.data();
+                        if (groepData.school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                        leerlingIds = groepData.leerling_ids || [];
+                    } else {
+                        return res.status(400).json({ error: 'classId of studentId vereist' });
+                    }
+
+                    if (leerlingIds.length === 0) {
+                        return res.status(200).json({
+                            success: true,
+                            groupStats: { totalStudents: 0, avgScore: 0, avgSleep: 0, avgSteps: 0, avgLogs7Days: 0, avgLogs30Days: 0, activeParticipation: 0 },
+                            studentData: []
+                        });
+                    }
+
+                    const masterKey = await getMasterKey();
+
+                    // Namen ophalen
+                    const chunks = [];
+                    for (let i = 0; i < leerlingIds.length; i += 30) chunks.push(leerlingIds.slice(i, i + 30));
+                    const toegestaneData = new Map();
+                    for (const chunk of chunks) {
+                        const snap = await db.collection('toegestane_gebruikers').where('__name__', 'in', chunk).get();
+                        snap.docs.forEach(d => toegestaneData.set(d.id, d.data()));
+                    }
+
+                    const now = new Date();
+                    const cutoff7 = new Date(now - 7 * 86400000).toISOString().split('T')[0];
+
+                    const studentDataArr = [];
+                    let totalScore = 0, totalSleep = 0, totalSteps = 0, totalLogs7 = 0, totalLogs30 = 0, activeCount = 0;
+
+                    for (const uid of leerlingIds) {
+                        const tgData = toegestaneData.get(uid);
+                        const naam = tgData?.encrypted_name ? decryptName(tgData.encrypted_name, masterKey) : '[Onbekend]';
+
+                        // GDPR: enkel aggregaten — geen raw gezondheidsdata naar leerkracht
+                        const logsSnap = await db.collection('welzijn').doc(uid)
+                            .collection('dagelijkse_data')
+                            .orderBy('__name__', 'desc')
+                            .limit(30)
+                            .get();
+
+                        const logs = logsSnap.docs.map(d => ({ date: d.id, ...d.data() }));
+                        const logs7 = logs.filter(l => l.date >= cutoff7).length;
+                        const logs30 = logs.length;
+
+                        const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+                        const humeurMap = { 'Slecht': 20, 'Matig': 40, 'Neutraal': 60, 'Goed': 80, 'Uitstekend': 100 };
+                        const avgSleep = avg(logs.filter(l => l.slaap_uren).map(l => l.slaap_uren));
+                        const avgSteps = avg(logs.filter(l => l.stappen).map(l => l.stappen));
+                        const avgScore = avg(logs.filter(l => l.humeur).map(l => humeurMap[l.humeur] || 60));
+
+                        totalScore += avgScore;
+                        totalSleep += avgSleep;
+                        totalSteps += avgSteps;
+                        totalLogs7 += logs7;
+                        totalLogs30 += logs30;
+                        if (logs7 >= 3) activeCount++;
+
+                        studentDataArr.push({ id: uid, naam, avgScore, avgSleep, avgSteps, logs: { last7days: logs7, last30days: logs30 } });
+                    }
+
+                    const n = studentDataArr.length || 1;
+                    return res.status(200).json({
+                        success: true,
+                        groupStats: {
+                            totalStudents: leerlingIds.length,
+                            avgScore: Math.round(totalScore / n),
+                            avgSleep: Math.round((totalSleep / n) * 10) / 10,
+                            avgSteps: Math.round(totalSteps / n),
+                            avgLogs7Days: Math.round((totalLogs7 / n) * 10) / 10,
+                            avgLogs30Days: Math.round(totalLogs30 / n),
+                            activeParticipation: Math.round((activeCount / leerlingIds.length) * 100),
+                        },
+                        studentData: studentDataArr
+                    });
+                } catch (err) {
+                    console.error('❌ get_welzijn_stats:', err);
+                    return res.status(500).json({ error: err.message });
                 }
-            
-                const n = studentDataArr.length || 1;
-                const groupStats = {
-                totalStudents: leerlingIds.length,
-                avgScore: Math.round(totalScore / n),
-                avgSleep: Math.round((totalSleep / n) * 10) / 10,
-                avgSteps: Math.round(totalSteps / n),
-                avgLogs7Days: Math.round((totalLogs7 / n) * 10) / 10,
-                avgLogs30Days: Math.round(totalLogs30 / n),
-                activeParticipation: Math.round((activeCount / leerlingIds.length) * 100),
-                };
-            
-                return res.json({ success: true, groupStats, studentData: studentDataArr });
-            } catch (err) {
-                console.error('get_welzijn_stats error:', err);
-                return res.status(500).json({ error: err.message });
-            }
-            }
-            case 'get_score_norms':
-                return await handleGetScoreNorms(req, res, decodedToken);
-                
-            case 'get_recent_scores':
-                return await handleGetRecentScores(req, res, decodedToken);
-
-            case 'save_scores':
-                return await handleSaveScores(req, res, decodedToken);
-
-            // ✅ NIEUW — TestafnameDetail migratie
-            case 'get_testafname_detail':
-                return await handleGetTestafnameDetail(req, res, decodedToken);
-
-            case 'update_score':
-                return await handleUpdateScore(req, res, decodedToken);
-
-            case 'delete_score':
-                return await handleDeleteScore(req, res, decodedToken);
-
-            case 'update_score_date':
-                return await handleUpdateScoreDate(req, res, decodedToken);
-
-            case 'delete_testafname':
-                return await handleDeleteTestafname(req, res, decodedToken);
-
-            // ✅ NIEUW — Sporttesten migratie
-            case 'get_evaluaties':
-                return await handleGetEvaluaties(req, res, decodedToken);
-
-            case 'delete_test':
-                return await handleDeleteTest(req, res, decodedToken);
-
-            // ✅ NIEUW — Groepsbeheer migratie
-            case 'get_groepen':
-                return await handleGetGroepen(req, res, decodedToken);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TOEVOEGEN AAN api/tests.js — plak beide cases in de switch(action) { ... }
-// ─────────────────────────────────────────────────────────────────────────────
-
-case 'get_ehbo_stats': {
-    const { schoolId: sId, classId, studentId } = body;
-    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-
-    try {
-        let leerlingIds = [];
-
-        if (studentId) {
-            leerlingIds = [studentId];
-        } else if (classId) {
-            const groepDoc = await db.collection('groepen').doc(classId).get();
-            if (!groepDoc.exists) return res.status(404).json({ error: 'Groep niet gevonden' });
-            const groepData = groepDoc.data();
-            if (groepData.school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-            leerlingIds = groepData.leerling_ids || [];
-        } else {
-            return res.status(400).json({ error: 'classId of studentId vereist' });
-        }
-
-        if (leerlingIds.length === 0) {
-            return res.status(200).json({
-                success: true,
-                classStats: { totalStudents: 0, studentsCompleted: 0, averageScore: 0, topPerformers: [], strugglingStudents: [] },
-                students: []
-            });
-        }
-
-        const masterKey = await getMasterKey();
-
-        // Namen ophalen uit toegestane_gebruikers (max 30 per query)
-        const chunks = [];
-        for (let i = 0; i < leerlingIds.length; i += 30) chunks.push(leerlingIds.slice(i, i + 30));
-        const toegestaneData = new Map();
-        for (const chunk of chunks) {
-            const snap = await db.collection('toegestane_gebruikers').where('__name__', 'in', chunk).get();
-            snap.docs.forEach(d => toegestaneData.set(d.id, d.data()));
-        }
-
-        const studentResults = [];
-        let totalScore = 0, studentsCompleted = 0;
-        const topPerformers = [], strugglingStudents = [];
-
-        for (const uid of leerlingIds) {
-            const tgData = toegestaneData.get(uid);
-            const naam = tgData?.encrypted_name ? decryptName(tgData.encrypted_name, masterKey) : '[Onbekend]';
-
-            const ehboDoc = await db.collection('ehbo_progress').doc(uid).get();
-            if (!ehboDoc.exists) {
-                studentResults.push({ id: uid, name: naam, isRegistered: false, progressPercentage: 0, averageScore: 0, completedScenarios: 0, certificationReady: false, lastActivity: null });
-                continue;
             }
 
-            const ehboData = ehboDoc.data();
-            const completedScenarios = ehboData.completed_scenarios?.length || 0;
-            const totalScenarios = ehboData.total_scenarios || 10;
-            const progressPercentage = Math.round((completedScenarios / totalScenarios) * 100);
-            const averageScore = ehboData.average_score || 0;
-            const certificationReady = progressPercentage >= 80 && averageScore >= 70;
+                        case 'get_mijn_klassen':
+                            return await handleGetMijnKlassen(req, res, decodedToken);
 
-            totalScore += averageScore;
-            if (certificationReady) studentsCompleted++;
-            if (averageScore >= 80) topPerformers.push({ name: naam, averageScore, completedScenarios });
-            if (averageScore < 50 || progressPercentage < 30) {
-                strugglingStudents.push({ name: naam, issue: averageScore < 50 ? 'low_scores' : 'inactive', recommendation: averageScore < 50 ? 'Extra oefening nodig' : 'Nog niet gestart' });
-            }
+                        case 'create_groep':
+                            return await handleCreateGroep(req, res, decodedToken);
 
-            studentResults.push({ id: uid, name: naam, isRegistered: true, progressPercentage, averageScore, completedScenarios, certificationReady, lastActivity: ehboData.last_activity?.toDate?.()?.toISOString() || null });
-        }
+                        case 'update_groep':
+                            return await handleUpdateGroep(req, res, decodedToken);
 
-        const registered = studentResults.filter(s => s.isRegistered);
-        return res.status(200).json({
-            success: true,
-            classStats: {
-                totalStudents: leerlingIds.length,
-                studentsCompleted,
-                averageScore: registered.length > 0 ? Math.round(totalScore / registered.length) : 0,
-                topPerformers: topPerformers.sort((a, b) => b.averageScore - a.averageScore).slice(0, 5),
-                strugglingStudents: strugglingStudents.slice(0, 5),
-            },
-            students: studentResults
-        });
-    } catch (err) {
-        console.error('❌ get_ehbo_stats:', err);
-        return res.status(500).json({ error: err.message });
-    }
-}
+                        case 'delete_groep':
+                            return await handleDeleteGroep(req, res, decodedToken);
 
-case 'get_welzijn_stats': {
-    const { schoolId: sId, classId, studentId } = body;
-    const userDoc = await db.collection('users').doc(decodedToken.uid).get();
-    const userRol = userDoc.data()?.rol || '';
-    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-    if (!['leerkracht', 'administrator', 'super-administrator'].includes(userRol)) {
-        return res.status(403).json({ error: 'Geen toegang' });
-    }
+                        // ✅ NIEUW — GroupDetail migratie
+                        case 'get_groep_detail':
+                            return await handleGetGroepDetail(req, res, decodedToken);
 
-    try {
-        let leerlingIds = [];
+                        case 'add_leerling':
+                            return await handleAddLeerling(req, res, decodedToken);
 
-        if (studentId) {
-            leerlingIds = [studentId];
-        } else if (classId) {
-            const groepDoc = await db.collection('groepen').doc(classId).get();
-            if (!groepDoc.exists) return res.status(404).json({ error: 'Groep niet gevonden' });
-            const groepData = groepDoc.data();
-            if (groepData.school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-            leerlingIds = groepData.leerling_ids || [];
-        } else {
-            return res.status(400).json({ error: 'classId of studentId vereist' });
-        }
+                        case 'remove_leerling':
+                            return await handleRemoveLeerling(req, res, decodedToken);
 
-        if (leerlingIds.length === 0) {
-            return res.status(200).json({
-                success: true,
-                groupStats: { totalStudents: 0, avgScore: 0, avgSleep: 0, avgSteps: 0, avgLogs7Days: 0, avgLogs30Days: 0, activeParticipation: 0 },
-                studentData: []
-            });
-        }
-
-        const masterKey = await getMasterKey();
-
-        // Namen ophalen
-        const chunks = [];
-        for (let i = 0; i < leerlingIds.length; i += 30) chunks.push(leerlingIds.slice(i, i + 30));
-        const toegestaneData = new Map();
-        for (const chunk of chunks) {
-            const snap = await db.collection('toegestane_gebruikers').where('__name__', 'in', chunk).get();
-            snap.docs.forEach(d => toegestaneData.set(d.id, d.data()));
-        }
-
-        const now = new Date();
-        const cutoff7 = new Date(now - 7 * 86400000).toISOString().split('T')[0];
-
-        const studentDataArr = [];
-        let totalScore = 0, totalSleep = 0, totalSteps = 0, totalLogs7 = 0, totalLogs30 = 0, activeCount = 0;
-
-        for (const uid of leerlingIds) {
-            const tgData = toegestaneData.get(uid);
-            const naam = tgData?.encrypted_name ? decryptName(tgData.encrypted_name, masterKey) : '[Onbekend]';
-
-            // GDPR: enkel aggregaten — geen raw gezondheidsdata naar leerkracht
-            const logsSnap = await db.collection('welzijn').doc(uid)
-                .collection('dagelijkse_data')
-                .orderBy('__name__', 'desc')
-                .limit(30)
-                .get();
-
-            const logs = logsSnap.docs.map(d => ({ date: d.id, ...d.data() }));
-            const logs7 = logs.filter(l => l.date >= cutoff7).length;
-            const logs30 = logs.length;
-
-            const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
-            const humeurMap = { 'Slecht': 20, 'Matig': 40, 'Neutraal': 60, 'Goed': 80, 'Uitstekend': 100 };
-            const avgSleep = avg(logs.filter(l => l.slaap_uren).map(l => l.slaap_uren));
-            const avgSteps = avg(logs.filter(l => l.stappen).map(l => l.stappen));
-            const avgScore = avg(logs.filter(l => l.humeur).map(l => humeurMap[l.humeur] || 60));
-
-            totalScore += avgScore;
-            totalSleep += avgSleep;
-            totalSteps += avgSteps;
-            totalLogs7 += logs7;
-            totalLogs30 += logs30;
-            if (logs7 >= 3) activeCount++;
-
-            studentDataArr.push({ id: uid, naam, avgScore, avgSleep, avgSteps, logs: { last7days: logs7, last30days: logs30 } });
-        }
-
-        const n = studentDataArr.length || 1;
-        return res.status(200).json({
-            success: true,
-            groupStats: {
-                totalStudents: leerlingIds.length,
-                avgScore: Math.round(totalScore / n),
-                avgSleep: Math.round((totalSleep / n) * 10) / 10,
-                avgSteps: Math.round(totalSteps / n),
-                avgLogs7Days: Math.round((totalLogs7 / n) * 10) / 10,
-                avgLogs30Days: Math.round(totalLogs30 / n),
-                activeParticipation: Math.round((activeCount / leerlingIds.length) * 100),
-            },
-            studentData: studentDataArr
-        });
-    } catch (err) {
-        console.error('❌ get_welzijn_stats:', err);
-        return res.status(500).json({ error: err.message });
-    }
-}
-
-            case 'get_mijn_klassen':
-                return await handleGetMijnKlassen(req, res, decodedToken);
-
-            case 'create_groep':
-                return await handleCreateGroep(req, res, decodedToken);
-
-            case 'update_groep':
-                return await handleUpdateGroep(req, res, decodedToken);
-
-            case 'delete_groep':
-                return await handleDeleteGroep(req, res, decodedToken);
-
-            // ✅ NIEUW — GroupDetail migratie
-            case 'get_groep_detail':
-                return await handleGetGroepDetail(req, res, decodedToken);
-
-            case 'add_leerling':
-                return await handleAddLeerling(req, res, decodedToken);
-
-            case 'remove_leerling':
-                return await handleRemoveLeerling(req, res, decodedToken);
-
-            // ✅ NIEUW — Evolutie/Groeiplan
-            case 'get_student_evolution':
-                return await handleGetStudentEvolution(req, res, decodedToken);
-
+                        // ✅ NIEUW — Evolutie/Groeiplan
+                        case 'get_student_evolution':
+                            return await handleGetStudentEvolution(req, res, decodedToken);
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
         }
