@@ -1474,6 +1474,27 @@ export default async function handler(req, res) {
 
 
 
+
+            case 'get_recent_scores':
+                return await handleGetRecentScores(req, res, decodedToken);
+            case 'save_scores':
+                return await handleSaveScores(req, res, decodedToken);
+            case 'get_testafname_detail':
+                return await handleGetTestafnameDetail(req, res, decodedToken);
+            case 'update_score':
+                return await handleUpdateScore(req, res, decodedToken);
+            case 'delete_score':
+                return await handleDeleteScore(req, res, decodedToken);
+            case 'update_score_date':
+                return await handleUpdateScoreDate(req, res, decodedToken);
+            case 'delete_testafname':
+                return await handleDeleteTestafname(req, res, decodedToken);
+            case 'delete_test':
+                return await handleDeleteTest(req, res, decodedToken);
+            case 'get_klas_detail':
+                return await handleGetKlasDetail(req, res, decodedToken);
+            case 'get_score_norms':
+                return await handleGetScoreNorms(req, res, decodedToken);
             case 'get_ehbo_stats': {
                 const { schoolId: sId, classId, studentId } = req.body;
                 const verifiedSchoolId = await getSchoolId(decodedToken.uid);
