@@ -138,8 +138,8 @@ async function handleGetLeaderboard(req, res, decodedToken) {
             const filteredScores = [];
             for (const score of rawScores) {
                 const userData = usersData.get(score.leerling_id);
-                if (!userData?.geboortedatum) continue;
-                const scoreUserAge = calculateAge(userData.geboortedatum);
+                if (!userData?.klas) continue;
+                const scoreUserAge = getLeeftijdFromKlas(userData.klas);
                 if (scoreUserAge === null) continue;
                 const targetAge = globalAgeFilter;
                 let isMatch = false;
@@ -151,9 +151,26 @@ async function handleGetLeaderboard(req, res, decodedToken) {
             rawScores = filteredScores;
         }
 
+        // Nicknames ophalen voor de top scores
+        const leerlingIds = rawScores.slice(0, 5).map(s => s.leerling_id).filter(Boolean);
+        const nicknameMap = new Map();
+        if (leerlingIds.length > 0) {
+            const usersSnap = await db.collection('users')
+                .where('toegestane_gebruikers_id', 'in', leerlingIds)
+                .get();
+            usersSnap.docs.forEach(d => 
+                nicknameMap.set(d.data().toegestane_gebruikers_id, d.data().nickname || 'Sporter')
+            );
+        }
+
+        const scoresWithNickname = rawScores.slice(0, 5).map(s => ({
+            ...s,
+            leerling_naam: nicknameMap.get(s.leerling_id) || 'Sporter'
+        }));
+
         return res.status(200).json({
             success: true,
-            scores: rawScores.slice(0, 5),
+            scores: scoresWithNickname,
             testData
         });
     } catch (error) {
