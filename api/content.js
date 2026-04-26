@@ -30,9 +30,11 @@ async function getNicknamesForLeerlingen(leerlingIds) {
     const chunks = [];
     for (let i = 0; i < leerlingIds.length; i += 30) chunks.push(leerlingIds.slice(i, i + 30));
     for (const chunk of chunks) {
+        console.log('DEBUG nickname lookup chunk:', chunk);
         const snap = await db.collection('users')
             .where('toegestane_gebruikers_id', 'in', chunk)
             .get();
+        console.log('DEBUG nickname results:', snap.size);
         snap.docs.forEach(d => nicknameMap.set(d.data().toegestane_gebruikers_id, d.data().nickname || 'Sporter'));
     }
     return nicknameMap;
