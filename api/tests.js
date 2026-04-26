@@ -399,7 +399,7 @@ async function handleSaveScores(req, res, decodedToken) {
         const batch = db.batch();
 
         for (const scoreItem of scores) {
-            const { leerling_id, leerling_naam, score, rapportpunt } = scoreItem;
+            const { leerling_id, score, rapportpunt } = scoreItem;
 
             // Basisvalidatie
             if (!leerling_id || score === null || score === undefined || isNaN(score)) continue;
@@ -409,7 +409,6 @@ async function handleSaveScores(req, res, decodedToken) {
                 datum: Timestamp.fromDate(scoreDatum),
                 groep_id: groepId,
                 leerling_id,                            // ✅ smartschool_id_hash
-                leerling_naam: encryptName(leerling_naam, masterKey) || null, // ✅ AES versleuteld
                 score: Number(score),
                 rapportpunt: rapportpunt ?? null,
                 school_id: verifiedSchoolId,
@@ -511,7 +510,7 @@ async function handleGetTestafnameDetail(req, res, decodedToken) {
                 const data = d.data();
                 leerlingenData.push({
                     id: data.leerling_id,
-                    naam: data.leerling_naam ? decryptName(data.leerling_naam, masterKey) : '[Onbekend]',
+                    naam: decryptName((await db.collection('toegestane_gebruikers').doc(data.leerling_id).get()).data()?.encrypted_name || '', masterKey) || '[Onbekend]',
                     score: data.score ?? null,
                     punt: data.rapportpunt ?? null,
                     score_id: d.id,
