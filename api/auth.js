@@ -69,6 +69,7 @@ export default async function handler(req, res) {
             await db.collection('users').doc(firebaseUid).update({
                 nickname: trimmed,
                 nickname_updated_at: new Date(),
+                onboarding_complete: true,
             });
 
             return res.status(200).json({ success: true, nickname: trimmed });
