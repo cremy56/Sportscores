@@ -126,9 +126,9 @@ export default function Privacy() {
                                     SportScores is een digitaal platform voor sportprestatieopvolging binnen scholen, ontwikkeld en beheerd door:
                                 </p>
                                 <div className="bg-slate-50 rounded-xl p-4 mt-3 text-sm space-y-1">
-                                    <p className="font-semibold text-slate-800">Christoph Lemaire — SportScores</p>
-                                    <p>Eenmanszaak · Ondernemingsnummer: BE 0123.456.789 <em>(fictief)</em></p>
-                                    <p>Fictief Adres 1, 9120 Beveren</p>
+                                    <p className="font-semibold text-slate-800">Christoph Remy — SportScores</p>
+                                    <p>Eenmanszaak · Ondernemingsnummer: BE 0766.639.993 <em>(fictief)</em></p>
+                                    <p>Van Eyckpark 17, 9250 Waasmunster</p>
                                     <p>E-mail: <a href="mailto:privacy@sportscores.be" className="text-blue-600 hover:underline">privacy@sportscores.be</a></p>
                                     <p>Website: <a href="https://www.sportscores.be" className="text-blue-600 hover:underline">www.sportscores.be</a></p>
                                 </div>
@@ -139,7 +139,7 @@ export default function Privacy() {
                                 </p>
 
                                 <p>
-                                    De scholen die SportScores gebruiken (zoals Koninklijk Atheneum Beveren) verstrekken leerlingendata aan SportScores
+                                    De scholen die SportScores gebruiken verstrekken leerlingendata aan SportScores
                                     in het kader van hun onderwijsopdracht. Met elke school wordt een afzonderlijke
                                     <strong> verwerkersovereenkomst (Data Processing Agreement)</strong> gesloten conform Art. 28 AVG.
                                 </p>
