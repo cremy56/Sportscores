@@ -86,6 +86,18 @@ const AuthMethodSelector = ({ school, onAuthMethodChange, schoolSettingsExpanded
     );
 };
 
+// ─── API helper ───────────────────────────────────────────────────────────────
+async function apiPost(action, body, token) {
+    const response = await fetch('/api/archive', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...body }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'API fout');
+    return data;
+}
+
 // =============================================
 // HOOFD COMPONENT
 // =============================================
@@ -100,6 +112,8 @@ export default function SchoolBeheer() {
     const [periodenLoading, setPeriodenLoading] = useState(false);
     const [modal, setModal] = useState({ type: null, data: null });
     const [schoolSettingsExpanded, setSchoolSettingsExpanded] = useState(false);
+    const [archiveLoading, setArchiveLoading] = useState(false);
+    const [archiveResult, setArchiveResult] = useState(null);
 
     const userSchoolId = profile?.school_id;
     const isSuperAdmin = profile?.rol === 'super-administrator';
@@ -350,6 +364,76 @@ export default function SchoolBeheer() {
                         schoolSettingsExpanded={schoolSettingsExpanded}
                         setSchoolSettingsExpanded={setSchoolSettingsExpanded}
                     />
+
+                    {/* GDPR Beheer */}
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                        <h4 className="font-semibold text-amber-900 mb-3 flex items-center gap-2">
+                            🔒 GDPR Gegevensbeheer
+                        </h4>
+                        <div className="space-y-3">
+                            <div className="bg-white rounded-lg p-3 border border-amber-200">
+                                <p className="text-sm text-amber-800 mb-2">
+                                    <strong>Archiveer Rankings</strong> — Bevriest de huidige top 5 per test. 
+                                    Nicknames worden geblokkeerd voor hergebruik. Doe dit voor het einde van het schooljaar.
+                                </p>
+                                <button
+                                    onClick={async () => {
+                                        if (!window.confirm('Rankings archiveren voor schooljaar ' + new Date().getFullYear() + '? Dit blokkeert de gebruikte nicknames permanent.')) return;
+                                        setArchiveLoading(true);
+                                        setArchiveResult(null);
+                                        try {
+                                            const result = await apiPost('archiveer_rankings', {}, profile._token);
+                                            setArchiveResult({ type: 'success', msg: `✅ ${result.gearchiveerdeRankings} rankings gearchiveerd, ${result.geblokkeerdeNicknames} nicknames geblokkeerd (${result.schooljaar})` });
+                                            toast.success('Rankings gearchiveerd!');
+                                        } catch(err) {
+                                            setArchiveResult({ type: 'error', msg: '❌ ' + err.message });
+                                            toast.error(err.message);
+                                        } finally {
+                                            setArchiveLoading(false);
+                                        }
+                                    }}
+                                    disabled={archiveLoading}
+                                    className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    {archiveLoading ? 'Bezig...' : '📦 Archiveer Rankings'}
+                                </button>
+                            </div>
+
+                            <div className="bg-white rounded-lg p-3 border border-amber-200">
+                                <p className="text-sm text-amber-800 mb-2">
+                                    <strong>Verwijder Verlopen Gegevens</strong> — Verwijdert profielen van leerlingen 
+                                    waarvan het virtueel afstudeerjaar verstreken is. Doe dit in januari.
+                                </p>
+                                <button
+                                    onClick={async () => {
+                                        if (!window.confirm('Verlopen leerlinggegevens verwijderen? Dit kan niet ongedaan gemaakt worden.')) return;
+                                        setArchiveLoading(true);
+                                        setArchiveResult(null);
+                                        try {
+                                            const result = await apiPost('verwijder_verlopen', {}, profile._token);
+                                            setArchiveResult({ type: 'success', msg: `✅ ${result.verwijderdeUsers} profielen verwijderd, ${result.verwijderdeToegestane} whitelistrecords gewist` });
+                                            toast.success('Verlopen gegevens verwijderd!');
+                                        } catch(err) {
+                                            setArchiveResult({ type: 'error', msg: '❌ ' + err.message });
+                                            toast.error(err.message);
+                                        } finally {
+                                            setArchiveLoading(false);
+                                        }
+                                    }}
+                                    disabled={archiveLoading}
+                                    className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    {archiveLoading ? 'Bezig...' : '🗑️ Verwijder Verlopen Gegevens'}
+                                </button>
+                            </div>
+
+                            {archiveResult && (
+                                <div className={`p-3 rounded-lg text-sm ${archiveResult.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                                    {archiveResult.msg}
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
                     {/* Rapportperioden header */}
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 space-y-4 sm:space-y-0">
