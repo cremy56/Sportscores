@@ -171,6 +171,7 @@ export default async function handler(req, res) {
             school_id: whitelistData.school_id,
             rol: whitelistData.rol,
             klas: whitelistData.klas || null,            // niet identificerend zonder naam — nodig voor leeftijdsfilter
+            geslacht: isLeerling ? (whitelistData.gender || null) : null,
             ...(whitelistData.rol !== 'leerling' && { klassen: whitelistData.klassen || [] }),
             nickname,                                     // random gegenereerd
             onboarding_complete: false,                  // leerling ziet nickname-keuze bij eerste login
