@@ -39,7 +39,6 @@ import HartDetail from './pages/HartDetail';
 import EHBODetail from './pages/EHBODetail';
 import Instellingen from './pages/Instellingen';
 import AlgemeenInstellingen from './pages/AlgemeenInstellingen';
-import Privacy from './pages/Privacy';
 
 function DynamicHomepage({ schoolSettings }) {
   if (schoolSettings?.sportdashboardAsHomepage) {
@@ -196,7 +195,6 @@ function App() {
           <>
             {/* Niet ingelogd: alleen Smartschool login */}
             <Route path="/auth/smartschool/callback" element={<UniversalLogin />} />
-            <Route path="/privacy" element={<Privacy />} />
             <Route path="*" element={<UniversalLogin />} />
           </>
         ) : (
@@ -204,7 +202,6 @@ function App() {
             {/* Ingelogd: callback redirect naar homepage */}
             <Route path="/auth/smartschool/callback" element={<Navigate to="/" replace />} />
             <Route path="/setup-account" element={<SetupAccount />} />
-            <Route path="/privacy" element={<Privacy />} />
             
             <Route element={<ProtectedRoute profile={profile} school={school} />}>
               <Route element={
