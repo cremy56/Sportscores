@@ -1,5 +1,5 @@
 // src/components/Layout.jsx
-import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
@@ -148,7 +148,7 @@ const ProfileMenu = ({
       <div className="mb-2">
         <p className="text-sm text-gray-500">Ingelogd als</p>
         
-        <p className="font-semibold text-gray-900">{profile?.naam || 'Gebruiker'}</p>
+        <p className="font-semibold text-gray-900">{profile?.nickname || profile?.naam || 'Gebruiker'}</p>
         <div className="flex items-center mt-2">
           {school?.logo_url && (
             <img src={school.logo_url} alt={`${school.naam} logo`} className="h-8 w-8 rounded-full mr-2 object-cover" />
@@ -194,6 +194,13 @@ const ProfileMenu = ({
       )}
 
       <hr className="my-2" />
+      <Link
+        to="/privacy"
+        onClick={onClose}
+        className="block w-full text-left px-2 py-1 text-sm text-gray-500 hover:bg-gray-50 rounded-md mt-1"
+      >
+        🔒 Privacyverklaring
+      </Link>
       {/* ✅ FIX: 'Wachtwoord wijzigen' verwijderd - login gaat via Smartschool */}
       <button
         onClick={handleLogout}
