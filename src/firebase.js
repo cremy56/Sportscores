@@ -4,6 +4,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 
+
 const firebaseConfig = {
   apiKey: 'AIzaSyBzJ1PFEffKthDcAayzEaqcYn63VfhC524',
   authDomain: 'sportscore-6774d.firebaseapp.com',
