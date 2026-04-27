@@ -110,12 +110,12 @@ export default function PrivacyModal({ isOpen, onClose }) {
                     <Section id="verantwoordelijke" title="1. Verwerkingsverantwoordelijke">
                         <p>SportScores is een digitaal platform voor sportprestatieopvolging, ontwikkeld en beheerd door:</p>
                         <div className="bg-slate-50 rounded-xl p-4 mt-2 text-xs space-y-1">
-                            <p className="font-semibold text-slate-800">Christoph Lemaire — SportScores</p>
-                            <p>Eenmanszaak · Ondernemingsnummer: BE 0123.456.789 <em>(fictief)</em></p>
-                            <p>Fictief Adres 1, 9120 Beveren</p>
+                            <p className="font-semibold text-slate-800">Christoph Remy — SportScores</p>
+                            <p>Eenmanszaak · Ondernemingsnummer: BE 0766.639.993 <em>(fictief)</em></p>
+                            <p>Van Eykpark 17, 9250 Waasmunster</p>
                             <p>E-mail: <a href="mailto:privacy@sportscores.be" className="text-blue-600 hover:underline">privacy@sportscores.be</a></p>
                         </div>
-                        <p>Christoph Lemaire treedt op als <strong>verwerkingsverantwoordelijke</strong> (Art. 4(7) AVG). Met elke school wordt een afzonderlijke <strong>verwerkersovereenkomst (DPA)</strong> gesloten conform Art. 28 AVG.</p>
+                        <p>Christoph Remy treedt op als <strong>verwerkingsverantwoordelijke</strong> (Art. 4(7) AVG). Met elke school wordt een afzonderlijke <strong>verwerkersovereenkomst (DPA)</strong> gesloten conform Art. 28 AVG.</p>
                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs">
                             <p className="font-semibold text-blue-900 mb-1">ℹ️ Geen DPO aangesteld</p>
                             <p className="text-blue-800">Gezien de huidige schaal is er nog geen Functionaris voor Gegevensbescherming aangesteld. Voor alle privacyvragen: <a href="mailto:privacy@sportscores.be" className="underline">privacy@sportscores.be</a>. Wij antwoorden binnen 5 werkdagen.</p>
