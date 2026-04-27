@@ -1529,6 +1529,94 @@ export default async function handler(req, res) {
                     return res.status(500).json({ error: err.message });
                 }
             }
+            case 'get_test_ranking': {
+                const { schoolId: sId, testId, score, klas, geslacht } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+
+                try {
+                    const { getLeeftijdFromKlas } = await import('./utils/klasUtils.js').catch(() => ({
+                        getLeeftijdFromKlas: (k) => {
+                            const match = k?.toString().match(/^(\d+)/);
+                            if (!match) return null;
+                            const l = parseInt(match[1]);
+                            return (l >= 1 && l <= 6) ? 11 + l : null;
+                        }
+                    }));
+
+                    const leeftijd = getLeeftijdFromKlas(klas);
+
+                    // Haal testinfo op
+                    const testDoc = await db.collection('testen').doc(testId).get();
+                    if (!testDoc.exists) return res.status(404).json({ error: 'Test niet gevonden' });
+                    const scoreRichting = testDoc.data().score_richting || 'hoog';
+
+                    // Haal alle scores op voor deze test
+                    const scoresSnap = await db.collection('scores')
+                        .where('test_id', '==', testId)
+                        .where('school_id', '==', verifiedSchoolId)
+                        .get();
+
+                    if (scoresSnap.empty) {
+                        return res.status(200).json({ overallRank: 1, totalStudents: 1, ageRank: 1, ageGroupTotal: 1 });
+                    }
+
+                    // Beste score per leerling
+                    const bestScores = {};
+                    scoresSnap.docs.forEach(d => {
+                        const data = d.data();
+                        if (!data.leerling_id || data.score == null) return;
+                        if (!bestScores[data.leerling_id] ||
+                            (scoreRichting === 'hoog' && data.score > bestScores[data.leerling_id].score) ||
+                            (scoreRichting !== 'hoog' && data.score < bestScores[data.leerling_id].score)) {
+                            bestScores[data.leerling_id] = { score: data.score };
+                        }
+                    });
+
+                    const allScores = Object.values(bestScores).map(s => s.score);
+                    const totalStudents = allScores.length;
+
+                    // Overall ranking
+                    const sorted = [...allScores].sort((a, b) => scoreRichting === 'hoog' ? b - a : a - b);
+                    const overallRank = sorted.findIndex(s => scoreRichting === 'hoog' ? s <= score : s >= score) + 1 || 1;
+
+                    // Leeftijdsgroep ranking via klas van toegestane_gebruikers
+                    let ageRank = 1;
+                    let ageGroupTotal = 1;
+
+                    if (leeftijd) {
+                        const leerlingIds = Object.keys(bestScores);
+                        const chunks = [];
+                        for (let i = 0; i < leerlingIds.length; i += 30) chunks.push(leerlingIds.slice(i, i + 30));
+
+                        const ageGroupScores = [];
+                        for (const chunk of chunks) {
+                            const tgSnap = await db.collection('toegestane_gebruikers')
+                                .where('__name__', 'in', chunk).get();
+                            tgSnap.docs.forEach(d => {
+                                const tgData = d.data();
+                                const tgLeeftijd = getLeeftijdFromKlas(tgData.klas);
+                                const tgGeslacht = (tgData.gender || '').toLowerCase();
+                                const myGeslacht = (geslacht || '').toLowerCase();
+                                if (tgLeeftijd && Math.abs(tgLeeftijd - leeftijd) <= 1 && tgGeslacht === myGeslacht) {
+                                    ageGroupScores.push(bestScores[d.id].score);
+                                }
+                            });
+                        }
+
+                        ageGroupTotal = ageGroupScores.length || 1;
+                        if (ageGroupScores.length > 0) {
+                            const sortedAge = [...ageGroupScores].sort((a, b) => scoreRichting === 'hoog' ? b - a : a - b);
+                            ageRank = sortedAge.findIndex(s => scoreRichting === 'hoog' ? s <= score : s >= score) + 1 || 1;
+                        }
+                    }
+
+                    return res.status(200).json({ overallRank, totalStudents, ageRank, ageGroupTotal, leeftijd });
+                } catch (err) {
+                    console.error('❌ get_test_ranking:', err);
+                    return res.status(500).json({ error: err.message });
+                }
+            }
             case 'get_ehbo_stats': {
                 const { schoolId: sId, classId, studentId } = req.body;
                 const verifiedSchoolId = await getSchoolId(decodedToken.uid);

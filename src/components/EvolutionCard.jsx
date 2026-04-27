@@ -238,16 +238,33 @@ useEffect(() => {
 
   useEffect(() => {
   const fetchRanking = async () => {
-    if (!currentTest?.personal_best_score || !currentTest?.test_id || !student?.klas) {
+    if (!currentTest?.personal_best_score || !currentTest?.test_id || !student?.klas || !student?.geslacht || !token) {
       setRankingData(null);
       return;
     }
-    // Ranking via klas → leeftijd (geen geboortedatum nodig)
-    setRankingData(null); // ranking tijdelijk uitgeschakeld tot API migratie
+    try {
+      const response = await fetch('/api/tests', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'get_test_ranking',
+          schoolId: student.school_id,
+          testId: currentTest.test_id,
+          score: currentTest.personal_best_score,
+          klas: student.klas,
+          geslacht: student.geslacht,
+        })
+      });
+      const data = await response.json();
+      if (response.ok) setRankingData(data);
+      else setRankingData(null);
+    } catch {
+      setRankingData(null);
+    }
   };
 
   fetchRanking();
-}, [currentTest, student]);
+}, [currentTest, student, token]);
 
   // Keyboard navigatie
   useEffect(() => {
