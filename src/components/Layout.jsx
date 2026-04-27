@@ -1,5 +1,5 @@
 // src/components/Layout.jsx
-import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
@@ -10,6 +10,7 @@ import { Zap, Star, TrendingUp } from 'lucide-react';
 import { Bars3Icon } from '@heroicons/react/24/solid';
 import logoSrc from '../assets/logo.png';
 import StudentSearch from './StudentSearch';
+import PrivacyModal from './PrivacyModal';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -143,7 +144,10 @@ const ProfileMenu = ({
     onClose();
   };
 
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+
   return (
+    <>
     <div className="w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4">
       <div className="mb-2">
         <p className="text-sm text-gray-500">Ingelogd als</p>
@@ -194,13 +198,12 @@ const ProfileMenu = ({
       )}
 
       <hr className="my-2" />
-      <Link
-        to="/privacy"
-        onClick={onClose}
+      <button
+        onClick={() => setPrivacyOpen(true)}
         className="block w-full text-left px-2 py-1 text-sm text-gray-500 hover:bg-gray-50 rounded-md mt-1"
       >
         🔒 Privacyverklaring
-      </Link>
+      </button>
       {/* ✅ FIX: 'Wachtwoord wijzigen' verwijderd - login gaat via Smartschool */}
       <button
         onClick={handleLogout}
@@ -209,6 +212,8 @@ const ProfileMenu = ({
         Uitloggen
       </button>
     </div>
+    <PrivacyModal isOpen={privacyOpen} onClose={() => setPrivacyOpen(false)} />
+    </>
   );
 };
 
