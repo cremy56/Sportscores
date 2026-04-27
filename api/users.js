@@ -703,7 +703,88 @@ async function handleBulkCreate(req, res, decodedToken) {
                     timestamp: new Date(),
                     ip_address: req.headers['x-forwarded-for'] || req.socket.remoteAddress
                 });
+// TOEVOEGEN aan het einde van handleBulkCreate in api/users.js
+// Na de audit_logs.add(...) en voor de return res.status(200)
 
+        // === 7. DEACTIVEER ONTBREKENDE LEERLINGEN ===
+        // Vergelijk de net geïmporteerde lijst met de bestaande actieve leerlingen
+        // Leerlingen die niet meer in de import zitten worden gedeactiveerd
+        if (rol === 'leerling' || csvData.some(r => r.rol?.toLowerCase() === 'leerling')) {
+            try {
+                const geimporteerdeHashen = csvData
+                    .filter(r => r.rol?.toLowerCase() === 'leerling' && r.smartschool_user_id?.trim())
+                    .map(r => generateHash(r.smartschool_user_id.trim()));
+
+                // Haal alle actieve leerlingen op
+                const actieveSnap = await db.collection('toegestane_gebruikers')
+                    .where('school_id', '==', targetSchoolId)
+                    .where('rol', '==', 'leerling')
+                    .where('is_active', '==', true)
+                    .get();
+
+                const schooljaar = (() => {
+                    const nu = new Date();
+                    const maand = nu.getMonth() + 1;
+                    const jaar = nu.getFullYear();
+                    return maand >= 9 ? jaar : jaar - 1;
+                })();
+
+                const getLeerjaar = (klas) => {
+                    if (!klas) return null;
+                    const match = klas.toString().match(/^(\d+)/);
+                    return match ? parseInt(match[1]) : null;
+                };
+
+                const deactivatieBatch = db.batch();
+                let gedeactiveerd = 0;
+                let teruggeactiveerd = 0;
+
+                for (const doc of actieveSnap.docs) {
+                    if (!geimporteerdeHashen.includes(doc.id)) {
+                        const data = doc.data();
+                        const leerjaar = getLeerjaar(data.klas);
+                        const virtueelAfstudeerjaar = leerjaar ? schooljaar + (6 - leerjaar) : null;
+
+                        deactivatieBatch.update(doc.ref, {
+                            is_active: false,
+                            klas_bij_vertrek: data.klas || null,
+                            gedeactiveerd_op: new Date(),
+                            virtueel_afstudeerjaar: virtueelAfstudeerjaar,
+                            last_updated: new Date(),
+                        });
+                        gedeactiveerd++;
+                    }
+                }
+
+                // Check inactieve leerlingen die terug in de lijst staan
+                const inactieveSnap = await db.collection('toegestane_gebruikers')
+                    .where('school_id', '==', targetSchoolId)
+                    .where('rol', '==', 'leerling')
+                    .where('is_active', '==', false)
+                    .get();
+
+                for (const doc of inactieveSnap.docs) {
+                    if (geimporteerdeHashen.includes(doc.id)) {
+                        deactivatieBatch.update(doc.ref, {
+                            is_active: true,
+                            gedeactiveerd_op: null,
+                            virtueel_afstudeerjaar: null,
+                            klas_bij_vertrek: null,
+                            last_updated: new Date(),
+                        });
+                        teruggeactiveerd++;
+                    }
+                }
+
+                await deactivatieBatch.commit();
+                console.log(`✅ Sync: ${gedeactiveerd} gedeactiveerd, ${teruggeactiveerd} teruggeactiveerd`);
+
+            } catch (syncError) {
+                // Sync fout mag import niet blokkeren
+                console.error('⚠️ Deactivatie sync fout (niet kritiek):', syncError.message);
+            }
+        }
+        
         return res.status(200).json({ 
             success: true, 
             successCount: successCount, // (zorg dat deze variabelen bestaan)

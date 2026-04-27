@@ -48,6 +48,8 @@ export default async function handler(req, res) {
         const { action } = req.body || {};
 
         // ── Nickname wijzigen ─────────────────────────────────────────────────
+     
+
         if (action === 'update_nickname') {
             const { nickname } = req.body;
             const error = validateNickname(nickname);
@@ -55,19 +57,29 @@ export default async function handler(req, res) {
 
             const trimmed = nickname.trim();
 
-            // Controleer uniciteit binnen school
             const profileDoc = await db.collection('users').doc(firebaseUid).get();
             if (!profileDoc.exists) return res.status(404).json({ error: 'Profiel niet gevonden' });
             const schoolId = profileDoc.data().school_id;
 
+            // Check 1: uniciteit onder actieve gebruikers
             const bestaand = await db.collection('users')
                 .where('school_id', '==', schoolId)
                 .where('nickname', '==', trimmed)
                 .limit(1)
                 .get();
-
             if (!bestaand.empty && bestaand.docs[0].id !== firebaseUid) {
                 return res.status(409).json({ error: 'Deze nickname is al in gebruik. Kies een andere.' });
+            }
+
+            // Check 2: geblokkeerde nicknames (alltime ranking archief)
+            const geblokkeerd = await db.collection('nickname_archief').doc(trimmed).get();
+            if (geblokkeerd.exists) {
+                const data = geblokkeerd.data();
+                if (data.school_id === schoolId) {
+                    return res.status(409).json({ 
+                        error: 'Deze nickname staat in de alltime rankings en kan niet hergebruikt worden. Kies een andere.' 
+                    });
+                }
             }
 
             await db.collection('users').doc(firebaseUid).update({
