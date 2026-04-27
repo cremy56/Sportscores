@@ -233,11 +233,7 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
           data={data} 
           plugins={[coloredZonesPlugin, thresholdLinesPlugin]} 
         />
-        {isMobile && eenheid && (
-          <div className="absolute bottom-1 left-1 bg-white/80 backdrop-blur-sm rounded px-2 py-1 text-xs text-gray-600">
-            {eenheid}
-          </div>
-        )}
+
       </div>
       
       {scoreNorms && (
