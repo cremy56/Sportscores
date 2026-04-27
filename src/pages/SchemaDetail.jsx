@@ -2,12 +2,23 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
-import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc } from 'firebase/firestore';
+// Firestore imports verwijderd - alles via API
 import { ArrowLeftIcon, PlayIcon, CheckCircleIcon, ClockIcon, CameraIcon, StarIcon, TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid';
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-import { FieldValue } from 'firebase/firestore';
+
+
+// ─── API helper ───────────────────────────────────────────────────────────────
+async function apiPost(action, body, token) {
+    const response = await fetch('/api/tests', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...body }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'API fout');
+    return data;
+}
 
 export default function SchemaDetail() {
     
@@ -58,45 +69,17 @@ export default function SchemaDetail() {
             
             try {
             const { userId, schemaTemplateId } = schemaData;
-                const schemaId = `${userId}_${schemaTemplateId}`;
 
-                // ✅ Stap 1: Zoek Firebase UID via smartschool_id_hash in users
-            const usersQuery = query(
-                collection(db, 'users'),
-                where('toegestane_gebruikers_id', '==', userId)
-            );
-            const usersSnapshot = await getDocs(usersQuery);
- 
-            if (!usersSnapshot.empty) {
-                // ✅ Gevonden in users (leerling heeft al ingelogd)
-                const userDoc = usersSnapshot.docs[0];
-                setLeerlingProfiel({ id: userDoc.id, ...userDoc.data() });
-            } else {
-                // ✅ Fallback: zoek in toegestane_gebruikers op hash (doc ID = hash)
-                const toegestaneRef = doc(db, 'toegestane_gebruikers', userId);
-                const toegestaneSnap = await getDoc(toegestaneRef);
-                if (toegestaneSnap.exists()) {
-                    setLeerlingProfiel({ id: toegestaneSnap.id, ...toegestaneSnap.data() });
-                }
-            }
- 
-            // leerling_schemas blijft: schemaId = `${userId}_${schemaTemplateId}` ✅
-            // userId hier = smartschool_id_hash (consistent met Groeiplan.jsx)
-            const schemaDetailsRef = doc(db, 'trainingsschemas', schemaTemplateId);
-            const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
- 
-            const [schemaDetailsSnap, actiefSchemaSnap] = await Promise.all([
-                getDoc(schemaDetailsRef),
-                getDoc(actiefSchemaRef)
-            ]);
+                // ✅ Via API — geen directe Firestore
+                const result = await apiPost('get_schema_detail', {
+                    schoolId: profile.school_id,
+                    leerlingId: userId,
+                    schemaTemplateId,
+                }, profile._token);
 
-            if (schemaDetailsSnap.exists()) {
-                setSchemaDetails({ id: schemaDetailsSnap.id, ...schemaDetailsSnap.data() });
-            }
-
-            if (actiefSchemaSnap.exists()) {
-                setActiefSchema({ id: actiefSchemaSnap.id, ...actiefSchemaSnap.data() });
-            }
+                if (result.leerlingProfiel) setLeerlingProfiel(result.leerlingProfiel);
+                if (result.schemaDetails) setSchemaDetails({ id: schemaTemplateId, ...result.schemaDetails });
+                if (result.actiefSchema) setActiefSchema(result.actiefSchema);
 
             hasInitializedRef.current = true;
                 console.log("=== FETCHDATA SUCCESS (ONCE) ===");
@@ -112,7 +95,7 @@ export default function SchemaDetail() {
     };
 
     fetchData();
-  });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         return () => {
@@ -140,23 +123,13 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
             }
         };
 
-        // 2. Update de database
-        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-        await updateDoc(actiefSchemaRef, {
-            voltooide_taken: updatedVoltooide
-        });
-        
-        // NIEUW: Update weekly training stats
-        if (isCurrentUser && profile?.id) {
-            try {
-                const userRef = doc(db, 'users', profile.id);
-                await updateDoc(userRef, {
-                    'weekly_stats.trainingen': FieldValue.increment(1)
-                });
-            } catch (error) {
-                console.warn('Weekly stats update gefaald:', error);
-            }
-        }
+        // 2. Update via API
+        await apiPost('voltooien_taak', {
+            schoolId: profile.school_id,
+            leerlingId: schemaData.userId,
+            schemaTemplateId: schemaData.schemaTemplateId,
+            voltooide_taken: updatedVoltooide,
+        }, profile._token);
 
         // 3. Update de lokale state
         setActiefSchema(prev => ({
@@ -227,15 +200,14 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
             console.log("Gevalideerd:", gevalideerd);
 
             try {
-                // Haal fresh data op
-                const actiefSchemaRef = doc(db, 'leerling_schemas', schemaId);
-                const currentSchemaSnap = await getDoc(actiefSchemaRef);
-                
-                if (!currentSchemaSnap.exists()) {
-                    throw new Error("Schema niet gevonden in database");
-                }
-                
-                const freshSchemaData = currentSchemaSnap.data();
+                // Haal fresh data op via API
+                const freshResult = await apiPost('get_schema_actief', {
+                    schoolId: profile.school_id,
+                    leerlingId: schemaData.userId,
+                    schemaTemplateId: schemaData.schemaTemplateId,
+                }, profile._token);
+                const freshSchemaData = freshResult.actiefSchema;
+                if (!freshSchemaData) throw new Error("Schema niet gevonden");
                 console.log("Fresh data opgehaald - huidige week:", freshSchemaData.huidige_week);
 
                 // Vind alle taken in deze week
@@ -317,12 +289,15 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                 const weekIsVeranderd = nieuweHuidigeWeek !== freshSchemaData.huidige_week;
                 console.log(`Week verandering: ${freshSchemaData.huidige_week} -> ${nieuweHuidigeWeek} (${weekIsVeranderd ? 'JA' : 'NEE'})`);
                 
-                // Update database
-                await updateDoc(actiefSchemaRef, {
+                // Update via API
+                await apiPost('valideer_week', {
+                    schoolId: profile.school_id,
+                    leerlingId: schemaData.userId,
+                    schemaTemplateId: schemaData.schemaTemplateId,
                     voltooide_taken: freshSchemaData.voltooide_taken,
                     gevalideerde_weken: updatedGevalideerdeWeken,
-                    huidige_week: nieuweHuidigeWeek
-                });
+                    huidige_week: nieuweHuidigeWeek,
+                }, profile._token);
 
                 console.log("Database atomic update voltooid");
 
@@ -722,13 +697,12 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
             
             setLoadingOefening(true);
             try {
-                const oefeningRef = doc(db, 'oefeningen', taak.oefening_id);
-                const oefeningSnap = await getDoc(oefeningRef);
-                
-                if (oefeningSnap.exists()) {
-                    setOefeningDetails({ id: oefeningSnap.id, ...oefeningSnap.data() });
-                } else {
-                    console.error(`Oefening niet gevonden: ${taak.oefening_id}`);
+                const result = await apiPost('get_oefening_detail', {
+                    schoolId: profile?.school_id,
+                    oefeningId: taak.oefening_id,
+                }, profile?._token);
+                if (result.oefening) {
+                    setOefeningDetails(result.oefening);
                 }
             } catch (error) {
                 console.error("Fout bij ophalen oefening details:", error);

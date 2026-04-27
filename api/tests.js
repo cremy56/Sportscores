@@ -1806,7 +1806,123 @@ export default async function handler(req, res) {
                     return res.status(500).json({ error: err.message });
                 }
             }
+// ─────────────────────────────────────────────────────────────────────────────
+// TOEVOEGEN AAN api/tests.js — in de switch(action) { ... }
+// Vervangt directe Firestore calls in SchemaDetail.jsx
+// ─────────────────────────────────────────────────────────────────────────────
 
+case 'get_schema_detail': {
+    const { schoolId: sId, leerlingId, schemaTemplateId } = req.body;
+    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+    try {
+        const masterKey = await getMasterKey();
+
+        // Leerlingprofiel ophalen
+        let leerlingProfiel = null;
+        const usersSnap = await db.collection('users')
+            .where('toegestane_gebruikers_id', '==', leerlingId)
+            .limit(1).get();
+        if (!usersSnap.empty) {
+            const ud = usersSnap.docs[0];
+            leerlingProfiel = { id: ud.id, ...ud.data() };
+        } else {
+            const tgDoc = await db.collection('toegestane_gebruikers').doc(leerlingId).get();
+            if (tgDoc.exists) {
+                const tgData = tgDoc.data();
+                leerlingProfiel = {
+                    id: tgDoc.id,
+                    naam: decryptName(tgData.encrypted_name, masterKey),
+                    klas: tgData.klas,
+                    toegestane_gebruikers_id: tgDoc.id,
+                };
+            }
+        }
+
+        // Schema details + actief schema
+        const schemaId = `${leerlingId}_${schemaTemplateId}`;
+        const [schemaSnap, actiefSnap] = await Promise.all([
+            db.collection('trainingsschemas').doc(schemaTemplateId).get(),
+            db.collection('leerling_schemas').doc(schemaId).get(),
+        ]);
+
+        return res.status(200).json({
+            leerlingProfiel,
+            schemaDetails: schemaSnap.exists ? schemaSnap.data() : null,
+            actiefSchema: actiefSnap.exists ? { id: actiefSnap.id, ...actiefSnap.data() } : null,
+        });
+    } catch (err) {
+        console.error('❌ get_schema_detail:', err);
+        return res.status(500).json({ error: err.message });
+    }
+}
+
+case 'get_schema_actief': {
+    const { schoolId: sId, leerlingId, schemaTemplateId } = req.body;
+    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+    try {
+        const schemaId = `${leerlingId}_${schemaTemplateId}`;
+        const snap = await db.collection('leerling_schemas').doc(schemaId).get();
+        return res.status(200).json({
+            actiefSchema: snap.exists ? { id: snap.id, ...snap.data() } : null
+        });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+}
+
+case 'voltooien_taak': {
+    const { schoolId: sId, leerlingId, schemaTemplateId, voltooide_taken } = req.body;
+    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+    try {
+        const schemaId = `${leerlingId}_${schemaTemplateId}`;
+        await db.collection('leerling_schemas').doc(schemaId).update({ voltooide_taken });
+        return res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('❌ voltooien_taak:', err);
+        return res.status(500).json({ error: err.message });
+    }
+}
+
+case 'valideer_week': {
+    const { schoolId: sId, leerlingId, schemaTemplateId, voltooide_taken, gevalideerde_weken, huidige_week } = req.body;
+    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+    // Controleer rol
+    const rolDoc = await db.collection('users').doc(decodedToken.uid).get();
+    const rolUser = rolDoc.data()?.rol || '';
+    if (!['leerkracht', 'administrator', 'super-administrator'].includes(rolUser)) {
+        return res.status(403).json({ error: 'Enkel leerkrachten kunnen weken valideren' });
+    }
+    try {
+        const schemaId = `${leerlingId}_${schemaTemplateId}`;
+        await db.collection('leerling_schemas').doc(schemaId).update({
+            voltooide_taken,
+            gevalideerde_weken,
+            huidige_week,
+        });
+        return res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('❌ valideer_week:', err);
+        return res.status(500).json({ error: err.message });
+    }
+}
+
+case 'get_oefening_detail': {
+    const { schoolId: sId, oefeningId } = req.body;
+    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+    try {
+        const snap = await db.collection('oefeningen').doc(oefeningId).get();
+        return res.status(200).json({
+            oefening: snap.exists ? { id: snap.id, ...snap.data() } : null
+        });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+}
                         case 'get_mijn_klassen':
                             return await handleGetMijnKlassen(req, res, decodedToken);
 
