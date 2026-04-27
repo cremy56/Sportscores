@@ -1512,6 +1512,23 @@ export default async function handler(req, res) {
                 return await handleGetKlasDetail(req, res, decodedToken);
             case 'get_score_norms':
                 return await handleGetScoreNorms(req, res, decodedToken);
+            case 'get_student_profile': {
+                const { schoolId: sId, leerlingId } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    const tgDoc = await db.collection('toegestane_gebruikers').doc(leerlingId).get();
+                    if (!tgDoc.exists) return res.status(404).json({ error: 'Niet gevonden' });
+                    const data = tgDoc.data();
+                    if (data.school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                    return res.status(200).json({
+                        geslacht: (data.gender || '').toLowerCase() || null,
+                        klas: data.klas || null,
+                    });
+                } catch (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+            }
             case 'get_ehbo_stats': {
                 const { schoolId: sId, classId, studentId } = req.body;
                 const verifiedSchoolId = await getSchoolId(decodedToken.uid);

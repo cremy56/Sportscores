@@ -32,8 +32,33 @@ export default function Evolutie() {
 
     useEffect(() => {
         // Als de ingelogde gebruiker een leerling is, stel deze in
+        // Haal ook geslacht op uit toegestane_gebruikers via API
         if (profile?.rol === 'leerling' && !selectedStudent) {
-            setSelectedStudent(profile);
+            const enrichProfile = async () => {
+                try {
+                    const response = await fetch('/api/tests', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${profile._token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'get_student_profile',
+                            schoolId: profile.school_id,
+                            leerlingId: profile.toegestane_gebruikers_id
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.geslacht) {
+                        setSelectedStudent({ ...profile, geslacht: data.geslacht });
+                    } else {
+                        setSelectedStudent(profile);
+                    }
+                } catch {
+                    setSelectedStudent(profile);
+                }
+            };
+            enrichProfile();
         }
     }, [profile, selectedStudent, setSelectedStudent]);
 
