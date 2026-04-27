@@ -1,531 +1,582 @@
-// src/pages/Privacy.jsx
-import { useEffect } from 'react';
+// src/components/Layout.jsx
+import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
+import { Toaster } from 'react-hot-toast';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { UserCircleIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { Zap, Star, TrendingUp } from 'lucide-react';
+import { Bars3Icon } from '@heroicons/react/24/solid';
+import logoSrc from '../assets/logo.png';
+import StudentSearch from './StudentSearch';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 
-const Section = ({ id, title, children }) => (
-    <section id={id} className="mb-10 scroll-mt-24">
-        <h2 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200">{title}</h2>
-        <div className="text-slate-600 space-y-3 leading-relaxed">{children}</div>
-    </section>
-);
+// =============================================
+// DROPDOWN COMPONENT
+// =============================================
+const DropdownMenu = ({ title, children, isActive = false }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef();
 
-const Table = ({ rows }) => (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 mt-4">
-        <table className="w-full text-sm">
-            <thead className="bg-slate-50">
-                <tr>
-                    {rows[0].map((h, i) => (
-                        <th key={i} className="px-4 py-3 text-left font-semibold text-slate-700 border-b border-slate-200">{h}</th>
-                    ))}
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-                {rows.slice(1).map((row, i) => (
-                    <tr key={i} className="hover:bg-slate-50">
-                        {row.map((cell, j) => (
-                            <td key={j} className="px-4 py-3 text-slate-600 align-top">{cell}</td>
-                        ))}
-                    </tr>
-                ))}
-            </tbody>
-        </table>
-    </div>
-);
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isOpen &&
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
 
-const TOCItem = ({ href, label }) => (
-    <li>
-        <a href={href} className="text-blue-600 hover:text-blue-800 hover:underline text-sm">
-            {label}
-        </a>
+    if (isOpen) {
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 0);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
+  const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
+
+  return (
+    <li className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center space-x-1 ${isActive ? activeLinkStyle : inactiveLinkStyle} cursor-pointer`}
+        onMouseEnter={() => setIsOpen(true)}
+      >
+        <span>{title}</span>
+        <ChevronDownIcon className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <ul
+          className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-2 min-w-48 z-50"
+          onMouseLeave={() => setIsOpen(false)}
+        >
+          {children}
+        </ul>
+      )}
     </li>
+  );
+};
+
+// =============================================
+// DROPDOWN ITEM COMPONENT
+// =============================================
+const DropdownItem = ({ to, children, onClick }) => (
+  <li>
+    <NavLink
+      to={to}
+      onClick={onClick}
+      className={({ isActive }) =>
+        `block px-4 py-2 text-sm transition-colors ${
+          isActive
+            ? 'bg-purple-50 text-purple-700 font-semibold'
+            : 'text-gray-700 hover:bg-gray-50 hover:text-green-600'
+        }`
+      }
+    >
+      {children}
+    </NavLink>
+  </li>
 );
 
-const RightCard = ({ icon, title, desc }) => (
-    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-        <div className="flex items-start gap-3">
-            <span className="text-xl flex-shrink-0">{icon}</span>
-            <div>
-                <p className="font-semibold text-slate-800 text-sm">{title}</p>
-                <p className="text-slate-600 text-sm mt-1">{desc}</p>
-            </div>
+// =============================================
+// PROFILE MENU COMPONENT
+// ✅ FIX: wachtwoord wijzigen verwijderd (Smartschool login)
+// =============================================
+const ProfileMenu = ({
+  profile,
+  school,
+  activeRole,
+  setActiveRole,
+  impersonatedStudent,
+  setImpersonatedStudent,
+  setSelectedStudent,
+  onClose,
+}) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Fout bij uitloggen:", error);
+    }
+  };
+
+  const handleImpersonatedStudentSelect = (student) => {
+    setImpersonatedStudent(student);
+    onClose();
+  };
+
+  const handleRoleChange = (newRole) => {
+    const currentPath = location.pathname;
+
+    const restrictedPaths = {
+      'leerling': ['/instellingen', '/welzijnsmonitor', '/groepsbeheer', '/sporttesten'],
+      'leerkracht': ['/instellingen'],
+      'administrator': [],
+      'super-administrator': []
+    };
+
+    const isPathRestricted = restrictedPaths[newRole]?.some(path => currentPath.startsWith(path));
+
+    setActiveRole(newRole);
+
+    if (newRole !== 'leerling') {
+      setImpersonatedStudent(null);
+      setSelectedStudent(null);
+    }
+
+    if (isPathRestricted) {
+      navigate('/');
+    }
+
+    onClose();
+  };
+
+  return (
+    <div className="w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-4">
+      <div className="mb-2">
+        <p className="text-sm text-gray-500">Ingelogd als</p>
+        
+        <p className="font-semibold text-gray-900">{profile?.nickname || profile?.naam || 'Gebruiker'}</p>
+        <div className="flex items-center mt-2">
+          {school?.logo_url && (
+            <img src={school.logo_url} alt={`${school.naam} logo`} className="h-8 w-8 rounded-full mr-2 object-cover" />
+          )}
+          <p className="text-xs text-gray-400">School: {school?.naam || 'Niet gevonden'}</p>
         </div>
+      </div>
+
+      {(profile?.rol === 'administrator' || profile?.rol === 'super-administrator') && (
+        <div className="mb-4">
+          <label htmlFor="role-switcher" className="block text-xs font-semibold text-gray-500 mb-1">Wissel rol</label>
+          <select
+            id="role-switcher"
+            className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+            value={activeRole}
+            onChange={(e) => handleRoleChange(e.target.value)}
+            title="Switch rol"
+          >
+            {profile?.rol === 'super-administrator' && (
+              <option value="super-administrator">Super-administrator</option>
+            )}
+            <option value="administrator">Administrator</option>
+            <option value="leerkracht">Leerkracht</option>
+            <option value="leerling">Leerling</option>
+          </select>
+
+          {activeRole === 'leerling' && (
+            <div className="mt-3">
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Test als leerling</label>
+              <StudentSearch
+                onStudentSelect={handleImpersonatedStudentSelect}
+                schoolId={profile?.school_id}
+                token={profile?._token}
+                placeholder="Selecteer leerling..."
+                compact={true}
+              />
+              {impersonatedStudent && (
+                <p className="text-xs text-green-600 mt-1">Actief als: {impersonatedStudent.naam}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <hr className="my-2" />
+      <Link
+        to="/privacy"
+        onClick={onClose}
+        className="block w-full text-left px-2 py-1 text-sm text-gray-500 hover:bg-gray-50 rounded-md mt-1"
+      >
+        🔒 Privacyverklaring
+      </Link>
+      {/* ✅ FIX: 'Wachtwoord wijzigen' verwijderd - login gaat via Smartschool */}
+      <button
+        onClick={handleLogout}
+        className="w-full text-left px-2 py-1 text-sm text-red-600 bg-transparent hover:bg-red-50 rounded-md mt-1"
+      >
+        Uitloggen
+      </button>
     </div>
-);
+  );
+};
 
-export default function Privacy() {
-    useEffect(() => {
-        document.title = 'Privacyverklaring | SportScores';
-    }, []);
+// =============================================
+// REWARDS DISPLAY (Desktop)
+// =============================================
+const ClickableRewardsDisplay = ({ profile, activeRole }) => {
+  const navigate = useNavigate();
 
-    const lastUpdated = '27 april 2026';
+  if (activeRole !== 'leerling') return null;
 
-    return (
-        <div className="min-h-screen bg-slate-50">
-            {/* Header */}
-            <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">SS</span>
-                    </div>
-                    <span className="font-semibold text-slate-800">SportScores</span>
-                    <span className="text-slate-400">—</span>
-                    <span className="text-slate-600 text-sm">Privacyverklaring</span>
-                </div>
-            </div>
+  const yearXP = profile?.xp_current_school_year || 0;
+  const sparks = Math.floor((profile?.xp_current_period || 0) / 100);
+  const streak = profile?.streak_days || 0;
 
-            <div className="max-w-4xl mx-auto px-4 py-10">
-                <div className="flex gap-8">
-
-                    {/* Inhoudsopgave — desktop */}
-                    <aside className="hidden lg:block w-56 flex-shrink-0">
-                        <div className="sticky top-24 bg-white rounded-xl border border-slate-200 p-4">
-                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Inhoud</p>
-                            <ul className="space-y-2">
-                                <TOCItem href="#verantwoordelijke" label="1. Verwerkingsverantwoordelijke" />
-                                <TOCItem href="#gegevens" label="2. Welke gegevens" />
-                                <TOCItem href="#doeleinden" label="3. Doeleinden & rechtsgrond" />
-                                <TOCItem href="#bewaartermijnen" label="4. Bewaartermijnen" />
-                                <TOCItem href="#ontvangers" label="5. Ontvangers" />
-                                <TOCItem href="#doorgifte" label="6. Doorgifte buiten EU" />
-                                <TOCItem href="#rechten" label="7. Uw rechten" />
-                                <TOCItem href="#minderjarigen" label="8. Minderjarigen" />
-                                <TOCItem href="#beveiliging" label="9. Beveiliging" />
-                                <TOCItem href="#klacht" label="10. Klacht indienen" />
-                                <TOCItem href="#wijzigingen" label="11. Wijzigingen" />
-                            </ul>
-                        </div>
-                    </aside>
-
-                    {/* Hoofdinhoud */}
-                    <main className="flex-1 min-w-0">
-                        <div className="bg-white rounded-2xl border border-slate-200 p-8">
-
-                            {/* Titel */}
-                            <div className="mb-10">
-                                <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-xs font-medium px-3 py-1 rounded-full mb-4">
-                                    🔒 AVG / GDPR conform
-                                </div>
-                                <h1 className="text-3xl font-bold text-slate-900 mb-3">Privacyverklaring SportScores</h1>
-                                <p className="text-slate-500 text-sm">Laatste update: {lastUpdated} · Versie 1.0</p>
-
-                                {/* Samenvatting voor leerlingen */}
-                                <div className="mt-6 p-5 bg-amber-50 border border-amber-200 rounded-xl">
-                                    <p className="text-sm font-semibold text-amber-900 mb-2">📋 Samenvatting in eenvoudige taal</p>
-                                    <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
-                                        <li>SportScores bewaart jouw sportresultaten en een zelfgekozen bijnaam (nickname).</li>
-                                        <li>Je echte naam is versleuteld opgeslagen — leerkrachten zien je naam, maar ze staat nooit op een scherm of ranking.</li>
-                                        <li>Op het scorebord en de highscores staat enkel jouw nickname, nooit je echte naam.</li>
-                                        <li>Je kan je nickname op elk moment wijzigen via je profiel.</li>
-                                        <li>Je kan altijd vragen om je gegevens in te zien of te verwijderen.</li>
-                                    </ul>
-                                </div>
-                            </div>
-
-                            {/* 1. Verwerkingsverantwoordelijke */}
-                            <Section id="verantwoordelijke" title="1. Verwerkingsverantwoordelijke">
-                                <p>
-                                    SportScores is een digitaal platform voor sportprestatieopvolging binnen scholen, ontwikkeld en beheerd door:
-                                </p>
-                                <div className="bg-slate-50 rounded-xl p-4 mt-3 text-sm space-y-1">
-                                    <p className="font-semibold text-slate-800">Christoph Remy — SportScores</p>
-                                    <p>Eenmanszaak · Ondernemingsnummer: BE 0766.639.993 <em>(fictief)</em></p>
-                                    <p>Van Eyckpark 17, 9250 Waasmunster</p>
-                                    <p>E-mail: <a href="mailto:privacy@sportscores.be" className="text-blue-600 hover:underline">privacy@sportscores.be</a></p>
-                                    <p>Website: <a href="https://www.sportscores.be" className="text-blue-600 hover:underline">www.sportscores.be</a></p>
-                                </div>
-
-                                <p className="mt-4">
-                                    Als ontwikkelaar en beheerder van SportScores treedt Christoph Lemaire op als <strong>verwerkingsverantwoordelijke</strong> in de zin van Art. 4(7) AVG:
-                                    hij bepaalt de doeleinden en middelen van de verwerking van persoonsgegevens via het platform.
-                                </p>
-
-                                <p>
-                                    De scholen die SportScores gebruiken verstrekken leerlingendata aan SportScores
-                                    in het kader van hun onderwijsopdracht. Met elke school wordt een afzonderlijke
-                                    <strong> verwerkersovereenkomst (Data Processing Agreement)</strong> gesloten conform Art. 28 AVG.
-                                </p>
-
-                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-4 text-sm">
-                                    <p className="font-semibold text-blue-900 mb-1">ℹ️ Geen DPO aangesteld</p>
-                                    <p className="text-blue-800">
-                                        Gezien de huidige schaal van de verwerking (één school, beperkt aantal leerlingen) is er nog geen
-                                        Functionaris voor Gegevensbescherming (DPO) aangesteld. Bij opschaling naar meerdere scholen
-                                        zal dit worden herzien conform Art. 37(1)(b) AVG.
-                                        Voor alle privacyvragen kunt u rechtstreeks contact opnemen via{' '}
-                                        <a href="mailto:privacy@sportscores.be" className="underline">privacy@sportscores.be</a>.
-                                        Wij antwoorden binnen 5 werkdagen.
-                                    </p>
-                                </div>
-                            </Section>
-
-                            {/* 2. Welke gegevens */}
-                            <Section id="gegevens" title="2. Welke persoonsgegevens verwerken wij?">
-                                <p>
-                                    SportScores verwerkt uitsluitend de gegevens die strikt noodzakelijk zijn voor de werking van het platform
-                                    (dataminimalisatie, Art. 5(1)(c) AVG):
-                                </p>
-
-                                <Table rows={[
-                                    ['Categorie', 'Concrete gegevens', 'Hoe opgeslagen'],
-                                    ['Identificatie', 'Smartschool-gebruikers-ID', 'Eenrichtingsversleuteld (SHA-256 hash) — nooit in originele vorm opgeslagen'],
-                                    ['Naam', 'Voor- en achternaam', 'AES-256-GCM versleuteld — enkel leerkrachten zien de ontsleutelde naam'],
-                                    ['Profiel', 'Zelfgekozen nickname, klas, geslacht', 'Nickname is pseudoniem en zelfgekozen — geen echte naam'],
-                                    ['Sportprestaties', 'Testresultaten, scores, datums, groep', 'Gekoppeld aan gehashte ID — niet aan naam'],
-                                    ['Technisch', 'Aanmeldmoment, laatste login', 'Geen locatiegegevens, geen apparaatinformatie, geen cookies'],
-                                    ['Welzijn (optioneel)', 'Slaapuren, stappen, humeur (zelfgerapporteerd)', 'Enkel bij actieve invoer door de leerling zelf — zie §3'],
-                                ]} />
-
-                                <p className="mt-4">
-                                    <strong>Wij verwerken uitdrukkelijk géén:</strong> geboortedatum, rijksregisternummer, financiële gegevens,
-                                    biometrische gegevens, locatiegegevens of gegevens over ras, geloof of politieke overtuiging.
-                                    De leeftijd van een leerling wordt afgeleid uit de klas (bv. "3A" = leerjaar 3), niet uit de geboortedatum.
-                                </p>
-
-                                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mt-4 text-sm">
-                                    <p className="font-semibold text-orange-900 mb-1">⚠️ Welzijnsmodule — bijzondere categorie (Art. 9 AVG)</p>
-                                    <p className="text-orange-800">
-                                        De welzijnsmodule laat leerlingen toe vrijwillig gegevens over slaap, stappen en humeur bij te houden.
-                                        Dit zijn mogelijk gegevens over gezondheid in de zin van Art. 9 AVG.
-                                        Deze gegevens worden enkel verwerkt op basis van de <strong>uitdrukkelijke toestemming</strong> van de leerling
-                                        bij elke afzonderlijke invoer (Art. 9(2)(a) AVG).
-                                        Leerkrachten zien enkel geaggregeerde, anonieme statistieken — nooit individuele gezondheidsdata.
-                                        De welzijnsmodule kan door de schooladministrator worden uitgeschakeld.
-                                    </p>
-                                </div>
-                            </Section>
-
-                            {/* 3. Doeleinden */}
-                            <Section id="doeleinden" title="3. Doeleinden en rechtsgrond voor de verwerking">
-                                <Table rows={[
-                                    ['Doel', 'Rechtsgrond (Art. 6 AVG)', 'Toelichting'],
-                                    [
-                                        'Sportprestaties opvolgen en rapporteren',
-                                        'Art. 6(1)(e) — taak van algemeen belang',
-                                        'Ondersteuning van lichamelijke opvoeding als kerntaak van de school'
-                                    ],
-                                    [
-                                        'Authenticatie en toegangscontrole',
-                                        'Art. 6(1)(e) — taak van algemeen belang',
-                                        'Veilige login via Smartschool OAuth — enkel geautoriseerde gebruikers krijgen toegang'
-                                    ],
-                                    [
-                                        'Highscores en motivatie (nickname)',
-                                        'Art. 6(1)(f) — gerechtvaardigd belang',
-                                        'Enkel pseudonieme nicknames op schermen — nooit echte namen. Leerlingen kiezen en controleren hun nickname zelf.'
-                                    ],
-                                    [
-                                        'Individueel groeiplan en trainingssuggesties',
-                                        'Art. 6(1)(e) — taak van algemeen belang',
-                                        'Leerkracht volgt individuele vooruitgang op en geeft gerichte feedback'
-                                    ],
-                                    [
-                                        'Welzijnsmodule (optioneel)',
-                                        'Art. 6(1)(a) + Art. 9(2)(a) — toestemming',
-                                        'Leerling geeft bij elke invoer uitdrukkelijke toestemming. Toestemming is te allen tijde intrekbaar.'
-                                    ],
-                                    [
-                                        'Beveiliging en audit',
-                                        'Art. 6(1)(c) — wettelijke verplichting',
-                                        'Audit logs voor toegangscontrole, incidentbeheer en naleving van beveiligingsverplichtingen'
-                                    ],
-                                    [
-                                        'GDPR-archivering alltime rankings',
-                                        'Art. 6(1)(f) — gerechtvaardigd belang',
-                                        'Bevroren nickname (zonder persoonsgegevens) in historische rankings na afstuderen. Geen leerling-ID bewaard.'
-                                    ],
-                                ]} />
-
-                                <p className="mt-4">
-                                    <strong>Gerechtvaardigd belang (Art. 6(1)(f)) — afweging:</strong> het belang bij het tonen van pseudonieme rankings
-                                    (motivatie, sportcultuur op school) weegt zwaarder dan de privacybelangen van leerlingen omdat (a) uitsluitend
-                                    zelfgekozen nicknames zichtbaar zijn, (b) echte namen nooit op publieke schermen verschijnen, en (c) leerlingen
-                                    hun nickname te allen tijde kunnen wijzigen of laten verwijderen.
-                                </p>
-                            </Section>
-
-                            {/* 4. Bewaartermijnen */}
-                            <Section id="bewaartermijnen" title="4. Bewaartermijnen">
-                                <Table rows={[
-                                    ['Gegevens', 'Bewaartermijn', 'Wat gebeurt er daarna'],
-                                    [
-                                        'Actief gebruikersprofiel',
-                                        'Zolang de leerling actief is in Smartschool',
-                                        'Bij detectie via Smartschool sync: 30 dagen overgangsperiode, dan deactivatie'
-                                    ],
-                                    [
-                                        'Gedeactiveerd profiel',
-                                        'Tot het "virtueel afstudeerjaar" + 1 jaar',
-                                        'Definitieve verwijdering in januari van het jaar ná het virtueel afstudeerjaar'
-                                    ],
-                                    [
-                                        'Sportscores (resultaten)',
-                                        'Max. 10 jaar na het einde van de inschrijving',
-                                        'Na verwijdering profiel: scores blijven bewaard maar zijn niet meer aan een identiteit gekoppeld'
-                                    ],
-                                    [
-                                        'Alltime top 5 rankings (archief)',
-                                        'Permanent',
-                                        'Enkel nickname bewaard — geen persoonsgegevens, geen leerling-ID'
-                                    ],
-                                    [
-                                        'Geblokkeerde nicknames',
-                                        'Permanent',
-                                        'Voorkomen dat een andere leerling dezelfde nickname kiest en zo verward wordt met iemand in de alltime ranking'
-                                    ],
-                                    [
-                                        'Welzijnsgegevens',
-                                        'Lopend schooljaar + 1 jaar',
-                                        'Of eerder op verzoek van de leerling'
-                                    ],
-                                    [
-                                        'Audit logs',
-                                        '1 jaar',
-                                        'Automatisch gewist'
-                                    ],
-                                ]} />
-
-                                <div className="bg-slate-50 rounded-xl p-4 mt-4 text-sm border border-slate-200">
-                                    <p className="font-semibold text-slate-800 mb-2">📅 Hoe werkt het "virtueel afstudeerjaar"?</p>
-                                    <p className="text-slate-600">
-                                        Wanneer een leerling de school verlaat (detecteerbaar via de Smartschool synchronisatie),
-                                        berekenen wij op basis van de klas bij vertrek hoelang hij normaal gezien nog op school zou gebleven zijn.
-                                    </p>
-                                    <p className="text-slate-600 mt-2">
-                                        <strong>Voorbeeld:</strong> een leerling verlaat de school in het 4de leerjaar.
-                                        Hij zou normaal in het 6de afstuderen — dat zijn nog 2 jaar.
-                                        Het virtueel afstudeerjaar is dus het huidige schooljaar + 2.
-                                        De gegevens worden bewaard tot januari van het jaar <em>ná</em> dat afstudeerjaar,
-                                        zodat een eventuele terugkeer naar de school nog mogelijk is.
-                                    </p>
-                                    <p className="text-slate-600 mt-2">
-                                        <strong>Voorbeeld:</strong> verlaat in schooljaar 2024-2025 in het 4de →
-                                        virtueel afstudeerjaar = 2026-2027 →
-                                        gegevens worden gewist in <strong>januari 2028</strong>.
-                                    </p>
-                                    <p className="text-slate-600 mt-2">
-                                        Keert de leerling terug naar de school vóór die datum, dan wordt het profiel automatisch
-                                        opnieuw geactiveerd bij de eerstvolgende Smartschool synchronisatie.
-                                    </p>
-                                </div>
-
-                                <p className="mt-4">
-                                    De 30-daagse overgangsperiode bij deactivatie dient als veiligheidsmarge voor technische fouten
-                                    bij de synchronisatie, tijdelijke administratieve vertragingen of leerlingen die tijdelijk niet
-                                    in Smartschool geregistreerd staan (bv. bij een overschrijving tussen scholen).
-                                </p>
-                            </Section>
-
-                            {/* 5. Ontvangers */}
-                            <Section id="ontvangers" title="5. Ontvangers van persoonsgegevens">
-                                <Table rows={[
-                                    ['Ontvanger', 'Rol', 'Welke gegevens', 'Rechtsgrond'],
-                                    [
-                                        'Leerkrachten van de aangesloten school',
-                                        'Intern — enkel eigen klassen',
-                                        'Ontsleutelde naam + scores van eigen leerlingen',
-                                        'Art. 6(1)(e)'
-                                    ],
-                                    [
-                                        'Schooladministrator',
-                                        'Intern — volledig overzicht eigen school',
-                                        'Alle gegevens van eigen school',
-                                        'Art. 6(1)(e)'
-                                    ],
-                                    [
-                                        'Vercel Inc. (hosting)',
-                                        'Verwerker (Art. 28 AVG)',
-                                        'Technische verwerking — geen inhoudelijke toegang tot data',
-                                        'Verwerkersovereenkomst'
-                                    ],
-                                    [
-                                        'Google LLC (Firebase/Firestore)',
-                                        'Verwerker (Art. 28 AVG)',
-                                        'Versleutelde gegevensopslag',
-                                        'Verwerkersovereenkomst'
-                                    ],
-                                    [
-                                        'Smartschool (Vrije Tijd NV)',
-                                        'Authenticatiebron',
-                                        'Enkel authenticatietoken — geen sportdata wordt gedeeld met Smartschool',
-                                        'Art. 6(1)(e)'
-                                    ],
-                                ]} />
-
-                                <p className="mt-4">
-                                    Persoonsgegevens worden <strong>nooit</strong> verkocht, verhuurd of doorgegeven aan derden
-                                    voor commerciële, marketing- of andere doeleinden.
-                                    SportScores werkt met geen enkele advertentiepartner samen en plaatst geen advertenties.
-                                </p>
-                            </Section>
-
-                            {/* 6. Doorgifte buiten EU */}
-                            <Section id="doorgifte" title="6. Doorgifte buiten de Europese Economische Ruimte">
-                                <p>
-                                    Twee van onze verwerkers zijn Amerikaanse ondernemingen. Wij hebben de nodige garanties ingebouwd:
-                                </p>
-                                <div className="space-y-3 mt-3">
-                                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-sm">
-                                        <p className="font-semibold text-slate-800">Vercel Inc. (hosting)</p>
-                                        <p className="text-slate-600 mt-1">
-                                            Alle data wordt verwerkt op Europese servers (Frankfurt, regio eu-west1).
-                                            Vercel heeft Standard Contractual Clauses (SCC) ondertekend conform Art. 46(2)(c) AVG.
-                                        </p>
-                                    </div>
-                                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-sm">
-                                        <p className="font-semibold text-slate-800">Google LLC (Firebase/Firestore)</p>
-                                        <p className="text-slate-600 mt-1">
-                                            Data wordt opgeslagen in de EU-regio (europe-west1, België/Nederland).
-                                            Google heeft eveneens SCC's ondertekend en is gecertificeerd onder de EU-US Data Privacy Framework.
-                                        </p>
-                                    </div>
-                                </div>
-                                <p className="mt-3">
-                                    Er vindt <strong>geen andere doorgifte</strong> plaats naar landen buiten de EER.
-                                </p>
-                            </Section>
-
-                            {/* 7. Rechten */}
-                            <Section id="rechten" title="7. Uw rechten als betrokkene">
-                                <p>
-                                    Op basis van de AVG beschikt u over de volgende rechten.
-                                    U oefent ze uit door een e-mail te sturen naar{' '}
-                                    <a href="mailto:privacy@sportscores.be" className="text-blue-600 hover:underline">privacy@sportscores.be</a>{' '}
-                                    met vermelding van uw naam en school. Wij behandelen uw verzoek binnen <strong>30 dagen</strong>.
-                                </p>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                                    <RightCard icon="👁️" title="Recht op inzage (Art. 15)"
-                                        desc="U kunt opvragen welke gegevens over u worden verwerkt en een kopie hiervan ontvangen." />
-                                    <RightCard icon="✏️" title="Recht op rectificatie (Art. 16)"
-                                        desc="U kunt onjuiste of onvolledige gegevens laten corrigeren. Uw nickname kunt u zelf wijzigen in de app." />
-                                    <RightCard icon="🗑️" title="Recht op verwijdering (Art. 17)"
-                                        desc="U kunt vragen om uw gegevens te verwijderen. Let op: sportscores in de alltime top 5 worden geanonimiseerd bewaard (enkel nickname, geen naam of ID)." />
-                                    <RightCard icon="⏸️" title="Recht op beperking (Art. 18)"
-                                        desc="U kunt de verwerking tijdelijk laten beperken, bijvoorbeeld terwijl een correctieverzoek wordt behandeld." />
-                                    <RightCard icon="📦" title="Recht op overdraagbaarheid (Art. 20)"
-                                        desc="U kunt uw sportscores en profielgegevens opvragen in een gestructureerd, leesbaar formaat (JSON/CSV)." />
-                                    <RightCard icon="🚫" title="Recht van bezwaar (Art. 21)"
-                                        desc="U kunt bezwaar maken tegen verwerking op basis van gerechtvaardigd belang (bv. weergave nickname in rankings)." />
-                                    <RightCard icon="↩️" title="Intrekking toestemming (welzijn)"
-                                        desc="Toestemming voor de welzijnsmodule kan te allen tijde worden ingetrokken. Dit heeft geen terugwerkende kracht." />
-                                    <RightCard icon="🤖" title="Geautomatiseerde beslissingen (Art. 22)"
-                                        desc="SportScores neemt geen geautomatiseerde beslissingen met rechtsgevolgen of aanzienlijke impact." />
-                                </div>
-
-                                <p className="mt-4 text-sm">
-                                    Alle rechten worden <strong>gratis</strong> uitgeoefend. Bij kennelijk ongegronde of buitensporige verzoeken
-                                    kunnen wij een redelijke vergoeding vragen of het verzoek weigeren (Art. 12(5) AVG), mits motivering.
-                                    In complexe gevallen kunnen wij de termijn van 30 dagen met 2 maanden verlengen, mits kennisgeving.
-                                </p>
-                            </Section>
-
-                            {/* 8. Minderjarigen */}
-                            <Section id="minderjarigen" title="8. Bijzondere bescherming van minderjarigen">
-                                <p>
-                                    SportScores is uitsluitend bestemd voor gebruik binnen de schoolcontext.
-                                    De gebruikers zijn voor het overgrote deel minderjarigen (12–18 jaar).
-                                    Wij passen de volgende extra beschermingsmaatregelen toe:
-                                </p>
-                                <ul className="list-disc list-inside space-y-2 mt-3">
-                                    <li>Echte namen zijn <strong>nooit zichtbaar</strong> op publieke schermen of rankings — enkel zelfgekozen pseudonieme nicknames.</li>
-                                    <li>Leerlingen kiezen hun eigen nickname bij eerste aanmelding en kunnen deze te allen tijde wijzigen.</li>
-                                    <li>Leerkrachten zien enkel leerlingen van hun eigen toegewezen klassen.</li>
-                                    <li>Er zijn geen advertenties, geen tracking voor commerciële doeleinden, geen profilering.</li>
-                                    <li>De welzijnsmodule vereist een actieve, bewuste handeling van de leerling bij elke invoer.</li>
-                                    <li>Toegang is enkel mogelijk via Smartschool OAuth — niet via sociale media of externe accounts.</li>
-                                </ul>
-
-                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-4 text-sm">
-                                    <p className="font-semibold text-blue-900 mb-1">🇧🇪 Belgische leeftijdsgrens (Art. 8 AVG)</p>
-                                    <p className="text-blue-800">
-                                        In België geldt 13 jaar als minimumleeftijd voor informatiesamenlevingsdiensten waarvoor toestemming als rechtsgrond wordt gebruikt.
-                                        Omdat de basisfunctionaliteit van SportScores gebaseerd is op de onderwijstaak van de school (Art. 6(1)(e) AVG) —
-                                        en niet op toestemming — is afzonderlijke ouderlijke toestemming voor de kernfunctionaliteit niet vereist.
-                                        De welzijnsmodule vereist wel de uitdrukkelijke toestemming van de leerling zelf (Art. 9(2)(a) AVG).
-                                        De school informeert ouders over het gebruik van SportScores via het schoolreglement en/of het schoolinformatieblad.
-                                    </p>
-                                </div>
-                            </Section>
-
-                            {/* 9. Beveiliging */}
-                            <Section id="beveiliging" title="9. Beveiliging van persoonsgegevens">
-                                <p>
-                                    Wij nemen passende technische en organisatorische maatregelen conform Art. 32 AVG
-                                    om persoonsgegevens te beschermen tegen ongeoorloofde toegang, verlies of vernietiging:
-                                </p>
-                                <ul className="list-disc list-inside space-y-2 mt-3">
-                                    <li><strong>Naamversleuteling:</strong> Namen worden versleuteld met AES-256-GCM. De versleutelingssleutel is opgeslagen in Google Secret Manager, volledig gescheiden van de data.</li>
-                                    <li><strong>Pseudonimisering van ID's:</strong> Smartschool-gebruikers-ID's worden eenrichtingsgehasht (SHA-256). Sportscores zijn gekoppeld aan de hash, niet aan de naam.</li>
-                                    <li><strong>Rol-gebaseerde toegangscontrole:</strong> Leerkrachten zien enkel hun eigen klassen. Leerlingen zien enkel hun eigen data. Admins beheren enkel hun eigen school.</li>
-                                    <li><strong>API-first architectuur:</strong> Geen directe databasetoegang vanuit de browser — alle data loopt via een beveiligde server-side API met tokenverificatie.</li>
-                                    <li><strong>Transportbeveiliging:</strong> Alle verbindingen verlopen via TLS 1.3.</li>
-                                    <li><strong>Audit logs:</strong> Alle administratieve handelingen worden gelogd met tijdstempel en gebruikers-ID.</li>
-                                    <li><strong>Toegangsbeleid:</strong> Enkel via Smartschool OAuth — geen wachtwoordloze toegang of sociale media logins.</li>
-                                </ul>
-
-                                <p className="mt-4">
-                                    Bij een inbreuk op de beveiliging die een risico inhoudt voor betrokkenen, zullen wij de{' '}
-                                    <strong>Gegevensbeschermingsautoriteit (GBA) binnen 72 uur informeren</strong> (Art. 33 AVG)
-                                    en betrokkenen zo snel mogelijk verwittigen indien het risico hoog is (Art. 34 AVG).
-                                </p>
-                            </Section>
-
-                            {/* 10. Klacht */}
-                            <Section id="klacht" title="10. Klacht indienen bij de toezichthoudende autoriteit">
-                                <p>
-                                    U heeft het recht een klacht in te dienen bij de Belgische toezichthoudende autoriteit als u
-                                    van mening bent dat de verwerking van uw persoonsgegevens de AVG schendt.
-                                    Wij verzoeken u echter om bezwaren eerst bij ons te melden via{' '}
-                                    <a href="mailto:privacy@sportscores.be" className="text-blue-600 hover:underline">privacy@sportscores.be</a>{' '}
-                                    zodat wij de gelegenheid krijgen het probleem op te lossen.
-                                </p>
-                                <div className="bg-slate-50 rounded-xl p-4 mt-3 text-sm space-y-1">
-                                    <p className="font-semibold text-slate-800">Gegevensbeschermingsautoriteit (GBA)</p>
-                                    <p>Persstraat 35, 1000 Brussel</p>
-                                    <p>Tel: +32 (0)2 274 48 00</p>
-                                    <p>
-                                        Website:{' '}
-                                        <a href="https://www.gegevensbeschermingsautoriteit.be" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                            www.gegevensbeschermingsautoriteit.be
-                                        </a>
-                                    </p>
-                                    <p>E-mail: <a href="mailto:contact@apd-gba.be" className="text-blue-600 hover:underline">contact@apd-gba.be</a></p>
-                                </div>
-                            </Section>
-
-                            {/* 11. Wijzigingen */}
-                            <Section id="wijzigingen" title="11. Wijzigingen aan deze privacyverklaring">
-                                <p>
-                                    Wij kunnen deze privacyverklaring aanpassen wanneer de wetgeving, onze verwerkingen of de schaalgrootte
-                                    van SportScores dit vereist. De datum van de laatste update staat bovenaan dit document.
-                                </p>
-                                <p>
-                                    <strong>Wezenlijke wijzigingen</strong> — zoals een verandering in de identiteit van de verwerkingsverantwoordelijke,
-                                    nieuwe verwerkingsdoeleinden of wijzigingen in de rechten van betrokkenen — worden actief gecommuniceerd
-                                    via de SportScores-applicatie en/of het Smartschool-platform van de school.
-                                </p>
-                                <p>
-                                    <strong>Niet-wezenlijke wijzigingen</strong> — zoals verbeteringen van de formulering of correcties van spelfouten —
-                                    worden stilzwijgend doorgevoerd.
-                                </p>
-                            </Section>
-
-                            {/* Footer */}
-                            <div className="mt-10 pt-6 border-t border-slate-200 text-center">
-                                <p className="text-xs text-slate-400 max-w-2xl mx-auto">
-                                    Deze privacyverklaring werd opgesteld conform de Algemene Verordening Gegevensbescherming
-                                    (AVG/GDPR, EU 2016/679), de Belgische wet van 30 juli 2018 betreffende de bescherming van
-                                    natuurlijke personen met betrekking tot de verwerking van persoonsgegevens, en de richtlijnen
-                                    van de Belgische Gegevensbeschermingsautoriteit (GBA).
-                                </p>
-                                <p className="text-xs text-slate-400 mt-2">
-                                    SportScores · Christoph Lemaire · BE 0123.456.789 · Versie 1.0 · {lastUpdated}
-                                </p>
-                            </div>
-
-                        </div>
-                    </main>
-                </div>
-            </div>
+  return (
+    <div className="hidden md:flex items-center mr-3">
+      <button
+        onClick={() => navigate('/rewards')}
+        className="bg-gradient-to-r from-purple-50 to-yellow-50 hover:from-purple-100 hover:to-yellow-100 px-3 py-1.5 rounded-full border border-gray-200 transition-all"
+        title="Klik om naar Rewards te gaan"
+      >
+        <div className="flex items-center space-x-2 text-xs">
+          <div className="flex items-center space-x-1" title="XP dit Schooljaar">
+            <Star className="w-3 h-3 text-orange-500" />
+            <span className="font-semibold text-orange-700">{yearXP}</span>
+          </div>
+          <div className="flex items-center space-x-1" title="Sparks deze Periode">
+            <Zap className="w-3 h-3 text-purple-600" />
+            <span className="font-semibold text-purple-700">{sparks}</span>
+          </div>
+          <div className="flex items-center space-x-1" title="Dagen Streak">
+            <TrendingUp className="w-3 h-3 text-green-600" />
+            <span className="font-semibold text-green-700">{streak}</span>
+          </div>
         </div>
-    );
+      </button>
+    </div>
+  );
+};
+
+// =============================================
+// REWARDS DISPLAY (Mobiel)
+// =============================================
+const MobileClickableRewardsDisplay = ({ profile, activeRole }) => {
+  const navigate = useNavigate();
+  if (activeRole !== 'leerling') return null;
+
+  const yearXP = profile?.xp_current_school_year || 0;
+  const sparks = Math.floor((profile?.xp_current_period || 0) / 100);
+  const streak = profile?.streak_days || 0;
+
+  return (
+    <button
+      onClick={() => navigate('/rewards')}
+      className="md:hidden mt-1 px-2 py-1 bg-gradient-to-r from-purple-50 to-yellow-50 rounded-full border border-gray-200"
+      title="Bekijk je rewards"
+    >
+      <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-0.5">
+          <Star className="w-2.5 h-2.5 text-orange-500" />
+          <span className="text-[10px] font-semibold text-orange-700">{yearXP}</span>
+        </div>
+        <span className="text-gray-300 text-[8px]">•</span>
+        <div className="flex items-center space-x-0.5">
+          <Zap className="w-2.5 h-2.5 text-purple-600" />
+          <span className="text-[10px] font-semibold text-purple-700">{sparks}</span>
+        </div>
+        <span className="text-gray-300 text-[8px]">•</span>
+        <div className="flex items-center space-x-0.5">
+          <TrendingUp className="w-2.5 h-2.5 text-green-600" />
+          <span className="text-[10px] font-semibold text-green-700">{streak}</span>
+        </div>
+      </div>
+    </button>
+  );
+};
+
+// =============================================
+// HOOFD LAYOUT COMPONENT
+// ✅ FIX: console.logs verwijderd
+
+// =============================================
+export default function Layout({ profile, school, selectedStudent, setSelectedStudent, activeRole, setActiveRole }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [impersonatedStudent, setImpersonatedStudent] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const menuButtonRef = useRef();
+  const [realtimeProfile, setRealtimeProfile] = useState(profile);
+  const [schoolSettings, setSchoolSettings] = useState(null);
+
+  // Real-time listener voor rewards data
+  useEffect(() => {
+    if (!profile?.id) {
+      setRealtimeProfile(profile);
+      return;
+    }
+    const userRef = doc(db, 'users', profile.id);
+    const unsubscribe = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        setRealtimeProfile(prev => ({
+          ...prev,
+          xp: userData.xp || 0,
+          xp_current_period: userData.xp_current_period || 0,
+          xp_current_school_year: userData.xp_current_school_year || 0,
+          streak_days: userData.streak_days || 0,
+        }));
+      }
+    });
+    return () => unsubscribe();
+  }, [profile?.id]);
+
+  // School settings listener
+  useEffect(() => {
+    if (!school?.id) {
+      setSchoolSettings(null);
+      return;
+    }
+
+    const schoolRef = doc(db, 'scholen', school.id);
+    const unsubscribe = onSnapshot(schoolRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const schoolData = docSnap.data();
+        setSchoolSettings(schoolData.instellingen || {});
+      } else {
+        setSchoolSettings(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [school?.id]);
+
+  // Impersonated student → selectedStudent synchronisatie
+  useEffect(() => {
+    if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
+      setSelectedStudent(impersonatedStudent);
+    }
+  }, [impersonatedStudent, activeRole, profile?.rol, setSelectedStudent]);
+
+  // Initialiseer activeRole vanuit profiel
+  useEffect(() => {
+    if (profile?.rol && !activeRole) {
+      setActiveRole(profile.rol);
+    }
+  }, [profile?.rol, activeRole, setActiveRole]);
+
+  // Redirect als huidig pad niet toegankelijk is voor nieuwe rol
+  // ✅ FIX: console.logs verwijderd
+  useEffect(() => {
+    if (!activeRole || !profile) return;
+
+    const currentPath = location.pathname;
+    const restrictedPaths = {
+      'leerling': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer', '/welzijnsmonitor', '/groepsbeheer', '/sporttesten'],
+      'leerkracht': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'],
+      'administrator': ['/schoolbeheer'],
+      'super-administrator': []
+    };
+
+    const isPathRestricted = restrictedPaths[activeRole]?.some(path => currentPath.startsWith(path));
+
+    if (isPathRestricted) {
+      navigate('/');
+    }
+  }, [activeRole, location.pathname, navigate, profile]);
+
+  const toggleMenu = () => {
+    if (menuButtonRef.current) {
+      const rect = menuButtonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.right + window.scrollX - 256,
+      });
+    }
+    setMenuOpen(prev => !prev);
+  };
+
+  // Gesimuleerd profiel (voor rol-switching en impersonation)
+  const simulatedProfile = useMemo(() => {
+    if (activeRole === 'leerling' && impersonatedStudent && (profile?.rol === 'administrator' || profile?.rol === 'super-administrator')) {
+      return {
+        ...impersonatedStudent,
+        rol: 'leerling',
+        originalProfile: profile
+      };
+    }
+    return {
+      ...realtimeProfile,
+      rol: activeRole,
+    };
+  }, [realtimeProfile, activeRole, impersonatedStudent]);
+
+  const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator';
+  const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
+  const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan';
+  const homeLinkText = schoolSettings?.sportdashboardAsHomepage ? 'Highscores' : 'Home';
+
+  const activeLinkStyle = 'text-purple-700 font-bold border-b-2 border-purple-700 pb-1';
+  const inactiveLinkStyle = 'text-gray-700 font-semibold hover:text-green-600 transition-colors pb-1 border-b-2 border-transparent';
+
+  const routeTitles = {
+    '/': schoolSettings?.sportdashboardAsHomepage ? 'Highscores' : 'Home',
+    '/advalvas': 'Ad Valvas',
+    '/highscores': 'Highscores',
+    '/evolutie': evolutieLinkText,
+    '/groeiplan': groeiplanLinkText,
+    '/gezondheid': 'Mijn Gezondheid',
+    '/welzijnsmonitor': 'Welzijnsmonitor',
+    '/groepsbeheer': 'Groepsbeheer',
+    '/sporttesten': 'Sporttesten',
+    '/gebruikersbeheer': 'Gebruikersbeheer',
+    '/trainingsbeheer': 'Trainingsbeheer',
+    '/schoolbeheer': 'Schoolbeheer',
+    '/rewards': 'Rewards',
+  };
+
+  const currentTitle = Object.entries(routeTitles).find(([path]) => location.pathname.startsWith(path))?.[1] || 'SportScores';
+
+  return (
+    <div>
+      <Toaster position="top-center" />
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20">
+        <nav className="relative w-full px-4 md:px-8 py-2 flex items-center justify-between">
+
+          {/* LINKS: Hamburger & Logo */}
+          <div className="relative z-20 flex items-center space-x-2 flex-shrink-0">
+            <button
+              onClick={() => setMobileMenuOpen(prev => !prev)}
+              className="md:hidden p-2 text-black hover:text-purple-700"
+              aria-label="Toggle menu"
+            >
+              <Bars3Icon className="w-6 h-6 text-black" />
+            </button>
+            <NavLink
+              to="/"
+              aria-label="Sportscores Logo"
+              className="block h-8 w-28"
+              style={{ backgroundImage: `url(${logoSrc})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'left center' }}
+            />
+          </div>
+
+          {/* MIDDEN (Desktop): Navigatie */}
+          <ul className="hidden md:flex items-center space-x-6 flex-grow justify-center">
+            <li>
+              <NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>
+                {homeLinkText}
+              </NavLink>
+            </li>
+
+            {schoolSettings?.sportdashboardAsHomepage ? (
+              <li><NavLink to="/advalvas" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Ad Valvas</NavLink></li>
+            ) : (
+              <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
+            )}
+
+            <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
+            <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
+
+            {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
+              <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
+            )}
+
+            {isTeacherOrAdmin && (
+              <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
+            )}
+
+            {isTeacherOrAdmin && (
+              <>
+                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+                <li>
+                  <NavLink
+                    to="/sporttesten"
+                    className={() => location.pathname.startsWith('/sporttesten') || location.pathname.startsWith('/testbeheer') ? activeLinkStyle : inactiveLinkStyle}
+                  >
+                    Sporttesten
+                  </NavLink>
+                </li>
+              </>
+            )}
+
+            {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
+              <li><NavLink to="/instellingen" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Instellingen</NavLink></li>
+            )}
+          </ul>
+
+          {/* MIDDEN (Mobiel): Paginatitel + Rewards */}
+          <div className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
+            <h1 className="text-lg font-semibold text-gray-800 whitespace-nowrap">{currentTitle}</h1>
+            <MobileClickableRewardsDisplay profile={simulatedProfile} activeRole={activeRole} />
+          </div>
+
+          {/* RECHTS: Rewards + Profielmenu */}
+          <div className="flex items-center justify-end flex-shrink-0 relative z-20">
+            <ClickableRewardsDisplay profile={simulatedProfile} activeRole={activeRole} />
+            <div ref={menuButtonRef}>
+              <button
+                onClick={toggleMenu}
+                className="p-2 text-purple-700 bg-transparent hover:text-purple-900 transition-colors"
+                aria-label="User menu"
+              >
+                <UserCircleIcon className="h-8 w-8" />
+              </button>
+            </div>
+          </div>
+
+          {/* Mobiel Menu */}
+          <ul
+            className={`mobile-menu bg-white text-black md:hidden absolute top-full left-0 right-0 border border-gray-200 rounded-b-md py-4 px-6 flex flex-col space-y-3 transition-transform duration-300 ease-in-out
+              ${mobileMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-10 opacity-0 pointer-events-none'}`}
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <li><NavLink to="/" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{homeLinkText}</NavLink></li>
+
+            {schoolSettings?.sportdashboardAsHomepage ? (
+              <li><NavLink to="/advalvas" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Ad Valvas</NavLink></li>
+            ) : (
+              <li><NavLink to="/highscores" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Highscores</NavLink></li>
+            )}
+
+            <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
+            <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
+
+            {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
+              <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
+            )}
+
+            {isTeacherOrAdmin && (
+              <>
+                <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
+                <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
+                <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Sporttesten</NavLink></li>
+              </>
+            )}
+
+            {(activeRole === 'administrator' || activeRole === 'super-administrator') && (
+              <li><NavLink to="/instellingen" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Instellingen</NavLink></li>
+            )}
+          </ul>
+        </nav>
+      </header>
+
+      {/* Portal voor profielmenu */}
+      {menuOpen && createPortal(
+        <div
+          style={{ position: 'absolute', top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
+          className="z-50"
+        >
+          <ProfileMenu
+            profile={profile}
+            school={school}
+            activeRole={activeRole}
+            setActiveRole={setActiveRole}
+            impersonatedStudent={impersonatedStudent}
+            setImpersonatedStudent={setImpersonatedStudent}
+            setSelectedStudent={setSelectedStudent}
+            onClose={() => setMenuOpen(false)}
+          />
+        </div>,
+        document.getElementById('portal-root')
+      )}
+
+      <main className="relative z-10 container mx-auto px-4 py-8">
+        <Outlet context={{ profile: simulatedProfile, school, selectedStudent, setSelectedStudent }} />
+      </main>
+    </div>
+  );
 }
