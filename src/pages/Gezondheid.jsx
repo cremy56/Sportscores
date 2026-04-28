@@ -3,7 +3,7 @@ import { Link, useOutletContext, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+//import { getFunctions, httpsCallable } from 'firebase/functions';
 
 
 // Helper om de datum van vandaag in JJJJ-MM-DD formaat te krijgen
