@@ -16,7 +16,8 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
 
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator';
 
-    // ✅ FIX: smartschool_id_hash als identifier 
+
+    // ✅ FIX: smartschool_id_hash als identifier
     const studentIdentifier = student?.smartschool_id_hash || student?.id;
 
     if (!studentIdentifier) {
