@@ -23,13 +23,14 @@ async function apiPost(action, body, token) {
 
 export default function SchemaDetail() {
     console.log('=== SCHEMA DETAIL MOUNT ===', window.location);
-    const location = useLocation();
-    console.log('location.state:', location.state);
+    
+    
     const { profile } = useOutletContext();
      // Gebruik useRef om bij te houden of we al aan het fetchen zijn
     const isFetchingRef = useRef(false);
     const hasInitializedRef = useRef(false);
    const location = useLocation();
+   console.log('location.state:', location.state);
 const schemaData = location.state;
     
     // ALLE HOOKS EERST - ALTIJD IN DEZELFDE VOLGORDE
