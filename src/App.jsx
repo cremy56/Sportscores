@@ -219,6 +219,7 @@ function App() {
                 <Route path="/highscores" element={<Highscores />} />
                 <Route path="/evolutie" element={<Evolutie />} />
                 <Route path="/groeiplan" element={<Groeiplan />} />
+                <Route path="/groeiplan/schema" element={<SchemaDetail />} />
                 <Route path="/rewards" element={<Rewards />} />
                 <Route path="/groepsbeheer" element={<Groepsbeheer />} />
                 <Route path="/groep/:groepId" element={<GroupDetail />} />
