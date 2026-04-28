@@ -58,13 +58,10 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
     };
 
     const handleContinueSchema = () => {
-        sessionStorage.setItem('currentSchema', JSON.stringify({
-            userId: studentIdentifier,            // ✅ smartschool_id_hash
-            schemaTemplateId: schema.id,
-            timestamp: Date.now()
-        }));
-        navigate('/groeiplan/schema');
-    };
+    navigate('/groeiplan/schema', {
+        state: { userId: studentIdentifier, schemaTemplateId: schema.id }
+    });
+};
 
     const theme = {
         border: isImproved ? 'border-orange-300' : (isVerplicht ? 'border-red-300' : 'border-blue-200'),

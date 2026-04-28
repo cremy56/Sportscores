@@ -6,6 +6,7 @@ import { useOutletContext } from 'react-router-dom';
 import { ArrowLeftIcon, PlayIcon, CheckCircleIcon, ClockIcon, CameraIcon, StarIcon, TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid';
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { useOutletContext, useLocation } from 'react-router-dom';
 
 
 // ─── API helper ───────────────────────────────────────────────────────────────
@@ -26,19 +27,8 @@ export default function SchemaDetail() {
      // Gebruik useRef om bij te houden of we al aan het fetchen zijn
     const isFetchingRef = useRef(false);
     const hasInitializedRef = useRef(false);
-    const getSchemaFromStorage = () => {
-        const stored = sessionStorage.getItem('currentSchema');
-        if (!stored) return null;
-        
-        const parsed = JSON.parse(stored);
-        if (Date.now() - parsed.timestamp > 30 * 60 * 1000) {
-            sessionStorage.removeItem('currentSchema');
-            return null;
-        }
-        return parsed;
-    };
-
-    const schemaData = getSchemaFromStorage(); // Gewoon direct aanroepen
+   const location = useLocation();
+const schemaData = location.state;
     
     // ALLE HOOKS EERST - ALTIJD IN DEZELFDE VOLGORDE
     const [actiefSchema, setActiefSchema] = useState(null);
@@ -50,59 +40,7 @@ export default function SchemaDetail() {
     const isCurrentUser = profile?.id === leerlingProfiel?.id ||
     (profile?.toegestane_gebruikers_id && profile.toegestane_gebruikers_id === leerlingProfiel?.toegestane_gebruikers_id);
 
-  useEffect(() => {
-    // Voorkom multiple fetches
-        if (isFetchingRef.current || hasInitializedRef.current) {
-            return;
-        }
-    const fetchData = async () => {
-            console.log("=== FETCHDATA START (ONCE) ===");
-            
-            if (!profile || !schemaData) {
-                console.log("Missing profile or schemaData - stopping");
-                setLoading(false);
-                return;
-            }
-
-            isFetchingRef.current = true;
-            setLoading(true);
-            
-            try {
-            const { userId, schemaTemplateId } = schemaData;
-
-                // ✅ Via API — geen directe Firestore
-                const result = await apiPost('get_schema_detail', {
-                    schoolId: profile.school_id,
-                    leerlingId: userId,
-                    schemaTemplateId,
-                }, profile._token);
-
-                if (result.leerlingProfiel) setLeerlingProfiel(result.leerlingProfiel);
-                if (result.schemaDetails) setSchemaDetails({ id: schemaTemplateId, ...result.schemaDetails });
-                if (result.actiefSchema) setActiefSchema(result.actiefSchema);
-
-            hasInitializedRef.current = true;
-                console.log("=== FETCHDATA SUCCESS (ONCE) ===");
-            
-        } catch (error) {
-            
-            console.error("Fout bij ophalen schema data:", error);
-            toast.error("Kon de schema gegevens niet laden.");
-        } finally {
-            setLoading(false); // DIT ONTBRAK - altijd loading op false zetten
-            isFetchingRef.current = false;
-        }
-    };
-
-    fetchData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-    useEffect(() => {
-        return () => {
-            // Cleanup sessionStorage when component unmounts
-            sessionStorage.removeItem('currentSchema');
-        };
-    }, []);
+  
 
     // ALLE FUNCTIE DEFINITIES
 const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
