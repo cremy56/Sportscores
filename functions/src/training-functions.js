@@ -76,7 +76,7 @@ async function awardTrainingXP(leerlingHash, validatedWeeks, schemaId) {
     });
     // --- EINDE CORRECTIE ---
     
-    console.log(`Successfully awarded ${totalXP} XP to ${userData.naam} for training.`);
+    
     await logXPTransaction({ user_id: userDoc.id, amount: totalXP, reason: 'training_validation', source_id: schemaId });
     await updateClassChallengeProgressInternal(userDoc.id, totalXP, 'xp');
     

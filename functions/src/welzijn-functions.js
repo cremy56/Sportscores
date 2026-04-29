@@ -235,7 +235,6 @@ async function awardWeeklyBonus(userDoc, bonusXP, reason) {
       reason
     });
 
-    console.log(`Awarded ${bonusXP} XP (${reason}) to ${userDoc.id}`);
   } catch (error) {
     console.error('Error in awardWeeklyBonus:', error);
   }

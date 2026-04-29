@@ -90,7 +90,7 @@ async function handleUpdateTeacherKlassen(req, res, decodedToken) {
                 klassen: klassen,
                 last_updated: new Date()
             });
-            console.log(`✅ users collectie bijgewerkt voor leerkracht ${userId.substring(0, 16)}...`);
+            
         } else {
             // Leerkracht heeft nog niet ingelogd → alleen toegestane_gebruikers updaten
             // Bij eerste login wordt users automatisch aangemaakt via checkAndCreateUser
@@ -107,7 +107,7 @@ async function handleUpdateTeacherKlassen(req, res, decodedToken) {
             timestamp: new Date()
         });
  
-        console.log(`✅ Klassen bijgewerkt voor leerkracht: ${klassen.join(', ')}`);
+       
  
         return res.status(200).json({
             success: true,
@@ -352,8 +352,7 @@ async function handleCreateUser(req, res, decodedToken) {
 
         const docId = generateHash(formData.smartschool_user_id.trim());
         const encryptedName = encryptName(formData.naam.trim(), masterKey);
-         console.log(`🔐 [${decodedToken.email || decodedToken.uid}] Creating user: ${currentUserRole} - ${docId.substring(0, 16)}...`);
-
+        
         const whitelistData = {
             smartschool_id_hash: docId,
             encrypted_name: encryptedName,
@@ -469,9 +468,9 @@ async function handleUpdateUser(req, res, decodedToken) {
 
         if (!usersQuery.empty) {
             await usersQuery.docs[0].ref.update(updateData);
-            console.log(`✅ [${decodedToken.email || decodedToken.uid}] User ${userId.substring(0, 16)}... bijgewerkt in beide collecties`);
+            
         } else {
-            console.log(`ℹ️ Geen users doc voor ${userId.substring(0, 16)}... (nog niet ingelogd) - alleen toegestane_gebruikers bijgewerkt`);
+        
         }
 
         // === 7. AUDIT LOG ===
@@ -531,8 +530,7 @@ async function handleDeleteUser(req, res, decodedToken) {
 
         // === 4. VERWIJDER UIT TOEGESTANE_GEBRUIKERS ===
         await userRef.delete();
-        console.log(`🗑️ [${decodedToken.email || decodedToken.uid}] Gebruiker ${userId.substring(0, 16)}... verwijderd uit toegestane_gebruikers`);
-
+        
         // === 5. VERWIJDER UIT USERS COLLECTIE (als leerling al ingelogd heeft) ===
         // ✅ FIX: Zoek via smartschool_id_hash, niet via userId als doc ID
         //         (users collectie gebruikt Firebase UID als doc ID, niet de hash!)
@@ -543,9 +541,9 @@ async function handleDeleteUser(req, res, decodedToken) {
 
         if (!usersQuery.empty) {
             await usersQuery.docs[0].ref.delete();
-            console.log(`✅ User profiel (Firebase UID: ${usersQuery.docs[0].id}) ook verwijderd uit users collectie`);
+            
         } else {
-            console.log(`ℹ️ Geen users doc gevonden voor ${userId.substring(0, 16)}... (nog niet ingelogd)`);
+            
         }
 
         // === 6. AUDIT LOG ===
@@ -605,7 +603,7 @@ async function handleBulkCreate(req, res, decodedToken) {
                 }
         
                 // === 5. DATA VERWERKEN ===
-                console.log(`[${decodedToken.email || decodedToken.uid}] Starting bulk import for ${targetSchoolId}...`);
+              
                 
                 let successCount = 0;
                 const errors = [];
@@ -684,13 +682,13 @@ async function handleBulkCreate(req, res, decodedToken) {
                     batches.push(currentBatch);
                 }
                 
-                console.log(`📦 Committing ${batches.length} batch(es)...`);
+                
                 for (let i = 0; i < batches.length; i++) {
                     await batches[i].commit();
-                    console.log(`✅ Batch ${i + 1}/${batches.length} committed`);
+                   
                 }
         
-                console.log(`✅ Import complete: ${successCount} success, ${errors.length} errors`);
+                
         
                 // === 6. AUDIT LOG ===
                 await db.collection('audit_logs').add({
@@ -777,7 +775,7 @@ async function handleBulkCreate(req, res, decodedToken) {
                 }
 
                 await deactivatieBatch.commit();
-                console.log(`✅ Sync: ${gedeactiveerd} gedeactiveerd, ${teruggeactiveerd} teruggeactiveerd`);
+                
 
             } catch (syncError) {
                 // Sync fout mag import niet blokkeren

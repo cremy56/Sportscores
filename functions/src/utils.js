@@ -16,7 +16,7 @@ async function logXPTransaction(transactionData) {
       created_at: FieldValue.serverTimestamp()
     });
     
-    console.log(`XP transaction logged for user ${userId}: +${transactionData.amount} (${transactionData.reason})`);
+   
   } catch (error) {
     console.error('Error logging XP transaction:', error);
   }
@@ -113,7 +113,7 @@ async function updateClassChallengeProgressInternal( userId, xpEarned, action) {
       
       if (Object.keys(updates).length > 0) {
         await challengeRef.update(updates);
-        console.log(`Updated class challenge progress for group ${groupId}`);
+        
       }
     }
   } catch (error) {
@@ -172,7 +172,7 @@ async function checkStreakMilestonesInternal(userId) {
           awarded_at: FieldValue.serverTimestamp()
         });
         
-        console.log(`Awarded ${xpAmount} XP for ${milestone.days} day streak to ${userData.naam || userId}`);
+        
       }
     }
   } catch (error) {

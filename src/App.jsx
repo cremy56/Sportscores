@@ -60,7 +60,7 @@ function App() {
   // Auth state listener
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      console.log('Auth state changed:', currentUser ? 'Logged in' : 'Logged out');
+      
       setUser(currentUser);
       setAuthLoading(false);
       
@@ -109,7 +109,7 @@ function App() {
           throw new Error(result.error || 'Kon profiel niet valideren');
         }
 
-        console.log("Profiel check succesvol:", result.status);
+       
 
         // 3. Start Firestore listener met token
         const setupListenerWithToken = () => {

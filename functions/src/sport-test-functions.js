@@ -117,11 +117,11 @@ async function checkPersonalRecord(studentHash, testId, newScore, testData) {
       .where('score', '!=', null);
     
     const historicalScores = await historicalScoresRef.get();
-    console.log('Historical scores found:', historicalScores.size);
+    
     
     // Rest of function remains the same...
     if (historicalScores.empty) {
-      console.log(`First score for user ${userId} on test ${testId} - automatic PR`);
+      
       return { isPersonalRecord: true, previousBest: null, improvement: null };
     }
     
@@ -133,15 +133,15 @@ async function checkPersonalRecord(studentHash, testId, newScore, testData) {
       }
     });
     
-    console.log('Previous scores:', previousScores);
+    
     
     if (previousScores.length === 0) {
-      console.log('No previous different scores found - this is a PR');
+      
       return { isPersonalRecord: true, previousBest: null, improvement: null };
     }
     
     const scoreRichting = testData.score_richting || 'hoog';
-    console.log('Score richting:', scoreRichting);
+    
     
     let previousBest;
     if (scoreRichting === 'hoog') {
@@ -149,14 +149,14 @@ async function checkPersonalRecord(studentHash, testId, newScore, testData) {
       const isPersonalRecord = newScore > previousBest;
       const improvement = isPersonalRecord ? newScore - previousBest : null;
       
-      console.log(`Higher is better: new=${newScore}, previous best=${previousBest}, is PR=${isPersonalRecord}`);
+      
       return { isPersonalRecord, previousBest, improvement };
     } else {
       previousBest = Math.min(...previousScores);
       const isPersonalRecord = newScore < previousBest;
       const improvement = isPersonalRecord ? previousBest - newScore : null;
       
-      console.log(`Lower is better: new=${newScore}, previous best=${previousBest}, is PR=${isPersonalRecord}`);
+      
       return { isPersonalRecord, previousBest, improvement };
     }
     

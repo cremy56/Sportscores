@@ -92,7 +92,7 @@ export default async function handler(req, res) {
         }
 
         // ── Profiel check / aanmaken (default flow) ───────────────────────────
-        console.log('=== START checkAndCreateUser ===');
+      
 
         const profileRef = db.collection('users').doc(firebaseUid);
         const docSnap = await profileRef.get();
@@ -100,7 +100,7 @@ export default async function handler(req, res) {
         if (docSnap.exists) {
             // ✅ Update last_login bij elke login
             await profileRef.update({ last_login: new Date() });
-            console.log('✅ Profile already exists — last_login updated');
+           
             return res.status(200).json({
                 success: true,
                 status: 'profile_exists',
@@ -108,7 +108,7 @@ export default async function handler(req, res) {
             });
         }
 
-        console.log('Profile does not exist, will create...');
+      
 
         // === Smartschool User ID ophalen ===
         let smartschoolUserId = firebaseUid;
@@ -181,8 +181,6 @@ export default async function handler(req, res) {
 
         await profileRef.set(initialProfileData);
 
-        console.log('✅ Profile created — nickname:', nickname);
-        console.log('=== END checkAndCreateUser (SUCCESS) ===');
 
         return res.status(201).json({
             success: true,

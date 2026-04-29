@@ -128,10 +128,7 @@ const effectiveUserId = auth.currentUser?.uid;
     if (segment === 'Slaap') {
   setTempSlaapUren(String(dagelijkseData.slaap_uren || ''));
   setTempKwaliteit(Number(dagelijkseData.slaap_kwaliteit) || 0); // Zorg dat dit een nummer is
-
-    uren: dagelijkseData.slaap_uren, 
-    kwaliteit: dagelijkseData.slaap_kwaliteit 
-  });
+  
   setShowSlaapModal(true);
 }
   };
@@ -152,14 +149,18 @@ const effectiveUserId = auth.currentUser?.uid;
       return;
     }
     // DEBUG INFO
- 
+  console.log('=== SAVE DEBUG ===');
+  console.log('EffectiveUserId:', effectiveUserId);
+  console.log('TodayString:', todayString);
+  console.log('Full path:', `welzijn/${effectiveUserId}/dagelijkse_data/${todayString}`);
+  console.log('Data being saved:', data);
     const welzijnDocRef = doc(db, 'welzijn', effectiveUserId);
     const todayDocRef = doc(welzijnDocRef, 'dagelijkse_data', todayString);
 
     try {
       // Gebruik setDoc met merge: true om bestaande velden te behouden en nieuwe toe te voegen/updaten
       await setDoc(todayDocRef, data, { merge: true });
-  
+      console.log("Document successfully written/updated!");
     } catch (e) {
       console.error("Error writing document: ", e);
       setError("Fout bij het opslaan van gegevens.");

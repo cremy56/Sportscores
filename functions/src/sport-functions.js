@@ -77,7 +77,7 @@ exports.getSportNews = onRequest({
         const xmlText = await response.text();
         const parsedNews = parseRSSFeed(xmlText, feed.source);
         
-        console.log(`✅ ${feed.name}: ${parsedNews.length} artikelen`);
+        
         return parsedNews;
         
       } catch (error) {

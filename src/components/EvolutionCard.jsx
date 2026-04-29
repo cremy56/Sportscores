@@ -99,11 +99,6 @@ export default function EvolutionCard({ categoryName, tests, student, token }) {
       return null;
     }
 
-    console.log('calculateAge: Successfully calculated age', {
-      age,
-      birthDate: birthDateObj.toISOString(),
-      testDate: testDateObj.toISOString()
-    });
 
     return age;
   }, []);
