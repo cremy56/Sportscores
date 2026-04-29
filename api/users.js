@@ -1,32 +1,8 @@
 // pages/api/users.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { getMasterKey } from '../lib/keyManager.js';
-import CryptoJS from 'crypto-js';
 
-// --- HELPER FUNCTIES (Vanuit alle bestanden) ---
-
-// Van getUsers.js
-const decryptName = (encryptedName, masterKey) => {
-    try {
-        if (!encryptedName) return '[Geen naam]';
-        const decrypted = CryptoJS.AES.decrypt(encryptedName, masterKey);
-        const result = decrypted.toString(CryptoJS.enc.Utf8);
-        return result || '[Decryptie fout]';
-    } catch (error) {
-        console.error('Decryptie fout:', error);
-        return '[Naam niet beschikbaar]';
-    }
-};
-
-// Van createUser.js / bulkCreateUsers.js
-const generateHash = (smartschoolUserId) => {
-    return CryptoJS.SHA256(smartschoolUserId).toString();
-};
-
-const encryptName = (name, masterKey) => {
-    if (!masterKey) throw new Error('Master key niet beschikbaar op server');
-    return CryptoJS.AES.encrypt(name, masterKey).toString();
-};
+import { decryptName, encryptName, generateHash } from '../lib/apiHelpers.js';
 
 async function handleUpdateTeacherKlassen(req, res, decodedToken) {
     try {
@@ -90,11 +66,6 @@ async function handleUpdateTeacherKlassen(req, res, decodedToken) {
                 klassen: klassen,
                 last_updated: new Date()
             });
-            
-        } else {
-            // Leerkracht heeft nog niet ingelogd → alleen toegestane_gebruikers updaten
-            // Bij eerste login wordt users automatisch aangemaakt via checkAndCreateUser
-            console.warn(`⚠️ Geen users doc gevonden voor leerkracht ${userId.substring(0, 16)}... - nog niet ingelogd`);
         }
  
         // === 6. AUDIT LOG ===
@@ -394,11 +365,6 @@ async function handleCreateUser(req, res, decodedToken) {
     }
 }
 
-// =============================================
-// GECORRIGEERDE FUNCTIES VOOR users.js
-// Vervang de volledige handleUpdateUser en handleDeleteUser
-// =============================================
-
 // --- LOGICA 4: Update User ---
 async function handleUpdateUser(req, res, decodedToken) {
     try {
@@ -468,9 +434,6 @@ async function handleUpdateUser(req, res, decodedToken) {
 
         if (!usersQuery.empty) {
             await usersQuery.docs[0].ref.update(updateData);
-            
-        } else {
-        
         }
 
         // === 7. AUDIT LOG ===
@@ -541,9 +504,6 @@ async function handleDeleteUser(req, res, decodedToken) {
 
         if (!usersQuery.empty) {
             await usersQuery.docs[0].ref.delete();
-            
-        } else {
-            
         }
 
         // === 6. AUDIT LOG ===
@@ -596,20 +556,17 @@ async function handleBulkCreate(req, res, decodedToken) {
         }
 
         // === 4. HAAL SLEUTEL OP ===
-                const masterKey = await getMasterKey();
-                
-                if (!masterKey) {
-                    return res.status(500).json({ error: 'Server configuratie fout (key)' });
-                }
-        
-                // === 5. DATA VERWERKEN ===
-              
-                
-                let successCount = 0;
-                const errors = [];
-                const batches = [];
-                let currentBatch = db.batch();
-                let operationsInBatch = 0;
+        const masterKey = await getMasterKey();
+        if (!masterKey) {
+            return res.status(500).json({ error: 'Server configuratie fout (key)' });
+        }
+
+        // === 5. DATA VERWERKEN ===
+        let successCount = 0;
+        const errors = [];
+        const batches = [];
+        let currentBatch = db.batch();
+        let operationsInBatch = 0;
         
                 for (let i = 0; i < csvData.length; i++) {
                     const row = csvData[i];
