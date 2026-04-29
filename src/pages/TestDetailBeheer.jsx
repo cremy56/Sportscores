@@ -1,21 +1,30 @@
 // src/pages/TestDetailBeheer.jsx
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { db } from '../firebase';
-import { doc, getDoc, onSnapshot, updateDoc, setDoc, arrayUnion, arrayRemove, query, where, collection } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useOutletContext } from 'react-router-dom';
 import { ArrowLeftIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowUpTrayIcon, ChevronDownIcon, EllipsisVerticalIcon } from '@heroicons/react/24/solid';
 import Papa from 'papaparse';
 import TestFormModal from '../components/TestFormModal';
-import ConfirmModal from '../components/ConfirmModal'; 
-import { formatScoreWithUnit } from '../utils/formatters'; // <-- IMPORT THE FORMATTER
+import ConfirmModal from '../components/ConfirmModal';
+import { formatScoreWithUnit } from '../utils/formatters';
+
+async function apiPost(action, body, token) {
+    const response = await fetch('/api/tests', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...body })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'API fout');
+    return data;
+}
 
 export default function TestDetailBeheer() {
     const { testId } = useParams();
     const { profile } = useOutletContext();
     const [test, setTest] = useState(null);
-    const [normDocument, setNormDocument] = useState(null); 
+    const [normDocument, setNormDocument] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedLeeftijd, setSelectedLeeftijd] = useState('all');
     const [selectedGeslacht, setSelectedGeslacht] = useState('all');
@@ -29,63 +38,48 @@ export default function TestDetailBeheer() {
     const [itemsToDelete, setItemsToDelete] = useState(null);
     const [showMobileMenu, setShowMobileMenu] = useState({});
 
-     useEffect(() => {
-        console.log("PROFIEL ontvangen in TestDetailBeheer:", profile);
-    }, [profile]);
-
-    // VEILIGERE CHECK: Controleer of 'profile' en 'profile.role' bestaan voordat we de waarde vergelijken.
-   const isAdmin = ['administrator', 'super-administrator'].includes(profile?.rol?.toLowerCase());
-
-    // --- EINDE VAN DE AANPASSING ---
-
-    // Aantal items om te tonen in preview
+    const isAdmin = ['administrator', 'super-administrator'].includes(profile?.rol?.toLowerCase());
     const PREVIEW_COUNT = 5;
 
     const getNormIdentifier = (norm) => `${norm.leeftijd}-${norm.geslacht}-${norm.punt}-${norm.score_min}`;
 
     const fetchData = useCallback(async () => {
-        const testRef = doc(db, 'testen', testId);
-        const testSnap = await getDoc(testRef);
-        if (testSnap.exists()) {
-            setTest({ id: testSnap.id, ...testSnap.data() });
-        } else { toast.error("Kon testdetails niet laden."); }
-    }, [testId]);
+        if (!profile?._token || !testId) return;
+        try {
+            const [testenResult, normenResult] = await Promise.all([
+                apiPost('get_tests', { schoolId: profile.school_id }, profile._token),
+                apiPost('get_normen', { schoolId: profile.school_id, testId }, profile._token),
+            ]);
+
+            const gevondenTest = testenResult.testen?.find(t => t.id === testId);
+            if (gevondenTest) {
+                setTest(gevondenTest);
+            } else {
+                toast.error('Kon testdetails niet laden.');
+            }
+
+            if (normenResult.normen) {
+                const sorted = (normenResult.normen.punten_schaal || []).sort((a, b) => {
+                    if (a.leeftijd !== b.leeftijd) return a.leeftijd - b.leeftijd;
+                    if (a.geslacht !== b.geslacht) return a.geslacht.localeCompare(b.geslacht);
+                    return a.punt - b.punt;
+                });
+                setNormDocument({ ...normenResult.normen, punten_schaal: sorted });
+            } else {
+                setNormDocument({ id: testId, punten_schaal: [], score_richting: 'hoog', school_id: profile.school_id });
+            }
+        } catch (error) {
+            console.error('Fout bij laden testdetails:', error);
+            toast.error('Kon testdetails niet laden.');
+        } finally {
+            setLoading(false);
+        }
+    }, [testId, profile?._token, profile?.school_id]);
 
     useEffect(() => {
-    fetchData();
+        fetchData();
+    }, [fetchData]);
 
-    // Maak een query die zoekt naar het document waar het VELD 'test_id' correct is.
-    const normenQuery = query(
-        collection(db, 'normen'),
-        where('test_id', '==', testId)
-    );
-
-    const unsubscribe = onSnapshot(normenQuery, (querySnapshot) => {
-        // We kijken nu of de *resultaten* van de query leeg zijn
-        if (!querySnapshot.empty) {
-            // Pak het eerste (en enige) document uit de resultaten
-            const docSnap = querySnapshot.docs[0];
-            const data = docSnap.data();
-            const sortedPuntenSchaal = (data.punten_schaal || []).sort((a, b) => {
-                if (a.leeftijd !== b.leeftijd) return a.leeftijd - b.leeftijd;
-                if (a.geslacht !== b.geslacht) return a.geslacht.localeCompare(b.geslacht);
-                return a.punt - b.punt;
-            });
-            setNormDocument({ id: docSnap.id, ...data, punten_schaal: sortedPuntenSchaal });
-        } else {
-            // Geen document gevonden, stel een leeg document in
-            setNormDocument({ id: testId, punten_schaal: [], score_richting: 'hoog', school_id: profile.school_id });
-        }
-        setLoading(false);
-    }, (error) => {
-        console.error("Fout bij ophalen normen:", error);
-        toast.error("Kon normen niet laden.");
-        setLoading(false);
-    });
-    
-    return () => unsubscribe();
-}, [testId, fetchData, profile.school_id]);
-    
     const puntenSchaal = useMemo(() => normDocument?.punten_schaal || [], [normDocument]);
     const uniekeLeeftijden = useMemo(() => [...new Set(puntenSchaal.map(n => n.leeftijd))].sort((a, b) => a - b), [puntenSchaal]);
     const uniekeGeslachten = useMemo(() => [...new Set(puntenSchaal.map(n => n.geslacht))], [puntenSchaal]);
@@ -144,67 +138,79 @@ export default function TestDetailBeheer() {
 
     const handleSaveNewNorm = async () => {
         if (!newNorm.leeftijd || !newNorm.score_min || !newNorm.punt) {
-            toast.error("Vul alle velden in.");
+            toast.error('Vul alle velden in.');
             return;
         }
         try {
-            const normDocRef = doc(db, 'normen', testId);
-            await updateDoc(normDocRef, {
-                punten_schaal: arrayUnion({
+            await apiPost('save_norm', {
+                schoolId: profile.school_id,
+                testId,
+                norm: {
                     leeftijd: Number(newNorm.leeftijd),
                     geslacht: newNorm.geslacht,
                     score_min: Number(newNorm.score_min),
                     punt: Number(newNorm.punt)
-                })
-            });
+                }
+            }, profile._token);
             setNewNorm({ leeftijd: '', geslacht: 'M', score_min: '', punt: '' });
             setIsAdding(false);
-            toast.success("Norm toegevoegd!");
+            toast.success('Norm toegevoegd!');
+            fetchData();
         } catch (error) {
-            toast.error("Kon norm niet toevoegen.");
+            toast.error('Kon norm niet toevoegen.');
         }
     };
 
     const handleUpdateNorm = async () => {
         if (!editingNorm.current.leeftijd || !editingNorm.current.score_min || !editingNorm.current.punt) {
-            toast.error("Vul alle velden in.");
+            toast.error('Vul alle velden in.');
             return;
         }
         try {
-            const normDocRef = doc(db, 'normen', testId);
-            await updateDoc(normDocRef, { punten_schaal: arrayRemove(editingNorm.original) });
-            await updateDoc(normDocRef, {
-                punten_schaal: arrayUnion({
+            await apiPost('update_norm', {
+                schoolId: profile.school_id,
+                testId,
+                originalNorm: editingNorm.original,
+                updatedNorm: {
                     leeftijd: Number(editingNorm.current.leeftijd),
                     geslacht: editingNorm.current.geslacht,
                     score_min: Number(editingNorm.current.score_min),
                     punt: Number(editingNorm.current.punt)
-                })
-            });
+                }
+            }, profile._token);
             setEditingNorm(null);
-            toast.success("Norm bijgewerkt!");
+            toast.success('Norm bijgewerkt!');
+            fetchData();
         } catch (error) {
-            toast.error("Kon norm niet bijwerken.");
+            toast.error('Kon norm niet bijwerken.');
         }
     };
 
     const executeDelete = async () => {
         try {
-            const normDocRef = doc(db, 'normen', testId);
             if (Array.isArray(itemsToDelete)) {
-                const normsToDelete = itemsToDelete.map(id => gefilterdeNormen.find(norm => getNormIdentifier(norm) === id)).filter(Boolean);
-                for (const norm of normsToDelete) {
-                    await updateDoc(normDocRef, { punten_schaal: arrayRemove(norm) });
-                }
+                const normsToDelete = itemsToDelete
+                    .map(id => gefilterdeNormen.find(norm => getNormIdentifier(norm) === id))
+                    .filter(Boolean);
+                await apiPost('delete_normen', {
+                    schoolId: profile.school_id,
+                    testId,
+                    normen: normsToDelete
+                }, profile._token);
                 setSelectedNorms([]);
                 toast.success(`${normsToDelete.length} norm(en) verwijderd!`);
             } else {
-                await updateDoc(normDocRef, { punten_schaal: arrayRemove(itemsToDelete) });
-                toast.success("Norm verwijderd!");
+                await apiPost('delete_normen', {
+                    schoolId: profile.school_id,
+                    testId,
+                    normen: [itemsToDelete]
+                }, profile._token);
+                toast.success('Norm verwijderd!');
             }
             setItemsToDelete(null);
+            fetchData();
         } catch (error) {
-            toast.error("Kon norm(en) niet verwijderen.");
+            toast.error('Kon norm(en) niet verwijderen.');
         }
     };
 
@@ -232,17 +238,26 @@ export default function TestDetailBeheer() {
                             score_min: Number(row.score_min),
                             punt: Number(row.punt)
                         })).filter(norm => !isNaN(norm.leeftijd) && !isNaN(norm.score_min) && !isNaN(norm.punt) && ['M', 'V'].includes(norm.geslacht));
-                        if (normen.length === 0) return reject(new Error("Geen geldige rijen gevonden."));
-                        const normDocRef = doc(db, 'normen', testId);
+
+                        if (normen.length === 0) return reject(new Error('Geen geldige rijen gevonden.'));
+
                         const bestaandeIdentifiers = new Set(puntenSchaal.map(getNormIdentifier));
                         const uniekeNieuweNormen = normen.filter(norm => !bestaandeIdentifiers.has(getNormIdentifier(norm)));
+
                         if (uniekeNieuweNormen.length === 0) {
-                            resolve("Alle normen in het bestand bestonden al.");
+                            resolve('Alle normen in het bestand bestonden al.');
                             return;
                         }
-                        const samengevoegdeSchaal = [...puntenSchaal, ...uniekeNieuweNormen];
-                        await setDoc(normDocRef, { punten_schaal: samengevoegdeSchaal, test_id: testId, school_id: profile.school_id }, { merge: true });
+
+                        await apiPost('import_normen', {
+                            schoolId: profile.school_id,
+                            testId,
+                            normen: uniekeNieuweNormen,
+                            bestaandeNormen: puntenSchaal
+                        }, profile._token);
+
                         resolve(`${uniekeNieuweNormen.length} nieuwe normen geïmporteerd!`);
+                        fetchData();
                     } catch (error) {
                         reject(error);
                     }
@@ -250,12 +265,12 @@ export default function TestDetailBeheer() {
                 toast.promise(uploadPromise, {
                     loading: 'Normen importeren...',
                     success: (message) => message,
-                    error: (err) => `Fout: ${err.message || "Onbekende fout."}`
+                    error: (err) => `Fout: ${err.message || 'Onbekende fout.'}`
                 });
             },
-            error: (parseError) => {
+            error: () => {
                 toast.dismiss(loadingToast);
-                toast.error("Kon het CSV-bestand niet lezen.");
+                toast.error('Kon het CSV-bestand niet lezen.');
             }
         });
         event.target.value = '';
@@ -276,20 +291,19 @@ export default function TestDetailBeheer() {
     const toggleMobileMenu = (normId) => {
         setShowMobileMenu(prev => ({ ...prev, [normId]: !prev[normId] }));
     };
-const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
 
-   if (loading || !test) {
+    const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
+
+    if (loading || !test) {
         return (
             <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
                 <div className="bg-white p-8 rounded-2xl shadow-sm max-w-md mx-auto text-center">
                     {loading ? (
-                        // Toon de spinner zolang 'loading' true is
                         <div className="flex items-center space-x-4">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
                             <span className="text-gray-700 font-medium">Testdetails laden...</span>
                         </div>
                     ) : (
-                        // Toon dit enkel als het laden klaar is én er geen test is
                         <div>
                             <h3 className="text-xl font-bold text-gray-800 mb-2">Test niet gevonden</h3>
                             <p className="text-gray-600 mb-4">De opgevraagde test bestaat niet of u heeft geen toegang.</p>
@@ -304,60 +318,57 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
         );
     }
 
-    
-    
     return (
         <>
             <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
             <TestFormModal isOpen={isTestModalOpen} onClose={() => setIsTestModalOpen(false)} onTestSaved={fetchData} testData={test} schoolId={profile?.school_id} />
-            
+
             <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
                 <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
-                    
-                    {/* --- MOBILE HEADER: Zichtbaar op kleine scharmen, verborgen op lg en groter --- */}
+
+                    {/* MOBILE HEADER */}
                     <div className="lg:hidden mb-8">
                         <div className="flex justify-between items-center">
                             <div className="flex-1 min-w-0">
-                               <Link to="/sporttesten" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
+                                <Link to="/sporttesten" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-2 group">
                                     <ArrowLeftIcon className="h-4 w-4 mr-1 transition-transform group-hover:-translate-x-1" />
                                     <span className="text-sm">Terug naar Sporttesten</span>
                                 </Link>
                                 <h1 className="text-2xl font-bold text-gray-800 truncate">{test?.naam}</h1>
                             </div>
                             {isAdmin && (
-                                <button 
+                                <button
                                     onClick={() => setIsTestModalOpen(true)}
                                     className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg ml-4"
                                     title="Bewerk test"
                                 >
-                                    <PencilIcon className="h-6 w-6"/>
+                                    <PencilIcon className="h-6 w-6" />
                                 </button>
                             )}
                         </div>
                     </div>
 
-                    {/* --- DESKTOP HEADER: Verborgen op kleine schermen, zichtbaar op lg en groter --- */}
+                    {/* DESKTOP HEADER */}
                     <div className="hidden lg:block mb-12">
-                       <Link to="/sporttesten" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
+                        <Link to="/sporttesten" className="inline-flex items-center text-gray-600 hover:text-purple-700 mb-6 group">
                             <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
                             Terug naar Sporttesten
                         </Link>
                         <div className="flex justify-between items-center">
                             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{test?.naam}</h1>
                             {isAdmin && (
-                                <button 
+                                <button
                                     onClick={() => setIsTestModalOpen(true)}
                                     className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105"
                                     title="Bewerk test"
                                 >
-                                    <PencilIcon className="h-6 w-6 mr-2"/>
+                                    <PencilIcon className="h-6 w-6 mr-2" />
                                     <span>Bewerk Test</span>
                                 </button>
                             )}
                         </div>
                     </div>
 
-                    {/* --- CONTENT --- */}
                     <div className="space-y-6">
                         {/* Test info sectie */}
                         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
@@ -371,7 +382,7 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                     <div className="text-lg font-semibold text-slate-900">{test?.eenheid || '-'}</div>
                                 </div>
                             </div>
-                                
+
                             <div className="space-y-6">
                                 {parsedBeschrijving?.doel && (
                                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
@@ -419,7 +430,7 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                     <ChevronDownIcon className={`h-5 w-5 transform transition-transform ${isNormenExpanded ? 'rotate-180' : ''}`} />
                                 </button>
                             </div>
-                            
+
                             {isNormenExpanded && (
                                 <div className="space-y-4 mb-6">
                                     <div className="flex flex-col lg:flex-row gap-4">
@@ -433,7 +444,7 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                                 {uniekeGeslachten.map(geslacht => <option key={geslacht} value={geslacht}>{geslacht === 'M' ? 'Mannelijk' : 'Vrouwelijk'}</option>)}
                                             </select>
                                         </div>
-                                        
+
                                         {isAdmin && (
                                             <div className="flex gap-2">
                                                 <button onClick={() => setIsAdding(true)} className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-medium">Nieuwe norm</button>
@@ -466,51 +477,26 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                 <>
                                     {isAdmin && isAdding && (
                                         <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
-                                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                                                <input
-                                                    type="number"
-                                                    placeholder="Leeftijd"
-                                                    value={newNorm.leeftijd}
-                                                    onChange={(e) => setNewNorm({...newNorm, leeftijd: e.target.value})}
-                                                    className="p-2 border border-slate-300 rounded-lg"
-                                                />
-                                                <select
-                                                    value={newNorm.geslacht}
-                                                    onChange={(e) => setNewNorm({...newNorm, geslacht: e.target.value})}
-                                                    className="p-2 border border-slate-300 rounded-lg"
-                                                >
+                                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                                                <input type="number" placeholder="Leeftijd" value={newNorm.leeftijd} onChange={(e) => setNewNorm({ ...newNorm, leeftijd: e.target.value })} className="p-2 border border-slate-300 rounded-lg" />
+                                                <select value={newNorm.geslacht} onChange={(e) => setNewNorm({ ...newNorm, geslacht: e.target.value })} className="p-2 border border-slate-300 rounded-lg">
                                                     <option value="M">M</option>
                                                     <option value="V">V</option>
                                                 </select>
-                                                <input
-                                                    type="number"
-                                                    step="0.01"
-                                                    placeholder="Min. Score"
-                                                    value={newNorm.score_min}
-                                                    onChange={(e) => setNewNorm({...newNorm, score_min: e.target.value})}
-                                                    className="p-2 border border-slate-300 rounded-lg"
-                                                />
-                                                <input
-                                                    type="number"
-                                                    placeholder="Punt"
-                                                    value={newNorm.punt}
-                                                    onChange={(e) => setNewNorm({...newNorm, punt: e.target.value})}
-                                                    className="p-2 border border-slate-300 rounded-lg"
-                                                />
+                                                <input type="number" step="0.01" placeholder="Min. Score" value={newNorm.score_min} onChange={(e) => setNewNorm({ ...newNorm, score_min: e.target.value })} className="p-2 border border-slate-300 rounded-lg" />
+                                                <input type="number" placeholder="Punt" value={newNorm.punt} onChange={(e) => setNewNorm({ ...newNorm, punt: e.target.value })} className="p-2 border border-slate-300 rounded-lg" />
                                             </div>
                                             <div className="flex gap-2">
                                                 <button onClick={handleSaveNewNorm} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                                                    <CheckIcon className="h-4 w-4 mr-1 inline" />
-                                                    Opslaan
+                                                    <CheckIcon className="h-4 w-4 mr-1 inline" />Opslaan
                                                 </button>
-                                                <button onClick={() => {setIsAdding(false); setNewNorm({ leeftijd: '', geslacht: 'M', score_min: '', punt: '' });}} className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700">
-                                                    <XMarkIcon className="h-4 w-4 mr-1 inline" />
-                                                    Annuleren
+                                                <button onClick={() => { setIsAdding(false); setNewNorm({ leeftijd: '', geslacht: 'M', score_min: '', punt: '' }); }} className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700">
+                                                    <XMarkIcon className="h-4 w-4 mr-1 inline" />Annuleren
                                                 </button>
                                             </div>
                                         </div>
                                     )}
-                                    
+
                                     {/* Desktop table */}
                                     <div className="hidden lg:block overflow-hidden rounded-xl border border-slate-200">
                                         <table className="min-w-full bg-white">
@@ -533,47 +519,15 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                                             {isAdmin && <td className="py-4 px-6"><input type="checkbox" checked={selectedNorms.includes(normId)} onChange={() => handleSelectNorm(normId)} className="rounded" /></td>}
                                                             {isEditingThis ? (
                                                                 <>
-                                                                    <td className="py-4 px-6">
-                                                                        <input
-                                                                            type="number"
-                                                                            value={editingNorm.current.leeftijd}
-                                                                            onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, leeftijd: e.target.value}})}
-                                                                            className="w-20 p-2 border border-slate-300 rounded-lg text-sm"
-                                                                        />
-                                                                    </td>
-                                                                    <td className="py-4 px-6">
-                                                                        <select
-                                                                            value={editingNorm.current.geslacht}
-                                                                            onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, geslacht: e.target.value}})}
-                                                                            className="w-16 p-2 border border-slate-300 rounded-lg text-sm"
-                                                                        >
-                                                                            <option value="M">M</option>
-                                                                            <option value="V">V</option>
-                                                                        </select>
-                                                                    </td>
-                                                                    <td className="py-4 px-6">
-                                                                        <input
-                                                                            type="number"
-                                                                            step="0.01"
-                                                                            value={editingNorm.current.score_min}
-                                                                            onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, score_min: e.target.value}})}
-                                                                            className="w-24 p-2 border border-slate-300 rounded-lg text-sm"
-                                                                        />
-                                                                    </td>
-                                                                    <td className="py-4 px-6">
-                                                                        <input
-                                                                            type="number"
-                                                                            value={editingNorm.current.punt}
-                                                                            onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, punt: e.target.value}})}
-                                                                            className="w-20 p-2 border border-slate-300 rounded-lg text-sm"
-                                                                        />
-                                                                    </td>
+                                                                    <td className="py-4 px-6"><input type="number" value={editingNorm.current.leeftijd} onChange={(e) => setEditingNorm({ ...editingNorm, current: { ...editingNorm.current, leeftijd: e.target.value } })} className="w-20 p-2 border border-slate-300 rounded-lg text-sm" /></td>
+                                                                    <td className="py-4 px-6"><select value={editingNorm.current.geslacht} onChange={(e) => setEditingNorm({ ...editingNorm, current: { ...editingNorm.current, geslacht: e.target.value } })} className="w-16 p-2 border border-slate-300 rounded-lg text-sm"><option value="M">M</option><option value="V">V</option></select></td>
+                                                                    <td className="py-4 px-6"><input type="number" step="0.01" value={editingNorm.current.score_min} onChange={(e) => setEditingNorm({ ...editingNorm, current: { ...editingNorm.current, score_min: e.target.value } })} className="w-24 p-2 border border-slate-300 rounded-lg text-sm" /></td>
+                                                                    <td className="py-4 px-6"><input type="number" value={editingNorm.current.punt} onChange={(e) => setEditingNorm({ ...editingNorm, current: { ...editingNorm.current, punt: e.target.value } })} className="w-20 p-2 border border-slate-300 rounded-lg text-sm" /></td>
                                                                 </>
                                                             ) : (
                                                                 <>
                                                                     <td className="py-4 px-6 font-medium text-slate-900">{norm.leeftijd} jaar</td>
                                                                     <td className="py-4 px-6 text-slate-700">{norm.geslacht}</td>
-                                                                    {/* USE FORMATTER HERE */}
                                                                     <td className="py-4 px-6 font-semibold text-slate-900">{formatScoreWithUnit(norm.score_min, test?.eenheid)}</td>
                                                                     <td className="py-4 px-6 font-semibold text-purple-700">{norm.punt}</td>
                                                                 </>
@@ -582,21 +536,13 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                                                 <td className="py-4 px-6">
                                                                     {isEditingThis ? (
                                                                         <div className="flex gap-2">
-                                                                            <button onClick={handleUpdateNorm} className="p-1 text-green-600 hover:bg-green-100 rounded">
-                                                                                <CheckIcon className="h-4 w-4" />
-                                                                            </button>
-                                                                            <button onClick={() => setEditingNorm(null)} className="p-1 text-red-600 hover:bg-red-100 rounded">
-                                                                                <XMarkIcon className="h-4 w-4" />
-                                                                            </button>
+                                                                            <button onClick={handleUpdateNorm} className="p-1 text-green-600 hover:bg-green-100 rounded"><CheckIcon className="h-4 w-4" /></button>
+                                                                            <button onClick={() => setEditingNorm(null)} className="p-1 text-red-600 hover:bg-red-100 rounded"><XMarkIcon className="h-4 w-4" /></button>
                                                                         </div>
                                                                     ) : (
                                                                         <div className="flex gap-2">
-                                                                            <button onClick={() => setEditingNorm({original: norm, current: {...norm}})} className="p-1 text-blue-600 hover:bg-blue-100 rounded">
-                                                                                <PencilIcon className="h-4 w-4" />
-                                                                            </button>
-                                                                            <button onClick={() => setItemsToDelete(norm)} className="p-1 text-red-600 hover:bg-red-100 rounded">
-                                                                                <TrashIcon className="h-4 w-4" />
-                                                                            </button>
+                                                                            <button onClick={() => setEditingNorm({ original: norm, current: { ...norm } })} className="p-1 text-blue-600 hover:bg-blue-100 rounded"><PencilIcon className="h-4 w-4" /></button>
+                                                                            <button onClick={() => setItemsToDelete(norm)} className="p-1 text-red-600 hover:bg-red-100 rounded"><TrashIcon className="h-4 w-4" /></button>
                                                                         </div>
                                                                     )}
                                                                 </td>
@@ -607,7 +553,7 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                             </tbody>
                                         </table>
                                     </div>
-                                    
+
                                     {/* Mobile cards */}
                                     <div className="lg:hidden space-y-3">
                                         {normenToShow.map((norm) => {
@@ -620,7 +566,6 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                                             {isAdmin && <input type="checkbox" checked={selectedNorms.includes(normId)} onChange={() => handleSelectNorm(normId)} className="rounded" />}
                                                             <div>
                                                                 <div className="font-semibold text-slate-900">{norm.leeftijd} jaar • {norm.geslacht}</div>
-                                                                {/* USE FORMATTER HERE */}
                                                                 <div className="text-sm text-slate-500">Score: {formatScoreWithUnit(norm.score_min, test?.eenheid)} → Punt: {norm.punt}</div>
                                                             </div>
                                                         </div>
@@ -631,13 +576,11 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                                                 </button>
                                                                 {showMobileMenu[normId] && (
                                                                     <div className="absolute right-0 top-8 bg-white border border-slate-200 rounded-lg shadow-lg z-10 min-w-32">
-                                                                        <button onClick={() => {setEditingNorm({original: norm, current: {...norm}}); setShowMobileMenu({});}} className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center">
-                                                                            <PencilIcon className="h-4 w-4 mr-2" />
-                                                                            Bewerk
+                                                                        <button onClick={() => { setEditingNorm({ original: norm, current: { ...norm } }); setShowMobileMenu({}); }} className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center">
+                                                                            <PencilIcon className="h-4 w-4 mr-2" />Bewerk
                                                                         </button>
-                                                                        <button onClick={() => {setItemsToDelete(norm); setShowMobileMenu({});}} className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 text-red-600 flex items-center">
-                                                                            <TrashIcon className="h-4 w-4 mr-2" />
-                                                                            Verwijder
+                                                                        <button onClick={() => { setItemsToDelete(norm); setShowMobileMenu({}); }} className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 text-red-600 flex items-center">
+                                                                            <TrashIcon className="h-4 w-4 mr-2" />Verwijder
                                                                         </button>
                                                                     </div>
                                                                 )}
@@ -647,46 +590,14 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                                     {isAdmin && isEditingThis && (
                                                         <div className="pt-3 border-t border-slate-200">
                                                             <div className="grid grid-cols-2 gap-3 mb-3">
-                                                                <input
-                                                                    type="number"
-                                                                    placeholder="Leeftijd"
-                                                                    value={editingNorm.current.leeftijd}
-                                                                    onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, leeftijd: e.target.value}})}
-                                                                    className="p-2 border border-slate-300 rounded-lg text-sm"
-                                                                />
-                                                                <select
-                                                                    value={editingNorm.current.geslacht}
-                                                                    onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, geslacht: e.target.value}})}
-                                                                    className="p-2 border border-slate-300 rounded-lg text-sm"
-                                                                >
-                                                                    <option value="M">M</option>
-                                                                    <option value="V">V</option>
-                                                                </select>
-                                                                <input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    placeholder="Min. Score"
-                                                                    value={editingNorm.current.score_min}
-                                                                    onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, score_min: e.target.value}})}
-                                                                    className="p-2 border border-slate-300 rounded-lg text-sm"
-                                                                />
-                                                                <input
-                                                                    type="number"
-                                                                    placeholder="Punt"
-                                                                    value={editingNorm.current.punt}
-                                                                    onChange={(e) => setEditingNorm({...editingNorm, current: {...editingNorm.current, punt: e.target.value}})}
-                                                                    className="p-2 border border-slate-300 rounded-lg text-sm"
-                                                                />
+                                                                <input type="number" placeholder="Leeftijd" value={editingNorm.current.leeftijd} onChange={(e) => setEditingNorm({ ...editingNorm, current: { ...editingNorm.current, leeftijd: e.target.value } })} className="p-2 border border-slate-300 rounded-lg text-sm" />
+                                                                <select value={editingNorm.current.geslacht} onChange={(e) => setEditingNorm({ ...editingNorm, current: { ...editingNorm.current, geslacht: e.target.value } })} className="p-2 border border-slate-300 rounded-lg text-sm"><option value="M">M</option><option value="V">V</option></select>
+                                                                <input type="number" step="0.01" placeholder="Min. Score" value={editingNorm.current.score_min} onChange={(e) => setEditingNorm({ ...editingNorm, current: { ...editingNorm.current, score_min: e.target.value } })} className="p-2 border border-slate-300 rounded-lg text-sm" />
+                                                                <input type="number" placeholder="Punt" value={editingNorm.current.punt} onChange={(e) => setEditingNorm({ ...editingNorm, current: { ...editingNorm.current, punt: e.target.value } })} className="p-2 border border-slate-300 rounded-lg text-sm" />
                                                             </div>
                                                             <div className="flex gap-2">
-                                                                <button onClick={handleUpdateNorm} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
-                                                                    <CheckIcon className="h-4 w-4 mr-1 inline" />
-                                                                    Opslaan
-                                                                </button>
-                                                                <button onClick={() => setEditingNorm(null)} className="px-3 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-sm">
-                                                                    <XMarkIcon className="h-4 w-4 mr-1 inline" />
-                                                                    Annuleren
-                                                                </button>
+                                                                <button onClick={handleUpdateNorm} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"><CheckIcon className="h-4 w-4 mr-1 inline" />Opslaan</button>
+                                                                <button onClick={() => setEditingNorm(null)} className="px-3 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-sm"><XMarkIcon className="h-4 w-4 mr-1 inline" />Annuleren</button>
                                                             </div>
                                                         </div>
                                                     )}
@@ -694,7 +605,7 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                                             );
                                         })}
                                     </div>
-                                    
+
                                     {gefilterdeNormen.length > PREVIEW_COUNT && (
                                         <div className="flex justify-center pt-6">
                                             <button onClick={() => setIsNormenExpanded(!isNormenExpanded)} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium">
@@ -707,7 +618,6 @@ const parsedBeschrijving = parseTestBeschrijving(test?.beschrijving);
                         </div>
                     </div>
 
-                    {/* Statistics */}
                     {gefilterdeNormen.length > 0 && (
                         <div className="mt-8 text-center">
                             <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-4 inline-block">

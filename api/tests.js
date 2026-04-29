@@ -1472,7 +1472,67 @@ export default async function handler(req, res) {
 
             case 'get_normen':
                 return await handleGetNormen(req, res, decodedToken);
-            
+            case 'save_norm': {
+    const { schoolId: sId, testId, norm } = req.body;
+    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+    try {
+        const normDocRef = db.collection('normen').doc(testId);
+        const normSnap = await normDocRef.get();
+        if (normSnap.exists) {
+            await normDocRef.update({ punten_schaal: [...(normSnap.data().punten_schaal || []), norm] });
+        } else {
+            await normDocRef.set({ test_id: testId, school_id: verifiedSchoolId, punten_schaal: [norm] });
+        }
+        return res.status(200).json({ success: true });
+    } catch (err) { return res.status(500).json({ error: err.message }); }
+            }
+
+            case 'update_norm': {
+                const { schoolId: sId, testId, originalNorm, updatedNorm } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    const normDocRef = db.collection('normen').doc(testId);
+                    const normSnap = await normDocRef.get();
+                    if (!normSnap.exists) return res.status(404).json({ error: 'Normen niet gevonden' });
+                    const updated = (normSnap.data().punten_schaal || []).map(n =>
+                        n.leeftijd === originalNorm.leeftijd && n.geslacht === originalNorm.geslacht &&
+                        n.score_min === originalNorm.score_min && n.punt === originalNorm.punt ? updatedNorm : n
+                    );
+                    await normDocRef.update({ punten_schaal: updated });
+                    return res.status(200).json({ success: true });
+                } catch (err) { return res.status(500).json({ error: err.message }); }
+            }
+
+            case 'delete_normen': {
+                const { schoolId: sId, testId, normen: normenToDelete } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    const normDocRef = db.collection('normen').doc(testId);
+                    const normSnap = await normDocRef.get();
+                    if (!normSnap.exists) return res.status(404).json({ error: 'Normen niet gevonden' });
+                    const filtered = (normSnap.data().punten_schaal || []).filter(n =>
+                        !normenToDelete.some(d => d.leeftijd === n.leeftijd && d.geslacht === n.geslacht &&
+                            d.score_min === n.score_min && d.punt === n.punt)
+                    );
+                    await normDocRef.update({ punten_schaal: filtered });
+                    return res.status(200).json({ success: true });
+                } catch (err) { return res.status(500).json({ error: err.message }); }
+            }
+
+            case 'import_normen': {
+                const { schoolId: sId, testId, normen: nieuweNormen, bestaandeNormen } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    const normDocRef = db.collection('normen').doc(testId);
+                    const samengevoegd = [...(bestaandeNormen || []), ...nieuweNormen];
+                    await normDocRef.set({ punten_schaal: samengevoegd, test_id: testId, school_id: verifiedSchoolId }, { merge: true });
+                    return res.status(200).json({ success: true });
+                } catch (err) { return res.status(500).json({ error: err.message }); }
+            }
             case 'get_groeiplan_data': 
             return await handleGetGroeiplanData(req, res, decodedToken);
             
@@ -1811,118 +1871,118 @@ export default async function handler(req, res) {
 // Vervangt directe Firestore calls in SchemaDetail.jsx
 // ─────────────────────────────────────────────────────────────────────────────
 
-case 'get_schema_detail': {
-    const { schoolId: sId, leerlingId, schemaTemplateId } = req.body;
-    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
-    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-    try {
-        const masterKey = await getMasterKey();
+                        case 'get_schema_detail': {
+                            const { schoolId: sId, leerlingId, schemaTemplateId } = req.body;
+                            const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                            if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                            try {
+                                const masterKey = await getMasterKey();
 
-        // Leerlingprofiel ophalen
-        let leerlingProfiel = null;
-        const usersSnap = await db.collection('users')
-            .where('toegestane_gebruikers_id', '==', leerlingId)
-            .limit(1).get();
-        if (!usersSnap.empty) {
-            const ud = usersSnap.docs[0];
-            leerlingProfiel = { id: ud.id, ...ud.data() };
-        } else {
-            const tgDoc = await db.collection('toegestane_gebruikers').doc(leerlingId).get();
-            if (tgDoc.exists) {
-                const tgData = tgDoc.data();
-                leerlingProfiel = {
-                    id: tgDoc.id,
-                    naam: decryptName(tgData.encrypted_name, masterKey),
-                    klas: tgData.klas,
-                    toegestane_gebruikers_id: tgDoc.id,
-                };
-            }
-        }
+                                // Leerlingprofiel ophalen
+                                let leerlingProfiel = null;
+                                const usersSnap = await db.collection('users')
+                                    .where('toegestane_gebruikers_id', '==', leerlingId)
+                                    .limit(1).get();
+                                if (!usersSnap.empty) {
+                                    const ud = usersSnap.docs[0];
+                                    leerlingProfiel = { id: ud.id, ...ud.data() };
+                                } else {
+                                    const tgDoc = await db.collection('toegestane_gebruikers').doc(leerlingId).get();
+                                    if (tgDoc.exists) {
+                                        const tgData = tgDoc.data();
+                                        leerlingProfiel = {
+                                            id: tgDoc.id,
+                                            naam: decryptName(tgData.encrypted_name, masterKey),
+                                            klas: tgData.klas,
+                                            toegestane_gebruikers_id: tgDoc.id,
+                                        };
+                                    }
+                                }
 
-        // Schema details + actief schema
-        const schemaId = `${leerlingId}_${schemaTemplateId}`;
-        const [schemaSnap, actiefSnap] = await Promise.all([
-            db.collection('trainingsschemas').doc(schemaTemplateId).get(),
-            db.collection('leerling_schemas').doc(schemaId).get(),
-        ]);
+                                // Schema details + actief schema
+                                const schemaId = `${leerlingId}_${schemaTemplateId}`;
+                                const [schemaSnap, actiefSnap] = await Promise.all([
+                                    db.collection('trainingsschemas').doc(schemaTemplateId).get(),
+                                    db.collection('leerling_schemas').doc(schemaId).get(),
+                                ]);
 
-        return res.status(200).json({
-            leerlingProfiel,
-            schemaDetails: schemaSnap.exists ? schemaSnap.data() : null,
-            actiefSchema: actiefSnap.exists ? { id: actiefSnap.id, ...actiefSnap.data() } : null,
-        });
-    } catch (err) {
-        console.error('❌ get_schema_detail:', err);
-        return res.status(500).json({ error: err.message });
-    }
-}
+                                return res.status(200).json({
+                                    leerlingProfiel,
+                                    schemaDetails: schemaSnap.exists ? schemaSnap.data() : null,
+                                    actiefSchema: actiefSnap.exists ? { id: actiefSnap.id, ...actiefSnap.data() } : null,
+                                });
+                            } catch (err) {
+                                console.error('❌ get_schema_detail:', err);
+                                return res.status(500).json({ error: err.message });
+                            }
+                        }
 
-case 'get_schema_actief': {
-    const { schoolId: sId, leerlingId, schemaTemplateId } = req.body;
-    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
-    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-    try {
-        const schemaId = `${leerlingId}_${schemaTemplateId}`;
-        const snap = await db.collection('leerling_schemas').doc(schemaId).get();
-        return res.status(200).json({
-            actiefSchema: snap.exists ? { id: snap.id, ...snap.data() } : null
-        });
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }
-}
+                        case 'get_schema_actief': {
+                            const { schoolId: sId, leerlingId, schemaTemplateId } = req.body;
+                            const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                            if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                            try {
+                                const schemaId = `${leerlingId}_${schemaTemplateId}`;
+                                const snap = await db.collection('leerling_schemas').doc(schemaId).get();
+                                return res.status(200).json({
+                                    actiefSchema: snap.exists ? { id: snap.id, ...snap.data() } : null
+                                });
+                            } catch (err) {
+                                return res.status(500).json({ error: err.message });
+                            }
+                        }
 
-case 'voltooien_taak': {
-    const { schoolId: sId, leerlingId, schemaTemplateId, voltooide_taken } = req.body;
-    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
-    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-    try {
-        const schemaId = `${leerlingId}_${schemaTemplateId}`;
-        await db.collection('leerling_schemas').doc(schemaId).update({ voltooide_taken });
-        return res.status(200).json({ success: true });
-    } catch (err) {
-        console.error('❌ voltooien_taak:', err);
-        return res.status(500).json({ error: err.message });
-    }
-}
+                        case 'voltooien_taak': {
+                            const { schoolId: sId, leerlingId, schemaTemplateId, voltooide_taken } = req.body;
+                            const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                            if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                            try {
+                                const schemaId = `${leerlingId}_${schemaTemplateId}`;
+                                await db.collection('leerling_schemas').doc(schemaId).update({ voltooide_taken });
+                                return res.status(200).json({ success: true });
+                            } catch (err) {
+                                console.error('❌ voltooien_taak:', err);
+                                return res.status(500).json({ error: err.message });
+                            }
+                        }
 
-case 'valideer_week': {
-    const { schoolId: sId, leerlingId, schemaTemplateId, voltooide_taken, gevalideerde_weken, huidige_week } = req.body;
-    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
-    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-    // Controleer rol
-    const rolDoc = await db.collection('users').doc(decodedToken.uid).get();
-    const rolUser = rolDoc.data()?.rol || '';
-    if (!['leerkracht', 'administrator', 'super-administrator'].includes(rolUser)) {
-        return res.status(403).json({ error: 'Enkel leerkrachten kunnen weken valideren' });
-    }
-    try {
-        const schemaId = `${leerlingId}_${schemaTemplateId}`;
-        await db.collection('leerling_schemas').doc(schemaId).update({
-            voltooide_taken,
-            gevalideerde_weken,
-            huidige_week,
-        });
-        return res.status(200).json({ success: true });
-    } catch (err) {
-        console.error('❌ valideer_week:', err);
-        return res.status(500).json({ error: err.message });
-    }
-}
+                        case 'valideer_week': {
+                            const { schoolId: sId, leerlingId, schemaTemplateId, voltooide_taken, gevalideerde_weken, huidige_week } = req.body;
+                            const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                            if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                            // Controleer rol
+                            const rolDoc = await db.collection('users').doc(decodedToken.uid).get();
+                            const rolUser = rolDoc.data()?.rol || '';
+                            if (!['leerkracht', 'administrator', 'super-administrator'].includes(rolUser)) {
+                                return res.status(403).json({ error: 'Enkel leerkrachten kunnen weken valideren' });
+                            }
+                            try {
+                                const schemaId = `${leerlingId}_${schemaTemplateId}`;
+                                await db.collection('leerling_schemas').doc(schemaId).update({
+                                    voltooide_taken,
+                                    gevalideerde_weken,
+                                    huidige_week,
+                                });
+                                return res.status(200).json({ success: true });
+                            } catch (err) {
+                                console.error('❌ valideer_week:', err);
+                                return res.status(500).json({ error: err.message });
+                            }
+                        }
 
-case 'get_oefening_detail': {
-    const { schoolId: sId, oefeningId } = req.body;
-    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
-    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
-    try {
-        const snap = await db.collection('oefeningen').doc(oefeningId).get();
-        return res.status(200).json({
-            oefening: snap.exists ? { id: snap.id, ...snap.data() } : null
-        });
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }
-}
+                        case 'get_oefening_detail': {
+                            const { schoolId: sId, oefeningId } = req.body;
+                            const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                            if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                            try {
+                                const snap = await db.collection('oefeningen').doc(oefeningId).get();
+                                return res.status(200).json({
+                                    oefening: snap.exists ? { id: snap.id, ...snap.data() } : null
+                                });
+                            } catch (err) {
+                                return res.status(500).json({ error: err.message });
+                            }
+                        }
                         case 'get_mijn_klassen':
                             return await handleGetMijnKlassen(req, res, decodedToken);
 
