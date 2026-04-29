@@ -1,67 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { doc, onSnapshot, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import { Trophy, Star, TrendingUp, Zap, HelpCircle, ListChecks } from 'lucide-react';
 
 const Rewards = () => {
   const { profile } = useOutletContext();
-  const [studentData, setStudentData] = useState({ xp: 0, xp_current_period: 0, xp_current_school_year: 0, streak_days: 0, personal_records_count: 0 });
-const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "Huidige Periode" });
+  const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "Huidige Periode" });
   const [activeTab, setActiveTab] = useState('overzicht');
 
   useEffect(() => {
-    if (!profile?.id) return;
-    const userRef = doc(db, 'users', profile.id);
-    const unsubscribe = onSnapshot(userRef, (docSnap) => {
-      if (docSnap.exists()) setStudentData(docSnap.data());
-    });
-    return () => unsubscribe();
-  }, [profile?.id]);
-
-  useEffect(() => {
+    if (!profile?.school_id || !profile?._token || !profile?.groepen?.length) return;
     const fetchClassTarget = async () => {
-      if (!profile?.groepen || profile.groepen.length === 0) return;
-      const classRef = doc(db, 'groepen', profile.groepen[0]);
-      const classSnap = await getDoc(classRef);
-      // OPMERKING: Zorg ervoor dat de leerkracht-tool 'doel_xp' opslaat ipv 'doel_sparks'
-     if (classSnap.exists() && classSnap.data().doel_xp_current_period) { // Was doel_sparks...
-      setClassTarget(classSnap.data().doel_xp_current_period);
-      }
+        try {
+            const response = await fetch('/api/tests', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'get_groep_detail',
+                    schoolId: profile.school_id,
+                    groepId: profile.groepen[0]
+                })
+            });
+            const data = await response.json();
+            if (data.groep?.doel_xp_current_period) {
+                setClassTarget(data.groep.doel_xp_current_period);
+            }
+        } catch (error) {
+            console.error('Fout bij laden klassendoel:', error);
+        }
     };
     fetchClassTarget();
-  }, [profile?.groepen]);
+  }, [profile?.groepen, profile?._token]);
 
   if (profile?.rol !== 'leerling') {
     return <div>Rewards zijn alleen voor leerlingen.</div>;
   }
 
   const OverviewTab = () => {
-  const currentPeriodXP = studentData.xp_current_period || 0;
-  const targetXP = classTarget.doel_xp || 20000;
-  const progressPercentage = Math.min((currentPeriodXP / targetXP) * 100, 100);
+    const currentPeriodXP = profile?.xp_current_period || 0;
+    const targetXP = classTarget.doel_xp || 20000;
+    const progressPercentage = Math.min((currentPeriodXP / targetXP) * 100, 100);
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Period Score Card */}
-      <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-purple-500">
-        <h3 className="text-lg font-semibold mb-2 text-purple-700">Jouw Inzet deze Periode</h3>
-        <p className="text-sm text-gray-500 mb-4">Dit is de score die telt voor je rapport. Blijf consistent werken!</p>
-        <div className="text-center mb-4">
-          <span className="text-5xl font-bold text-purple-600">{currentPeriodXP.toLocaleString('nl-BE')}</span>
-          <span className="text-xl text-gray-500"> / {targetXP.toLocaleString('nl-BE')} XP</span>
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Period Score Card */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-purple-500">
+          <h3 className="text-lg font-semibold mb-2 text-purple-700">Jouw Inzet deze Periode</h3>
+          <p className="text-sm text-gray-500 mb-4">Dit is de score die telt voor je rapport. Blijf consistent werken!</p>
+          <div className="text-center mb-4">
+            <span className="text-5xl font-bold text-purple-600">{currentPeriodXP.toLocaleString('nl-BE')}</span>
+            <span className="text-xl text-gray-500"> / {targetXP.toLocaleString('nl-BE')} XP</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-4">
+            <div
+              className="bg-gradient-to-r from-purple-400 to-purple-600 h-4 rounded-full transition-all duration-500"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
+          <div className="text-center mt-3">
+            <p className="text-xs text-gray-500">{classTarget.period_name}</p>
+          </div>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-4">
-          <div
-            className="bg-gradient-to-r from-purple-400 to-purple-600 h-4 rounded-full transition-all duration-500"
-            style={{ width: `${progressPercentage}%` }}
-          />
-        </div>
-        <div className="text-center mt-3">
-          <p className="text-xs text-gray-500">{classTarget.period_name}</p>
-          {/* De foute regel is hier nu verwijderd */}
-        </div>
-      </div>
 
         {/* Lifetime Stats Card */}
         <div className="bg-white rounded-xl shadow-lg p-6 border">
@@ -70,22 +68,22 @@ const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "H
           <div className="grid grid-cols-2 gap-y-6 gap-x-4 text-center">
             <div>
               <Zap className="w-8 h-8 mx-auto text-orange-500 mb-2" />
-              <p className="text-2xl font-bold">{studentData.xp_current_school_year || 0}</p>
+              <p className="text-2xl font-bold">{profile?.xp_current_school_year || 0}</p>
               <p className="text-xs text-gray-500">XP dit Schooljaar</p>
             </div>
             <div>
               <Star className="w-8 h-8 mx-auto text-blue-500 mb-2" />
-              <p className="text-2xl font-bold">{studentData.xp || 0}</p>
+              <p className="text-2xl font-bold">{profile?.xp || 0}</p>
               <p className="text-xs text-gray-500">Carrièrescore (XP)</p>
             </div>
             <div>
               <TrendingUp className="w-8 h-8 mx-auto text-green-500 mb-2" />
-              <p className="text-2xl font-bold">{studentData.streak_days || 0}</p>
+              <p className="text-2xl font-bold">{profile?.streak_days || 0}</p>
               <p className="text-xs text-gray-500">Dagen Streak</p>
             </div>
             <div>
               <Trophy className="w-8 h-8 mx-auto text-yellow-500 mb-2" />
-              <p className="text-2xl font-bold">{studentData.personal_records_count || 0}</p>
+              <p className="text-2xl font-bold">{profile?.personal_records_count || 0}</p>
               <p className="text-xs text-gray-500">PR's Verbroken</p>
             </div>
           </div>
@@ -94,7 +92,7 @@ const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "H
     );
   };
 
- const EarningsTab = () => (
+  const EarningsTab = () => (
     <div className="bg-white rounded-xl shadow-lg p-6 border">
       <h3 className="text-lg font-semibold mb-4">Hoe Verdien Ik Punten?</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -133,7 +131,7 @@ const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "H
             
             <div>
               <p className="font-semibold">Dagelijkse Inzet</p>
-               <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
+              <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
                 <li>Welzijn Kompas Voltooid: <span className="font-bold">+100 XP</span></li>
                 <li>Training Loggen: <span className="font-bold">+25 XP</span></li>
                 <li>Deelname Sporttest: <span className="font-bold">+50 XP</span></li>
@@ -169,7 +167,7 @@ const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "H
             <div className="mt-6">
               <h4 className="font-bold text-green-700 mb-3 border-b-2 border-green-200 pb-2">Teamwork</h4>
               <p className="text-xs text-gray-500 mb-3">Deze bonus telt mee voor alle scores (Periode, Jaar en Carrière).</p>
-               <p className="font-semibold">Klas Challenge Behalen</p>
+              <p className="font-semibold">Klas Challenge Behalen</p>
               <p className="text-sm text-gray-600 mt-1">
                 Werk samen met je klas om wekelijkse doelen te behalen en verdien een teambonus van <span className="font-bold">+500 tot +1000 XP</span>.
               </p>
@@ -181,7 +179,6 @@ const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "H
   );
 
   return (
-    // OPTIMALISATIE: Layout wrapper toegevoegd voor consistentie met de rest van de app
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 pt-20 pb-6">
         <div className="mb-8">
@@ -189,13 +186,11 @@ const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "H
           <p className="text-gray-600">Volg je prestaties en zie hoe je groeit.</p>
         </div>
 
-        {/* OPTIMALISATIE: Tabs toegevoegd voor betere navigatie */}
         <div className="flex gap-2 border-b border-gray-200 mb-6">
           <button onClick={() => setActiveTab('overzicht')} className={`px-4 py-2 font-medium text-sm ${activeTab === 'overzicht' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'}`}>Overzicht</button>
           <button onClick={() => setActiveTab('verdienen')} className={`px-4 py-2 font-medium text-sm ${activeTab === 'verdienen' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'}`}>Hoe Verdien Ik Punten?</button>
         </div>
 
-        {/* Conditionele weergave van de tab-inhoud */}
         {activeTab === 'overzicht' && <OverviewTab />}
         {activeTab === 'verdienen' && <EarningsTab />}
       </div>
