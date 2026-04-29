@@ -73,8 +73,6 @@ const schemaData = location.state;
             setLoading(false);
         }
     };
- console.log('schemaResult:', schemaResult);
-console.log('actiefResult:', actiefResult);
     fetchData();
    
 }, [schemaData?.schemaTemplateId, schemaData?.userId, profile?._token]);
