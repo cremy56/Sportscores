@@ -91,6 +91,7 @@ export default function Trainingsbeheer() {
                 onClose={() => { setIsOefeningModalOpen(false); setSelectedOefening(null); }}
                 onSave={handleSave}
                 oefeningData={selectedOefening}
+                profile={profile}
             />
 
             <SchemaFormModal 

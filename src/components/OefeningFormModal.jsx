@@ -1,12 +1,10 @@
 // src/components/OefeningFormModal.jsx
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { db } from '../firebase';
-import { doc, setDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { Loader2, PlusCircle, XCircle, Dumbbell } from 'lucide-react';
 
-export default function OefeningFormModal({ isOpen, onClose, onSave, oefeningData }) {
+export default function OefeningFormModal({ isOpen, onClose, onSave, oefeningData, profile }) {
     const [naam, setNaam] = useState('');
     const [beschrijving, setBeschrijving] = useState('');
     const [categorie, setCategorie] = useState('Kracht');
@@ -45,6 +43,7 @@ export default function OefeningFormModal({ isOpen, onClose, onSave, oefeningDat
         if (instructies.length > 1) setInstructies(instructies.filter((_, i) => i !== index));
     };
 
+   
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!naam.trim() || !categorie.trim()) {
@@ -58,22 +57,20 @@ export default function OefeningFormModal({ isOpen, onClose, onSave, oefeningDat
             return acc;
         }, {});
 
-        const oefeningObject = {
-            naam, beschrijving, categorie,
-            visuele_media_url: visueleMediaUrl,
-            instructies: instructiesObject,
-            last_updated_at: serverTimestamp()
-        };
-
         try {
-            if (isEditing) {
-                await setDoc(doc(db, 'oefeningen', oefeningData.id), oefeningObject, { merge: true });
-                toast.success('Oefening succesvol bijgewerkt!');
-            } else {
-                oefeningObject.created_at = serverTimestamp();
-                await addDoc(collection(db, 'oefeningen'), oefeningObject);
-                toast.success('Oefening succesvol aangemaakt!');
-            }
+            const response = await fetch('/api/tests', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'save_oefening',
+                    schoolId: profile.school_id,
+                    oefeningId: isEditing ? oefeningData.id : null,
+                    oefening: { naam, beschrijving, categorie, visuele_media_url: visueleMediaUrl, instructies: instructiesObject }
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error);
+            toast.success(isEditing ? 'Oefening succesvol bijgewerkt!' : 'Oefening succesvol aangemaakt!');
             onSave();
             onClose();
         } catch (error) {

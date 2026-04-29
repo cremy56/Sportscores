@@ -1585,7 +1585,27 @@ export default async function handler(req, res) {
                 }
             }
 
-
+            case 'save_oefening': {
+                const { schoolId: sId, oefeningId, oefening } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    const oefeningObject = {
+                        ...oefening,
+                        school_id: verifiedSchoolId,
+                        last_updated_at: admin.firestore.FieldValue.serverTimestamp()
+                    };
+                    if (oefeningId) {
+                        await db.collection('oefeningen').doc(oefeningId).set(oefeningObject, { merge: true });
+                    } else {
+                        oefeningObject.created_at = admin.firestore.FieldValue.serverTimestamp();
+                        await db.collection('oefeningen').add(oefeningObject);
+                    }
+                    return res.status(200).json({ success: true });
+                } catch (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+            }
 
             case 'get_recent_scores':
                 return await handleGetRecentScores(req, res, decodedToken);
