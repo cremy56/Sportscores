@@ -43,7 +43,37 @@ const schemaData = location.state;
     const isCurrentUser = profile?.id === leerlingProfiel?.id ||
     (profile?.toegestane_gebruikers_id && profile.toegestane_gebruikers_id === leerlingProfiel?.toegestane_gebruikers_id);
 
-  
+  useEffect(() => {
+    if (!schemaData || !profile?._token) return;
+
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const [schemaResult, actiefResult] = await Promise.all([
+                apiPost('get_schema_detail', {
+                    schoolId: profile.school_id,
+                    schemaTemplateId: schemaData.schemaTemplateId,
+                }, profile._token),
+                apiPost('get_schema_actief', {
+                    schoolId: profile.school_id,
+                    leerlingId: schemaData.userId,
+                    schemaTemplateId: schemaData.schemaTemplateId,
+                }, profile._token),
+            ]);
+
+            setSchemaDetails(schemaResult.schema || null);
+            setActiefSchema(actiefResult.actiefSchema || null);
+            setLeerlingProfiel(actiefResult.leerlingProfiel || null);
+        } catch (error) {
+            console.error('Fout bij laden schema:', error);
+            toast.error('Kon schema niet laden.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchData();
+}, [schemaData?.schemaTemplateId, schemaData?.userId, profile?._token]);Sonnet 4.6Adaptive
 
     // ALLE FUNCTIE DEFINITIES
 const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
