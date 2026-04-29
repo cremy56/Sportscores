@@ -1,11 +1,6 @@
 // src/pages/SchoolBeheer.jsx
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { db } from '../firebase';
-import {
-    collection, onSnapshot, deleteDoc, doc,
-    getDocs, query, where, orderBy, updateDoc
-} from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 import { PlusIcon, TrashIcon, PencilIcon, CalendarIcon, CogIcon } from '@heroicons/react/24/outline';
 import { BuildingOffice2Icon, AtSymbolIcon } from '@heroicons/react/24/solid';
@@ -89,93 +84,119 @@ export default function SchoolBeheer() {
 
     // Scholen ophalen
     useEffect(() => {
-        setLoading(true);
-        const q = query(collection(db, 'scholen'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const scholenData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            scholenData.sort((a, b) => a.naam.localeCompare(b.naam));
+    if (!profile?._token) return;
+    setLoading(true);
+    const fetchScholen = async () => {
+        try {
+            const response = await fetch('/api/tests', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get_scholen', schoolId: profile.school_id })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error);
+            const scholenData = (data.scholen || []).sort((a, b) => a.naam.localeCompare(b.naam));
             setScholen(scholenData);
             if (!isSuperAdmin && userSchoolId) {
                 const userSchool = scholenData.find(s => s.id === userSchoolId);
                 if (userSchool) setSelectedSchool(userSchool);
             }
-            setLoading(false);
-        }, (error) => {
-            console.error("Fout bij ophalen scholen:", error);
+        } catch (error) {
             toast.error("Kon de scholen niet laden.");
+        } finally {
             setLoading(false);
-        });
-        return () => unsubscribe();
-    }, [isSuperAdmin, userSchoolId]);
+        }
+    };
+    fetchScholen();
+}, [profile?._token, isSuperAdmin, userSchoolId]);
 
     // Rapportperioden ophalen
     useEffect(() => {
-        if (!selectedSchool) { setRapportperioden([]); return; }
-        setPeriodenLoading(true);
-        const periodenRef = collection(db, 'scholen', selectedSchool.id, 'rapportperioden');
-        const q = query(periodenRef, orderBy('startdatum', 'desc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            setRapportperioden(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    if (!selectedSchool || !profile?._token) { setRapportperioden([]); return; }
+    setPeriodenLoading(true);
+    const fetchPerioden = async () => {
+        try {
+            const response = await fetch('/api/tests', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get_rapportperioden', schoolId: profile.school_id, targetSchoolId: selectedSchool.id })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error);
+            setRapportperioden(data.perioden || []);
+        } catch (error) {
+            toast.error("Kon rapportperioden niet laden.");
+        } finally {
             setPeriodenLoading(false);
-        }, (error) => {
-            console.error("Fout bij ophalen rapportperioden:", error);
-            setPeriodenLoading(false);
-        });
-        return () => unsubscribe();
-    }, [selectedSchool]);
+        }
+    };
+    fetchPerioden();
+}, [selectedSchool, profile?._token]);
 
     const handleCloseModal = () => setModal({ type: null, data: null });
 
     const handleDeleteSchool = async () => {
-        const schoolToDelete = modal.data;
-        if (!schoolToDelete) return;
-        const loadingToast = toast.loading('School verwijderen...');
-        try {
-            const usersQuery = query(collection(db, 'toegestane_gebruikers'), where('school_id', '==', schoolToDelete.id));
-            const usersSnapshot = await getDocs(usersQuery);
-            if (!usersSnapshot.empty) {
-                toast.error(`Kan '${schoolToDelete.naam}' niet verwijderen. Er zijn nog ${usersSnapshot.size} gebruikers aan gekoppeld.`);
-                toast.dismiss(loadingToast);
-                handleCloseModal();
-                return;
-            }
-            await deleteDoc(doc(db, 'scholen', schoolToDelete.id));
-            toast.success(`'${schoolToDelete.naam}' succesvol verwijderd.`);
-        } catch (error) {
-            toast.error(`Fout bij verwijderen: ${error.message}`);
-        } finally {
-            toast.dismiss(loadingToast);
-            handleCloseModal();
-        }
-    };
+    const schoolToDelete = modal.data;
+    if (!schoolToDelete) return;
+    const loadingToast = toast.loading('School verwijderen...');
+    try {
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete_school', schoolId: profile.school_id, targetSchoolId: schoolToDelete.id })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        toast.success(`'${schoolToDelete.naam}' succesvol verwijderd.`);
+        setScholen(prev => prev.filter(s => s.id !== schoolToDelete.id));
+    } catch (error) {
+        toast.error(`Fout bij verwijderen: ${error.message}`);
+    } finally {
+        toast.dismiss(loadingToast);
+        handleCloseModal();
+    }
+};
 
     const handleDeletePeriod = async () => {
-        const periodToDelete = modal.data;
-        if (!periodToDelete || !selectedSchool) return;
-        const loadingToast = toast.loading('Periode verwijderen...');
-        try {
-            await deleteDoc(doc(db, 'scholen', selectedSchool.id, 'rapportperioden', periodToDelete.id));
-            toast.success(`'${periodToDelete.naam}' succesvol verwijderd.`);
-        } catch (error) {
-            toast.error(`Fout bij verwijderen: ${error.message}`);
-        } finally {
-            toast.dismiss(loadingToast);
-            handleCloseModal();
-        }
-    };
+    const periodToDelete = modal.data;
+    if (!periodToDelete || !selectedSchool) return;
+    const loadingToast = toast.loading('Periode verwijderen...');
+    try {
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete_rapportperiode', schoolId: profile.school_id, targetSchoolId: selectedSchool.id, periodeId: periodToDelete.id })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        toast.success(`'${periodToDelete.naam}' succesvol verwijderd.`);
+        setRapportperioden(prev => prev.filter(p => p.id !== periodToDelete.id));
+    } catch (error) {
+        toast.error(`Fout bij verwijderen: ${error.message}`);
+    } finally {
+        toast.dismiss(loadingToast);
+        handleCloseModal();
+    }
+};
 
     const handleAuthMethodChange = async (newMethod) => {
-        if (!selectedSchool || newMethod !== 'smartschool') return;
-        const loadingToast = toast.loading('Inlogmethode bijwerken...');
-        try {
-            await updateDoc(doc(db, 'scholen', selectedSchool.id), { 'instellingen.auth_method': newMethod });
-            toast.success('Inlogmethode bijgewerkt naar Smartschool');
-        } catch (error) {
-            toast.error('Kon inlogmethode niet bijwerken');
-        } finally {
-            toast.dismiss(loadingToast);
-        }
-    };
+    if (!selectedSchool || newMethod !== 'smartschool') return;
+    const loadingToast = toast.loading('Inlogmethode bijwerken...');
+    try {
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'save_school_settings', schoolId: profile.school_id, instellingen: { ...selectedSchool.instellingen, auth_method: newMethod } })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        toast.success('Inlogmethode bijgewerkt naar Smartschool');
+    } catch (error) {
+        toast.error('Kon inlogmethode niet bijwerken');
+    } finally {
+        toast.dismiss(loadingToast);
+    }
+};
 
     // ─── GDPR handlers ────────────────────────────────────────────────────────
     const handleArchiveerRankings = async () => {

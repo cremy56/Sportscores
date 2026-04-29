@@ -1667,6 +1667,54 @@ export default async function handler(req, res) {
                     return res.status(200).json({ success: true });
                 } catch (err) { return res.status(500).json({ error: err.message }); }
             }
+            case 'get_scholen': {
+                const userSnap = await db.collection('users').doc(decodedToken.uid).get();
+                if (!userSnap.exists || userSnap.data().rol !== 'super-administrator') {
+                    return res.status(403).json({ error: 'Alleen super-administrators.' });
+                }
+                try {
+                    const snap = await db.collection('scholen').get();
+                    const scholen = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    return res.status(200).json({ scholen });
+                } catch (err) { return res.status(500).json({ error: err.message }); }
+            }
+
+            case 'get_rapportperioden': {
+                const { targetSchoolId } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                const userSnap = await db.collection('users').doc(decodedToken.uid).get();
+                const rol = userSnap.data()?.rol;
+                if (!['administrator', 'super-administrator'].includes(rol)) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    const snap = await db.collection('scholen').doc(targetSchoolId || verifiedSchoolId).collection('rapportperioden').orderBy('startdatum', 'desc').get();
+                    const perioden = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    return res.status(200).json({ perioden });
+                } catch (err) { return res.status(500).json({ error: err.message }); }
+            }
+
+            case 'delete_school': {
+                const { targetSchoolId } = req.body;
+                const userSnap = await db.collection('users').doc(decodedToken.uid).get();
+                if (!userSnap.exists || userSnap.data().rol !== 'super-administrator') return res.status(403).json({ error: 'Alleen super-administrators.' });
+                try {
+                    const usersSnap = await db.collection('toegestane_gebruikers').where('school_id', '==', targetSchoolId).limit(1).get();
+                    if (!usersSnap.empty) return res.status(400).json({ error: `Kan school niet verwijderen. Er zijn nog gebruikers aan gekoppeld.` });
+                    await db.collection('scholen').doc(targetSchoolId).delete();
+                    return res.status(200).json({ success: true });
+                } catch (err) { return res.status(500).json({ error: err.message }); }
+            }
+
+            case 'delete_rapportperiode': {
+                const { targetSchoolId, periodeId } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                const userSnap = await db.collection('users').doc(decodedToken.uid).get();
+                const rol = userSnap.data()?.rol;
+                if (!['administrator', 'super-administrator'].includes(rol)) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    await db.collection('scholen').doc(targetSchoolId || verifiedSchoolId).collection('rapportperioden').doc(periodeId).delete();
+                    return res.status(200).json({ success: true });
+                } catch (err) { return res.status(500).json({ error: err.message }); }
+            }
             case 'get_recent_scores':
                 return await handleGetRecentScores(req, res, decodedToken);
             case 'save_scores':
