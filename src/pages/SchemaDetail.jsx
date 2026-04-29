@@ -73,10 +73,10 @@ const schemaData = location.state;
             setLoading(false);
         }
     };
-
-    fetchData();
-    console.log('schemaResult:', schemaResult);
+ console.log('schemaResult:', schemaResult);
 console.log('actiefResult:', actiefResult);
+    fetchData();
+   
 }, [schemaData?.schemaTemplateId, schemaData?.userId, profile?._token]);
 
     // ALLE FUNCTIE DEFINITIES
