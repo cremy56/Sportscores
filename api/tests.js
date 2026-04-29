@@ -2171,6 +2171,18 @@ export default async function handler(req, res) {
                                 return res.status(500).json({ error: err.message });
                             }
                         }
+                        case 'get_oefeningen': {
+    const { schoolId: sId } = req.body;
+    const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+    if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+    try {
+        const snap = await db.collection('oefeningen')
+            .where('school_id', '==', verifiedSchoolId)
+            .get();
+        const oefeningen = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        return res.status(200).json({ oefeningen });
+    } catch (err) { return res.status(500).json({ error: err.message }); }
+}
                         case 'get_mijn_klassen':
                             return await handleGetMijnKlassen(req, res, decodedToken);
 
