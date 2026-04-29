@@ -1,13 +1,12 @@
 // src/components/RapportperiodeModal.jsx
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { db } from '../firebase';
-import { doc, setDoc, addDoc, collection, serverTimestamp, updateDoc } from 'firebase/firestore';
+
 import toast from 'react-hot-toast';
 import { CalendarIcon } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
 
-export default function RapportperiodeModal({ isOpen, onClose, schoolId, periodData }) {
+export default function RapportperiodeModal({ isOpen, onClose, schoolId, periodData, token }) {
     const [formData, setFormData] = useState({
         naam: '',
         startdatum: '',
@@ -55,45 +54,38 @@ export default function RapportperiodeModal({ isOpen, onClose, schoolId, periodD
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!schoolId || !formData.naam || !formData.startdatum || !formData.einddatum) {
-            return toast.error("Vul alle verplichte velden in.");
-        }
+    e.preventDefault();
+    if (!schoolId || !formData.naam || !formData.startdatum || !formData.einddatum) {
+        return toast.error("Vul alle verplichte velden in.");
+    }
+    setLoading(true);
+    const toastId = toast.loading(isEditing ? 'Periode bijwerken...' : 'Periode opslaan...');
 
-        setLoading(true);
-        const toastId = toast.loading(isEditing ? 'Periode bijwerken...' : 'Periode opslaan...');
-
-        const periodObject = {
-            ...formData,
-            doel_xp: Number(formData.doel_xp),
-            // Converteer datums naar Firestore Timestamps
-            startdatum: new Date(formData.startdatum),
-            einddatum: new Date(formData.einddatum),
-            last_updated_at: serverTimestamp()
-        };
-
-        try {
-            const periodRef = isEditing
-                ? doc(db, 'scholen', schoolId, 'rapportperioden', periodData.id)
-                : collection(db, 'scholen', schoolId, 'rapportperioden');
-
-            if (isEditing) {
-                await updateDoc(periodRef, periodObject);
-            } else {
-                periodObject.created_at = serverTimestamp();
-                await addDoc(periodRef, periodObject);
-            }
-
-            toast.success(`Periode succesvol ${isEditing ? 'bijgewerkt' : 'aangemaakt'}!`);
-            onClose();
-        } catch (error) {
-            console.error("Fout bij opslaan periode:", error);
-            toast.error(`Fout: ${error.message}`);
-        } finally {
-            toast.dismiss(toastId);
-            setLoading(false);
-        }
-    };
+    try {
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'save_rapportperiode',
+                schoolId,
+                periodeId: isEditing ? periodData.id : null,
+                periode: {
+                    ...formData,
+                    doel_xp: Number(formData.doel_xp),
+                }
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        toast.success(`Periode succesvol ${isEditing ? 'bijgewerkt' : 'aangemaakt'}!`);
+        onClose();
+    } catch (error) {
+        toast.error(`Fout: ${error.message}`);
+    } finally {
+        toast.dismiss(toastId);
+        setLoading(false);
+    }
+};
 
     return (
         <Transition.Root show={isOpen} as={Fragment}>

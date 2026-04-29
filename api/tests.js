@@ -1715,6 +1715,31 @@ export default async function handler(req, res) {
                     return res.status(200).json({ success: true });
                 } catch (err) { return res.status(500).json({ error: err.message }); }
             }
+            case 'save_rapportperiode': {
+                const { schoolId: sId, periodeId, periode } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                const userSnap = await db.collection('users').doc(decodedToken.uid).get();
+                const rol = userSnap.data()?.rol;
+                if (!['administrator', 'super-administrator'].includes(rol)) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    const periodeObject = {
+                        ...periode,
+                        startdatum: new Date(periode.startdatum),
+                        einddatum: new Date(periode.einddatum),
+                        last_updated_at: admin.firestore.FieldValue.serverTimestamp()
+                    };
+                    const ref = db.collection('scholen').doc(sId).collection('rapportperioden');
+                    if (periodeId) {
+                        await ref.doc(periodeId).update(periodeObject);
+                    } else {
+                        periodeObject.created_at = admin.firestore.FieldValue.serverTimestamp();
+                        await ref.add(periodeObject);
+                    }
+                    return res.status(200).json({ success: true });
+                } catch (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+            }
             case 'get_recent_scores':
                 return await handleGetRecentScores(req, res, decodedToken);
             case 'save_scores':

@@ -451,6 +451,7 @@ export default function SchoolBeheer() {
                 onClose={handleCloseModal}
                 schoolId={selectedSchool?.id}
                 periodData={modal.data}
+                token={profile?._token}
             />
 
             <ConfirmModal
