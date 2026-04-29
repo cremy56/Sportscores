@@ -1455,12 +1455,9 @@ case CONTENT_TYPES.BREAKING_NEWS:
           {/* DESKTOP HEADER */}
           <div className="hidden lg:flex justify-between items-center mb-8">
             <div className="flex items-center space-x-4">
-              <img 
-                src={school?.logo_url || "/logo.png"} 
-                alt="School Logo" 
-                className="h-12 w-auto object-contain rounded-lg" 
-                onError={(e) => { e.target.src = '/logo.png'; }} 
-              />
+              <div className="h-12 w-12 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-black text-lg">{school?.naam?.charAt(0) || 'S'}</span>
+              </div>
               <div>
                 <h1 className="text-2xl font-black text-gray-800">
                   Sport Dashboard
