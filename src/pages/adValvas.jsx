@@ -1,8 +1,6 @@
 // src/pages/adValvas.jsx
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { db,auth } from '../firebase';
-import { doc, onSnapshot } from 'firebase/firestore'; 
 import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity, Quote, Flame, BookOpen, BarChart3, TrendingDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { formatScoreWithUnit } from '../utils/formatters.js';
 import { PlusCircle, X } from 'lucide-react'; // Voeg PlusCircle en X toe
@@ -689,7 +687,6 @@ const [activeTests, setActiveTests] = useState([]);
 const [contentPattern, setContentPattern] = useState([]); // Alternerend patroon
 const [patternIndex, setPatternIndex] = useState(0);
 const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
- const [schoolSettings, setSchoolSettings] = useState(null);
  const [mededelingenData, setMededelingenData] = useState([]);
 
  useEffect(() => {
@@ -743,7 +740,6 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
 // src/pages/adValvas.jsx
 
  const generateContentItems = () => {
-  console.log('🔄 Content generatie gestart...');
 
   // Data komt nu uit de state, geen fetch meer nodig.
   // We gebruiken de states die door de nieuwe useEffect zijn gevuld:
@@ -867,29 +863,9 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     finalPattern.push(diverseItemsForLoop[i % diverseCount]);
   }
 
-  console.log(`📊 Finaal patroon gegenereerd: ${finalPattern.length} items. Beide lijsten worden nu herhaald.`);
   return finalPattern;
 };
 
- useEffect(() => {
-    if (!school?.id) {
-      setSchoolSettings(null);
-      return;
-    }
-    
-    const schoolRef = doc(db, 'scholen', school.id);
-    const unsubscribe = onSnapshot(schoolRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const schoolData = docSnap.data();
-        setSchoolSettings(schoolData.instellingen || {});
-        console.log('School settings in AdValvas:', schoolData.instellingen);
-      } else {
-        setSchoolSettings(null);
-      }
-    });
-    
-    return () => unsubscribe();
-  }, [school?.id]);
 
   // Live sport feed ophalen met 5 minuten interval  
   useEffect(() => {
@@ -910,7 +886,6 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
           setLiveScoresData(feedData.scores || []);
           setLastFeedRefresh(new Date());
           
-          console.log(`📰 ${feedData.news?.length || 0} nieuws & ${feedData.scores?.length || 0} scores geladen`);
         }
         
       } catch (error) {
@@ -954,7 +929,6 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     const items = generateContentItems(); 
     setContentItems(items);
     setUsedContentIndices([]); // Reset de indices
-    console.log(`🎯 ${items.length} content items gegenereerd`);
 
 }, [
     testHighscores, 
@@ -1053,7 +1027,7 @@ const canPostMessages = () => {
     
     // Leerkrachten mogen alleen posten als de school policy dit toestaat
     if (profile?.rol === 'leerkracht') {
-      return schoolSettings?.teachersCanPostAnnouncements === true;
+      return school?.instellingen?.teachersCanPostAnnouncements === true;
     }
     
     // Andere rollen mogen niet posten
@@ -1081,7 +1055,6 @@ const canPostMessages = () => {
         setLastFeedRefresh(new Date());
       }
       
-      console.log('🔄 Live feed handmatig vernieuwd');
     } catch (error) {
       console.error('Fout bij handmatig vernieuwen feed:', error);
       setFeedStatus('error');
@@ -1533,7 +1506,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
       </div>
 
       {/* Enhanced Live Sport News Ticker - Desktop only */}
-      {!schoolSettings?.disableSportLiveFeed && (
+      {!school?.instellingen?.disableSportLiveFeed && (
       <div className="hidden lg:block bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-t border-slate-700 fixed bottom-0 left-0 right-0 z-50 shadow-2xl">
         <div className="flex items-center h-18 overflow-hidden">
           {/* Status indicator */}
