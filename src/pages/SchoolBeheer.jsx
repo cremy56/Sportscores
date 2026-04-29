@@ -421,6 +421,7 @@ export default function SchoolBeheer() {
                     isOpen={modal.type === 'form'}
                     onClose={handleCloseModal}
                     schoolData={modal.data}
+                    token={profile?._token}
                 />
             )}
 

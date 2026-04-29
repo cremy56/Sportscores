@@ -1627,6 +1627,46 @@ export default async function handler(req, res) {
                     return res.status(500).json({ error: err.message });
                 }
             }
+            case 'save_school': {
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                const verifiedProfile = await db.collection('users').where('toegestane_gebruikers_id', '==', decodedToken.uid).limit(1).get();
+                // Alleen super-administrator mag scholen aanmaken/bewerken
+                const userSnap = await db.collection('users').doc(decodedToken.uid).get();
+                if (!userSnap.exists || userSnap.data().rol !== 'super-administrator') {
+                    return res.status(403).json({ error: 'Alleen super-administrators mogen scholen beheren.' });
+                }
+                const { schoolId, school } = req.body;
+                try {
+                    if (schoolId) {
+                        await db.collection('scholen').doc(schoolId).update(school);
+                    } else {
+                        const customId = school.naam.toLowerCase().replace(/\s+/g, '_');
+                        await db.collection('scholen').doc(customId).set(school);
+                    }
+                    return res.status(200).json({ success: true });
+                } catch (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+            }
+            case 'get_school_settings': {
+                const { schoolId: sId } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    const schoolSnap = await db.collection('scholen').doc(verifiedSchoolId).get();
+                    return res.status(200).json({ instellingen: schoolSnap.exists ? schoolSnap.data().instellingen || null : null });
+                } catch (err) { return res.status(500).json({ error: err.message }); }
+            }
+
+            case 'save_school_settings': {
+                const { schoolId: sId, instellingen } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    await db.collection('scholen').doc(verifiedSchoolId).update({ instellingen });
+                    return res.status(200).json({ success: true });
+                } catch (err) { return res.status(500).json({ error: err.message }); }
+            }
             case 'get_recent_scores':
                 return await handleGetRecentScores(req, res, decodedToken);
             case 'save_scores':

@@ -1,12 +1,11 @@
 // src/components/SchoolFormModal.jsx
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { db } from '../firebase';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+
 import toast from 'react-hot-toast';
 import { BuildingOffice2Icon, MapPinIcon } from '@heroicons/react/24/outline';
 
-export default function SchoolFormModal({ isOpen, onClose, schoolData }) {
+export default function SchoolFormModal({ isOpen, onClose, schoolData, token }) {
     const [formData, setFormData] = useState({ naam: '', stad: '' });
     const [loading, setLoading] = useState(false);
 
@@ -35,24 +34,24 @@ export default function SchoolFormModal({ isOpen, onClose, schoolData }) {
         if (!formData.naam || !formData.stad) {
             return toast.error("Vul alle velden in.");
         }
-
         setLoading(true);
         const toastId = toast.loading(isEditing ? 'School bijwerken...' : 'School toevoegen...');
 
-        const schoolObject = {
-            naam: formData.naam.trim(),
-            stad: formData.stad.trim(),
-        };
-
         try {
-            if (isEditing) {
-                const schoolRef = doc(db, 'scholen', schoolData.id);
-                await updateDoc(schoolRef, schoolObject);
-            } else {
-                const schoolId = formData.naam.trim().toLowerCase().replace(/\s+/g, '_');
-                const schoolRef = doc(db, 'scholen', schoolId);
-                await setDoc(schoolRef, schoolObject);
-            }
+            const response = await fetch('/api/tests', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'save_school',
+                    schoolId: isEditing ? schoolData.id : null,
+                    school: {
+                        naam: formData.naam.trim(),
+                        stad: formData.stad.trim()
+                    }
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error);
             toast.success(`School succesvol ${isEditing ? 'bijgewerkt' : 'toegevoegd'}!`);
             onClose();
         } catch (error) {
