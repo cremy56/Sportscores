@@ -51,10 +51,11 @@ const schemaData = location.state;
         setLoading(true);
         try {
             const [schemaResult, actiefResult] = await Promise.all([
-    apiPost('get_schema_detail', {
-        schoolId: profile.school_id || profile.schoolId || 'ka_beveren',
-        schemaTemplateId: schemaData.schemaTemplateId,
-    }, profile._token),
+   apiPost('get_schema_detail', {
+    schoolId: profile.school_id || 'ka_beveren',
+    leerlingId: schemaData.userId,
+    schemaTemplateId: schemaData.schemaTemplateId,
+}, profile._token),
     apiPost('get_schema_actief', {
         schoolId: profile.school_id || profile.schoolId || 'ka_beveren',
         leerlingId: schemaData.userId,
