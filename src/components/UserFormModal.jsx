@@ -2,8 +2,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { getAuth } from 'firebase/auth';
-import { db } from '../firebase';
-import { doc, setDoc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
+
 import toast from 'react-hot-toast';
 import { 
     UserIcon, 
@@ -86,22 +85,23 @@ export default function UserFormModal({
     }, [isOpen, userData, schoolId, role, isSuperAdmin]);
 
     const fetchSchools = async () => {
-        setLoadingSchools(true);
-        try {
-            const q = query(collection(db, 'scholen'), orderBy('naam'));
-            const snapshot = await getDocs(q);
-            const schoolsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                naam: doc.data().naam
-            }));
-            setSchools(schoolsData);
-        } catch (error) {
-            console.error('Fout bij ophalen scholen:', error);
-            toast.error('Kon scholen niet laden');
-        } finally {
-            setLoadingSchools(false);
-        }
-    };
+    setLoadingSchools(true);
+    try {
+        const token = await getAuthToken();
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get_scholen', schoolId: currentUserProfile?.school_id })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        setSchools(data.scholen || []);
+    } catch (error) {
+        toast.error('Kon scholen niet laden');
+    } finally {
+        setLoadingSchools(false);
+    }
+};
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -175,15 +175,15 @@ export default function UserFormModal({
                 };
 
                 response = await fetch('/api/users', {
-                method: 'POST',
-                headers: { /* ... */ },
-                body: JSON.stringify({
-                    action: 'update_user', // <-- TOEGEVOEGD
-                    userId: userData.id,
-                    updates: updates, // (je 'updates' object)
-                    currentUserProfileHash: currentUserProfile.smartschool_id_hash
-                })
-            })
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'update_user',
+                        userId: userData.id,
+                        updates: updates,
+                        currentUserProfileHash: currentUserProfile.smartschool_id_hash
+                    })
+                });
                 result = await response.json();
 
             } else {
