@@ -1,8 +1,7 @@
 // src/components/SchemaFormModal.jsx
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { db } from '../firebase';
-import { doc, setDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useOutletContext } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Loader2, PlusCircle, Trash2, ClipboardList } from 'lucide-react';
 
@@ -14,6 +13,7 @@ export default function SchemaFormModal({ isOpen, onClose, onSave, schemaData, a
     const [gekoppeldeTestId, setGekoppeldeTestId] = useState('');
     const [weken, setWeken] = useState([]);
     const [loading, setLoading] = useState(false);
+    const { profile } = useOutletContext();
     const isEditing = !!schemaData;
 
     useEffect(() => {
@@ -66,35 +66,42 @@ export default function SchemaFormModal({ isOpen, onClose, onSave, schemaData, a
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        const loadingToast = toast.loading('Schema opslaan...');
-        const schemaObject = {
-            naam, omschrijving, categorie,
-            duur_weken: Number(duurWeken),
-            gekoppelde_test_id: gekoppeldeTestId,
-            weken, last_updated_at: serverTimestamp()
-        };
-
-        try {
-            if (isEditing) {
-                await setDoc(doc(db, 'trainingsschemas', schemaData.id), schemaObject, { merge: true });
-                toast.success('Schema succesvol bijgewerkt!');
-            } else {
-                schemaObject.created_at = serverTimestamp();
-                await addDoc(collection(db, 'trainingsschemas'), schemaObject);
-                toast.success('Schema succesvol aangemaakt!');
-            }
-            onSave();
-            onClose();
-        } catch (error) {
-            console.error("Fout bij opslaan schema:", error);
-            toast.error(`Fout: ${error.message}`);
-        } finally {
-            toast.dismiss(loadingToast);
-            setLoading(false);
-        }
+    e.preventDefault();
+    setLoading(true);
+    const loadingToast = toast.loading('Schema opslaan...');
+    const schemaObject = {
+        naam, omschrijving, categorie,
+        duur_weken: Number(duurWeken),
+        gekoppelde_test_id: gekoppeldeTestId,
+        weken
     };
+
+    try {
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${profile._token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'save_schema',
+                schoolId: profile.school_id,
+                schemaId: isEditing ? schemaData.id : null,
+                schema: schemaObject
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'API fout');
+        toast.success(isEditing ? 'Schema succesvol bijgewerkt!' : 'Schema succesvol aangemaakt!');
+        onSave();
+        onClose();
+    } catch (error) {
+        toast.error(`Fout: ${error.message}`);
+    } finally {
+        toast.dismiss(loadingToast);
+        setLoading(false);
+    }
+};
 
     return (
         <Transition.Root show={isOpen} as={Fragment}>

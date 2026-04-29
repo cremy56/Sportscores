@@ -1538,6 +1538,30 @@ export default async function handler(req, res) {
             
             case 'get_trainingsschemas': 
             return await handleGetTrainingsschemas(req, res, decodedToken);
+
+            case 'save_schema': {
+                const { schoolId: sId, schemaId, schema } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    const schemaObject = {
+                        ...schema,
+                        school_id: verifiedSchoolId,
+                        last_updated_at: admin.firestore.FieldValue.serverTimestamp()
+                    };
+                    if (schemaId) {
+                        await db.collection('trainingsschemas').doc(schemaId).set(schemaObject, { merge: true });
+                    } else {
+                        schemaObject.created_at = admin.firestore.FieldValue.serverTimestamp();
+                        await db.collection('trainingsschemas').add(schemaObject);
+                    }
+                    return res.status(200).json({ success: true });
+                } catch (err) {
+                    console.error('❌ save_schema:', err);
+                    return res.status(500).json({ error: err.message });
+                }
+            }
+
             case 'get_trainingsschema_for_test': 
             return await handleGetTrainingsschemaForTest(req, res, decodedToken);
             case 'add_optioneel_schema': 
