@@ -73,7 +73,7 @@ const schemaData = location.state;
     };
 
     fetchData();
-}, [schemaData?.schemaTemplateId, schemaData?.userId, profile?._token]);Sonnet 4.6Adaptive
+}, [schemaData?.schemaTemplateId, schemaData?.userId, profile?._token]);
 
     // ALLE FUNCTIE DEFINITIES
 const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
