@@ -226,6 +226,7 @@ function App() {
                 <Route path="/klas/:klasNaam" element={<GroupDetail />} />
                 <Route path="/sporttesten" element={<Sporttesten />} />
                 <Route path="/sporttesten/:testId" element={<TestDetailBeheer />} />
+                    <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
                 <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
                 <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
                 <Route path="/trainingsbeheer/schema/:schemaId" element={<SchemaDetail />} />
