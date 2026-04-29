@@ -276,7 +276,7 @@ export default function Sporttesten() {
                 </div>
             </div>
 
-            <TestFormModal isOpen={modal.type === 'testForm'} onClose={handleCloseModal} testData={modal.data} schoolId={profile?.school_id} onSuccess={fetchData} />
+           <TestFormModal isOpen={modal.type === 'testForm'} onClose={handleCloseModal} testData={modal.data} schoolId={profile?.school_id} onSuccess={fetchData} token={profile?._token} />
             <ConfirmModal isOpen={modal.type === 'confirmDeleteTestafname'} onClose={handleCloseModal} onConfirm={handleDeleteTestafname} title="Testafname Verwijderen">
                 Weet u zeker dat u de testafname voor "{modal.data?.test_naam}" van {modal.data?.groep_naam} wilt verwijderen? Alle {modal.data?.leerling_count} scores worden permanent gewist.
             </ConfirmModal>
