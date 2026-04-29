@@ -50,22 +50,15 @@ const schemaData = location.state;
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [schemaResult, actiefResult] = await Promise.all([
-   apiPost('get_schema_detail', {
-    schoolId: profile.school_id || 'ka_beveren',
-    leerlingId: schemaData.userId,
-    schemaTemplateId: schemaData.schemaTemplateId,
-}, profile._token),
-    apiPost('get_schema_actief', {
-        schoolId: profile.school_id || profile.schoolId || 'ka_beveren',
-        leerlingId: schemaData.userId,
-        schemaTemplateId: schemaData.schemaTemplateId,
-    }, profile._token),
-]);
+            const result = await apiPost('get_schema_detail', {
+                schoolId: profile.school_id || 'ka_beveren',
+                leerlingId: schemaData.userId,
+                schemaTemplateId: schemaData.schemaTemplateId,
+            }, profile._token);
 
-            setSchemaDetails(schemaResult.schema || null);
-            setActiefSchema(actiefResult.actiefSchema || null);
-            setLeerlingProfiel(actiefResult.leerlingProfiel || null);
+            setSchemaDetails(result.schemaDetails || null);
+            setActiefSchema(result.actiefSchema || null);
+            setLeerlingProfiel(result.leerlingProfiel || null);
         } catch (error) {
             console.error('Fout bij laden schema:', error);
             toast.error('Kon schema niet laden.');
