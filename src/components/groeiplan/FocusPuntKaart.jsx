@@ -1,8 +1,6 @@
 // src/components/groeiplan/FocusPuntKaart.jsx
 import { useNavigate } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
-import { db } from '../../firebase';
-import { doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'; // ✅ FIX: deleteDoc toegevoegd
 import toast from 'react-hot-toast';
 import { Target, X } from 'lucide-react';
 import { useState } from 'react';
@@ -27,36 +25,51 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
 
     const schemaInstanceId = `${studentIdentifier}_${schema.id}`;
 
-    const handleRemoveImproved = async () => {
-        try {
-            await deleteDoc(doc(db, 'leerling_schemas', schemaInstanceId)); // ✅ deleteDoc nu geïmporteerd
-            toast.success("Trainingsschema verwijderd - goed gedaan!");
-            window.location.reload();
-        } catch (error) {
-            toast.error("Kon schema niet verwijderen");
-            console.error(error);
-        }
-        setShowConfirmRemove(false);
-    };
+   const handleRemoveImproved = async () => {
+    try {
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'delete_leerling_schema',
+                schoolId: profile.school_id,
+                leerlingId: studentIdentifier,
+                schemaTemplateId: schema.id
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        toast.success("Trainingsschema verwijderd - goed gedaan!");
+        window.location.reload();
+    } catch (error) {
+        toast.error("Kon schema niet verwijderen");
+        console.error(error);
+    }
+    setShowConfirmRemove(false);
+};
 
     const handleStartSchema = async () => {
-        const actiefSchemaRef = doc(db, 'leerling_schemas', schemaInstanceId);
-        try {
-            await setDoc(actiefSchemaRef, {
-                leerling_id: studentIdentifier,   // ✅ smartschool_id_hash
-                schema_id: schema.id,
-                start_datum: serverTimestamp(),
-                huidige_week: 1,
-                voltooide_taken: {},
+    try {
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'start_schema',
+                schoolId: profile.school_id,
+                leerlingId: studentIdentifier,
+                schemaTemplateId: schema.id,
                 type: isVerplicht ? 'verplicht' : 'optioneel'
-            });
-            toast.success("Schema gestart! Veel succes!");
-            handleContinueSchema();
-        } catch (error) {
-            console.error("Fout bij starten schema:", error);
-            toast.error("Kon het schema niet starten.");
-        }
-    };
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        toast.success("Schema gestart! Veel succes!");
+        handleContinueSchema();
+    } catch (error) {
+        console.error("Fout bij starten schema:", error);
+        toast.error("Kon het schema niet starten.");
+    }
+};
 
     const handleContinueSchema = () => {
     navigate('/groeiplan/schema', {

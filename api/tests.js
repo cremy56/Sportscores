@@ -1572,7 +1572,18 @@ export default async function handler(req, res) {
             return await handleCheckSchemaExists(req, res, decodedToken);
             case 'start_schema': 
             return await handleStartSchema(req, res, decodedToken);    
-
+            case 'delete_leerling_schema': {
+                const { schoolId: sId, leerlingId, schemaTemplateId } = req.body;
+                const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+                if (sId !== verifiedSchoolId) return res.status(403).json({ error: 'Verboden' });
+                try {
+                    const schemaId = `${leerlingId}_${schemaTemplateId}`;
+                    await db.collection('leerling_schemas').doc(schemaId).delete();
+                    return res.status(200).json({ success: true });
+                } catch (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+            }
 
 
 
