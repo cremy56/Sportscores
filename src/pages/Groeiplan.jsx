@@ -237,7 +237,7 @@ const TrainingsplanModal = ({ isOpen, onClose, onSelect, alGekozenIds, token }) 
 // =============================================
 // HOOFD COMPONENT: Groeiplan
 // ✅ FIX: smartschool_id_hash als universele identifier
-// ✅ FIX: Debug console.logs verwijderd
+
 // =============================================
 export default function Groeiplan() {
     const { profile, selectedStudent, setSelectedStudent } = useOutletContext();

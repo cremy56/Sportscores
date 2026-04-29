@@ -292,7 +292,7 @@ exports.getClassEHBOStats = onCall(async (request) => {
 // =============================================
 // EXPORT: School EHBO statistieken
 // ✅ FIX: scenarioCount undefined bug opgelost
-// ✅ FIX: console.logs verwijderd
+
 // =============================================
 exports.getSchoolEHBOStats = onCall(async (request) => {
   if (!request.auth) throw new Error('Authentication required');

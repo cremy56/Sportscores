@@ -10,7 +10,7 @@ export function analyseerEvolutieData(evolutionData) {
     return [];
   }
 
-  console.log("=== ANALYSE DEBUG ===");
+
   
   const alleTestenMetStatus = evolutionData.map(test => {
     const currentPoints = test.personal_best_points || 0;
@@ -36,13 +36,8 @@ export function analyseerEvolutieData(evolutionData) {
       // Alleen als echte verbetering: was consistent zwak, nu consistent sterk
       isImproved = hadConsistentWeakScores && hasConsistentStrongScores && isNowStrong;
       
-      console.log(`Test: ${test.naam}`);
-      console.log(`  Current: ${currentPoints}, Was consistently weak: ${hadConsistentWeakScores}, Now consistently strong: ${hasConsistentStrongScores}`);
-      console.log(`  First half scores:`, firstHalf.map(s => s.rapportpunt));
-      console.log(`  Second half scores:`, secondHalf.map(s => s.rapportpunt));
-      console.log(`  Is Improved: ${isImproved}`);
     } else {
-      console.log(`Test: ${test.naam}, Points: ${currentPoints}, Is Weak: ${isWeak}, Insufficient score history`);
+     
     }
     
     return {
@@ -54,7 +49,7 @@ export function analyseerEvolutieData(evolutionData) {
 
   // Return ZOWEL zwakke ALS verbeterde testen
   const resultaat = alleTestenMetStatus.filter(test => test.isWeak || test.isImproved);
-  console.log("Resultaat na filter:", resultaat.map(t => `${t.naam} (weak: ${t.isWeak}, improved: ${t.isImproved})`));
+ 
   
   return resultaat.sort((a, b) => a.personal_best_points - b.personal_best_points);
 }

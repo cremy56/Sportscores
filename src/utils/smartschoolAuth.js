@@ -22,7 +22,6 @@ export const initiateSmartschoolLogin = (schoolDomain) => {
   // De URL wijst nu naar het CORRECTE, CENTRALE Smartschool OAuth eindpunt.
   const authUrl = `https://oauth.smartschool.be/OAuth/index/authorize?${params.toString()}`;
   
-  console.log('Redirecting to:', authUrl);
   window.location.href = authUrl;
 };
 

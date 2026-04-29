@@ -32,9 +32,7 @@ const MijnGezondheid = () => {
   // NIEUWE LOGICA: Bepaal welke gebruiker ID te gebruiken
  
 const effectiveUserId = auth.currentUser?.uid;
-  console.log('DEBUG: Effective User ID:', effectiveUserId);
-  console.log('DEBUG: Profile structure:', profile);
-  
+ 
   const [loading, setLoading] = useState(true); // Start in laadstatus
   const [error, setError] = useState(null);     
 
@@ -67,12 +65,11 @@ const effectiveUserId = auth.currentUser?.uid;
 
     if (!effectiveUserId) return; // Wacht tot het profiel geladen is
 
-    console.log('DEBUG: Setting up Firestore listeners for profile:', effectiveUserId);
 
     // 1. Listener voor het hoofddocument (bevat de doelen)
     const welzijnDocRef = doc(db, 'welzijn', effectiveUserId);
     const unsubscribeWelzijn = onSnapshot(welzijnDocRef, (docSnap) => {
-      console.log('DEBUG: Welzijn doc snapshot:', docSnap.exists() ? docSnap.data() : 'does not exist');
+     
       if (docSnap.exists() && docSnap.data().doelen) {
         setWelzijnDoelen(docSnap.data().doelen);
       }
@@ -100,7 +97,7 @@ const effectiveUserId = auth.currentUser?.uid;
         setTempWater(0);
         setTempSlaapUren('');
         setTempKwaliteit(0);
-        console.log("No daily data for today!");
+        
       }
       setLoading(false);
     }, (err) => {
@@ -114,7 +111,7 @@ const effectiveUserId = auth.currentUser?.uid;
 
   // GEFIXED: handleSegmentClick functie
   const handleSegmentClick = (segment) => {
-    console.log(`${segment} segment geklikt`);
+   
     if (segment === 'Beweging') {
       setTempStappen(dagelijkseData.stappen || 0); // GEFIXED: gebruik dagelijkseData.stappen
       setShowStappenModal(true);
@@ -131,7 +128,7 @@ const effectiveUserId = auth.currentUser?.uid;
     if (segment === 'Slaap') {
   setTempSlaapUren(String(dagelijkseData.slaap_uren || ''));
   setTempKwaliteit(Number(dagelijkseData.slaap_kwaliteit) || 0); // Zorg dat dit een nummer is
-  console.log('Slaap modal openen, waarden:', { 
+
     uren: dagelijkseData.slaap_uren, 
     kwaliteit: dagelijkseData.slaap_kwaliteit 
   });
@@ -155,18 +152,14 @@ const effectiveUserId = auth.currentUser?.uid;
       return;
     }
     // DEBUG INFO
-  console.log('=== SAVE DEBUG ===');
-  console.log('EffectiveUserId:', effectiveUserId);
-  console.log('TodayString:', todayString);
-  console.log('Full path:', `welzijn/${effectiveUserId}/dagelijkse_data/${todayString}`);
-  console.log('Data being saved:', data);
+ 
     const welzijnDocRef = doc(db, 'welzijn', effectiveUserId);
     const todayDocRef = doc(welzijnDocRef, 'dagelijkse_data', todayString);
 
     try {
       // Gebruik setDoc met merge: true om bestaande velden te behouden en nieuwe toe te voegen/updaten
       await setDoc(todayDocRef, data, { merge: true });
-      console.log("Document successfully written/updated!");
+  
     } catch (e) {
       console.error("Error writing document: ", e);
       setError("Fout bij het opslaan van gegevens.");

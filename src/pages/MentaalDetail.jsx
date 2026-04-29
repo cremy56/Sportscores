@@ -172,7 +172,7 @@ const CustomYAxisTick = ({ x, y, payload }) => {
 
 const MentaalGrafiek = ({ data }) => {
   const chartData = data.map(item => {
-  console.log('Item data:', item); // Debug log
+  
   return {
     datum: new Date(item.id).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: '2-digit' }),
     humeur: item.humeur,
@@ -471,13 +471,13 @@ const MentaalDetail = () => {
     return;
   }
   
-  console.log('Saving mood dimensions:', moodDimensieWaarden);
+ 
   const todayDocRef = doc(db, 'welzijn', effectiveUserId, 'dagelijkse_data', getTodayString());
   
   try {
     await setDoc(todayDocRef, { mood_dimensies: moodDimensieWaarden }, { merge: true });
     toast.success('Mood dimensies opgeslagen!');
-    console.log('Successfully saved:', moodDimensieWaarden);
+   
   } catch (error) {
     console.error('Error saving mood dimensions:', error);
     toast.error('Kon mood dimensies niet opslaan: ' + error.message);

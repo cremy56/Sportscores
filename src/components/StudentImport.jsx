@@ -88,7 +88,7 @@ export default function StudentImport({ onImportComplete }) {
             processedStudents.forEach((student) => {
               // ✅ NIEUW: Document ID = smartschool_id_hash 
               const docRef = doc(db, 'toegestane_gebruikers', student.smartschool_id_hash);
-              console.log(`Importeren: ${student.naam} → hash: ${student.smartschool_id_hash.substring(0, 16)}...`);
+          
               batch.set(docRef, student);
             });
 
@@ -96,7 +96,7 @@ export default function StudentImport({ onImportComplete }) {
 
             toast.dismiss(loadingToast);
             toast.success(`${processedStudents.length} leerlingen succesvol geïmporteerd!`);
-            console.log('✅ Import voltooid');
+            
             onImportComplete();
 
           } catch (error) {

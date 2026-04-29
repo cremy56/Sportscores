@@ -29,7 +29,7 @@ async function uploadNorms() {
     // Voeg de data toe aan Firestore
     await docRef.set(data);
 
-    console.log(`✅ Data voor test '${testId}' succesvol toegevoegd aan de collectie 'normen'.`);
+
   } catch (e) {
     console.error("Er is een fout opgetreden:", e);
   }

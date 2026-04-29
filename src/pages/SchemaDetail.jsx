@@ -22,7 +22,7 @@ async function apiPost(action, body, token) {
 }
 
 export default function SchemaDetail() {
-    console.log('=== SCHEMA DETAIL MOUNT ===', window.location);
+    
     
     
     const { profile } = useOutletContext();
@@ -30,8 +30,7 @@ export default function SchemaDetail() {
     const isFetchingRef = useRef(false);
     const hasInitializedRef = useRef(false);
    const location = useLocation();
-   console.log('location.state:', location.state);
-   console.log('profile keys:', profile ? Object.keys(profile) : 'geen profile');
+   
 const schemaData = location.state;
     
     // ALLE HOOKS EERST - ALTIJD IN DEZELFDE VOLGORDE
@@ -154,16 +153,13 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
         if (!actiefSchema || !isTeacherOrAdmin) return;
 
         if (isProcessingValidation) {
-            console.log("Validatie al bezig, wachten...");
+           
             return;
         }
 
         validatieQueue = validatieQueue.then(async () => {
             isProcessingValidation = true;
-            
-            console.log("=== WEEK VALIDATION START ===");
-            console.log("Week nummer:", weekNummer);
-            console.log("Gevalideerd:", gevalideerd);
+           
 
             try {
                 // Haal fresh data op via API
@@ -174,7 +170,7 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                 }, profile._token);
                 const freshSchemaData = freshResult.actiefSchema;
                 if (!freshSchemaData) throw new Error("Schema niet gevonden");
-                console.log("Fresh data opgehaald - huidige week:", freshSchemaData.huidige_week);
+            
 
                 // Vind alle taken in deze week
                 const weekData = schemaDetails.weken.find(w => w.week_nummer === weekNummer);
@@ -193,7 +189,6 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                     return;
                 }
 
-                console.log(`Week ${weekNummer} taken alle ingevuld: ${alleTakenIngevuld}`);
 
                 // Update gevalideerde weken
                 const updatedGevalideerdeWeken = { ...freshSchemaData.gevalideerde_weken || {} };
@@ -210,13 +205,12 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                     delete updatedGevalideerdeWeken[`week${weekNummer}`];
                 }
 
-                console.log(`Week ${weekNummer} validatie bijgewerkt naar gevalideerd: ${gevalideerd}`);
 
                 // Bereken nieuwe huidige week
                 let nieuweHuidigeWeek = freshSchemaData.huidige_week;
 
                 if (gevalideerd) {
-                    console.log("Validatie = true, herberekenen week progressie...");
+                   
                     
                     const gesorteerdeWeken = schemaDetails.weken.sort((a, b) => a.week_nummer - b.week_nummer);
                     
@@ -232,7 +226,6 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                         // Controleer of week is gevalideerd
                         const weekIsGevalideerd = updatedGevalideerdeWeken[`week${week.week_nummer}`]?.gevalideerd === true;
                         
-                        console.log(`Week ${week.week_nummer}: taken ingevuld=${alleTakenIngevuld}, gevalideerd=${weekIsGevalideerd}`);
                         
                         if (!alleTakenIngevuld || !weekIsGevalideerd) {
                             nieuweHuidigeWeek = week.week_nummer;
@@ -242,18 +235,17 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                             // Week is volledig, ga naar volgende week (als die bestaat)
                             if (i + 1 < gesorteerdeWeken.length) {
                                 nieuweHuidigeWeek = gesorteerdeWeken[i + 1].week_nummer;
-                                console.log(`Week ${week.week_nummer} volledig -> next week = ${nieuweHuidigeWeek}`);
+                                
                             } else {
                                 // Dit was de laatste week - training is klaar
                                 nieuweHuidigeWeek = week.week_nummer;
-                                console.log(`Training volledig voltooid! Laatste week: ${nieuweHuidigeWeek}`);
+                                
                             }
                         }
                     }
                 }
                 
                 const weekIsVeranderd = nieuweHuidigeWeek !== freshSchemaData.huidige_week;
-                console.log(`Week verandering: ${freshSchemaData.huidige_week} -> ${nieuweHuidigeWeek} (${weekIsVeranderd ? 'JA' : 'NEE'})`);
                 
                 // Update via API
                 await apiPost('valideer_week', {
@@ -265,7 +257,7 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                     huidige_week: nieuweHuidigeWeek,
                 }, profile._token);
 
-                console.log("Database atomic update voltooid");
+               
 
                 // Update lokale state
                 setActiefSchema(prev => ({
@@ -274,7 +266,7 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                     huidige_week: nieuweHuidigeWeek
                 }));
 
-                console.log("Lokale state bijgewerkt");
+                
 
                 // Feedback
                 if (gevalideerd) {
@@ -301,7 +293,7 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                     toast.success(`Week ${weekNummer} validatie ingetrokken.`);
                 }
 
-                console.log("=== WEEK VALIDATION END ===");
+               
                 
             } catch (error) {
                 console.error("Fout bij valideren week:", error);

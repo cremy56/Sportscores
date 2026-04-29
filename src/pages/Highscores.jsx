@@ -3,21 +3,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase';
 import CategoryCard from '../components/CategoryCard';
-
-
-// Importeer de calculateAge helper functie (of definieer hem hier)
-function calculateAge(birthDate) {
-    if (!birthDate) return null;
-    const birth = birthDate.toDate ? birthDate.toDate() : new Date(birthDate);
-    if (isNaN(birth.getTime())) return null;
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-    }
-    return age;
-}
+import { getLeeftijdFromKlas } from '../utils/klasUtils';
 
 
 export default function Highscores() {
@@ -34,7 +20,7 @@ export default function Highscores() {
     // Bepaal de effectieve filter op basis van de rol en selectie
     useEffect(() => {
         if (profile?.rol === 'leerling') {
-            const userAge = calculateAge(profile.geboortedatum);
+            const userAge = getLeeftijdFromKlas(profile.klas);
             
             if (userAge === null) { // Als de leeftijd niet berekend kan worden, geen filter
                 setEffectiveAgeFilter(null);
@@ -120,7 +106,7 @@ export default function Highscores() {
                     {profile?.rol === 'leerling' ? (
                         <div className="text-left">
                             <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
-                                {profile?.naam || 'Leerling'}
+                                {profile?.nickname || 'Sporter'}
                             </h1>
                             <p className="text-sm text-slate-600 mb-3">
                                 {getLearnerAgeText()}

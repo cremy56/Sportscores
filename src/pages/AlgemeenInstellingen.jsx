@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 
@@ -15,8 +13,7 @@ const evaluationOptions = [
 
 // Mobile-vriendelijke Toggle Component
 const MobileToggle = ({ id, name, checked, onChange, label, description }) => {
-    console.log(`📘 Toggle ${name}: ${checked}`); // Debug log
-    
+   
     return (
         <div className="flex items-start justify-between py-4">
             <div className="flex-1 mr-4">
@@ -29,10 +26,7 @@ const MobileToggle = ({ id, name, checked, onChange, label, description }) => {
                     id={id}
                     name={name}
                     checked={checked}
-                    onChange={(e) => {
-                        console.log(`🔄 Toggle change for ${name}: ${e.target.checked}`); // Debug log
-                        onChange(e);
-                    }}
+                    onChange={onChange}
                     className="sr-only peer"
                 />
                 <div className="w-14 h-8 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-purple-300 peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600 touch-manipulation"></div>
@@ -56,54 +50,35 @@ export default function AlgemeenInstellingen() {
 
     // Debug log settings changes
     useEffect(() => {
-        console.log('⚙️ Settings state updated:', settings);
+        
     }, [settings]);
 
     // Haal de huidige instellingen op
-    const fetchSettings = useCallback(async () => {
-        if (!profile?.school_id) return;
-        console.log('🔥 Fetching settings for school:', profile.school_id);
-        
-        setLoading(true);
-        try {
-            const schoolRef = doc(db, 'scholen', profile.school_id);
-            const schoolSnap = await getDoc(schoolRef);
-            
-            if (schoolSnap.exists()) {
-                const schoolData = schoolSnap.data();
-                console.log('🏫 School data:', schoolData);
-                
-                if (schoolData.instellingen) {
-                    const fetchedSettings = schoolData.instellingen;
-                    console.log('⚙️ Fetched settings:', fetchedSettings);
-                    setSettings(fetchedSettings);
-                    setInitialSettings(fetchedSettings);
-                } else {
-                    console.log('⚠️ No settings found, creating defaults');
-                    const defaultSettings = {
-                        sportdashboardAsHomepage: false,
-                        teachersCanPostAnnouncements: true,
-                        disableSportLiveFeed: false,
-                        evaluationMethod: 'punten',
-                    };
-                    
-                    // Sla defaults op in database
-                    await updateDoc(schoolRef, {
-                        instellingen: defaultSettings
-                    });
-                    
-                    setSettings(defaultSettings);
-                    setInitialSettings(defaultSettings);
-                    console.log('✅ Default settings created and saved');
-                }
-            }
-        } catch (error) {
-            console.error('❌ Error fetching settings:', error);
-            toast.error("Kon de schoolinstellingen niet laden.");
-        } finally {
-            setLoading(false);
-        }
-    }, [profile?.school_id]);
+   const fetchSettings = useCallback(async () => {
+    if (!profile?.school_id || !profile?._token) return;
+    setLoading(true);
+    try {
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get_school_settings', schoolId: profile.school_id })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        const fetchedSettings = data.instellingen || {
+            sportdashboardAsHomepage: false,
+            teachersCanPostAnnouncements: true,
+            disableSportLiveFeed: false,
+            evaluationMethod: 'punten',
+        };
+        setSettings(fetchedSettings);
+        setInitialSettings(fetchedSettings);
+    } catch (error) {
+        toast.error("Kon de schoolinstellingen niet laden.");
+    } finally {
+        setLoading(false);
+    }
+}, [profile?.school_id, profile?._token]);
 
     useEffect(() => {
         fetchSettings();
@@ -112,59 +87,42 @@ export default function AlgemeenInstellingen() {
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         const newValue = type === 'checkbox' ? checked : value;
-        
-        console.log(`🔄 Handle change - ${name}: ${newValue}`);
-        
+       
         setSettings(prev => {
             const newSettings = {
                 ...prev,
                 [name]: newValue,
             };
-            console.log('📝 New settings state will be:', newSettings);
+            
             return newSettings;
         });
     };
 
     const handleSave = async () => {
-        if (!profile?.school_id) {
-            console.error('❌ No school_id found');
-            return toast.error("Geen school gevonden.");
-        }
-        
-        console.log('💾 Starting save process...');
-        console.log('💾 Settings to save:', settings);
-        
-        setIsSaving(true);
-        const loadingToast = toast.loading("Instellingen opslaan...");
-        
-        try {
-            const schoolRef = doc(db, 'scholen', profile.school_id);
-            
-            console.log('📤 Updating document with settings:', settings);
-            
-            await updateDoc(schoolRef, {
-                instellingen: settings
-            });
-            
-            setInitialSettings(settings);
-            console.log('✅ Settings saved successfully');
-            toast.success("Instellingen succesvol opgeslagen!");
-            
-        } catch (error) {
-            console.error('❌ Save error:', error);
-            toast.error("Fout bij het opslaan van de instellingen.");
-        } finally {
-            setIsSaving(false);
-            toast.dismiss(loadingToast);
-        }
-    };
+    if (!profile?.school_id) return toast.error("Geen school gevonden.");
+    setIsSaving(true);
+    const loadingToast = toast.loading("Instellingen opslaan...");
+    try {
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'save_school_settings', schoolId: profile.school_id, instellingen: settings })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        setInitialSettings(settings);
+        toast.success("Instellingen succesvol opgeslagen!");
+    } catch (error) {
+        toast.error("Fout bij het opslaan van de instellingen.");
+    } finally {
+        setIsSaving(false);
+        toast.dismiss(loadingToast);
+    }
+};
     
     // Controleer of er wijzigingen zijn
     const isDirty = JSON.stringify(settings) !== JSON.stringify(initialSettings);
     
-    console.log('📝 isDirty:', isDirty);
-    console.log('📝 Current settings:', settings);
-    console.log('📝 Initial settings:', initialSettings);
 
     if (loading) {
         return (

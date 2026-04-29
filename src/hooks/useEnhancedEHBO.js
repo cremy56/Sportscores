@@ -15,7 +15,7 @@ export const useEnhancedScenario = (profile) => {
   useEffect(() => {
     if (profile && EnhancedEHBOController.shouldSuggestEnhanced(profile)) {
       // Je kunt hier een toast of modal tonen om enhanced mode aan te bevelen
-      console.log('Enhanced mode wordt aanbevolen voor deze gebruiker');
+     
     }
   }, [profile]);
 

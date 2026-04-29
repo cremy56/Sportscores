@@ -24,9 +24,6 @@ export default function ProtectedRoute({ profile, school, activeRole }) {
     return <Navigate to="/" replace />;
   }
 
-  console.log('🛡️ ProtectedRoute check:', { pathname: location.pathname, userRole, profileExists: !!profile, onboardingComplete: profile?.onboarding_complete });
-  console.log('👤 Role check:', { activeRole, profileRole: profile?.rol, finalRole: userRole });
-
   if (!userRole) {
     return <div className="fixed inset-0 bg-white flex items-center justify-center">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>

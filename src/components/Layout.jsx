@@ -294,7 +294,7 @@ const MobileClickableRewardsDisplay = ({ profile, activeRole }) => {
 
 // =============================================
 // HOOFD LAYOUT COMPONENT
-// ✅ FIX: console.logs verwijderd
+//
 
 // =============================================
 export default function Layout({ profile, school, selectedStudent, setSelectedStudent, activeRole, setActiveRole }) {
@@ -365,7 +365,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   }, [profile?.rol, activeRole, setActiveRole]);
 
   // Redirect als huidig pad niet toegankelijk is voor nieuwe rol
-  // ✅ FIX: console.logs verwijderd
+  // 
   useEffect(() => {
     if (!activeRole || !profile) return;
 

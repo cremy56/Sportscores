@@ -40,7 +40,7 @@ async function updateDenormalizedNames(smartschoolHash, oldName, newName) {
             });
             await batch.commit();
         }
-        console.log('Updated scores: ' + docs.length);
+       
     } catch (error) {
         console.error('Fout bij updaten denormalized names:', error);
         await sendAlertToAdmins(smartschoolHash, oldName, newName, error);
