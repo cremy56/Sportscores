@@ -31,6 +31,7 @@ export default function SchemaDetail() {
     const hasInitializedRef = useRef(false);
    const location = useLocation();
    console.log('location.state:', location.state);
+   console.log('profile keys:', profile ? Object.keys(profile) : 'geen profile');
 const schemaData = location.state;
     
     // ALLE HOOKS EERST - ALTIJD IN DEZELFDE VOLGORDE
@@ -50,16 +51,16 @@ const schemaData = location.state;
         setLoading(true);
         try {
             const [schemaResult, actiefResult] = await Promise.all([
-                apiPost('get_schema_detail', {
-                    schoolId: profile.school_id,
-                    schemaTemplateId: schemaData.schemaTemplateId,
-                }, profile._token),
-                apiPost('get_schema_actief', {
-                    schoolId: profile.school_id,
-                    leerlingId: schemaData.userId,
-                    schemaTemplateId: schemaData.schemaTemplateId,
-                }, profile._token),
-            ]);
+    apiPost('get_schema_detail', {
+        schoolId: profile.school_id || profile.schoolId || 'ka_beveren',
+        schemaTemplateId: schemaData.schemaTemplateId,
+    }, profile._token),
+    apiPost('get_schema_actief', {
+        schoolId: profile.school_id || profile.schoolId || 'ka_beveren',
+        leerlingId: schemaData.userId,
+        schemaTemplateId: schemaData.schemaTemplateId,
+    }, profile._token),
+]);
 
             setSchemaDetails(schemaResult.schema || null);
             setActiefSchema(actiefResult.actiefSchema || null);
