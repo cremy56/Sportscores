@@ -1,12 +1,10 @@
 // src/components/TestFormModal.jsx
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { db } from '../firebase';
-import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { ClipboardList, CheckCircleIcon, Loader2 } from 'lucide-react';
 
-export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, schoolId }) {
+export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, schoolId, token }) {
     const [naam, setNaam] = useState('');
     const [categorie, setCategorie] = useState('Kracht');
     const [eenheid, setEenheid] = useState('');
@@ -40,42 +38,46 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
     }, [testData, isEditing, isOpen]);
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!naam.trim() || !categorie.trim() || !eenheid.trim()) {
-            toast.error("Naam, categorie en eenheid zijn verplicht.");
-            return;
-        }
-        setLoading(true);
-        const loadingToast = toast.loading('Test opslaan...');
-        const testObject = { 
-            naam, categorie, eenheid, beschrijving,
-            score_richting: scoreRichting, 
-            is_actief: isActief,
-            max_punten: Number(maxPunten)
-        };
-
-        try {
-            if (isEditing) {
-                testObject.last_updated_at = serverTimestamp();
-                await updateDoc(doc(db, 'testen', testData.id), testObject);
-                toast.success(`Test succesvol bijgewerkt!`);
-            } else {
-                testObject.school_id = schoolId;
-                testObject.created_at = serverTimestamp();
-                const customId = generateTestId(naam);
-                await setDoc(doc(db, 'testen', customId), testObject);
-                toast.success(`Test succesvol aangemaakt!`);
-            }
-            if (onTestSaved) onTestSaved();
-            onClose();
-        } catch (error) {
-            console.error("Fout bij opslaan test:", error);
-            toast.error(`Fout: ${error.message}`);
-        } finally {
-            toast.dismiss(loadingToast);
-            setLoading(false);
-        }
+    e.preventDefault();
+    if (!naam.trim() || !categorie.trim() || !eenheid.trim()) {
+        toast.error("Naam, categorie en eenheid zijn verplicht.");
+        return;
+    }
+    setLoading(true);
+    const loadingToast = toast.loading('Test opslaan...');
+    const testObject = {
+        naam, categorie, eenheid, beschrijving,
+        score_richting: scoreRichting,
+        is_actief: isActief,
+        max_punten: Number(maxPunten)
     };
+
+    try {
+        const response = await fetch('/api/tests', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'save_test',
+                schoolId,
+                testId: isEditing ? testData.id : null,
+                customId: isEditing ? null : generateTestId(naam),
+                test: testObject
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        toast.success(isEditing ? 'Test succesvol bijgewerkt!' : 'Test succesvol aangemaakt!');
+        if (onTestSaved) onTestSaved();
+        if (onSuccess) onSuccess();
+        onClose();
+    } catch (error) {
+        console.error("Fout bij opslaan test:", error);
+        toast.error(`Fout: ${error.message}`);
+    } finally {
+        toast.dismiss(loadingToast);
+        setLoading(false);
+    }
+};
 
     return (
         <Transition.Root show={isOpen} as={Fragment}>
