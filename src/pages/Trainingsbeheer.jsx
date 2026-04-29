@@ -1,8 +1,6 @@
 // src/pages/Trainingsbeheer.jsx
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { db } from '../firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
 import { PlusIcon, ChevronDownIcon, PencilIcon } from '@heroicons/react/24/solid';
 import OefeningFormModal from '../components/OefeningFormModal';
 import SchemaFormModal from '../components/SchemaFormModal';
@@ -25,30 +23,50 @@ export default function Trainingsbeheer() {
     const [isOefeningenOpen, setIsOefeningenOpen] = useState(true);
     const [isSchemasOpen, setIsSchemasOpen] = useState(true);
 
-    useEffect(() => {
-        if (!profile?.school_id) {
+    const fetchData = async () => {
+        if (!profile?.school_id || !profile?._token) {
             setLoading(false);
             return;
         }
+        setLoading(true);
+        try {
+            const [oefeningenRes, schemasRes, testenRes] = await Promise.all([
+                fetch('/api/tests', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get_oefeningen', schoolId: profile.school_id })
+                }),
+                fetch('/api/tests', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get_trainingsschemas', schoolId: profile.school_id })
+                }),
+                fetch('/api/tests', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get_tests', schoolId: profile.school_id })
+                }),
+            ]);
 
-        const queries = [
-            { ref: collection(db, 'oefeningen'), setter: setOefeningen },
-            { ref: collection(db, 'trainingsschemas'), setter: setSchemas },
-            { ref: collection(db, 'testen'), setter: setTesten }
-        ];
+            const [oefeningenData, schemasData, testenData] = await Promise.all([
+                oefeningenRes.json(), schemasRes.json(), testenRes.json()
+            ]);
 
-        const unsubscribers = queries.map(q => 
-            onSnapshot(q.ref, (snapshot) => {
-                q.setter(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            })
-        );
-        
-        setLoading(false);
+            setOefeningen(oefeningenData.oefeningen || []);
+            setSchemas(schemasData.schemas || []);
+            setTesten(testenData.testen || []);
+        } catch (error) {
+            console.error('Fout bij laden:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        return () => unsubscribers.forEach(unsub => unsub());
-    }, [profile?.school_id]);
-    
-    const handleSave = () => console.log("Data opgeslagen, onSnapshot vernieuwt de lijst.");
+    useEffect(() => {
+        fetchData();
+    }, [profile?.school_id, profile?._token]);
+
+    const handleSave = () => fetchData();
 
     if (loading) {
         return (
