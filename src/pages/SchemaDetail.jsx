@@ -75,9 +75,10 @@ const schemaData = location.state;
     };
 
     fetchData();
-}, [schemaData?.schemaTemplateId, schemaData?.userId, profile?._token]);
-console.log('schemaResult:', schemaResult);
+    console.log('schemaResult:', schemaResult);
 console.log('actiefResult:', actiefResult);
+}, [schemaData?.schemaTemplateId, schemaData?.userId, profile?._token]);
+
     // ALLE FUNCTIE DEFINITIES
 const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
     if (!schemaData) return;
