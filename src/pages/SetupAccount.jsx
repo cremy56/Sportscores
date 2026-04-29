@@ -11,12 +11,12 @@ export default function SetupAccount() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        console.log('SetupAccount mounted');
+        
         const user = auth.currentUser;
-        console.log('Current user:', user?.uid);
+        
         
         if (!user) {
-            console.log('No user found');
+            
             setError('Geen gebruiker gevonden');
             return;
         }
@@ -24,18 +24,18 @@ export default function SetupAccount() {
         const unsub = onSnapshot(
             doc(db, 'users', user.uid),
             async (snap) => {
-                console.log('Snapshot received, exists:', snap.exists());
+                
                 if (!snap.exists()) {
                     setError('Profiel niet gevonden in Firestore');
                     return;
                 }
                 const data = snap.data();
-                console.log('Profile data:', JSON.stringify(data));
+                
                 const token = await user.getIdToken();
                 setProfile({ id: snap.id, ...data, _token: token });
 
                 if (data.onboarding_complete) {
-                    console.log('Onboarding complete, navigating to /');
+                    
                     navigate('/', { replace: true });
                 }
             },
@@ -70,7 +70,6 @@ export default function SetupAccount() {
         );
     }
 
-    console.log('Rendering for rol:', profile.rol);
 
     if (profile.rol !== 'leerling') {
         return (
