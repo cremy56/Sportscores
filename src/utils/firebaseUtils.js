@@ -1,116 +1,41 @@
-// src/utils/firebaseUtils.js - Enhanced Threshold Handling & New Norms Function
+// src/utils/firebaseUtils.js
 import { db } from '../firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  getDoc,
-  doc,
-  orderBy,
-  enableNetwork,
-  disableNetwork 
-} from 'firebase/firestore';
+import { enableNetwork, disableNetwork } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
-// Import school year utilities
-import { 
-  getSchoolYearFromDate, 
-  getCurrentSchoolYear, 
-  generateSchoolYears,
-  getSchoolYearBounds,
-  formatSchoolYear 
-} from './schoolyearUtils';
-
-// Retry configuration
-const RETRY_CONFIG = {
-  maxRetries: 3,
-  baseDelay: 1000,
-  maxDelay: 10000,
-};
-
-// Enhanced gender mapping with more comprehensive mapping
+// Enhanced gender mapping
 export const GENDER_MAPPING = {
-  'man': 'M',
-  'vrouw': 'V', 
-  'jongen': 'M',
-  'meisje': 'V',
-  'M': 'M',
-  'V': 'V',
-  'm': 'M',
-  'v': 'V',
-  'male': 'M',
-  'female': 'V'
+  'man': 'M', 'vrouw': 'V',
+  'jongen': 'M', 'meisje': 'V',
+  'M': 'M', 'V': 'V',
+  'm': 'M', 'v': 'V',
+  'male': 'M', 'female': 'V'
 };
 
 /**
- * Enhanced error handling function
+ * Firestore foutafhandeling
  */
 export function handleFirestoreError(error, operation = 'Firestore operation') {
   console.error(`${operation} error:`, error);
-  
   switch (error.code) {
-    case 'permission-denied':
-      return `Geen toegang tot ${operation.toLowerCase()}. Controleer je rechten.`;
+    case 'permission-denied': return `Geen toegang tot ${operation.toLowerCase()}.`;
     case 'network-error':
-    case 'unavailable':
-      return 'Netwerkfout. Controleer je internetverbinding en probeer opnieuw.';
-    case 'deadline-exceeded':
-      return 'Verzoek duurde te lang. Probeer opnieuw.';
-    case 'resource-exhausted':
-      return 'Te veel verzoeken. Wacht een moment en probeer opnieuw.';
-    case 'unauthenticated':
-      return 'Niet ingelogd. Log opnieuw in.';
-    case 'failed-precondition':
-      return 'Gegevens zijn mogelijk gewijzigd. Ververs de pagina.';
-    case 'aborted':
-      return 'Actie werd afgebroken. Probeer opnieuw.';
-    case 'not-found':
-      return 'Gevraagde gegevens niet gevonden.';
-    default:
-      return error.message || 'Er is een onbekende fout opgetreden.';
+    case 'unavailable': return 'Netwerkfout. Controleer je internetverbinding.';
+    case 'deadline-exceeded': return 'Verzoek duurde te lang. Probeer opnieuw.';
+    case 'unauthenticated': return 'Niet ingelogd. Log opnieuw in.';
+    case 'not-found': return 'Gevraagde gegevens niet gevonden.';
+    default: return error.message || 'Er is een onbekende fout opgetreden.';
   }
 }
 
 /**
- * Retry function with exponential backoff
- */
-export async function retryOperation(operation, maxRetries = RETRY_CONFIG.maxRetries) {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      console.log(`Attempt ${attempt}/${maxRetries} failed:`, error.code);
-      
-      if (['permission-denied', 'unauthenticated', 'invalid-argument', 'not-found'].includes(error.code)) {
-        throw error;
-      }
-      
-      if (attempt === maxRetries) {
-        throw error;
-      }
-      
-      const delay = Math.min(
-        RETRY_CONFIG.baseDelay * Math.pow(2, attempt - 1),
-        RETRY_CONFIG.maxDelay
-      );
-      
-      console.log(`Retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-}
-
-/**
- * Network status monitoring
+ * Netwerk status monitoring
  */
 let isOnline = navigator.onLine;
 
 export function setupNetworkMonitoring() {
   window.addEventListener('online', async () => {
-    console.log('Network connection restored');
     isOnline = true;
-    
     try {
       await enableNetwork(db);
       toast.success('Verbinding hersteld', { duration: 3000 });
@@ -120,15 +45,10 @@ export function setupNetworkMonitoring() {
   });
 
   window.addEventListener('offline', async () => {
-    console.log('Network connection lost');
     isOnline = false;
-    
     try {
       await disableNetwork(db);
-      toast.error('Geen internetverbinding', {
-        duration: 5000,
-        icon: '📡'
-      });
+      toast.error('Geen internetverbinding', { duration: 5000, icon: '📡' });
     } catch (error) {
       console.error('Failed to disable network:', error);
     }
@@ -140,12 +60,7 @@ export function getNetworkStatus() {
 }
 
 /**
- * Haalt evolutiegegevens op voor een student - ALLE data (geen schooljaar filter)
- */
-/**
  * Haalt evolutiegegevens op voor een student via de API
- * ✅ GEMIGREERD: geen directe Firestore calls
- * ✅ VEILIG: token en schoolId altijd expliciet meegeven
  */
 export const getStudentEvolutionData = async (studentId, schoolId, token) => {
   if (!studentId || !schoolId || !token) {
@@ -154,31 +69,21 @@ export const getStudentEvolutionData = async (studentId, schoolId, token) => {
   try {
     const response = await fetch('/api/tests', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        action: 'get_student_evolution',
-        leerlingId: studentId,
-        schoolId
-      })
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get_student_evolution', leerlingId: studentId, schoolId })
     });
     if (!response.ok) {
       const err = await response.json();
       throw new Error(err.error || 'API fout');
     }
     const data = await response.json();
-    // Converteer datum strings terug naar Date objecten voor compatibiliteit
     return (data.evolutionData || []).map(test => ({
       ...test,
       all_scores: (test.all_scores || []).map(s => ({
         ...s,
         datum: s.datum ? new Date(s.datum) : new Date()
       })),
-      personal_best_datum: test.personal_best_datum
-        ? new Date(test.personal_best_datum)
-        : null
+      personal_best_datum: test.personal_best_datum ? new Date(test.personal_best_datum) : null
     }));
   } catch (error) {
     console.error('Error getting student evolution data:', error);
@@ -187,145 +92,7 @@ export const getStudentEvolutionData = async (studentId, schoolId, token) => {
 };
 
 /**
- * Berekent de personal best uit een array van scores
- */
-const calculatePersonalBest = (scores, scoreRichting) => {
-  if (!scores || scores.length === 0) {
-    return { score: null, datum: null };
-  }
-
-  const sortedScores = [...scores].sort((a, b) => {
-    if (scoreRichting === 'hoog') {
-      return b.score - a.score;
-    } else {
-      return a.score - b.score;
-    }
-  });
-
-  const best = sortedScores[0];
-  return {
-    score: best.score,
-    datum: best.datum
-  };
-};
-
-/**
- * FIXED: Haalt score thresholds op - gebruikt correcte leeftijdsbeperking (max 17 jaar)
- */
-export const getScoreThresholds = async (testId, leeftijd, geslacht) => {
-  const operation = async () => {
-    if (!testId || leeftijd === null || leeftijd === undefined || isNaN(leeftijd) || !geslacht) {
-      console.warn('getScoreThresholds: Invalid input');
-      return null;
-    }
-
-    const numericAge = Number(leeftijd);
-    const normAge = Math.min(numericAge, 17);
-    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
-    
-    if (!['M', 'V'].includes(mappedGender)) {
-      console.warn('getScoreThresholds: Could not map gender:', geslacht);
-      return null;
-    }
-
-    const fetchForAge = async (age) => {
-      const normenQuery = query(
-        collection(db, 'normen'),
-        where('test_id', '==', testId),
-        where('leeftijd', '==', age),
-        where('geslacht', '==', mappedGender)
-      );
-      const normenSnapshot = await getDocs(normenQuery);
-
-      if (normenSnapshot.empty) return null;
-
-      const normenData = normenSnapshot.docs[0].data();
-      let threshold_50 = null;
-      let threshold_65 = null;
-      let source = 'estimated';
-
-      if (normenData.punt_8 !== undefined && normenData.score_min !== undefined) {
-        threshold_50 = normenData.punt_8;
-        threshold_65 = calculateP65Threshold(normenData);
-        source = 'punt_8';
-      } else if (normenData.punt !== undefined && normenData.score_min !== undefined) {
-        threshold_50 = normenData.punt;
-        threshold_65 = calculateP65Threshold({ ...normenData, punt_8: normenData.punt });
-        source = 'punt_generic';
-      } else if (normenData.threshold_50 !== undefined && normenData.threshold_65 !== undefined) {
-        threshold_50 = normenData.threshold_50;
-        threshold_65 = normenData.threshold_65;
-        source = 'direct_fields';
-      }
-
-      if (threshold_50 !== null && threshold_65 !== null) {
-        return {
-          threshold_50,
-          threshold_65,
-          score_richting: normenData.score_richting || 'hoog',
-          leeftijd: age,
-          original_leeftijd: numericAge,
-          geslacht: mappedGender,
-        };
-      }
-      return null;
-    };
-
-    let result = await fetchForAge(normAge);
-    if (result) return result;
-
-    const fallbackAges = [17, 16, 15, 14, 13].filter(age => age !== normAge);
-    for (const fallbackAge of fallbackAges) {
-      result = await fetchForAge(fallbackAge);
-      if (result) {
-        console.log(`Using fallback age ${fallbackAge} for thresholds.`);
-        return { ...result, used_fallback_age: true, fallback_age: fallbackAge };
-      }
-    }
-
-    console.log(`No thresholds found for test ${testId} with any age strategy`);
-    return null;
-  };
-
-  try {
-    return await retryOperation(operation);
-  } catch (error) {
-    handleFirestoreError(error, 'Laden van score thresholds');
-    return null;
-  }
-};
-
-/**
- * Enhanced P65 threshold calculation
- */
-const calculateP65Threshold = (normenData) => {
-  if (normenData.punt_10 !== undefined) return normenData.punt_10;
-
-  const punt8 = normenData.punt_8 || normenData.punt;
-  if (!punt8) return null;
-
-  const scoreMin = normenData.score_min;
-  const scoreMax = normenData.score_max;
-  const scoreRichting = normenData.score_richting || 'hoog';
-
-  if (scoreMax !== undefined && scoreMin !== undefined) {
-    const totalRange = Math.abs(scoreMax - scoreMin);
-    const improvement = totalRange * 0.15;
-    return scoreRichting === 'omlaag' ? Math.max(punt8 - improvement, scoreMin) : Math.min(punt8 + improvement, scoreMax);
-  }
-
-  const range = Math.abs(punt8 - scoreMin);
-  const improvement = range * 0.3;
-  return scoreRichting === 'omlaag' ? punt8 - improvement : punt8 + improvement;
-};
-
-/**
- * HERSCHREVEN: Haalt normen op uit een 20-puntenschaal gebaseerd op de NIEUWE datastructuur.
- * Deze functie haalt één document per test_id op en filtert de 'punten_schaal' array client-side.
- */
-/**
  * Haalt score normen op via de API
- * ✅ GEMIGREERD: geen directe Firestore calls — gebruikt klas ipv geboortedatum (GDPR)
  */
 export const getScoreNorms = async (testId, klas, geslacht, token) => {
   if (!testId || !klas || !geslacht || !token) {
@@ -335,10 +102,7 @@ export const getScoreNorms = async (testId, klas, geslacht, token) => {
   try {
     const response = await fetch('/api/tests', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'get_score_norms', testId, klas, geslacht })
     });
     if (!response.ok) return null;
@@ -349,340 +113,3 @@ export const getScoreNorms = async (testId, klas, geslacht, token) => {
     return null;
   }
 };
-
-/**
- * Haalt alle beschikbare schooljaren op uit de database
- */
-export const getAvailableSchoolYears = async (schoolId = null) => {
-  const operation = async () => {
-    let scoresQuery = query(collection(db, 'scores'));
-    
-    if (schoolId) {
-      scoresQuery = query(
-        collection(db, 'scores'),
-        where('school_id', '==', schoolId)
-      );
-    }
-    
-    const scoresSnapshot = await getDocs(scoresQuery);
-    const schoolYears = new Set();
-    
-    scoresSnapshot.docs.forEach(doc => {
-      const scoreData = doc.data();
-      const datum = scoreData.datum?.toDate?.() || new Date(scoreData.datum);
-      
-      if (datum && !isNaN(datum.getTime())) {
-        const schoolYear = getSchoolYearFromDate(datum);
-        if (schoolYear && !isNaN(schoolYear)) {
-          schoolYears.add(schoolYear);
-        }
-      }
-    });
-    
-    return Array.from(schoolYears)
-      .sort((a, b) => b - a)
-      .map(year => ({
-        value: year,
-        label: `${year}-${year + 1}`,
-        isCurrent: year === getCurrentSchoolYear()
-      }));
-  };
-
-  try {
-    return await retryOperation(operation);
-  } catch (error) {
-    handleFirestoreError(error, 'Laden van beschikbare schooljaren');
-    return generateSchoolYears();
-  }
-};
-
-/**
- * Haalt statistieken op voor een specifiek schooljaar
- */
-export const getSchoolYearStats = async (schoolId, schoolYear) => {
-  const operation = async () => {
-    if (!schoolId || !schoolYear || isNaN(schoolYear)) {
-      throw new Error('Invalid parameters for getSchoolYearStats');
-    }
-
-    const schoolYearBounds = getSchoolYearBounds(schoolYear);
-    
-    const scoresQuery = query(
-      collection(db, 'scores'),
-      where('school_id', '==', schoolId),
-      where('datum', '>=', schoolYearBounds.startDate),
-      where('datum', '<=', schoolYearBounds.endDate)
-    );
-    
-    const scoresSnapshot = await getDocs(scoresQuery);
-    const scores = scoresSnapshot.docs.map(doc => doc.data());
-    
-    const studentStats = {};
-    scores.forEach(score => {
-      const studentId = score.leerling_id;
-      if (!studentStats[studentId]) {
-        studentStats[studentId] = {
-          studentId,
-          totalScores: 0,
-          testCount: new Set(),
-          firstScore: null,
-          lastScore: null
-        };
-      }
-      
-      studentStats[studentId].totalScores++;
-      studentStats[studentId].testCount.add(score.test_id);
-      
-      const scoreDate = score.datum?.toDate?.() || new Date(score.datum);
-      if (scoreDate && !isNaN(scoreDate.getTime())) {
-        if (!studentStats[studentId].firstScore || scoreDate < studentStats[studentId].firstScore) {
-          studentStats[studentId].firstScore = scoreDate;
-        }
-        if (!studentStats[studentId].lastScore || scoreDate > studentStats[studentId].lastScore) {
-          studentStats[studentId].lastScore = scoreDate;
-        }
-      }
-    });
-    
-    const uniqueStudents = Object.keys(studentStats).length;
-    const totalScores = scores.length;
-    const uniqueTests = new Set(scores.map(s => s.test_id)).size;
-    const avgScoresPerStudent = uniqueStudents > 0 ? totalScores / uniqueStudents : 0;
-    
-    return {
-      schoolYear: formatSchoolYear(schoolYear),
-      uniqueStudents,
-      totalScores,
-      uniqueTests,
-      avgScoresPerStudent: Math.round(avgScoresPerStudent * 100) / 100,
-      period: {
-        start: schoolYearBounds.startDate,
-        end: schoolYearBounds.endDate
-      },
-      studentDetails: studentStats
-    };
-  };
-
-  try {
-    return await retryOperation(operation);
-  } catch (error) {
-    const errorMessage = handleFirestoreError(error, 'Laden van schooljaar statistieken');
-    throw new Error(errorMessage);
-  }
-};
-
-/**
- * Enhanced fetch function voor algemene Firestore operaties
- */
-export const fetchScoresData = async (schoolId, userId) => {
-  const operation = async () => {
-    if (!schoolId || !userId) {
-      throw new Error('School ID en User ID zijn verplicht');
-    }
-
-    const [scoresSnapshot, groepenSnapshot, testenSnapshot] = await Promise.all([
-      getDocs(query(
-        collection(db, 'scores'), 
-        where('school_id', '==', schoolId),
-        where('leerkracht_id', '==', userId)
-      )),
-      getDocs(query(collection(db, 'groepen'), where('school_id', '==', schoolId))),
-      getDocs(query(collection(db, 'testen'), where('school_id', '==', schoolId)))
-    ]);
-
-    return {
-      scores: scoresSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
-      groepen: groepenSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
-      testen: testenSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-    };
-  };
-
-  try {
-    return await retryOperation(operation);
-  } catch (error) {
-    const errorMessage = handleFirestoreError(error, 'Laden van scores data');
-    throw new Error(errorMessage);
-  }
-};
-
-/**
- * Enhanced save function voor batch operations
- */
-export const saveWithRetry = async (batch) => {
-  const operation = async () => {
-    if (!batch) {
-      throw new Error('Batch object is required');
-    }
-    await batch.commit();
-  };
-
-  try {
-    return await retryOperation(operation);
-  } catch (error) {
-    const errorMessage = handleFirestoreError(error, 'Opslaan van gegevens');
-    throw new Error(errorMessage);
-  }
-};
-// src/utils/firebaseUtils.js
-
-/**
- * Berekent de ranking van een leerling voor een specifieke test
- * @param {string} testId - Het ID van de test
- * @param {number} score - De score van de leerling
- * @param {number} leeftijd - De leeftijd van de leerling
- * @param {string} geslacht - Het geslacht van de leerling ('M' of 'V')
- * @returns {Promise<Object|null>} Ranking object of null bij fout
- */
-export async function calculateTestRanking(testId, score, leeftijd, geslacht) {
-  try {
-    // 1. Haal alle scores op voor deze test
-    const scoresRef = collection(db, 'scores');
-    const allScoresQuery = query(scoresRef, where('test_id', '==', testId));
-    const allScoresSnapshot = await getDocs(allScoresQuery);
-    
-    if (allScoresSnapshot.empty) {
-      return { overallRank: 1, totalStudents: 1, ageRank: 1, ageGroupTotal: 1, leeftijd };
-    }
-
-    // 2. Haal test info op om score_richting te bepalen
-    const testDoc = await getDoc(doc(db, 'testen', testId));
-    const scoreRichting = testDoc.exists() ? testDoc.data().score_richting || 'hoog' : 'hoog';
-
-    // 3. Verwerk alle scores en groepeer per leerling (neem beste score)
-    const studentBestScores = {};
-    const studentAgeGender = {};
-    
-    for (const scoreDoc of allScoresSnapshot.docs) {
-      const scoreData = scoreDoc.data();
-      const studentId = scoreData.leerling_id;
-      const studentScore = scoreData.score;
-      
-      if (!studentId || studentScore === null || studentScore === undefined) continue;
-      
-      // Haal student info op voor leeftijd/geslacht indien nog niet gekend
-      if (!studentAgeGender[studentId]) {
-        try {
-          // Zoek in 'toegestane_gebruikers' op basis van smartschool_id_hash
-          const userDoc = await getDoc(doc(db, 'toegestane_gebruikers', studentId));
-          if (userDoc.exists()) {
-            const studentData = userDoc.data();
-            if (studentData.geboortedatum) {
-              const studentAge = calculateStudentAge(studentData.geboortedatum, scoreData.datum);
-              studentAgeGender[studentId] = {
-                age: studentAge,
-                gender: studentData.geslacht
-              };
-            }
-          }
-        } catch (err) {
-          console.warn(`Kon student info voor ${studentId} niet ophalen:`, err);
-        }
-      }
-      
-      // Bewaar beste score per student
-      if (!studentBestScores[studentId] || 
-          (scoreRichting === 'hoog' && studentScore > studentBestScores[studentId]) ||
-          (scoreRichting !== 'hoog' && studentScore < studentBestScores[studentId])) {
-        studentBestScores[studentId] = studentScore;
-      }
-    }
-
-    // --- CORRECTIE 1: Maak een lijst van de beste scores en bepaal het totaal aantal leerlingen ---
-    const bestScoresArray = Object.values(studentBestScores);
-    const totalStudents = bestScoresArray.length;
-
-    if (totalStudents === 0) {
-        return { overallRank: 1, totalStudents: 1, ageRank: 1, ageGroupTotal: 1, leeftijd };
-    }
-
-    // 4. Bereken overall ranking
-    // --- CORRECTIE 2: Gebruik de correcte 'bestScoresArray' variabele ---
-    const sortedScores = [...bestScoresArray].sort((a, b) => {
-      return scoreRichting === 'hoog' ? b - a : a - b;
-    });
-    
-    const overallRank = sortedScores.findIndex(s => {
-      return scoreRichting === 'hoog' ? s <= score : s >= score;
-    }) + 1 || 1; // Fallback naar 1
-
-    // 5. Bereken leeftijdsgroep ranking (±1 jaar, zelfde geslacht)
-    const mappedGender = GENDER_MAPPING[geslacht.toString().toLowerCase()] || geslacht.toString().toUpperCase();
-    const ageGroupScores = [];
-    
-    Object.entries(studentBestScores).forEach(([studentId, studentScore]) => {
-      const studentInfo = studentAgeGender[studentId];
-      if (studentInfo && 
-          Math.abs(studentInfo.age - leeftijd) <= 1 && 
-          GENDER_MAPPING[studentInfo.gender?.toLowerCase()] === mappedGender) {
-        ageGroupScores.push(studentScore);
-      }
-    });
-
-    let ageRank = 1;
-    const ageGroupTotal = ageGroupScores.length > 0 ? ageGroupScores.length : 1;
-    
-    if (ageGroupScores.length > 0) {
-      const sortedAgeScores = ageGroupScores.sort((a, b) => {
-        return scoreRichting === 'hoog' ? b - a : a - b;
-      });
-      
-      ageRank = sortedAgeScores.findIndex(s => {
-        return scoreRichting === 'hoog' ? s <= score : s >= score;
-      }) + 1 || 1; // Fallback naar 1
-    }
-
-    return {
-      overallRank,
-      totalStudents,
-      ageRank,
-      ageGroupTotal,
-      leeftijd
-    };
-
-  } catch (error) {
-    console.error('Error calculating ranking:', error);
-    return null;
-  }
-}
-
-// Helper functie voor leeftijd berekening
-function calculateStudentAge(birthDate, testDate) {
-  // Zelfde logica als in EvolutionCard.jsx calculateAge functie
-  let birthDateObj, testDateObj;
-  
-  try {
-    if (typeof birthDate === 'string') {
-      birthDateObj = new Date(birthDate);
-    } else if (birthDate.toDate && typeof birthDate.toDate === 'function') {
-      birthDateObj = birthDate.toDate();
-    } else if (birthDate instanceof Date) {
-      birthDateObj = birthDate;
-    } else {
-      return null;
-    }
-
-    if (typeof testDate === 'string') {
-      testDateObj = new Date(testDate);
-    } else if (testDate.toDate && typeof testDate.toDate === 'function') {
-      testDateObj = testDate.toDate();
-    } else if (testDate instanceof Date) {
-      testDateObj = testDate;
-    } else {
-      return null;
-    }
-
-    if (isNaN(birthDateObj.getTime()) || isNaN(testDateObj.getTime())) {
-      return null;
-    }
-
-    let age = testDateObj.getFullYear() - birthDateObj.getFullYear();
-    if (testDateObj.getMonth() < birthDateObj.getMonth() || 
-        (testDateObj.getMonth() === birthDateObj.getMonth() && testDateObj.getDate() < birthDateObj.getDate())) {
-      age--;
-    }
-
-    return age >= 0 && age <= 100 ? age : null;
-  } catch (error) {
-    return null;
-  }
-}
