@@ -57,13 +57,18 @@ const effectiveUserId = auth.currentUser?.uid;
 
   // Effect Hook om live data op te halen uit Firestore
   useEffect(() => {
-    // Check of leerling al opt-in heeft gegeven voor welzijnsmodule
+    // Check of leerling opt-in heeft gegeven én geen opt-out heeft gedaan
+    // welzijn_v2 = heractivatie na opt-out → overschrijft opt-out
     const checkOptIn = async () => {
       try {
-        const snap = await getDoc(
-          doc(db, 'users', effectiveUserId, 'consent_records', 'welzijn_v1')
-        );
-        setWelzijnOptIn(snap.exists());
+        const [v1Snap, optOutSnap, v2Snap] = await Promise.all([
+          getDoc(doc(db, 'users', effectiveUserId, 'consent_records', 'welzijn_v1')),
+          getDoc(doc(db, 'users', effectiveUserId, 'consent_records', 'welzijn_v1_optout')),
+          getDoc(doc(db, 'users', effectiveUserId, 'consent_records', 'welzijn_v2')),
+        ]);
+        const hasConsent = v1Snap.exists() || v2Snap.exists();
+        const hasOptOut = optOutSnap.exists() && !v2Snap.exists();
+        setWelzijnOptIn(hasConsent && !hasOptOut);
       } catch {
         setWelzijnOptIn(true); // Bij fout: niet blokkeren
       }
@@ -544,10 +549,15 @@ const getHartslagScore = () => {
               <button
                 onClick={async () => {
                   try {
+                    // Schrijf consent record — bij heractivatie na opt-out: schrijf welzijn_v2
+                    const optOutSnap = await getDoc(
+                      doc(db, 'users', effectiveUserId, 'consent_records', 'welzijn_v1_optout')
+                    );
+                    const recordId = optOutSnap.exists() ? 'welzijn_v2' : 'welzijn_v1';
                     await setDoc(
-                      doc(db, 'users', effectiveUserId, 'consent_records', 'welzijn_v1'),
+                      doc(db, 'users', effectiveUserId, 'consent_records', recordId),
                       {
-                        versie: 'welzijn_v1',
+                        versie: recordId,
                         toestemming: true,
                         gegeven_op: serverTimestamp(),
                         user_agent: navigator.userAgent,
