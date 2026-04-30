@@ -416,7 +416,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   }, [realtimeProfile, activeRole, impersonatedStudent]);
 
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator';
-  const welzijnActief = schoolSettings?.welzijnModuleActief !== false; // default true als instelling nog niet bestaat
+  const welzijnActief = schoolSettings !== null && schoolSettings?.welzijnModuleActief !== false; // verborgen tijdens laden én als uitgeschakeld
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
   const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan';
   const homeLinkText = schoolSettings?.sportdashboardAsHomepage ? 'Highscores' : 'Home';
