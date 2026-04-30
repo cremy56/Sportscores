@@ -20,13 +20,15 @@ const coloredZonesPlugin = {
     const zoneOpacity = 0.25;
 
     if (score_richting === 'omlaag' || score_richting === 'laag') {
-      // Laag is beter: groen bovenaan (lage waarden), rood onderaan (hoge waarden)
-      // Maar op de Y-as staan hoge waarden bovenaan → zones zijn omgekeerd
-      ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;   // rood bovenaan (slechte tijd)
+      // Laag is beter + reverse: true → lage waarden staan bovenaan
+      // Boven norm_14: waarden beter dan norm_14 → groen
+      // Tussen norm_14 en norm_10: oranje
+      // Onder norm_10: waarden slechter dan norm_10 → rood
+      ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;   // groen bovenaan (beste tijden)
       ctx.fillRect(left, top, width, y14 - top);
       ctx.fillStyle = `rgba(249, 115, 22, ${zoneOpacity})`;  // oranje midden
       ctx.fillRect(left, y14, width, y10 - y14);
-      ctx.fillStyle = `rgba(34, 197, 94, ${zoneOpacity})`;   // groen onderaan (goede tijd)
+      ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;   // rood onderaan (slechtste tijden)
       ctx.fillRect(left, y10, width, bottom - y10);
     } else {
       ctx.fillStyle = `rgba(239, 68, 68, ${zoneOpacity})`;
@@ -158,6 +160,7 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
       y: {
         min: minValue,
         max: maxValue,
+        reverse: scoreRichting === 'laag' || scoreRichting === 'omlaag',
         grid: {
           color: 'rgba(156, 163, 175, 0.1)',
           drawBorder: false,
