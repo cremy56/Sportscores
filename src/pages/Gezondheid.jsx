@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useOutletContext, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 //import { getFunctions, httpsCallable } from 'firebase/functions';
 
@@ -45,7 +45,8 @@ const effectiveUserId = auth.currentUser?.uid;
   const [tempHartslag, setTempHartslag] = useState(72);
   const [showStappenModal, setShowStappenModal] = useState(false);
   const [tempStappen, setTempStappen] = useState(0);
-  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [welzijnOptIn, setWelzijnOptIn] = useState(null); // null = laden, false = opt-in tonen, true = geactiveerd
+  const [showOptOutConfirm, setShowOptOutConfirm] = useState(false);
   const [showMentaalModal, setShowMentaalModal] = useState(false);
   const [selectedHumeur, setSelectedHumeur] = useState(null);
   const [showWaterModal, setShowWaterModal] = useState(false);
@@ -56,12 +57,18 @@ const effectiveUserId = auth.currentUser?.uid;
 
   // Effect Hook om live data op te halen uit Firestore
   useEffect(() => {
-    // Info modal voor eerste bezoek
-    const hasVisited = localStorage.getItem('welzijn-visited');
-    if (!hasVisited) {
-      setShowInfoModal(true);
-      localStorage.setItem('welzijn-visited', 'true');
-    }
+    // Check of leerling al opt-in heeft gegeven voor welzijnsmodule
+    const checkOptIn = async () => {
+      try {
+        const snap = await getDoc(
+          doc(db, 'users', effectiveUserId, 'consent_records', 'welzijn_v1')
+        );
+        setWelzijnOptIn(snap.exists());
+      } catch {
+        setWelzijnOptIn(true); // Bij fout: niet blokkeren
+      }
+    };
+    checkOptIn();
 
     if (!effectiveUserId) return; // Wacht tot het profiel geladen is
 
@@ -100,9 +107,8 @@ const effectiveUserId = auth.currentUser?.uid;
         
       }
       setLoading(false);
-    }, (err) => {
-      console.error("Error fetching daily data:", err);
-      setError("Fout bij het laden van dagelijkse gegevens.");
+    }, () => {
+      setError('Fout bij het laden van dagelijkse gegevens.');
       setLoading(false);
     });
 
@@ -148,22 +154,14 @@ const effectiveUserId = auth.currentUser?.uid;
       console.error("Geen actieve gebruiker om gegevens op te slaan.");
       return;
     }
-    // DEBUG INFO
-  console.log('=== SAVE DEBUG ===');
-  console.log('EffectiveUserId:', effectiveUserId);
-  console.log('TodayString:', todayString);
-  console.log('Full path:', `welzijn/${effectiveUserId}/dagelijkse_data/${todayString}`);
-  console.log('Data being saved:', data);
     const welzijnDocRef = doc(db, 'welzijn', effectiveUserId);
     const todayDocRef = doc(welzijnDocRef, 'dagelijkse_data', todayString);
 
     try {
       // Gebruik setDoc met merge: true om bestaande velden te behouden en nieuwe toe te voegen/updaten
       await setDoc(todayDocRef, data, { merge: true });
-      console.log("Document successfully written/updated!");
-    } catch (e) {
-      console.error("Error writing document: ", e);
-      setError("Fout bij het opslaan van gegevens.");
+    } catch {
+      setError('Fout bij het opslaan van gegevens.');
     }
   };
 
@@ -429,7 +427,15 @@ const getHartslagScore = () => {
   <div className="flex justify-between items-start mb-8">
     <div>
       <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Mijn Gezondheid</h1>
-      <div className="flex items-center text-gray-400 text-sm"><span className="mr-1">🔒</span><span>Privé gegevens</span></div>
+      <div className="flex items-center gap-3 text-gray-400 text-sm">
+        <span>🔒 Privé gegevens</span>
+        <button
+          onClick={() => setShowOptOutConfirm(true)}
+          className="text-xs text-gray-300 hover:text-red-400 transition-colors underline underline-offset-2"
+        >
+          Module deactiveren
+        </button>
+      </div>
     </div>
     
     {/* Banner tussen titel en score - alleen tonen als geen humeur data */}
@@ -497,16 +503,118 @@ const getHartslagScore = () => {
       </div>
       
       {/* Modals (Hartslag, Stappen, Info) */}
-      {showInfoModal && ( 
+      {/* Welzijn opt-in modal (Art. 9 AVG — expliciete toestemming) */}
+      {welzijnOptIn === false && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <div className="text-center mb-6">
-              <div className="text-4xl mb-4">💆</div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Welkom bij je Welzijnskompas!</h3>
-              <p className="text-gray-600">Klik op de gekleurde segmenten van het kompas voor snelle invoer, of gebruik de tegels eronder om naar de detailpagina's te gaan.</p>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden">
+
+            {/* Header */}
+            <div className="bg-gradient-to-r from-green-500 to-teal-500 px-6 py-5 text-white">
+              <div className="text-3xl mb-2">💚</div>
+              <div className="text-xl font-bold">Welzijnsmodule</div>
+              <div className="text-green-100 text-sm mt-1">Volledig privé — alleen voor jou</div>
             </div>
-            <div className="text-center">
-              <button onClick={() => setShowInfoModal(false)} className="px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors">Begrepen</button>
+
+            {/* Content */}
+            <div className="px-6 py-5 space-y-3">
+              {[
+                { icon: '😴', text: 'Hoe goed je slaapt' },
+                { icon: '🏃', text: 'Je dagelijkse beweging en stappen' },
+                { icon: '💧', text: 'Je waterinname' },
+                { icon: '🧠', text: 'Hoe je je mentaal voelt' },
+                { icon: '❤️', text: 'Je hartslag in rust' },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-3 text-sm text-gray-700">
+                  <span className="text-xl">{item.icon}</span>
+                  <span>{item.text}</span>
+                </div>
+              ))}
+
+              <div className="bg-green-50 border border-green-100 rounded-xl p-3 mt-4">
+                <p className="text-xs text-green-800 leading-relaxed">
+                  <strong>🔒 Volledig privé.</strong> Deze gegevens zijn alleen zichtbaar voor jou.
+                  Geen leerkracht, geen ouder, niemand anders ziet ze.
+                  Je kan de module op elk moment stoppen.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 pb-6 space-y-2">
+              <button
+                onClick={async () => {
+                  try {
+                    await setDoc(
+                      doc(db, 'users', effectiveUserId, 'consent_records', 'welzijn_v1'),
+                      {
+                        versie: 'welzijn_v1',
+                        toestemming: true,
+                        gegeven_op: serverTimestamp(),
+                        user_agent: navigator.userAgent,
+                      }
+                    );
+                  } catch {
+                    // Niet-kritiek
+                  }
+                  setWelzijnOptIn(true);
+                }}
+                className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl py-3 transition-colors"
+              >
+                Ja, activeer de welzijnsmodule
+              </button>
+              <button
+                onClick={() => window.history.back()}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium rounded-xl py-2.5 transition-colors text-sm"
+              >
+                Nee, ga terug
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Opt-out bevestigingsmodal — leerling wil module deactiveren */}
+      {showOptOutConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="text-center mb-5">
+              <div className="text-4xl mb-3">⚠️</div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">Module deactiveren?</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                Je welzijnsgegevens blijven bewaard. Je kan de module later opnieuw activeren.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <button
+                onClick={async () => {
+                  // Consent record kan niet verwijderd worden via client (rule: delete: if false)
+                  // We schrijven een nieuw record dat de opt-out registreert
+                  try {
+                    await setDoc(
+                      doc(db, 'users', effectiveUserId, 'consent_records', 'welzijn_v1_optout'),
+                      {
+                        versie: 'welzijn_v1_optout',
+                        toestemming: false,
+                        ingetrokken_op: serverTimestamp(),
+                        user_agent: navigator.userAgent,
+                      }
+                    );
+                  } catch {
+                    // Niet-kritiek
+                  }
+                  setShowOptOutConfirm(false);
+                  window.history.back();
+                }}
+                className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl py-3 transition-colors"
+              >
+                Ja, deactiveer module
+              </button>
+              <button
+                onClick={() => setShowOptOutConfirm(false)}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium rounded-xl py-2.5 transition-colors text-sm"
+              >
+                Annuleren
+              </button>
             </div>
           </div>
         </div>
