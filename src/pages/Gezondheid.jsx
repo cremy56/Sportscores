@@ -25,7 +25,7 @@ const moodOptions = [
 ];
 
 const MijnGezondheid = () => {
-  const { profile } = useOutletContext(); // Haal de ingelogde gebruiker op
+  const { profile, school } = useOutletContext();
   const navigate = useNavigate();
   const todayString = getTodayString();
 
@@ -423,6 +423,22 @@ const getHartslagScore = () => {
     </div>
   );
   
+  // Module uitgeschakeld door school — toon informatieve pagina
+  if (school?.instellingen?.welzijnModuleActief === false) {
+    return (
+      <div className="fixed inset-0 bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-md text-center">
+          <div className="text-5xl mb-4">🔒</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Module niet beschikbaar</h2>
+          <p className="text-gray-500 text-sm leading-relaxed">
+            De welzijnsmodule is momenteel niet actief voor jouw school.
+            Neem contact op met je administrator als je vragen hebt.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8 space-y-6">

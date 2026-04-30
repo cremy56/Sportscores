@@ -42,6 +42,7 @@ export default function AlgemeenInstellingen() {
         sportdashboardAsHomepage: false,
         teachersCanPostAnnouncements: true,
         disableSportLiveFeed: false,
+        welzijnModuleActief: true,
         evaluationMethod: 'punten',
     });
     const [initialSettings, setInitialSettings] = useState(settings);
@@ -69,6 +70,7 @@ export default function AlgemeenInstellingen() {
             sportdashboardAsHomepage: false,
             teachersCanPostAnnouncements: true,
             disableSportLiveFeed: false,
+            welzijnModuleActief: true,
             evaluationMethod: 'punten',
         };
         setSettings(fetchedSettings);
@@ -196,7 +198,19 @@ export default function AlgemeenInstellingen() {
 
                 <hr className="border-gray-200" />
 
-                {/* --- Instelling 4: Evaluatiemethode --- */}
+                {/* --- Instelling 4: Welzijnsmodule --- */}
+                <MobileToggle
+                    id="welzijnModuleActief"
+                    name="welzijnModuleActief"
+                    checked={settings.welzijnModuleActief ?? true}
+                    onChange={handleChange}
+                    label="Welzijnsmodule activeren"
+                    description="Laat leerlingen hun slaap, voeding, beweging en mentaal welzijn bijhouden. Enkel zichtbaar voor de leerling zelf. Schakel uit om de module volledig te verbergen voor deze school."
+                />
+
+                <hr className="border-gray-200" />
+
+                {/* --- Instelling 5: Evaluatiemethode --- */}
                 <div>
                     <h3 className="font-semibold text-gray-800 mb-2">Evaluatiemethode</h3>
                     <p className="text-sm text-gray-500 mb-4 sm:mb-6">Kies de standaardmethode voor het evalueren van testen en opdrachten.</p>
