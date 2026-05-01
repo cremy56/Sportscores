@@ -4,7 +4,19 @@ import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon, ExclamationTriangleIcon 
 import EvolutionChart from './EvolutionChart';
 import { formatDate, formatScoreWithUnit } from '../utils/formatters.js';
 
-import { getScoreNorms, calculateTestRanking } from '../utils/firebaseUtils';
+import { formatDate, formatScoreWithUnit } from '../utils/formatters.js';
+
+// Lokale API helper — vervangt getScoreNorms en calculateTestRanking uit firebaseUtils
+async function apiPost(action, body, token) {
+  const response = await fetch('/api/tests', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...body })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'API fout');
+  return data;
+}
 
 export default function EvolutionCard({ categoryName, tests, student, token }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -20,7 +32,6 @@ export default function EvolutionCard({ categoryName, tests, student, token }) {
   const calculateAge = useCallback((birthDate, testDate) => {
     // Validate inputs
     if (!birthDate || !testDate) {
-      console.warn('calculateAge: Missing birthDate or testDate', { birthDate, testDate });
       return null;
     }
 
@@ -201,13 +212,12 @@ useEffect(() => {
       setError(null);
       
       try {
-        // getScoreNorms gebruikt nu klas + token ipv geboortedatum
-        const normData = await getScoreNorms(
-          currentTest.test_id,
-          student.klas,
-          student.geslacht,
-          token
-        );
+        const result = await apiPost('get_score_norms', {
+          testId: currentTest.test_id,
+          klas: student.klas,
+          geslacht: student.geslacht,
+        }, token);
+        const normData = result.normen;
         
         if (normData) {
           setScoreNorms({
@@ -219,8 +229,7 @@ useEffect(() => {
           setError("Geen normen gevonden voor deze test/klas.");
           setScoreNorms(null);
         }
-      } catch (err) {
-        console.error("Error fetching score norms:", err);
+      } catch {
         setError("Kon de normwaarden niet laden.");
         setScoreNorms(null);
       } finally {
