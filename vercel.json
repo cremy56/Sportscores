@@ -1,5 +1,31 @@
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/admin/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/admin/(.*)",
+      "has": [
+        { "type": "header", "key": "authorization" }
+      ],
+      "continue": true
+    },
+    {
+      "src": "/api/admin/(.*)",
+      "missing": [
+        { "type": "header", "key": "authorization" }
+      ],
+      "status": 401,
+      "dest": "/api/admin/unauthorized"
+    }
   ]
 }
