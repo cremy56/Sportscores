@@ -4,8 +4,6 @@ import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon, ExclamationTriangleIcon 
 import EvolutionChart from './EvolutionChart';
 import { formatDate, formatScoreWithUnit } from '../utils/formatters.js';
 
-import { formatDate, formatScoreWithUnit } from '../utils/formatters.js';
-
 // Lokale API helper — vervangt getScoreNorms en calculateTestRanking uit firebaseUtils
 async function apiPost(action, body, token) {
   const response = await fetch('/api/tests', {
