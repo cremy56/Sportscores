@@ -34,7 +34,7 @@ const validateNickname = (nickname) => {
     if (trimmed.length < 3) return 'Nickname moet minstens 3 tekens zijn';
     if (trimmed.length > 20) return 'Nickname mag maximaal 20 tekens zijn';
     if (!/^[a-zA-Z0-9_\-À-ÿ]+$/.test(trimmed)) return 'Alleen letters, cijfers, _ en - toegestaan';
-    return null; // geldig
+    return null;
 };
 
 export default async function handler(req, res) {
@@ -48,8 +48,6 @@ export default async function handler(req, res) {
         const { action } = req.body || {};
 
         // ── Nickname wijzigen ─────────────────────────────────────────────────
-     
-
         if (action === 'update_nickname') {
             const { nickname } = req.body;
             const error = validateNickname(nickname);
@@ -76,8 +74,8 @@ export default async function handler(req, res) {
             if (geblokkeerd.exists) {
                 const data = geblokkeerd.data();
                 if (data.school_id === schoolId) {
-                    return res.status(409).json({ 
-                        error: 'Deze nickname staat in de alltime rankings en kan niet hergebruikt worden. Kies een andere.' 
+                    return res.status(409).json({
+                        error: 'Deze nickname staat in de alltime rankings en kan niet hergebruikt worden. Kies een andere.'
                     });
                 }
             }
@@ -92,23 +90,17 @@ export default async function handler(req, res) {
         }
 
         // ── Profiel check / aanmaken (default flow) ───────────────────────────
-      
-
         const profileRef = db.collection('users').doc(firebaseUid);
         const docSnap = await profileRef.get();
 
         if (docSnap.exists) {
-            // ✅ Update last_login bij elke login
             await profileRef.update({ last_login: new Date() });
-           
             return res.status(200).json({
                 success: true,
                 status: 'profile_exists',
                 userProfile: docSnap.data()
             });
         }
-
-      
 
         // === Smartschool User ID ophalen ===
         let smartschoolUserId = firebaseUid;
@@ -120,33 +112,18 @@ export default async function handler(req, res) {
 
         const hashedSmartschoolId = generateHash(smartschoolUserId);
 
-        // === Whitelist zoeken ===
-        let whitelistDoc = null;
-        let whitelistData = null;
+        // === Whitelist zoeken via document ID ===
+        // FIX: toegestane_gebruikers gebruikt de hash als document ID, niet als veld
+        const whitelistSnap = await db.collection('toegestane_gebruikers')
+            .doc(hashedSmartschoolId)
+            .get();
 
-        try {
-            const whitelistQuery = await db.collection('toegestane_gebruikers')
-                .where('smartschool_id_hash', '==', hashedSmartschoolId)
-                .limit(1)
-                .get();
-            if (!whitelistQuery.empty) {
-                whitelistDoc = whitelistQuery.docs[0];
-                whitelistData = whitelistDoc.data();
-            }
-        } catch {
-            const allDocs = await db.collection('toegestane_gebruikers').get();
-            for (const doc of allDocs.docs) {
-                if (doc.data().smartschool_id_hash === hashedSmartschoolId) {
-                    whitelistDoc = doc;
-                    whitelistData = doc.data();
-                    break;
-                }
-            }
-        }
-
-        if (!whitelistData) {
+        if (!whitelistSnap.exists) {
             return res.status(403).json({ error: 'Je hebt geen toegang tot deze applicatie.' });
         }
+
+        const whitelistDoc = whitelistSnap;
+        const whitelistData = whitelistSnap.data();
 
         // === Nickname genereren (uniek binnen school) ===
         let nickname = generateNickname();
@@ -181,14 +158,12 @@ export default async function handler(req, res) {
 
         await profileRef.set(initialProfileData);
 
-
         return res.status(201).json({
             success: true,
             status: 'profile_created',
             userProfile: initialProfileData
         });
 
-        
     } catch (error) {
         if (error.message?.includes('token')) {
             return res.status(401).json({ error: 'Niet geauthenticeerd' });
