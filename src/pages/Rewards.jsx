@@ -1,38 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Trophy, Star, TrendingUp, Zap, HelpCircle, ListChecks } from 'lucide-react';
+import { Trophy, Star, TrendingUp, Zap } from 'lucide-react';
+
+// =============================================
+// XP BEDRAGEN — gesynchroniseerd met Cloud Functions
+// Wijzig hier én in welzijn-functions.js / training-functions.js
+// =============================================
+const XP = {
+  WELZIJN_SEGMENT: 4,
+  KOMPAS_VOLLEDIG: 100,     // 5×4 segment + 80 bonus
+  PERFECT_WEEK_WELZIJN: 500,
+  PERFECT_WEEK_TRAINING: 300,
+  WEEKLY_TRAINING_BONUS: 150,
+  TRAINING_PROGRAMMA: 800,
+  STREAK_7: 300,
+  STREAK_30: 1200,
+  STREAK_100: 4000,
+  KLAS_CHALLENGE: 500,
+  EHBO: [30, 10, 5, 1],
+  LEADERBOARD: [1000, 750, 500, 250, 100],
+  PR: 500,
+  SPORTTEST: 50,
+};
 
 const Rewards = () => {
   const { profile } = useOutletContext();
-  const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: "Huidige Periode" });
+  const [classTarget, setClassTarget] = useState({ doel_xp: 20000, period_name: 'Huidige Periode' });
   const [activeTab, setActiveTab] = useState('overzicht');
 
   useEffect(() => {
     if (!profile?.school_id || !profile?._token || !profile?.groepen?.length) return;
     const fetchClassTarget = async () => {
-        try {
-            const response = await fetch('/api/tests', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'get_groep_detail',
-                    schoolId: profile.school_id,
-                    groepId: profile.groepen[0]
-                })
-            });
-            const data = await response.json();
-            if (data.groep?.doel_xp_current_period) {
-                setClassTarget(data.groep.doel_xp_current_period);
-            }
-        } catch (error) {
-            console.error('Fout bij laden klassendoel:', error);
+      try {
+        const response = await fetch('/api/tests', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'get_groep_detail',
+            schoolId: profile.school_id,
+            groepId: profile.groepen[0]
+          })
+        });
+        const data = await response.json();
+        if (data.groep?.doel_xp_current_period) {
+          setClassTarget(data.groep.doel_xp_current_period);
         }
+      } catch (error) {
+        console.error('Fout bij laden klassendoel:', error);
+      }
     };
     fetchClassTarget();
   }, [profile?.groepen, profile?._token]);
 
   if (profile?.rol !== 'leerling') {
-    return <div>Rewards zijn alleen voor leerlingen.</div>;
+    return <div className="p-8 text-gray-500">Rewards zijn alleen voor leerlingen.</div>;
   }
 
   const OverviewTab = () => {
@@ -42,12 +63,16 @@ const Rewards = () => {
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Period Score Card */}
+        {/* Periodescore */}
         <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-purple-500">
           <h3 className="text-lg font-semibold mb-2 text-purple-700">Jouw Inzet deze Periode</h3>
-          <p className="text-sm text-gray-500 mb-4">Dit is de score die telt voor je rapport. Blijf consistent werken!</p>
+          <p className="text-sm text-gray-500 mb-4">
+            Dit is de score die telt voor je rapport. Blijf consistent werken!
+          </p>
           <div className="text-center mb-4">
-            <span className="text-5xl font-bold text-purple-600">{currentPeriodXP.toLocaleString('nl-BE')}</span>
+            <span className="text-5xl font-bold text-purple-600">
+              {currentPeriodXP.toLocaleString('nl-BE')}
+            </span>
             <span className="text-xl text-gray-500"> / {targetXP.toLocaleString('nl-BE')} XP</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-4">
@@ -61,19 +86,21 @@ const Rewards = () => {
           </div>
         </div>
 
-        {/* Lifetime Stats Card */}
+        {/* Statistieken */}
         <div className="bg-white rounded-xl shadow-lg p-6 border">
           <h3 className="text-lg font-semibold mb-4 text-gray-700">Jouw Statistieken</h3>
-          <p className="text-sm text-gray-500 mb-4">Volg je prestaties van dit schooljaar en je hele carrière.</p>
+          <p className="text-sm text-gray-500 mb-4">
+            Volg je prestaties van dit schooljaar en je hele carrière.
+          </p>
           <div className="grid grid-cols-2 gap-y-6 gap-x-4 text-center">
             <div>
               <Zap className="w-8 h-8 mx-auto text-orange-500 mb-2" />
-              <p className="text-2xl font-bold">{profile?.xp_current_school_year || 0}</p>
+              <p className="text-2xl font-bold">{(profile?.xp_current_school_year || 0).toLocaleString('nl-BE')}</p>
               <p className="text-xs text-gray-500">XP dit Schooljaar</p>
             </div>
             <div>
               <Star className="w-8 h-8 mx-auto text-blue-500 mb-2" />
-              <p className="text-2xl font-bold">{profile?.xp || 0}</p>
+              <p className="text-2xl font-bold">{(profile?.xp || 0).toLocaleString('nl-BE')}</p>
               <p className="text-xs text-gray-500">Carrièrescore (XP)</p>
             </div>
             <div>
@@ -96,80 +123,121 @@ const Rewards = () => {
     <div className="bg-white rounded-xl shadow-lg p-6 border">
       <h3 className="text-lg font-semibold mb-4">Hoe Verdien Ik Punten?</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        
+
         {/* Kolom 1: Inzet & Attitude */}
         <div>
-          <h4 className="font-bold text-emerald-700 mb-3 border-b-2 border-emerald-200 pb-2">Inzet & Attitude</h4>
-          <p className="text-xs text-gray-500 mb-4">Deze acties verhogen je Periodescore, Jaarscore en Carrièrescore.</p>
-          
+          <h4 className="font-bold text-emerald-700 mb-3 border-b-2 border-emerald-200 pb-2">
+            Inzet & Attitude
+          </h4>
+          <p className="text-xs text-gray-500 mb-4">
+            Deze acties verhogen je Periodescore, Jaarscore en Carrièrescore.
+          </p>
+
           <div className="space-y-4">
+            {/* Welzijn sectie — enkel tonen als module actief is */}
             <div>
-              <p className="font-semibold">EHBO Scenario's</p>
+              <p className="font-semibold">Welzijn Kompas</p>
               <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
-                <li>1e keer voltooid: <span className="font-bold">+30 XP</span></li>
-                <li>2e keer voltooid: <span className="font-bold">+10 XP</span></li>
-                <li>3e keer voltooid: <span className="font-bold">+5 XP</span></li>
-                <li>4e+ keer voltooid: <span className="font-bold">+1 XP</span></li>
+                <li>Per segment ingevuld: <span className="font-bold">+{XP.WELZIJN_SEGMENT} XP</span></li>
+                <li>
+                  Kompas volledig (alle 5): <span className="font-bold">+{XP.KOMPAS_VOLLEDIG} XP</span>
+                  <span className="text-xs text-gray-400 ml-1">incl. bonus</span>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-semibold">Trainingen</p>
+              <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
+                <li>Training gelogd: <span className="font-bold">XP via schema</span></li>
+                <li>Trainingsprogramma voltooid (90%): <span className="font-bold">+{XP.TRAINING_PROGRAMMA} XP</span></li>
+                <li>3+ trainingen in de week: <span className="font-bold">+{XP.WEEKLY_TRAINING_BONUS} XP</span></li>
               </ul>
             </div>
 
             <div>
               <p className="font-semibold">Consistentie Bonussen (Streaks)</p>
               <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
-                <li>7 Dagen Streak: <span className="font-bold">+300 XP</span></li>
-                <li>30 Dagen Streak: <span className="font-bold">+1200 XP</span></li>
-                <li>100 Dagen Streak: <span className="font-bold">+4000 XP</span></li>
+                <li>7 Dagen Streak: <span className="font-bold">+{XP.STREAK_7} XP</span></li>
+                <li>30 Dagen Streak: <span className="font-bold">+{XP.STREAK_30} XP</span></li>
+                <li>100 Dagen Streak: <span className="font-bold">+{XP.STREAK_100} XP</span></li>
               </ul>
+              <p className="text-xs text-gray-400 mt-1">
+                Streak telt als je elke dag welzijn invult of een training logt.
+              </p>
             </div>
 
             <div>
               <p className="font-semibold">Wekelijkse "Perfect Week"</p>
-              <p className="text-sm text-gray-600 mt-1">
-                Verdien <span className="font-bold">+500 XP</span> door in één week minstens 5x je Kompas te voltooien én 2 trainingen te loggen.
-              </p>
-            </div>
-            
-            <div>
-              <p className="font-semibold">Dagelijkse Inzet</p>
               <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
-                <li>Welzijn Kompas Voltooid: <span className="font-bold">+100 XP</span></li>
-                <li>Training Loggen: <span className="font-bold">+25 XP</span></li>
-                <li>Deelname Sporttest: <span className="font-bold">+50 XP</span></li>
+                <li>
+                  5× kompas + 2× training:{' '}
+                  <span className="font-bold">+{XP.PERFECT_WEEK_WELZIJN} XP</span>
+                </li>
+                <li>
+                  Enkel trainingen (3× in de week):{' '}
+                  <span className="font-bold">+{XP.PERFECT_WEEK_TRAINING} XP</span>
+                </li>
               </ul>
+            </div>
+
+            <div>
+              <p className="font-semibold">EHBO Scenario's</p>
+              <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
+                <li>1e keer voltooid: <span className="font-bold">+{XP.EHBO[0]} XP</span></li>
+                <li>2e keer voltooid: <span className="font-bold">+{XP.EHBO[1]} XP</span></li>
+                <li>3e keer voltooid: <span className="font-bold">+{XP.EHBO[2]} XP</span></li>
+                <li>4e+ keer voltooid: <span className="font-bold">+{XP.EHBO[3]} XP</span></li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-semibold">Deelname Sporttest</p>
+              <p className="text-sm text-gray-600 mt-1">
+                <span className="font-bold">+{XP.SPORTTEST} XP</span> per deelname aan een officiële sporttest.
+              </p>
             </div>
           </div>
         </div>
 
         {/* Kolom 2: Sportprestaties & Teamwork */}
         <div>
-          <h4 className="font-bold text-blue-700 mb-3 border-b-2 border-blue-200 pb-2">Sportprestaties & Teamwork</h4>
-          <p className="text-xs text-gray-500 mb-4">Deze bonussen tellen mee voor je Jaarscore en Carrièrescore, maar niet voor je Periodescore.</p>
+          <h4 className="font-bold text-blue-700 mb-3 border-b-2 border-blue-200 pb-2">
+            Sportprestaties & Teamwork
+          </h4>
+          <p className="text-xs text-gray-500 mb-4">
+            Deze bonussen tellen mee voor je Jaarscore en Carrièrescore, maar niet voor je Periodescore.
+          </p>
 
           <div className="space-y-4">
             <div>
               <p className="font-semibold">School- & Leeftijdsrecords (Top 5)</p>
               <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
-                <li>1e Plaats: <span className="font-bold">+1000 XP</span></li>
-                <li>2e Plaats: <span className="font-bold">+750 XP</span></li>
-                <li>3e Plaats: <span className="font-bold">+500 XP</span></li>
-                <li>4e Plaats: <span className="font-bold">+250 XP</span></li>
-                <li>5e Plaats: <span className="font-bold">+100 XP</span></li>
+                {XP.LEADERBOARD.map((xp, i) => (
+                  <li key={i}>{i + 1}e Plaats: <span className="font-bold">+{xp} XP</span></li>
+                ))}
               </ul>
             </div>
-            
+
             <div>
               <p className="font-semibold">Persoonlijk Record (PR) Verbreken</p>
               <p className="text-sm text-gray-600 mt-1">
-                Verdien een bonus van <span className="font-bold">+500 XP</span> elke keer dat je je eigen beste score op een test verbetert.
+                Verdien <span className="font-bold">+{XP.PR} XP</span> elke keer dat je je eigen beste
+                score op een test verbetert.
               </p>
             </div>
 
             <div className="mt-6">
-              <h4 className="font-bold text-green-700 mb-3 border-b-2 border-green-200 pb-2">Teamwork</h4>
-              <p className="text-xs text-gray-500 mb-3">Deze bonus telt mee voor alle scores (Periode, Jaar en Carrière).</p>
+              <h4 className="font-bold text-green-700 mb-3 border-b-2 border-green-200 pb-2">
+                Teamwork
+              </h4>
+              <p className="text-xs text-gray-500 mb-3">
+                Deze bonus telt mee voor alle scores (Periode, Jaar en Carrière).
+              </p>
               <p className="font-semibold">Klas Challenge Behalen</p>
               <p className="text-sm text-gray-600 mt-1">
-                Werk samen met je klas om wekelijkse doelen te behalen en verdien een teambonus van <span className="font-bold">+500 tot +1000 XP</span>.
+                Werk samen met je klas om wekelijkse doelen te behalen en verdien een teambonus
+                van <span className="font-bold">+{XP.KLAS_CHALLENGE} XP</span>.
               </p>
             </div>
           </div>
@@ -187,8 +255,26 @@ const Rewards = () => {
         </div>
 
         <div className="flex gap-2 border-b border-gray-200 mb-6">
-          <button onClick={() => setActiveTab('overzicht')} className={`px-4 py-2 font-medium text-sm ${activeTab === 'overzicht' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'}`}>Overzicht</button>
-          <button onClick={() => setActiveTab('verdienen')} className={`px-4 py-2 font-medium text-sm ${activeTab === 'verdienen' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'}`}>Hoe Verdien Ik Punten?</button>
+          <button
+            onClick={() => setActiveTab('overzicht')}
+            className={`px-4 py-2 font-medium text-sm ${
+              activeTab === 'overzicht'
+                ? 'border-b-2 border-purple-500 text-purple-600'
+                : 'text-gray-500'
+            }`}
+          >
+            Overzicht
+          </button>
+          <button
+            onClick={() => setActiveTab('verdienen')}
+            className={`px-4 py-2 font-medium text-sm ${
+              activeTab === 'verdienen'
+                ? 'border-b-2 border-purple-500 text-purple-600'
+                : 'text-gray-500'
+            }`}
+          >
+            Hoe Verdien Ik Punten?
+          </button>
         </div>
 
         {activeTab === 'overzicht' && <OverviewTab />}

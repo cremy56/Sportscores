@@ -7,182 +7,207 @@ const db = admin.firestore();
 const { getWeekStart, getWeekEnd, getWeekNumber, logXPTransaction } = require('./utils');
 
 // =============================================
-// SCHEDULED: Maak wekelijkse class challenges aan
-// ✅ Correct: leerling_ids?.length al aanwezig
+// XP BEDRAGEN
+// =============================================
+const CHALLENGE_REWARD_XP = 500; // FIX: was 40
+
+// =============================================
+// HELPER: Schoolinstelling ophalen
+// =============================================
+async function getSchoolSettings(schoolId) {
+  if (!schoolId) return {};
+  const schoolDoc = await db.collection('scholen').doc(schoolId).get();
+  return schoolDoc.exists ? (schoolDoc.data()?.instellingen || {}) : {};
+}
+
+// =============================================
+// SCHEDULED: Wekelijkse class challenges aanmaken
+//
+// NIEUW: school welzijn check — als welzijn uit,
+//        enkel training target (geen kompas component).
+//        Training target wordt hoger als compensatie.
 // =============================================
 exports.createWeeklyClassChallenge = onSchedule('0 6 * * 1', async (event) => {
-    try {
-        const groupsSnapshot = await db.collection('groepen').get();
+  try {
+    const groupsSnapshot = await db.collection('groepen').get();
 
-        for (const groupDoc of groupsSnapshot.docs) {
-            const groupData = groupDoc.data();
-            const groupId = groupDoc.id;
+    for (const groupDoc of groupsSnapshot.docs) {
+      const groupData = groupDoc.data();
+      const groupId = groupDoc.id;
 
-            // ✅ Correct: leerling_ids (niet leerlingen)
-            const studentsCount = groupData.leerling_ids?.length || 0;
-            if (studentsCount === 0) continue;
+      const studentsCount = groupData.leerling_ids?.length || 0;
+      if (studentsCount === 0) continue;
 
-            const xpTarget = Math.max(2000, studentsCount * 150);
-            const trainingTarget = Math.max(10, studentsCount * 2);
+      const xpTarget = Math.max(2000, studentsCount * 150);
+      const trainingTargetBase = Math.max(10, studentsCount * 2);
 
-            const now = new Date();
-            const weekStart = getWeekStart(now);
-            const weekEnd = getWeekEnd(now);
-            const weekId = `${weekStart.getFullYear()}-W${getWeekNumber(weekStart)}`;
+      const now = new Date();
+      const weekStart = getWeekStart(now);
+      const weekEnd = getWeekEnd(now);
+      const weekId = `${weekStart.getFullYear()}-W${getWeekNumber(weekStart)}`;
 
-            await db.collection('class_challenges').doc(`${groupId}_${weekId}`).set({
-                group_id: groupId,
-                group_name: groupData.naam,
-                school_id: groupData.school_id,
-                week_id: weekId,
-                week_start: weekStart,
-                week_end: weekEnd,
-                targets: { total_xp: xpTarget, total_trainings: trainingTarget },
-                current_progress: { total_xp: 0, total_trainings: 0, participants: [] },
-                reward_xp: 40,
-                status: 'active',
-                created_at: FieldValue.serverTimestamp()
-            });
-        }
+      // Schoolinstelling ophalen voor welzijn-afhankelijke targets
+      const settings = await getSchoolSettings(groupData.school_id);
+      const welzijnAan = settings.welzijnModuleActief !== false;
 
-        return { success: true };
+      const targets = welzijnAan
+        ? {
+            total_xp: xpTarget,
+            total_trainings: trainingTargetBase
+            // kompas_days wordt bijgehouden via weekly_stats maar niet als
+            // apart target — XP-bijdrage van kompas telt automatisch mee in total_xp
+          }
+        : {
+            total_xp: xpTarget,
+            // Welzijn uit: training target ×1.5 als compensatie
+            total_trainings: Math.ceil(trainingTargetBase * 1.5)
+          };
 
-    } catch (error) {
-        console.error('Error creating weekly class challenges:', error);
-        throw error;
+      await db.collection('class_challenges').doc(`${groupId}_${weekId}`).set({
+        group_id: groupId,
+        group_name: groupData.naam,
+        school_id: groupData.school_id,
+        week_id: weekId,
+        week_start: weekStart,
+        week_end: weekEnd,
+        targets,
+        welzijn_actief: welzijnAan,
+        current_progress: { total_xp: 0, total_trainings: 0, participants: [] },
+        reward_xp: CHALLENGE_REWARD_XP,
+        status: 'active',
+        created_at: FieldValue.serverTimestamp()
+      });
     }
+
+    return { success: true };
+
+  } catch (error) {
+    console.error('Error creating weekly class challenges:', error);
+    throw error;
+  }
 });
 
 // =============================================
 // CALLABLE: Update challenge voortgang
-// ✅ FIX: userData.groepen bestaat niet!
-//         Zoek groepen via leerling_ids in groepen collectie
+//
+// FIX: userData.smartschool_id_hash bestaat niet in users.
+//      Correct veld: userData.toegestane_gebruikers_id.
 // =============================================
 exports.updateClassChallengeProgress = onCall(async (request) => {
-    try {
-        const { userId, xpEarned, action } = request.data;
+  try {
+    const { userId, xpEarned, action } = request.data;
 
-        // Haal user op (userId = Firebase UID)
-        const userDoc = await db.collection('users').doc(userId).get();
-        if (!userDoc.exists) return { success: false, error: 'User not found' };
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) return { success: false, error: 'User not found' };
 
-        const userData = userDoc.data();
+    const userData = userDoc.data();
 
-        // ✅ FIX: Zoek groepen via smartschool_id_hash in leerling_ids
-        // userData.groepen bestaat niet → query groepen collectie
-        const studentHash = userData.smartschool_id_hash;
-        if (!studentHash) return { success: true }; // Geen hash → geen groepen
+    // FIX: toegestane_gebruikers_id (niet smartschool_id_hash)
+    const leerlingHash = userData.toegestane_gebruikers_id;
+    if (!leerlingHash) return { success: true };
 
-        const groepenQuery = await db.collection('groepen')
-            .where('school_id', '==', userData.school_id)
-            .where('leerling_ids', 'array-contains', studentHash)
-            .get();
+    const groepenQuery = await db.collection('groepen')
+      .where('school_id', '==', userData.school_id)
+      .where('leerling_ids', 'array-contains', leerlingHash)
+      .get();
 
-        if (groepenQuery.empty) return { success: true };
+    if (groepenQuery.empty) return { success: true };
 
-        // Huidige week ID
-        const now = new Date();
-        const weekStart = getWeekStart(now);
-        const weekId = `${weekStart.getFullYear()}-W${getWeekNumber(weekStart)}`;
+    const now = new Date();
+    const weekStart = getWeekStart(now);
+    const weekId = `${weekStart.getFullYear()}-W${getWeekNumber(weekStart)}`;
 
-        // Update challenge voor elke groep van de leerling
-        for (const groupDoc of groepenQuery.docs) {
-            const groupId = groupDoc.id;
-            const challengeId = `${groupId}_${weekId}`;
-            const challengeRef = db.collection('class_challenges').doc(challengeId);
-            const challengeDoc = await challengeRef.get();
+    for (const groupDoc of groepenQuery.docs) {
+      const groupId = groupDoc.id;
+      const challengeId = `${groupId}_${weekId}`;
+      const challengeRef = db.collection('class_challenges').doc(challengeId);
+      const challengeDoc = await challengeRef.get();
 
-            if (!challengeDoc.exists) continue;
+      if (!challengeDoc.exists) continue;
 
-            const currentProgress = challengeDoc.data().current_progress;
-            const updates = {};
+      const currentProgress = challengeDoc.data().current_progress;
+      const updates = {};
 
-            if (action === 'xp' && xpEarned) {
-                updates['current_progress.total_xp'] = (currentProgress.total_xp || 0) + xpEarned;
-            }
-            if (action === 'training') {
-                updates['current_progress.total_trainings'] = (currentProgress.total_trainings || 0) + 1;
-            }
+      if (action === 'xp' && xpEarned) {
+        updates['current_progress.total_xp'] = (currentProgress.total_xp || 0) + xpEarned;
+      }
+      if (action === 'training') {
+        updates['current_progress.total_trainings'] = (currentProgress.total_trainings || 0) + 1;
+      }
 
-            // Track participant via Firebase UID (voor XP toekenning later)
-            const participants = currentProgress.participants || [];
-            if (!participants.includes(userId)) {
-                updates['current_progress.participants'] = [...participants, userId];
-            }
+      const participants = currentProgress.participants || [];
+      if (!participants.includes(userId)) {
+        updates['current_progress.participants'] = [...participants, userId];
+      }
 
-            if (Object.keys(updates).length > 0) {
-                await challengeRef.update(updates);
-                await checkChallengeCompletion(challengeId);
-            }
-        }
-
-        return { success: true };
-
-    } catch (error) {
-        console.error('Error updating class challenge progress:', error);
-        throw error;
+      if (Object.keys(updates).length > 0) {
+        await challengeRef.update(updates);
+        await checkChallengeCompletion(challengeId);
+      }
     }
+
+    return { success: true };
+
+  } catch (error) {
+    console.error('Error updating class challenge progress:', error);
+    throw error;
+  }
 });
 
 // =============================================
 // HELPER: Check of challenge voltooid is
 // =============================================
 async function checkChallengeCompletion(challengeId) {
-    const challengeRef = db.collection('class_challenges').doc(challengeId);
-    const challengeDoc = await challengeRef.get();
+  const challengeRef = db.collection('class_challenges').doc(challengeId);
+  const challengeDoc = await challengeRef.get();
+  if (!challengeDoc.exists) return;
 
-    if (!challengeDoc.exists) return;
+  const challengeData = challengeDoc.data();
+  const { current_progress: progress, targets } = challengeData;
 
-    const challengeData = challengeDoc.data();
-    const { current_progress: progress, targets } = challengeData;
+  const xpComplete       = progress.total_xp >= targets.total_xp;
+  const trainingComplete = progress.total_trainings >= targets.total_trainings;
 
-    const xpComplete = progress.total_xp >= targets.total_xp;
-    const trainingComplete = progress.total_trainings >= targets.total_trainings;
+  if (xpComplete && trainingComplete && challengeData.status === 'active') {
+    await challengeRef.update({
+      status: 'completed',
+      completed_at: FieldValue.serverTimestamp()
+    });
 
-    if (xpComplete && trainingComplete && challengeData.status === 'active') {
-        await challengeRef.update({
-            status: 'completed',
-            completed_at: FieldValue.serverTimestamp()
-        });
-
-        const rewardXP = challengeData.reward_xp || 40;
-        for (const userId of progress.participants) {
-            await awardClassChallengeReward(userId, rewardXP, challengeData);
-        }
+    const rewardXP = challengeData.reward_xp || CHALLENGE_REWARD_XP;
+    for (const userId of progress.participants) {
+      await awardClassChallengeReward(userId, rewardXP, challengeData);
     }
+  }
 }
 
 // =============================================
 // HELPER: XP toekennen aan challenge deelnemers
-
-// ✅ FIX: ongebruikte newXP/newSparks variabelen verwijderd
 // =============================================
 async function awardClassChallengeReward(userId, xpAmount, challengeData) {
-    try {
-        const userRef = db.collection('users').doc(userId);
-        const userDoc = await userRef.get();
+  try {
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return;
 
-        if (!userDoc.exists) return;
+    await userRef.update({
+      xp: FieldValue.increment(xpAmount),
+      xp_current_period: FieldValue.increment(xpAmount),
+      xp_current_school_year: FieldValue.increment(xpAmount)
+    });
 
-        await userRef.update({
-            xp: FieldValue.increment(xpAmount),
-            xp_current_period: FieldValue.increment(xpAmount),
-            xp_current_school_year: FieldValue.increment(xpAmount)
-        });
+    await logXPTransaction({
+      user_id: userId,
+      amount: xpAmount,
+      reason: 'class_challenge_completion',
+      source_id: challengeData.week_id,
+      metadata: {
+        group_name: challengeData.group_name,
+        week_id: challengeData.week_id
+      }
+    });
 
-        
-        await logXPTransaction({
-            user_id: userId,
-            amount: xpAmount,
-            reason: 'class_challenge_completion',
-            source_id: challengeData.week_id,
-            metadata: {
-                group_name: challengeData.group_name,
-                week_id: challengeData.week_id
-            }
-        });
-
-    } catch (error) {
-        console.error('Error awarding class challenge reward:', error);
-    }
+  } catch (error) {
+    console.error('Error awarding class challenge reward:', error);
+  }
 }

@@ -8,82 +8,74 @@ const db = admin.firestore();
 const { logXPTransaction, checkStreakMilestonesInternal, getTodayString } = require('./utils');
 
 // =============================================
-// WELZIJN KOMPAS XP SYSTEM
+// XP BEDRAGEN — centraal beheerd
 // =============================================
-// userId = Firebase UID (welzijn data is opgeslagen per Firebase UID)
-// smartschool_id_hash wordt gebruikt voor groeps-queries
+const XP = {
+  WELZIJN_SEGMENT: 4,       // per segment (beweging/voeding/slaap/mentaal/hart)
+  KOMPAS_BONUS: 80,         // bonus als alle 5 segmenten voltooid → totaal = 5×4 + 80 = 100 XP
+  PERFECT_WEEK_WELZIJN: 500, // 5× kompas + 2× training in 1 week (welzijn aan)
+  PERFECT_WEEK_TRAINING: 300, // 3× training in 1 week (welzijn uit)
+  WEEKLY_TRAINING_BONUS: 150  // 3+ trainingen in de week (altijd)
+};
+
+// =============================================
+// HELPER: school instellingen ophalen (gecached per run)
+// =============================================
+const schoolSettingsCache = {};
+async function getSchoolSettings(schoolId) {
+  if (!schoolId) return {};
+  if (!schoolSettingsCache[schoolId]) {
+    const schoolDoc = await db.collection('scholen').doc(schoolId).get();
+    schoolSettingsCache[schoolId] = schoolDoc.exists
+      ? (schoolDoc.data()?.instellingen || {})
+      : {};
+  }
+  return schoolSettingsCache[schoolId];
+}
 
 // =============================================
 // TRIGGER: Welzijn data geüpdatet
+//
+// FIX: Was twee identieke triggers (onWelzijnKompasUpdated
+//      + onWelzijnKompasUpdatedFixed) → dubbele XP.
+//      Samengevoegd tot één export.
 // =============================================
-exports.onWelzijnKompasUpdated = onDocumentUpdated('welzijn/{userId}/dagelijkse_data/{dateString}', async (event) => {
-  const userId = event.params.userId;   // Firebase UID
-  const dateString = event.params.dateString;
-  const beforeData = event.data.before.data() || {};
-  const afterData = event.data.after.data() || {};
-
-  const newlyCompletedSegments = [];
-  if ((afterData.stappen || 0) > 0 && !((beforeData.stappen || 0) > 0)) newlyCompletedSegments.push('beweging');
-  if ((afterData.water_intake || 0) > 0 && !((beforeData.water_intake || 0) > 0)) newlyCompletedSegments.push('voeding');
-  if ((afterData.slaap_uren || 0) > 0 && !((beforeData.slaap_uren || 0) > 0)) newlyCompletedSegments.push('slaap');
-  if (afterData.humeur && !beforeData.humeur) newlyCompletedSegments.push('mentaal');
-  if ((afterData.hartslag_rust || 0) > 0 && !((beforeData.hartslag_rust || 0) > 0)) newlyCompletedSegments.push('hart');
-
-  try {
-    if (newlyCompletedSegments.length > 0) {
-      await awardWelzijnXP(userId, newlyCompletedSegments, dateString);
-    }
-    await checkKompasCompletionBonus(userId, afterData, dateString);
-  } catch (error) {
-    console.error('ERROR in onWelzijnKompasUpdated:', error);
-    // Niet gooien → voorkomt onnodige retries
-  }
-});
-
-// =============================================
-// FIXED: Zelfde trigger maar met betere logging
-// (Consolideer later met onWelzijnKompasUpdated)
-// =============================================
-exports.onWelzijnKompasUpdatedFixed = onDocumentUpdated('welzijn/{userId}/dagelijkse_data/{dateString}', async (event) => {
-  const userId = event.params.userId;
-  const dateString = event.params.dateString;
-
-  try {
+exports.onWelzijnKompasUpdated = onDocumentUpdated(
+  'welzijn/{userId}/dagelijkse_data/{dateString}',
+  async (event) => {
+    const userId = event.params.userId;
+    const dateString = event.params.dateString;
     const beforeData = event.data.before.data() || {};
     const afterData = event.data.after.data() || {};
 
     const newlyCompletedSegments = [];
-    if ((afterData.stappen || 0) > 0 && !((beforeData.stappen || 0) > 0)) newlyCompletedSegments.push('beweging');
-    if ((afterData.water_intake || 0) > 0 && !((beforeData.water_intake || 0) > 0)) newlyCompletedSegments.push('voeding');
-    if ((afterData.slaap_uren || 0) > 0 && !((beforeData.slaap_uren || 0) > 0)) newlyCompletedSegments.push('slaap');
-    if (afterData.humeur && !beforeData.humeur) newlyCompletedSegments.push('mentaal');
+    if ((afterData.stappen       || 0) > 0 && !((beforeData.stappen       || 0) > 0)) newlyCompletedSegments.push('beweging');
+    if ((afterData.water_intake  || 0) > 0 && !((beforeData.water_intake  || 0) > 0)) newlyCompletedSegments.push('voeding');
+    if ((afterData.slaap_uren    || 0) > 0 && !((beforeData.slaap_uren    || 0) > 0)) newlyCompletedSegments.push('slaap');
+    if (afterData.humeur && !beforeData.humeur)                                         newlyCompletedSegments.push('mentaal');
     if ((afterData.hartslag_rust || 0) > 0 && !((beforeData.hartslag_rust || 0) > 0)) newlyCompletedSegments.push('hart');
 
-    if (newlyCompletedSegments.length > 0) {
-      await awardWelzijnXP(userId, newlyCompletedSegments, dateString);
+    try {
+      if (newlyCompletedSegments.length > 0) {
+        await awardWelzijnXP(userId, newlyCompletedSegments, dateString);
+      }
+      await checkKompasCompletionBonus(userId, afterData, dateString);
+    } catch (error) {
+      console.error('ERROR in onWelzijnKompasUpdated:', error);
     }
-    await checkKompasCompletionBonus(userId, afterData, dateString);
-
-  } catch (error) {
-    console.error('ERROR in onWelzijnKompasUpdatedFixed:', error);
   }
-});
+);
 
 // =============================================
-// HELPER: XP toekennen voor welzijn segmenten
-// 
-// ✅ FIX: FieldValue.increment gebruikt (niet handmatige berekening)
+// HELPER: XP toekennen per welzijn segment
 // =============================================
 async function awardWelzijnXP(userId, completedSegments, dateString) {
   const userRef = db.collection('users').doc(userId);
   const userDoc = await userRef.get();
-
   if (!userDoc.exists || userDoc.data().rol !== 'leerling') return;
 
-  const xpPerSegment = 4;
-  const totalXP = completedSegments.length * xpPerSegment;
+  const totalXP = completedSegments.length * XP.WELZIJN_SEGMENT;
 
-  // ✅ FIX: FieldValue.increment (thread-safe)
   await userRef.update({
     xp: FieldValue.increment(totalXP),
     xp_current_period: FieldValue.increment(totalXP),
@@ -91,7 +83,6 @@ async function awardWelzijnXP(userId, completedSegments, dateString) {
     last_activity: FieldValue.serverTimestamp()
   });
 
-  
   await logXPTransaction({
     user_id: userId,
     amount: totalXP,
@@ -103,14 +94,18 @@ async function awardWelzijnXP(userId, completedSegments, dateString) {
 
 // =============================================
 // HELPER: Kompas volledig bonus
-// ✅ FIX: bonusXP gebruikt (was xpAmount undefined)
-// ✅ FIX: FieldValue.increment
+//
+// FIX: bonusXP was 10 → nu 80 (totaal kompas = 100 XP)
+// FIX: streak_days increment verwijderd uit deze helper —
+//      dat is uitsluitend de verantwoordelijkheid van
+//      updateDailyStreaks (cron). Dit vond dubbel tellen.
+// NIEUW: last_activity_date instellen voor two-pillar streak.
 // =============================================
 async function checkKompasCompletionBonus(userId, dayData, dateString) {
   const isKompasComplete =
-    (dayData.stappen || 0) > 0 &&
-    (dayData.water_intake || 0) > 0 &&
-    (dayData.slaap_uren || 0) > 0 &&
+    (dayData.stappen       || 0) > 0 &&
+    (dayData.water_intake  || 0) > 0 &&
+    (dayData.slaap_uren    || 0) > 0 &&
     dayData.humeur &&
     (dayData.hartslag_rust || 0) > 0;
 
@@ -120,37 +115,150 @@ async function checkKompasCompletionBonus(userId, dayData, dateString) {
   const userDoc = await userRef.get();
   if (!userDoc.exists) return;
 
-  const bonusXP = 10; // ✅ FIX: was xpAmount (undefined)
-
   await userRef.update({
-    xp: FieldValue.increment(bonusXP),
-    xp_current_period: FieldValue.increment(bonusXP),
-    xp_current_school_year: FieldValue.increment(bonusXP),
-    'weekly_stats.kompas_days': FieldValue.increment(1)
+    xp: FieldValue.increment(XP.KOMPAS_BONUS),
+    xp_current_period: FieldValue.increment(XP.KOMPAS_BONUS),
+    xp_current_school_year: FieldValue.increment(XP.KOMPAS_BONUS),
+    'weekly_stats.kompas_days': FieldValue.increment(1),
+    last_activity_date: dateString   // two-pillar streak: cron checkt dit veld
   });
 
   await db.collection('welzijn').doc(userId).collection('dagelijkse_data').doc(dateString).update({
     completion_bonus_awarded: true,
-    completion_bonus_xp: bonusXP
+    completion_bonus_xp: XP.KOMPAS_BONUS
   });
 
-  await updateWelzijnStreak(userId, dateString);
+  await logXPTransaction({
+    user_id: userId,
+    amount: XP.KOMPAS_BONUS,
+    reason: 'kompas_completion_bonus',
+    source_id: `welzijn_${dateString}`
+  });
 }
 
 // =============================================
-// HELPER: Welzijn streak updaten
+// EXPORT: Wekelijkse bonussen (elke maandag 06:00)
+//
+// FIX: perfect week XP 50 → 500 (welzijn aan)
+//      training bonus XP 25 → 150
+// NIEUW: school check — welzijn uit → andere perfect week drempel
 // =============================================
-async function updateWelzijnStreak(userId, dateString) {
+exports.checkWeeklyBonuses = onSchedule('0 6 * * 1', async (event) => {
+  // Cache leegmaken voor nieuwe run
+  for (const key of Object.keys(schoolSettingsCache)) {
+    delete schoolSettingsCache[key];
+  }
+
   try {
-    const userRef = db.collection('users').doc(userId);
-    await userRef.update({
-      streak_days: FieldValue.increment(1),
-      last_activity: FieldValue.serverTimestamp()
-    });
+    const usersSnapshot = await db.collection('users').where('rol', '==', 'leerling').get();
+
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const weeklyStats = userData.weekly_stats || {};
+      const kompasDays = weeklyStats.kompas_days || 0;
+      const trainingCount = weeklyStats.trainingen || 0;
+
+      // Schoolinstelling ophalen (gecached per schoolId)
+      const settings = await getSchoolSettings(userData.school_id);
+      const welzijnAan = settings.welzijnModuleActief !== false;
+
+      // Perfect week — twee varianten op basis van schoolinstelling
+      if (welzijnAan) {
+        // Welzijn AAN: 5× kompas + 2× training
+        if (kompasDays >= 5 && trainingCount >= 2 && !weeklyStats.perfectWeek) {
+          await awardWeeklyBonus(userDoc, XP.PERFECT_WEEK_WELZIJN, 'perfect_week_bonus');
+          await userDoc.ref.update({ 'weekly_stats.perfectWeek': true });
+        }
+      } else {
+        // Welzijn UIT: enkel trainingsdrempel (3×)
+        if (trainingCount >= 3 && !weeklyStats.perfectWeek) {
+          await awardWeeklyBonus(userDoc, XP.PERFECT_WEEK_TRAINING, 'perfect_week_bonus_training_only');
+          await userDoc.ref.update({ 'weekly_stats.perfectWeek': true });
+        }
+      }
+
+      // Wekelijkse training bonus (altijd — ongeacht welzijn)
+      if (trainingCount >= 3 && !weeklyStats.trainingBonus) {
+        await awardWeeklyBonus(userDoc, XP.WEEKLY_TRAINING_BONUS, 'weekly_training_bonus');
+        await userDoc.ref.update({ 'weekly_stats.trainingBonus': true });
+      }
+
+      // Weekly stats resetten voor nieuwe week
+      await userDoc.ref.update({
+        weekly_stats: {
+          kompas_days: 0,
+          trainingen: 0,
+          perfectWeek: false,
+          trainingBonus: false
+        }
+      });
+    }
   } catch (error) {
-    console.error('Error updating welzijn streak:', error);
+    console.error('Error in weekly bonus check:', error);
+  }
+});
+
+// =============================================
+// HELPER: XP bonus uitkeren
+// =============================================
+async function awardWeeklyBonus(userDoc, bonusXP, reason) {
+  try {
+    await userDoc.ref.update({
+      xp: FieldValue.increment(bonusXP),
+      xp_current_period: FieldValue.increment(bonusXP),
+      xp_current_school_year: FieldValue.increment(bonusXP)
+    });
+    await logXPTransaction({ user_id: userDoc.id, amount: bonusXP, reason });
+  } catch (error) {
+    console.error('Error in awardWeeklyBonus:', error);
   }
 }
+
+// =============================================
+// EXPORT: Dagelijkse streak update (01:00 's nachts)
+//
+// TWO-PILLAR MODEL: streak telt als leerling gisteren
+//   minstens één inzet-activiteit deed:
+//   - Welzijn kompas volledig (last_activity_date)
+//   - OF training gelogd/gevalideerd (last_activity_date)
+//
+// FIX: Was welzijn-only check op completion_bonus_awarded.
+//      Nu: last_activity_date veld op users (string YYYY-MM-DD),
+//      gezet door checkKompasCompletionBonus en awardTrainingXP.
+// =============================================
+exports.updateDailyStreaks = onSchedule('0 1 * * *', async (event) => {
+  try {
+    const usersSnapshot = await db.collection('users').where('rol', '==', 'leerling').get();
+
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayString = yesterday.toISOString().split('T')[0];
+
+    for (const userDoc of usersSnapshot.docs) {
+      const userId = userDoc.id;
+      const userData = userDoc.data();
+
+      // Two-pillar check: was de leerling gisteren actief?
+      const wasActive = userData.last_activity_date === yesterdayString;
+
+      if (wasActive) {
+        const newStreak = (userData.streak_days || 0) + 1;
+        await userDoc.ref.update({ streak_days: newStreak });
+        await checkStreakMilestonesInternal(userId);
+      } else {
+        if ((userData.streak_days || 0) > 0) {
+          await userDoc.ref.update({ streak_days: 0 });
+        }
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating daily streaks:', error);
+    throw error;
+  }
+});
 
 // =============================================
 // EXPORT: Manuele XP toekennen (admin/testing)
@@ -182,185 +290,18 @@ exports.manualAwardWelzijnXP = onCall(async (request) => {
 });
 
 // =============================================
-// EXPORT: Wekelijkse bonussen
-// ✅ FIX: userRef en xpAmount undefined bugs opgelost
-// =============================================
-exports.checkWeeklyBonuses = onSchedule('0 6 * * 1', async (event) => {
-  try {
-    const usersSnapshot = await db.collection('users').where('rol', '==', 'leerling').get();
-
-    for (const userDoc of usersSnapshot.docs) {
-      const userData = userDoc.data();
-      const weeklyStats = userData.weekly_stats || {};
-      const kompasDays = weeklyStats.kompas_days || 0;
-      const trainingCount = weeklyStats.trainingen || 0;
-
-      if (kompasDays >= 5 && trainingCount >= 2 && !weeklyStats.perfectWeek) {
-        await awardWeeklyBonus(userDoc, 50, 'perfect_week_bonus');
-      }
-      if (trainingCount >= 3 && !weeklyStats.trainingBonus) {
-        await awardWeeklyBonus(userDoc, 25, 'weekly_training_bonus');
-      }
-
-      // Reset weekly stats
-      await userDoc.ref.update({
-        weekly_stats: {
-          kompas_days: 0,
-          trainingen: 0,
-          perfectWeek: false,
-          trainingBonus: false
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Error in weekly bonus check:', error);
-  }
-});
-
-// ✅ FIX: userRef en xpAmount waren undefined
-// userData parameter verwijderd (niet nodig)
-async function awardWeeklyBonus(userDoc, bonusXP, reason) {
-  try {
-    // ✅ FIX: userDoc.ref gebruiken (niet userRef die niet bestond)
-    await userDoc.ref.update({
-      xp: FieldValue.increment(bonusXP),           // ✅ bonusXP (was xpAmount)
-      xp_current_period: FieldValue.increment(bonusXP),
-      xp_current_school_year: FieldValue.increment(bonusXP)
-    });
-
-   
-    await logXPTransaction({
-      user_id: userDoc.id,
-      amount: bonusXP,
-      reason
-    });
-
-  } catch (error) {
-    console.error('Error in awardWeeklyBonus:', error);
-  }
-}
-
-// =============================================
-// EXPORT: Test functie (debugging)
-// =============================================
-exports.testWelzijnXP = onCall(async (request) => {
-  const { userId } = request.data;
-
-  const userDoc = await db.collection('users').doc(userId).get();
-  if (!userDoc.exists) return { error: 'User not found', userId };
-
-  const userData = userDoc.data();
-  await userDoc.ref.update({ xp: FieldValue.increment(10) });
-
-  return {
-    success: true,
-    message: `Added 10 XP to ${userData.naam}`,
-    newXP: (userData.xp || 0) + 10
-  };
-});
-
-// =============================================
-// EXPORT: Streak milestones controleren
+// EXPORT: Streak milestones manueel controleren
+// (Wordt normaal intern afgehandeld via updateDailyStreaks)
 // =============================================
 exports.checkStreakMilestones = onCall(async (request) => {
   if (!request.auth) throw new Error('Authentication required');
-
   const { userId } = request.data;
-
   try {
-    const userRef = db.collection('users').doc(userId);
-    const userDoc = await userRef.get();
-    if (!userDoc.exists) throw new Error('User not found');
-
-    const userData = userDoc.data();
-    const currentStreak = userData.streak_days || 0;
-    const rewardedMilestones = userData.streak_milestones_rewarded || [];
-
-    const milestones = [
-      { days: 7, xp: 300, description: '7 dagen alle kompas segmenten' },
-      { days: 30, xp: 1200, description: '30 dagen streak' },
-      { days: 100, xp: 4000, description: '100 dagen streak' }
-    ];
-
-    const newRewards = [];
-
-    for (const milestone of milestones) {
-      if (currentStreak >= milestone.days && !rewardedMilestones.includes(milestone.days)) {
-        await userRef.update({
-          xp: FieldValue.increment(milestone.xp),
-          xp_current_period: FieldValue.increment(milestone.xp),
-          xp_current_school_year: FieldValue.increment(milestone.xp),
-          streak_milestones_rewarded: FieldValue.arrayUnion(milestone.days)
-        });
-
-        await logStreakReward({
-          user_id: userId,
-          streak_days: milestone.days,
-          xp_awarded: milestone.xp,
-          description: milestone.description
-        });
-
-        newRewards.push(milestone);
-      }
-    }
-
-    return { success: true, newRewards, currentStreak };
-
+    await checkStreakMilestonesInternal(userId || request.auth.uid);
+    const userDoc = await db.collection('users').doc(userId || request.auth.uid).get();
+    return { success: true, currentStreak: userDoc.data()?.streak_days || 0 };
   } catch (error) {
     console.error('Error checking streak milestones:', error);
-    throw error;
-  }
-});
-
-async function logStreakReward(rewardData) {
-  try {
-    await db.collection('users').doc(rewardData.user_id).collection('streak_rewards').add({
-      streak_days: rewardData.streak_days,
-      xp_awarded: rewardData.xp_awarded,
-      description: rewardData.description,
-      awarded_at: FieldValue.serverTimestamp()
-    });
-  } catch (error) {
-    console.error('Error logging streak reward:', error);
-  }
-}
-
-// =============================================
-// EXPORT: Dagelijkse streak update (scheduled)
-// =============================================
-exports.updateDailyStreaks = onSchedule('0 1 * * *', async (event) => {
-  try {
-    const usersSnapshot = await db.collection('users').where('rol', '==', 'leerling').get();
-
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayString = yesterday.toISOString().split('T')[0];
-
-    for (const userDoc of usersSnapshot.docs) {
-      const userId = userDoc.id;
-      const userData = userDoc.data();
-
-      const yesterdayData = await db.collection('welzijn')
-        .doc(userId)
-        .collection('dagelijkse_data')
-        .doc(yesterdayString)
-        .get();
-
-      if (yesterdayData.exists && yesterdayData.data().completion_bonus_awarded) {
-        const newStreak = (userData.streak_days || 0) + 1;
-        await userDoc.ref.update({ streak_days: newStreak });
-        await checkStreakMilestonesInternal(userId);
-      } else {
-        if ((userData.streak_days || 0) > 0) {
-          await userDoc.ref.update({ streak_days: 0 });
-        }
-      }
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error updating daily streaks:', error);
     throw error;
   }
 });
@@ -370,13 +311,11 @@ exports.updateDailyStreaks = onSchedule('0 1 * * *', async (event) => {
 // =============================================
 exports.debugWelzijnData = onCall(async (request) => {
   if (!request.auth) throw new Error('Authentication required');
-
   const userId = request.auth.uid;
 
   try {
     const userDoc = await db.collection('users').doc(userId).get();
-    const welzijnDoc = await db.collection('welzijn').doc(userId).get();
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayString();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayString = yesterday.toISOString().split('T')[0];
@@ -386,12 +325,15 @@ exports.debugWelzijnData = onCall(async (request) => {
       db.collection('welzijn').doc(userId).collection('dagelijkse_data').doc(yesterdayString).get()
     ]);
 
+    const userData = userDoc.exists ? userDoc.data() : null;
     return {
       success: true,
       userId,
       userExists: userDoc.exists,
-      userRole: userDoc.exists ? userDoc.data().rol : null,
-      welzijnExists: welzijnDoc.exists,
+      userRole: userData?.rol || null,
+      streak_days: userData?.streak_days || 0,
+      last_activity_date: userData?.last_activity_date || null,
+      weekly_stats: userData?.weekly_stats || {},
       todayDataExists: todayData.exists,
       yesterdayDataExists: yesterdayData.exists,
       todayData: todayData.exists ? todayData.data() : null
@@ -402,9 +344,25 @@ exports.debugWelzijnData = onCall(async (request) => {
 });
 
 // =============================================
-// EXPORT: Klasse welzijn statistieken
+// EXPORT: Test functie (debugging)
+// =============================================
+exports.testWelzijnXP = onCall(async (request) => {
+  const { userId } = request.data;
+  const userDoc = await db.collection('users').doc(userId).get();
+  if (!userDoc.exists) return { error: 'User not found', userId };
 
-// ✅ FIX: leerling_ids gebruikt voor groep query
+  const userData = userDoc.data();
+  await userDoc.ref.update({ xp: FieldValue.increment(10) });
+
+  return {
+    success: true,
+    message: `Added 10 XP to ${userData.nickname || userId}`,
+    newXP: (userData.xp || 0) + 10
+  };
+});
+
+// =============================================
+// EXPORT: Klasse welzijn statistieken
 // =============================================
 exports.getClassWelzijnStats = onCall(async (request) => {
   if (!request.auth) throw new Error('Authentication required');
@@ -416,22 +374,19 @@ exports.getClassWelzijnStats = onCall(async (request) => {
     let leerlingFirebaseUids = [];
 
     if (studentId) {
-      // ✅ FIX: studentId = smartschool_id_hash
-      // Zoek Firebase UID via smartschool_id_hash in users collectie
+      // studentId = smartschool_id_hash = toegestane_gebruikers_id
       const userQuery = await db.collection('users')
-        .where('smartschool_id_hash', '==', studentId)
+        .where('toegestane_gebruikers_id', '==', studentId)
         .limit(1)
         .get();
 
       if (!userQuery.empty) {
-        leerlingFirebaseUids.push(userQuery.docs[0].id); // Firebase UID
+        leerlingFirebaseUids.push(userQuery.docs[0].id);
       } else {
-        // Leerling nog niet ingelogd → geen welzijn data beschikbaar
         return { success: true, groupStats: {}, studentData: [] };
       }
 
     } else if (classId && classId !== 'all') {
-      // ✅ FIX: leerling_ids zijn smartschool_id_hash waarden
       const groupDoc = await db.collection('groepen').doc(classId).get();
       if (!groupDoc.exists) return { success: true, groupStats: {}, studentData: [] };
 
@@ -440,12 +395,11 @@ exports.getClassWelzijnStats = onCall(async (request) => {
         return { success: true, groupStats: {}, studentData: [] };
       }
 
-      // ✅ FIX: Converteer smartschool_id_hash → Firebase UIDs via users collectie
       const chunkSize = 30;
       for (let i = 0; i < leerlingHashes.length; i += chunkSize) {
         const chunk = leerlingHashes.slice(i, i + chunkSize);
         const usersSnap = await db.collection('users')
-          .where('smartschool_id_hash', 'in', chunk)
+          .where('toegestane_gebruikers_id', 'in', chunk)
           .get();
         usersSnap.docs.forEach(d => leerlingFirebaseUids.push(d.id));
       }
@@ -458,7 +412,6 @@ exports.getClassWelzijnStats = onCall(async (request) => {
       return { success: true, groupStats: {}, studentData: [] };
     }
 
-    // Haal welzijn data op per leerling (Firebase UID)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoString = thirtyDaysAgo.toISOString().split('T')[0];
@@ -481,7 +434,7 @@ exports.getClassWelzijnStats = onCall(async (request) => {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       const sevenDaysAgoString = sevenDaysAgo.toISOString().split('T')[0];
 
-      const logsLast7Days = history.filter(h => h.id >= sevenDaysAgoString).length;
+      const logsLast7Days  = history.filter(h => h.id >= sevenDaysAgoString).length;
       const logsLast30Days = history.length;
 
       const avgSleep = logsLast30Days > 0
@@ -494,9 +447,9 @@ exports.getClassWelzijnStats = onCall(async (request) => {
       const scores = history.map(h => {
         const s = {
           beweging: Math.min(100, (h.stappen || 0) / 10000 * 100),
-          voeding: Math.min(100, (h.water_intake || 0) / 2000 * 100),
-          slaap: ((h.slaap_uren || 0) / 8.5 * 80) + ((h.slaap_kwaliteit || 3) - 1) * 5,
-          mentaal: h.humeur
+          voeding:  Math.min(100, (h.water_intake || 0) / 2000 * 100),
+          slaap:    ((h.slaap_uren || 0) / 8.5 * 80) + ((h.slaap_kwaliteit || 3) - 1) * 5,
+          mentaal:  h.humeur
             ? ({ 'Zeer goed': 100, 'Goed': 80, 'Neutraal': 60, 'Minder goed': 40, 'Slecht': 20 }[h.humeur] || 0)
             : 0,
           hart: h.hartslag_rust
@@ -512,11 +465,11 @@ exports.getClassWelzijnStats = onCall(async (request) => {
 
       return {
         id: firebaseUid,
-        naam: student.naam || 'Leerling',  // Naam beschikbaar na login
+        nickname: student.nickname || 'Leerling',
         logs: { last7days: logsLast7Days, last30days: logsLast30Days },
-        avgSleep: parseFloat(avgSleep.toFixed(1)),
-        avgSteps: Math.round(avgSteps),
-        avgScore: Math.round(avgScore)
+        avgSleep:  parseFloat(avgSleep.toFixed(1)),
+        avgSteps:  Math.round(avgSteps),
+        avgScore:  Math.round(avgScore)
       };
     });
 

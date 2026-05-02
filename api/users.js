@@ -69,7 +69,7 @@ async function handleUpdateTeacherKlassen(req, res, decodedToken) {
         }
  
         // === 6. AUDIT LOG ===
-        await db.collection('audit_logs').add({
+         await writeAuditLog({
             admin_user_id: decodedToken.uid,
             action: 'update_teacher_klassen',
             target_leerkracht_hash: userId,
@@ -171,7 +171,7 @@ async function handleGetUsers(req, res, decodedToken) {
                 }
 
                 // Audit log
-                await db.collection('audit_logs').add({
+                 await writeAuditLog({
                     user_id: decodedToken.uid,
                     rol: adminUserProfile.rol,
                     action: 'get_users',
@@ -223,7 +223,7 @@ async function handleGetUsers(req, res, decodedToken) {
         });
 
         // Audit log
-        await db.collection('audit_logs').add({
+         await writeAuditLog({
             user_id: decodedToken.uid,
             rol: adminUserProfile.rol,
             action: 'get_users',
@@ -342,7 +342,7 @@ async function handleCreateUser(req, res, decodedToken) {
 
         await db.collection('toegestane_gebruikers').doc(docId).set(whitelistData, { merge: true });
 
-         await db.collection('audit_logs').add({
+          await writeAuditLog({
             admin_user_id: decodedToken.uid,
             admin_email: decodedToken.email || decodedToken.uid, // <-- HIER IS DE FIX
             action: 'create_user',
@@ -437,7 +437,7 @@ async function handleUpdateUser(req, res, decodedToken) {
         }
 
         // === 7. AUDIT LOG ===
-        await db.collection('audit_logs').add({
+         await writeAuditLog({
             admin_user_id: decodedToken.uid,
             admin_email: decodedToken.email || decodedToken.uid,
             action: 'update_user',
@@ -507,7 +507,7 @@ async function handleDeleteUser(req, res, decodedToken) {
         }
 
         // === 6. AUDIT LOG ===
-        await db.collection('audit_logs').add({
+         await writeAuditLog({
             admin_user_id: decodedToken.uid,
             admin_email: decodedToken.email || decodedToken.uid,
             action: 'delete_user',
@@ -648,7 +648,7 @@ async function handleBulkCreate(req, res, decodedToken) {
                 
         
                 // === 6. AUDIT LOG ===
-                await db.collection('audit_logs').add({
+                 await writeAuditLog({
                     admin_user_id: decodedToken.uid,
                     admin_email: decodedToken.email || decodedToken.uid, // <-- HIER IS DE FIX
                     action: 'bulk_create_users',

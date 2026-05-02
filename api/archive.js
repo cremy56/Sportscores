@@ -107,7 +107,7 @@ async function handleArchiveerRankings(req, res, decodedToken) {
 
         await batch.commit();
 
-        await db.collection('audit_logs').add({
+         await writeAuditLog({
             admin_user_id: decodedToken.uid,
             action: 'archiveer_rankings',
             school_id: schoolId,
@@ -190,7 +190,7 @@ async function handleDeactiveerOntbrekende(req, res, decodedToken) {
 
         await batch.commit();
 
-        await db.collection('audit_logs').add({
+         await writeAuditLog({
             admin_user_id: decodedToken.uid,
             action: 'deactiveer_ontbrekende',
             school_id: schoolId,
@@ -253,7 +253,7 @@ async function handleVerwijderVerlopen(req, res, decodedToken) {
             }
         }
 
-        await db.collection('audit_logs').add({
+         await writeAuditLog({
             admin_user_id: decodedToken.uid,
             action: 'verwijder_verlopen_gegevens',
             school_id: schoolId,
@@ -299,7 +299,7 @@ async function handleHeractiveer(req, res, decodedToken) {
             last_updated: Timestamp.now(),
         });
 
-        await db.collection('audit_logs').add({
+         await writeAuditLog({
             admin_user_id: decodedToken.uid,
             action: 'heractiveer_leerling',
             school_id: adminData.school_id,

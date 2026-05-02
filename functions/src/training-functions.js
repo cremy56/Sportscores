@@ -1,27 +1,50 @@
+// functions/src/training-functions.js
 const {onCall} = require('firebase-functions/v2/https');
 const {onDocumentUpdated} = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const {FieldValue} = require('firebase-admin/firestore');
 const db = admin.firestore();
-const { logXPTransaction, updateClassChallengeProgressInternal } = require('./utils');
-// ==============================================
-// TRAINING VALIDATION XP SYSTEM
-// ==============================================
+const { logXPTransaction, updateClassChallengeProgressInternal, getTodayString } = require('./utils');
 
-// Cloud Function die triggert wanneer een leerling_schema document wordt geüpdatet
+// =============================================
+// XP BEDRAGEN
+// =============================================
+const PROGRAM_COMPLETION_XP = 800;
+
+// =============================================
+// HELPER: Leerling opzoeken via smartschool_id_hash
+//
+// FIX: leerling_id in leerling_schemas = smartschool_id_hash
+//      = toegestane_gebruikers_id in users.
+//      Zoek via users.toegestane_gebruikers_id (correct veld).
+//      Niet via smartschool_id_hash (bestaat niet in users).
+// =============================================
+async function getUserByHash(leerlingHash) {
+  const userQuery = await db.collection('users')
+    .where('toegestane_gebruikers_id', '==', leerlingHash)
+    .limit(1)
+    .get();
+
+  if (userQuery.empty) {
+    console.warn(`Geen gebruiker gevonden voor hash: ${leerlingHash}`);
+    return null;
+  }
+
+  return userQuery.docs[0];
+}
+
+// =============================================
+// TRIGGER: Training week gevalideerd
+// =============================================
 exports.onTrainingWeekValidated = onDocumentUpdated('leerling_schemas/{schemaId}', async (event) => {
-  const change = event.data;
   const schemaId = event.params.schemaId;
-  const afterData = change.after.data();
-  const beforeData = change.before.data();
+  const afterData = event.data.after.data();
+  const beforeData = event.data.before.data();
 
   try {
-    // OPMERKING: De directe update van weekly_stats is hier verwijderd.
-    // Dit wordt nu centraal afgehandeld door de 'checkWeeklyBonuses' functie in welzijn-functions.js.
-
     const beforeValidated = beforeData.gevalideerde_weken || {};
     const afterValidated = afterData.gevalideerde_weken || {};
-    let newlyValidatedWeeks = [];
+    const newlyValidatedWeeks = [];
 
     for (const [weekKey, weekData] of Object.entries(afterValidated)) {
       if (weekData.gevalideerd && !beforeValidated[weekKey]?.gevalideerd) {
@@ -35,28 +58,25 @@ exports.onTrainingWeekValidated = onDocumentUpdated('leerling_schemas/{schemaId}
     if (newlyValidatedWeeks.length > 0) {
       await awardTrainingXP(afterData.leerling_id, newlyValidatedWeeks, schemaId);
     }
-    
+
   } catch (error) {
     console.error('Error processing schema update:', error);
   }
 });
 
-// Functie om XP toe te kennen aan een leerling
-// In training-functions.js
-
+// =============================================
+// HELPER: Training XP toekennen
+//
+// FIX: Lookup via toegestane_gebruikers_id (niet smartschool_id_hash).
+// NIEUW: weekly_stats.trainingen verhogen voor perfect week check.
+// NIEUW: last_activity_date zetten voor two-pillar streak.
+// NIEUW: class challenge training action triggeren.
+// =============================================
 async function awardTrainingXP(leerlingHash, validatedWeeks, schemaId) {
   try {
-    // ✅ FIX: leerling_id in leerling_schemas = smartschool_id_hash
-    // Zoek gebruiker op basis van smartschool_id_hash
-    const userQuery = await db.collection('users')
-      .where('smartschool_id_hash', '==', leerlingHash)
-      .limit(1)
-      .get();
-    if (userQuery.empty) {
-      console.warn(`Geen gebruiker gevonden voor hash: ${leerlingHash}`);
-      return;
-    }
-    const userDoc = userQuery.docs[0];
+    const userDoc = await getUserByHash(leerlingHash);
+    if (!userDoc) return;
+
     const userData = userDoc.data();
     if (userData.rol !== 'leerling') return;
 
@@ -64,108 +84,131 @@ async function awardTrainingXP(leerlingHash, validatedWeeks, schemaId) {
     validatedWeeks.forEach(week => {
       totalXP += week.trainingsXP || 0;
     });
-    
+
     if (totalXP <= 0) return;
-    
-    // --- START CORRECTIE ---
-    // Gebruik de 'totalXP' variabele die we hierboven hebben berekend.
+
+    const todayString = getTodayString();
+
     await userDoc.ref.update({
       xp: FieldValue.increment(totalXP),
       xp_current_period: FieldValue.increment(totalXP),
-      xp_current_school_year: FieldValue.increment(totalXP)
+      xp_current_school_year: FieldValue.increment(totalXP),
+      // two-pillar streak: elke gevalideerde training telt als activiteit
+      last_activity_date: todayString,
+      last_activity: FieldValue.serverTimestamp(),
+      // weekly_stats bijhouden voor perfect week + weekly training bonus
+      'weekly_stats.trainingen': FieldValue.increment(validatedWeeks.length)
     });
-    // --- EINDE CORRECTIE ---
-    
-    
-    await logXPTransaction({ user_id: userDoc.id, amount: totalXP, reason: 'training_validation', source_id: schemaId });
+
+    await logXPTransaction({
+      user_id: userDoc.id,
+      amount: totalXP,
+      reason: 'training_validation',
+      source_id: schemaId
+    });
+
+    // Klas challenge: XP bijdrage + training teller
     await updateClassChallengeProgressInternal(userDoc.id, totalXP, 'xp');
-    
+    await updateClassChallengeProgressInternal(userDoc.id, 0, 'training');
+
   } catch (error) {
     console.error('Error awarding training XP:', error);
   }
 }
 
-// Add to index.js - Training Program Completion Detection
+// =============================================
+// TRIGGER: Volledige trainingsprogramma check
+// =============================================
 exports.checkTrainingProgramCompletion = onDocumentUpdated('leerling_schemas/{schemaId}', async (event) => {
-  
-  const change = event.data;
   const schemaId = event.params.schemaId;
-  
-  const afterData = change.after.data();
-  
+  const afterData = event.data.after.data();
+
   try {
-    // Check if the entire training program is now completed
     const isFullyCompleted = checkIfProgramFullyCompleted(afterData);
-    
+
     if (isFullyCompleted && !afterData.completion_reward_awarded) {
       await awardProgramCompletionReward(afterData.leerling_id, schemaId, afterData);
     }
-    
+
   } catch (error) {
     console.error('Error checking training program completion:', error);
   }
 });
 
+// =============================================
+// HELPER: 90% van weken gevalideerd?
+// =============================================
 function checkIfProgramFullyCompleted(schemaData) {
   const gevalideerdeWeken = schemaData.gevalideerde_weken || {};
   const totalWeken = schemaData.total_weken || 0;
-  
   if (totalWeken === 0) return false;
-  
-  // Count validated weeks
+
   let validatedCount = 0;
   Object.values(gevalideerdeWeken).forEach(week => {
-    if (week.gevalideerd === true) {
-      validatedCount++;
-    }
+    if (week.gevalideerd === true) validatedCount++;
   });
-  
-  // Consider program completed if 90% of weeks are validated
+
   const completionThreshold = Math.ceil(totalWeken * 0.9);
   return validatedCount >= completionThreshold;
 }
 
+// =============================================
+// HELPER: Programma completion beloning
+//
+// FIX: Lookup via toegestane_gebruikers_id.
+// FIX: nickname gebruiken (naam bestaat niet in users).
+// =============================================
 async function awardProgramCompletionReward(leerlingHash, schemaId, schemaData) {
   try {
-    // ✅ FIX: gebruik smartschool_id_hash
-    const usersQuery = await db.collection('users')
-      .where('smartschool_id_hash', '==', leerlingHash)
-      .limit(1)
-      .get();
-    if (usersQuery.empty) {
-      console.warn(`Geen gebruiker gevonden voor hash: ${leerlingHash}`);
-      return;
-    }
+    const userDoc = await getUserByHash(leerlingHash);
+    if (!userDoc) return;
 
-    const userDoc = usersQuery.docs[0];
-    const completionXP = 800; // De beloning is 800 XP
-    
+    const userData = userDoc.data();
+
     await userDoc.ref.update({
-      xp: FieldValue.increment(completionXP),
-      xp_current_period: FieldValue.increment(completionXP),
-      xp_current_school_year: FieldValue.increment(completionXP),
+      xp: FieldValue.increment(PROGRAM_COMPLETION_XP),
+      xp_current_period: FieldValue.increment(PROGRAM_COMPLETION_XP),
+      xp_current_school_year: FieldValue.increment(PROGRAM_COMPLETION_XP),
       completed_programs: FieldValue.increment(1)
     });
 
-    await db.collection('leerling_schemas').doc(schemaId).update({ completion_reward_awarded: true, completion_reward_xp: completionXP });
-    await logXPTransaction({ user_id: userDoc.id, amount: completionXP, reason: 'training_program_completion', source_id: schemaId });
-    
-    // Roep de gecorrigeerde logging/notificatie helpers aan
-    await logTrainingCompletion({ user_id: userDoc.id, schema_id: schemaId, program_name: schemaData.naam, xp_awarded: completionXP });
-    await createCompletionNotification(userDoc.id, userDoc.data().naam, completionXP);
+    await db.collection('leerling_schemas').doc(schemaId).update({
+      completion_reward_awarded: true,
+      completion_reward_xp: PROGRAM_COMPLETION_XP
+    });
+
+    await logXPTransaction({
+      user_id: userDoc.id,
+      amount: PROGRAM_COMPLETION_XP,
+      reason: 'training_program_completion',
+      source_id: schemaId
+    });
+
+    await logTrainingCompletion({
+      user_id: userDoc.id,
+      schema_id: schemaId,
+      program_name: schemaData.naam,
+      xp_awarded: PROGRAM_COMPLETION_XP
+    });
+
+    // FIX: nickname ipv naam (naam bestaat niet in users)
+    const nickname = userData.nickname || 'Leerling';
+    await createCompletionNotification(userDoc.id, nickname, PROGRAM_COMPLETION_XP);
 
   } catch (error) {
     console.error('Error awarding program completion reward:', error);
   }
 }
 
+// =============================================
+// HELPER: Voltooiing loggen
+// =============================================
 async function logTrainingCompletion(completionData) {
-
   try {
     await db.collection('users').doc(completionData.user_id).collection('training_completions').add({
       schema_id: completionData.schema_id,
       program_name: completionData.program_name,
-      xp_awarded: completionData.xp_awarded, // Was sparks_awarded
+      xp_awarded: completionData.xp_awarded,
       completed_at: FieldValue.serverTimestamp()
     });
   } catch (error) {
@@ -173,14 +216,19 @@ async function logTrainingCompletion(completionData) {
   }
 }
 
-async function createCompletionNotification(userId, userName, xpAwarded) {
+// =============================================
+// HELPER: Voltooiingsnotificatie aanmaken
+//
+// FIX: Gebruikt nickname (niet naam).
+// =============================================
+async function createCompletionNotification(userId, nickname, xpAwarded) {
   try {
     await db.collection('notifications').add({
       recipient_id: userId,
       type: 'training_completion',
       title: 'Trainingsprogramma Voltooid!',
-      message: `Gefeliciteerd ${userName}! Je hebt een volledig trainingsprogramma afgerond en ${xpAwarded} XP verdiend.`, // Aangepaste tekst
-      xp_earned: xpAwarded, // Was sparks_earned
+      message: `Gefeliciteerd ${nickname}! Je hebt een volledig trainingsprogramma afgerond en ${xpAwarded} XP verdiend.`,
+      xp_earned: xpAwarded,
       read: false,
       created_at: FieldValue.serverTimestamp()
     });
@@ -189,47 +237,41 @@ async function createCompletionNotification(userId, userName, xpAwarded) {
   }
 }
 
-// Manual function to check and award retroactive rewards
+// =============================================
+// EXPORT: Retroactieve beloningen (admin)
+// =============================================
 exports.checkRetroactiveTrainingRewards = onCall(async (request) => {
-  
-  
-  // Admin check
-  if (!request.auth) {
-    throw new Error('Authentication required');
-  }
-  
+  if (!request.auth) throw new Error('Authentication required');
+
   const adminDoc = await db.collection('users').doc(request.auth.uid).get();
   if (!adminDoc.exists || !['administrator', 'super-administrator'].includes(adminDoc.data().rol)) {
     throw new Error('Admin access required');
   }
-  
+
   try {
     const schemasSnapshot = await db.collection('leerling_schemas').get();
     let rewardsAwarded = 0;
-    
+
     for (const schemaDoc of schemasSnapshot.docs) {
       const schemaData = schemaDoc.data();
-      
-      // Skip if already awarded
       if (schemaData.completion_reward_awarded) continue;
-      
-      // Check if program is completed
+
       if (checkIfProgramFullyCompleted(schemaData)) {
         await awardProgramCompletionReward(
-          schemaData.leerling_id, 
-          schemaDoc.id, 
+          schemaData.leerling_id,
+          schemaDoc.id,
           schemaData
         );
         rewardsAwarded++;
       }
     }
-    
+
     return {
       success: true,
-      message: `Checked ${schemasSnapshot.docs.length} training programs, awarded ${rewardsAwarded} completion rewards`,
+      message: `Checked ${schemasSnapshot.docs.length} schemas, awarded ${rewardsAwarded} completion rewards`,
       rewardsAwarded
     };
-    
+
   } catch (error) {
     console.error('Error checking retroactive training rewards:', error);
     throw error;
