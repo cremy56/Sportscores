@@ -121,7 +121,39 @@ export default function Evolutie() {
 
 // Vervang je huidige exportToCSV functie in Evolutie.jsx met deze verbeterde versie:
 
-const exportToCSV = () => {
+    // ─── Hulpfunctie: score formatteren voor CSV ────────────────────────────────
+    const isTimeEenheid = (eenheid) => {
+        const e = (eenheid || '').toLowerCase();
+        return ['min', 'sec', 'seconden', 'minuten en seconden'].some(u => e.includes(u));
+    };
+
+    const formateerScore = (score, eenheid) => {
+        if (score === null || score === undefined || score === '-') return '-';
+        const num = Number(score);
+        if (isNaN(num)) return String(score);
+        if (isTimeEenheid(eenheid)) {
+            const m = Math.floor(num / 60);
+            const s = Math.round(num % 60);
+            return m > 0 ? `${m}m${String(s).padStart(2, '0')}s` : `${s}s`;
+        }
+        return String(score);
+    };
+
+    const formateerVerschil = (verschil, eenheid) => {
+        if (verschil === '-' || verschil === null) return '-';
+        const num = Number(verschil);
+        if (isNaN(num)) return verschil;
+        if (isTimeEenheid(eenheid)) {
+            const abs = Math.abs(num);
+            const m = Math.floor(abs / 60);
+            const s = Math.round(abs % 60);
+            const formatted = m > 0 ? `${m}m${String(s).padStart(2, '0')}s` : `${s}s`;
+            return num > 0 ? `+${formatted}` : `-${formatted}`;
+        }
+        return num > 0 ? `+${num.toFixed(1)}` : num.toFixed(1);
+    };
+
+    const exportToCSV = () => {
     if (!selectedStudent || Object.keys(grouped_data).length === 0) {
         return;
     }
@@ -195,8 +227,9 @@ const exportToCSV = () => {
     
     Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
         const stats = calculateStats(testsInCategory);
+        const eenheid = testsInCategory[0]?.eenheid || '';
         if (stats) {
-            csvContent += `"${categoryName}",${testsInCategory.length},${stats.count},${stats.average},${stats.min},${stats.max},${stats.firstScore},${stats.lastScore},"${stats.trend}",${stats.improvement},${stats.standardDeviation}\n`;
+            csvContent += `"${categoryName}",${testsInCategory.length},${stats.count},${formateerScore(stats.average, eenheid)},${formateerScore(stats.min, eenheid)},${formateerScore(stats.max, eenheid)},${formateerScore(stats.firstScore, eenheid)},${formateerScore(stats.lastScore, eenheid)},"${stats.trend}",${stats.improvement}%,${stats.standardDeviation}\n`;
         }
     });
     
@@ -286,35 +319,25 @@ const exportToCSV = () => {
                     formattedDate = d.toLocaleDateString('nl-BE');
                 }
             }
-            
+
+            const eenheid = testScore.unit || '';
             const currentScore = parseFloat(testScore.score.score);
+            const displayScore = formateerScore(testScore.score.score, eenheid);
+
             let difference = '-';
             if (previousScore !== null && !isNaN(currentScore)) {
-                const diff = currentScore - previousScore;
-                difference = diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
+                difference = formateerVerschil(currentScore - previousScore, eenheid);
             }
-            
-            // Bereken positie in categorie (percentiel)
+
             let position = '-';
             if (!isNaN(currentScore) && allCategoryScores.length > 1) {
                 const rank = allCategoryScores.filter(s => s <= currentScore).length;
                 const percentile = Math.round((rank / allCategoryScores.length) * 100);
                 position = `${percentile}e percentiel`;
             }
-            
-            // Formatteer score — tijdseenheden omzetten naar leesbaar formaat
-            const eenheidLower = (testScore.unit || '').toLowerCase();
-            const isTime = ['min', 'sec', 'seconden', 'minuten en seconden'].some(u => eenheidLower.includes(u));
-            let displayScore = testScore.score.score;
-            if (isTime && !isNaN(Number(displayScore))) {
-                const totalSec = Number(displayScore);
-                const m = Math.floor(totalSec / 60);
-                const s = Math.round(totalSec % 60);
-                displayScore = m > 0 ? `${m}'${String(s).padStart(2, '0')}"` : `${s}"`;
-            }
 
-            csvContent += `"${testScore.testName}","${formattedDate}","${displayScore}","${testScore.unit}","${testScore.score.rapportpunt || '-'}","${difference}","${position}","${testScore.score.opmerkingen || '-'}"\n`;
-            
+            csvContent += `"${testScore.testName}","${formattedDate}","${displayScore}","${eenheid}","${testScore.score.rapportpunt || '-'}","${difference}","${position}","${testScore.score.opmerkingen || '-'}"\n`;
+
             if (!isNaN(currentScore)) {
                 previousScore = currentScore;
             }
