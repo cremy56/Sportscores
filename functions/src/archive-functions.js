@@ -2,7 +2,9 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
 const { Timestamp } = require('firebase-admin/firestore');
-const db = admin.firestore();
+
+// Lazy initialisatie — niet bij module load maar bij eerste gebruik
+const getDb = () => admin.firestore();
 
 // =============================================
 // GEDEELDE KERNLOGICA
@@ -16,20 +18,20 @@ async function archiveerRankingsVoorSchool(schoolId) {
     const schooljaar = maand >= 9 ? jaar : jaar - 1;
     const schooljaarLabel = `${schooljaar}-${schooljaar + 1}`;
 
-    const testenSnap = await db.collection('testen')
+    const testenSnap = await getDb().collection('testen')
         .where('school_id', '==', schoolId)
         .where('is_actief', '==', true)
         .get();
 
     let gearchiveerdeRankings = 0;
     let geblokkeerdeNicknames = 0;
-    const batch = db.batch();
+    const batch = getDb().batch();
 
     for (const testDoc of testenSnap.docs) {
         const testData = testDoc.data();
         const direction = testData.score_richting === 'laag' ? 'asc' : 'desc';
 
-        const scoresSnap = await db.collection('scores')
+        const scoresSnap = await getDb().collection('scores')
             .where('test_id', '==', testDoc.id)
             .where('school_id', '==', schoolId)
             .orderBy('score', direction)
@@ -42,7 +44,7 @@ async function archiveerRankingsVoorSchool(schoolId) {
         const nicknameMap = new Map();
 
         if (leerlingIds.length > 0) {
-            const usersSnap = await db.collection('users')
+            const usersSnap = await getDb().collection('users')
                 .where('toegestane_gebruikers_id', 'in', leerlingIds)
                 .get();
             usersSnap.docs.forEach(d =>
@@ -56,7 +58,7 @@ async function archiveerRankingsVoorSchool(schoolId) {
             const rank = index + 1;
             const archiveId = `${testDoc.id}_${schooljaarLabel}_rank${rank}`;
 
-            batch.set(db.collection('ranking_archief').doc(archiveId), {
+            batch.set(getDb().collection('ranking_archief').doc(archiveId), {
                 test_id: testDoc.id,
                 test_naam: testData.naam,
                 categorie: testData.categorie || null,
@@ -72,7 +74,7 @@ async function archiveerRankingsVoorSchool(schoolId) {
 
             gearchiveerdeRankings++;
 
-            batch.set(db.collection('nickname_archief').doc(nickname), {
+            batch.set(getDb().collection('nickname_archief').doc(nickname), {
                 school_id: schoolId,
                 geblokkeerd_sinds: Timestamp.now(),
                 reden: 'alltime_ranking',
@@ -86,7 +88,7 @@ async function archiveerRankingsVoorSchool(schoolId) {
     await batch.commit();
 
     // Audit log via aparte service account
-    await db.collection('audit_logs').add({
+    await getDb().collection('audit_logs').add({
         actor_uid: 'cron',
         action: 'archiveer_rankings_automatisch',
         school_id: schoolId,
@@ -114,7 +116,7 @@ exports.archiveerJaarlijkseRankings = onSchedule(
 
         try {
             // Haal alle actieve scholen op
-            const scholenSnap = await db.collection('scholen').get();
+            const scholenSnap = await getDb().collection('scholen').get();
 
             if (scholenSnap.empty) {
                 console.log('Geen scholen gevonden.');
@@ -162,7 +164,7 @@ exports.resetXPPeriode = onSchedule(
 
         try {
             // Reset in batches van 500
-            const leerlingenSnap = await db.collection('users')
+            const leerlingenSnap = await getDb().collection('users')
                 .where('rol', '==', 'leerling')
                 .get();
 
@@ -177,7 +179,7 @@ exports.resetXPPeriode = onSchedule(
             }
 
             for (const chunk of chunks) {
-                const batch = db.batch();
+                const batch = getDb().batch();
                 chunk.forEach(doc => {
                     batch.update(doc.ref, {
                         xp_current_period: 0,
@@ -195,7 +197,7 @@ exports.resetXPPeriode = onSchedule(
                     jaarChunks.push(leerlingenSnap.docs.slice(i, i + 500));
                 }
                 for (const chunk of jaarChunks) {
-                    const batch = db.batch();
+                    const batch = getDb().batch();
                     chunk.forEach(doc => {
                         batch.update(doc.ref, {
                             xp_current_school_year: 0,
@@ -208,7 +210,7 @@ exports.resetXPPeriode = onSchedule(
                 console.log(`✅ Schooljaar XP gereset voor ${leerlingenSnap.docs.length} leerlingen`);
             }
 
-            await db.collection('audit_logs').add({
+            await getDb().collection('audit_logs').add({
                 actor_uid: 'cron',
                 action: 'reset_xp_periode',
                 leerlingen_gereset: leerlingenSnap.docs.length,
