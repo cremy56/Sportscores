@@ -1,7 +1,7 @@
 // pages/api/users.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { getMasterKey } from '../lib/keyManager.js';
-
+import { writeAuditLog } from '../lib/auditLogger.js';
 import { decryptName, encryptName, generateHash } from '../lib/apiHelpers.js';
 
 async function handleUpdateTeacherKlassen(req, res, decodedToken) {
