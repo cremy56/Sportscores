@@ -17,10 +17,10 @@ const ANIMALS = [
 ];
 
 const generateNickname = () => {
-    const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIEVEN.length)];
-    const animal = ANIMALS[Math.floor(Math.random() * DIEREN.length)];
+    const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+    const animal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
     const num = Math.floor(Math.random() * 999) + 1;
-    return `${adj}${animal}${num}`; // bv. "SnelleTijger42"
+    return `${adj}${animal}${num}`;
 };
 
 const generateHash = (smartschoolUserId) => {
@@ -133,8 +133,7 @@ export default async function handler(req, res) {
                 whitelistDoc = whitelistQuery.docs[0];
                 whitelistData = whitelistDoc.data();
             }
-        } catch (queryError) {
-            console.warn('⚠️ Query failed, scanning...', queryError.message);
+        } catch {
             const allDocs = await db.collection('toegestane_gebruikers').get();
             for (const doc of allDocs.docs) {
                 if (doc.data().smartschool_id_hash === hashedSmartschoolId) {
@@ -146,7 +145,6 @@ export default async function handler(req, res) {
         }
 
         if (!whitelistData) {
-            console.error('❌ NOT FOUND IN WHITELIST:', hashedSmartschoolId);
             return res.status(403).json({ error: 'Je hebt geen toegang tot deze applicatie.' });
         }
 
@@ -166,15 +164,17 @@ export default async function handler(req, res) {
 
         // === Slanke users collectie aanmaken ===
         // GDPR: geen naam, klas, gender, hash hier — dat blijft in toegestane_gebruikers
+        const isLeerling = whitelistData.rol === 'leerling';
+
         const initialProfileData = {
-            toegestane_gebruikers_id: whitelistDoc.id,  // link naar sensitieve data
+            toegestane_gebruikers_id: whitelistDoc.id,
             school_id: whitelistData.school_id,
             rol: whitelistData.rol,
-            klas: whitelistData.klas || null,            // niet identificerend zonder naam — nodig voor leeftijdsfilter
+            klas: whitelistData.klas || null,
             geslacht: isLeerling ? (whitelistData.gender || null) : null,
             ...(whitelistData.rol !== 'leerling' && { klassen: whitelistData.klassen || [] }),
-            nickname,                                     // random gegenereerd
-            onboarding_complete: false,                  // leerling ziet nickname-keuze bij eerste login
+            nickname,
+            onboarding_complete: false,
             created_at: new Date(),
             last_login: new Date(),
         };
@@ -190,10 +190,9 @@ export default async function handler(req, res) {
 
         
     } catch (error) {
-        console.error('=== ERROR in auth.js ===', error.message);
         if (error.message?.includes('token')) {
-            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
+            return res.status(401).json({ error: 'Niet geauthenticeerd' });
         }
-        return res.status(500).json({ error: 'Serverfout bij profielcontrole', message: error.message });
+        return res.status(500).json({ error: 'Serverfout bij profielcontrole' });
     }
 }
