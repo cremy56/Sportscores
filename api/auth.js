@@ -111,7 +111,7 @@ export default async function handler(req, res) {
         }
 
         const hashedSmartschoolId = generateHash(smartschoolUserId);
-
+console.log('HASH:', hashedSmartschoolId);
         // === Whitelist zoeken via document ID ===
         // FIX: toegestane_gebruikers gebruikt de hash als document ID, niet als veld
         const whitelistSnap = await db.collection('toegestane_gebruikers')
