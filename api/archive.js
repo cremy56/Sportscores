@@ -1,6 +1,7 @@
 // api/archive.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { Timestamp } from 'firebase-admin/firestore';
+import { writeAuditLog } from '../lib/auditLogger.js';
 
 const getLeerjaarFromKlas = (klas) => {
     if (!klas) return null;
@@ -23,6 +24,94 @@ const getHuidigSchooljaar = () => {
     return maand >= 9 ? jaar : jaar - 1;
 };
 
+// ─── GEDEELDE KERNLOGICA ──────────────────────────────────────────────────────
+// Herbruikbaar door zowel de API handler als de Cloud Function cron
+export async function archiveerRankingsVoorSchool(schoolId, actorUid = 'cron') {
+    const schooljaar = getHuidigSchooljaar();
+    const schooljaarLabel = `${schooljaar}-${schooljaar + 1}`;
+
+    const testenSnap = await db.collection('testen')
+        .where('school_id', '==', schoolId)
+        .where('is_actief', '==', true)
+        .get();
+
+    let gearchiveerdeRankings = 0;
+    let geblokkeerdeNicknames = 0;
+    const batch = db.batch();
+
+    for (const testDoc of testenSnap.docs) {
+        const testData = testDoc.data();
+        const direction = testData.score_richting === 'laag' ? 'asc' : 'desc';
+
+        const scoresSnap = await db.collection('scores')
+            .where('test_id', '==', testDoc.id)
+            .where('school_id', '==', schoolId)
+            .orderBy('score', direction)
+            .limit(5)
+            .get();
+
+        if (scoresSnap.empty) continue;
+
+        const leerlingIds = scoresSnap.docs.map(d => d.data().leerling_id).filter(Boolean);
+        const nicknameMap = new Map();
+
+        if (leerlingIds.length > 0) {
+            const usersSnap = await db.collection('users')
+                .where('toegestane_gebruikers_id', 'in', leerlingIds)
+                .get();
+            usersSnap.docs.forEach(d =>
+                nicknameMap.set(d.data().toegestane_gebruikers_id, d.data().nickname || 'Sporter')
+            );
+        }
+
+        scoresSnap.docs.forEach((scoreDoc, index) => {
+            const scoreData = scoreDoc.data();
+            const nickname = nicknameMap.get(scoreData.leerling_id) || 'Alumni';
+            const rank = index + 1;
+            const archiveId = `${testDoc.id}_${schooljaarLabel}_rank${rank}`;
+
+            batch.set(db.collection('ranking_archief').doc(archiveId), {
+                test_id: testDoc.id,
+                test_naam: testData.naam,
+                categorie: testData.categorie || null,
+                eenheid: testData.eenheid || null,
+                rank,
+                score: scoreData.score,
+                nickname,
+                school_id: schoolId,
+                schooljaar: schooljaarLabel,
+                gearchiveerd_op: Timestamp.now(),
+                // GDPR: geen leerling_id
+            }, { merge: true });
+
+            gearchiveerdeRankings++;
+
+            // Blokkeer nickname voor hergebruik
+            batch.set(db.collection('nickname_archief').doc(nickname), {
+                school_id: schoolId,
+                geblokkeerd_sinds: Timestamp.now(),
+                reden: 'alltime_ranking',
+                schooljaar: schooljaarLabel,
+            }, { merge: true });
+
+            geblokkeerdeNicknames++;
+        });
+    }
+
+    await batch.commit();
+
+    await writeAuditLog({
+        admin_user_id: actorUid,
+        action: 'archiveer_rankings',
+        school_id: schoolId,
+        schooljaar: schooljaarLabel,
+        gearchiveerde_rankings: gearchiveerdeRankings,
+        timestamp: Timestamp.now(),
+    });
+
+    return { gearchiveerdeRankings, geblokkeerdeNicknames, schooljaarLabel };
+}
+
 // ─── 1. ARCHIVEER TOP 5 RANKINGS ─────────────────────────────────────────────
 async function handleArchiveerRankings(req, res, decodedToken) {
     try {
@@ -33,90 +122,8 @@ async function handleArchiveerRankings(req, res, decodedToken) {
             return res.status(403).json({ error: 'Alleen admins kunnen archiveren' });
         }
 
-        const schoolId = adminData.school_id;
-        const schooljaar = getHuidigSchooljaar();
-        const schooljaarLabel = `${schooljaar}-${schooljaar + 1}`;
-
-        const testenSnap = await db.collection('testen')
-            .where('school_id', '==', schoolId)
-            .where('is_actief', '==', true)
-            .get();
-
-        let gearchiveerdeRankings = 0;
-        let geblokkeerdeNicknames = 0;
-        const batch = db.batch();
-
-        for (const testDoc of testenSnap.docs) {
-            const testData = testDoc.data();
-            const direction = testData.score_richting === 'laag' ? 'asc' : 'desc';
-
-            const scoresSnap = await db.collection('scores')
-                .where('test_id', '==', testDoc.id)
-                .where('school_id', '==', schoolId)
-                .orderBy('score', direction)
-                .limit(5)
-                .get();
-
-            if (scoresSnap.empty) continue;
-
-            const leerlingIds = scoresSnap.docs.map(d => d.data().leerling_id).filter(Boolean);
-            const nicknameMap = new Map();
-
-            if (leerlingIds.length > 0) {
-                const usersSnap = await db.collection('users')
-                    .where('toegestane_gebruikers_id', 'in', leerlingIds)
-                    .get();
-                usersSnap.docs.forEach(d =>
-                    nicknameMap.set(d.data().toegestane_gebruikers_id, d.data().nickname || 'Sporter')
-                );
-            }
-
-            scoresSnap.docs.forEach((scoreDoc, index) => {
-                const scoreData = scoreDoc.data();
-                const nickname = nicknameMap.get(scoreData.leerling_id) || 'Alumni';
-                const rank = index + 1;
-                const archiveId = `${testDoc.id}_${schooljaarLabel}_rank${rank}`;
-
-                batch.set(db.collection('ranking_archief').doc(archiveId), {
-                    test_id: testDoc.id,
-                    test_naam: testData.naam,
-                    categorie: testData.categorie || null,
-                    eenheid: testData.eenheid || null,
-                    rank,
-                    score: scoreData.score,
-                    nickname,
-                    school_id: schoolId,
-                    schooljaar: schooljaarLabel,
-                    gearchiveerd_op: Timestamp.now(),
-                    // GDPR: geen leerling_id
-                }, { merge: true });
-
-                gearchiveerdeRankings++;
-
-                // Blokkeer nickname
-                batch.set(db.collection('nickname_archief').doc(nickname), {
-                    school_id: schoolId,
-                    geblokkeerd_sinds: Timestamp.now(),
-                    reden: 'alltime_ranking',
-                    schooljaar: schooljaarLabel,
-                }, { merge: true });
-
-                geblokkeerdeNicknames++;
-            });
-        }
-
-        await batch.commit();
-
-         await writeAuditLog({
-            admin_user_id: decodedToken.uid,
-            action: 'archiveer_rankings',
-            school_id: schoolId,
-            schooljaar: schooljaarLabel,
-            gearchiveerde_rankings: gearchiveerdeRankings,
-            timestamp: Timestamp.now(),
-        });
-
-        return res.status(200).json({ success: true, gearchiveerdeRankings, geblokkeerdeNicknames, schooljaar: schooljaarLabel });
+        const result = await archiveerRankingsVoorSchool(adminData.school_id, decodedToken.uid);
+        return res.status(200).json({ success: true, ...result });
 
     } catch (error) {
         console.error('❌ handleArchiveerRankings:', error);
@@ -124,7 +131,7 @@ async function handleArchiveerRankings(req, res, decodedToken) {
     }
 }
 
-// ─── 2. DEACTIVEER ONTBREKENDE LEERLINGEN (na sync) ──────────────────────────
+// ─── 2. DEACTIVEER ONTBREKENDE LEERLINGEN ────────────────────────────────────
 async function handleDeactiveerOntbrekende(req, res, decodedToken) {
     try {
         const adminSnap = await db.collection('users').doc(decodedToken.uid).get();
@@ -147,7 +154,6 @@ async function handleDeactiveerOntbrekende(req, res, decodedToken) {
         let gedeactiveerd = 0;
         let teruggeactiveerd = 0;
 
-        // Deactiveer ontbrekende actieve leerlingen
         const actieveSnap = await db.collection('toegestane_gebruikers')
             .where('school_id', '==', schoolId)
             .where('rol', '==', 'leerling')
@@ -168,7 +174,6 @@ async function handleDeactiveerOntbrekende(req, res, decodedToken) {
             }
         }
 
-        // Heractiveer teruggekeerde leerlingen
         const inactieveSnap = await db.collection('toegestane_gebruikers')
             .where('school_id', '==', schoolId)
             .where('rol', '==', 'leerling')
@@ -190,7 +195,7 @@ async function handleDeactiveerOntbrekende(req, res, decodedToken) {
 
         await batch.commit();
 
-         await writeAuditLog({
+        await writeAuditLog({
             admin_user_id: decodedToken.uid,
             action: 'deactiveer_ontbrekende',
             school_id: schoolId,
@@ -207,7 +212,7 @@ async function handleDeactiveerOntbrekende(req, res, decodedToken) {
     }
 }
 
-// ─── 3. VERWIJDER VERLOPEN GEGEVENS (januari check) ──────────────────────────
+// ─── 3. VERWIJDER VERLOPEN GEGEVENS ──────────────────────────────────────────
 async function handleVerwijderVerlopen(req, res, decodedToken) {
     try {
         const adminSnap = await db.collection('users').doc(decodedToken.uid).get();
@@ -235,7 +240,6 @@ async function handleVerwijderVerlopen(req, res, decodedToken) {
             const data = doc.data();
             if (!data.virtueel_afstudeerjaar || data.virtueel_afstudeerjaar >= huidigSchooljaar) continue;
 
-            // Verwijder users document
             const usersSnap = await db.collection('users')
                 .where('toegestane_gebruikers_id', '==', doc.id)
                 .limit(1)
@@ -245,7 +249,6 @@ async function handleVerwijderVerlopen(req, res, decodedToken) {
                 verwijderdeUsers++;
             }
 
-            // Verwijder toegestane_gebruikers na 1 jaar extra wachttijd
             const gedeactiveerdOp = data.gedeactiveerd_op?.toDate();
             if (gedeactiveerdOp && gedeactiveerdOp < eenJaarGeleden) {
                 await doc.ref.delete();
@@ -253,7 +256,7 @@ async function handleVerwijderVerlopen(req, res, decodedToken) {
             }
         }
 
-         await writeAuditLog({
+        await writeAuditLog({
             admin_user_id: decodedToken.uid,
             action: 'verwijder_verlopen_gegevens',
             school_id: schoolId,
@@ -287,7 +290,6 @@ async function handleHeractiveer(req, res, decodedToken) {
         const doc = await ref.get();
         if (!doc.exists) return res.status(404).json({ error: 'Leerling niet gevonden' });
 
-        const schooljaar = getHuidigSchooljaar();
         const nieuweKlasActief = nieuweKlas || doc.data().klas_bij_vertrek;
 
         await ref.update({
@@ -299,7 +301,7 @@ async function handleHeractiveer(req, res, decodedToken) {
             last_updated: Timestamp.now(),
         });
 
-         await writeAuditLog({
+        await writeAuditLog({
             admin_user_id: decodedToken.uid,
             action: 'heractiveer_leerling',
             school_id: adminData.school_id,
