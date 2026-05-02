@@ -279,8 +279,12 @@ const exportToCSV = () => {
         // Voeg scores toe aan CSV
         allTestScores.forEach(testScore => {
             let formattedDate = '-';
-            if (testScore.score.datum && testScore.score.datum instanceof Date && !isNaN(testScore.score.datum.getTime())) {
-                formattedDate = testScore.score.datum.toLocaleDateString('nl-BE');
+            const rawDatum = testScore.score.datum;
+            if (rawDatum) {
+                const d = rawDatum instanceof Date ? rawDatum : new Date(rawDatum);
+                if (!isNaN(d.getTime())) {
+                    formattedDate = d.toLocaleDateString('nl-BE');
+                }
             }
             
             const currentScore = parseFloat(testScore.score.score);
@@ -298,7 +302,18 @@ const exportToCSV = () => {
                 position = `${percentile}e percentiel`;
             }
             
-            csvContent += `"${testScore.testName}","${formattedDate}","${testScore.score.score}","${testScore.unit}","${testScore.score.rapportpunt || '-'}","${difference}","${position}","${testScore.score.opmerkingen || '-'}"\n`;
+            // Formatteer score — tijdseenheden omzetten naar leesbaar formaat
+            const eenheidLower = (testScore.unit || '').toLowerCase();
+            const isTime = ['min', 'sec', 'seconden', 'minuten en seconden'].some(u => eenheidLower.includes(u));
+            let displayScore = testScore.score.score;
+            if (isTime && !isNaN(Number(displayScore))) {
+                const totalSec = Number(displayScore);
+                const m = Math.floor(totalSec / 60);
+                const s = Math.round(totalSec % 60);
+                displayScore = m > 0 ? `${m}'${String(s).padStart(2, '0')}"` : `${s}"`;
+            }
+
+            csvContent += `"${testScore.testName}","${formattedDate}","${displayScore}","${testScore.unit}","${testScore.score.rapportpunt || '-'}","${difference}","${position}","${testScore.score.opmerkingen || '-'}"\n`;
             
             if (!isNaN(currentScore)) {
                 previousScore = currentScore;
@@ -317,12 +332,16 @@ const exportToCSV = () => {
     Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
         testsInCategory.forEach(test => {
             test.all_scores.forEach(score => {
-                if (score.datum && score.datum instanceof Date && !isNaN(score.datum.getTime())) {
-                    allScoresByDate.push({
-                        date: score.datum,
-                        score: parseFloat(score.score),
-                        category: categoryName
-                    });
+                const rawDatum = score.datum;
+                if (rawDatum) {
+                    const d = rawDatum instanceof Date ? rawDatum : new Date(rawDatum);
+                    if (!isNaN(d.getTime())) {
+                        allScoresByDate.push({
+                            date: d,
+                            score: parseFloat(score.score),
+                            category: categoryName
+                        });
+                    }
                 }
             });
         });
@@ -379,8 +398,9 @@ const exportToCSV = () => {
         csvContent += `Score spreiding,${Math.round((overallMax - overallMin) * 10) / 10}\n`;
     }
     
-    // Download CSV
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Download CSV — UTF-8 BOM zodat Excel speciale tekens correct toont
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
