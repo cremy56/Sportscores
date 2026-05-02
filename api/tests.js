@@ -39,6 +39,13 @@ import {
     handleGetEhboStats, handleGetWelzijnStats,
 } from './handlers/welzijn.js';
 
+import {
+    handleStartSportLabSessie, handleSluitSportLabSessie,
+    handleGetActieveSportLabSessie, handleGetSportLabSessies,
+    handleJoinSportLabSessie, handleSubmitZelfreflectie,
+    handleValideerLevelUp,
+} from './handlers/sportlab.js';
+
 // ─── HOOFD HANDLER ────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -121,6 +128,15 @@ export default async function handler(req, res) {
             // ── Welzijn & EHBO stats (leerkracht view) ─────────────────────────
             case 'get_ehbo_stats':          return await handleGetEhboStats(req, res, decodedToken);
             case 'get_welzijn_stats':       return await handleGetWelzijnStats(req, res, decodedToken);
+
+            // ── Sport Lab ──────────────────────────────────────────────────────
+            case 'start_sportlab_sessie':        return await handleStartSportLabSessie(req, res, decodedToken);
+            case 'sluit_sportlab_sessie':        return await handleSluitSportLabSessie(req, res, decodedToken);
+            case 'get_actieve_sportlab_sessie':  return await handleGetActieveSportLabSessie(req, res, decodedToken);
+            case 'get_sportlab_sessies':         return await handleGetSportLabSessies(req, res, decodedToken);
+            case 'join_sportlab_sessie':         return await handleJoinSportLabSessie(req, res, decodedToken);
+            case 'submit_zelfreflectie':         return await handleSubmitZelfreflectie(req, res, decodedToken);
+            case 'valideer_level_up':            return await handleValideerLevelUp(req, res, decodedToken);
 
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });

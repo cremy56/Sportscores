@@ -39,6 +39,7 @@ import HartDetail from './pages/HartDetail';
 import EHBODetail from './pages/EHBODetail';
 import Instellingen from './pages/Instellingen';
 import AlgemeenInstellingen from './pages/AlgemeenInstellingen';
+import SportLab from './pages/SportLab';
 
 function DynamicHomepage({ schoolSettings }) {
   if (schoolSettings?.sportdashboardAsHomepage) {
@@ -227,6 +228,7 @@ function App() {
                 <Route path="/ehbo" element={<EHBODetail />} />
                 {/* Oude /gezondheid/ehbo redirect voor bestaande bookmarks/links */}
                 <Route path="/gezondheid/ehbo" element={<Navigate to="/ehbo" replace />} />
+                <Route path="/sportlab" element={<SportLab />} />
 
                 <Route path="/welzijnsmonitor" element={<Welzijnsmonitor />} />
 

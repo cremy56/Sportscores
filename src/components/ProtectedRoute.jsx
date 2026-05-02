@@ -43,6 +43,7 @@ export default function ProtectedRoute({ profile, school, activeRole }) {
     '/instellingen/gebruikersbeheer': ['administrator', 'super-administrator'],
     '/instellingen/trainingsbeheer': ['administrator', 'super-administrator'],
     '/instellingen/schoolbeheer': ['super-administrator'],
+    '/sportlab': ['leerling', 'leerkracht', 'administrator', 'super-administrator'],
   };
 
   const getRequiredRoles = (path) => {
