@@ -60,10 +60,8 @@ function App() {
   // Auth state listener
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      
       setUser(currentUser);
       setAuthLoading(false);
-      
       if (!currentUser) {
         setProfile(null);
         setSchool(null);
@@ -86,16 +84,13 @@ function App() {
       return;
     }
 
-    // users collectie gebruikt Firebase UID als document ID
     const profileRef = doc(db, 'users', user.uid);
     let unsubscribeProfile;
 
     const checkAndCreateProfile = async (firebaseUser) => {
       try {
-        // 1. Haal Firebase token op
         const token = await firebaseUser.getIdToken();
 
-        // 2. Roep de veilige API-route aan
         const response = await fetch('/api/auth', {
           method: 'POST',
           headers: {
@@ -109,9 +104,6 @@ function App() {
           throw new Error(result.error || 'Kon profiel niet valideren');
         }
 
-       
-
-        // 3. Start Firestore listener met token
         const setupListenerWithToken = () => {
           unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
             if (docSnap.exists()) {
@@ -126,7 +118,6 @@ function App() {
                 setActiveRole(profileData.rol);
               }
 
-              // Redirect naar setup-account als onboarding niet voltooid
               if (!profileData.onboarding_complete && window.location.pathname !== '/setup-account') {
                 window.location.replace('/setup-account');
               }
@@ -134,7 +125,6 @@ function App() {
           });
         };
 
-        // Kleine delay als profiel net aangemaakt is
         if (result.status === 'profile_created') {
           setTimeout(setupListenerWithToken, 500); 
         } else {
@@ -142,7 +132,6 @@ function App() {
         }
 
       } catch (error) {
-        // Bij fout (bv. 403 Forbidden) → uitloggen
         console.error("Fout bij profielcontrole:", error.message);
         toast.error(error.message);
         auth.signOut();
@@ -152,9 +141,7 @@ function App() {
     checkAndCreateProfile(user);
 
     return () => {
-      if (unsubscribeProfile) {
-        unsubscribeProfile();
-      }
+      if (unsubscribeProfile) unsubscribeProfile();
     };
   }, [user, activeRole]);
 
@@ -179,7 +166,6 @@ function App() {
     }
   }, [profile, user]);
 
-  // Laadscherm
   if (authLoading || loading) {
     return (
       <div className="fixed inset-0 bg-white flex items-center justify-center">
@@ -193,13 +179,11 @@ function App() {
       <Routes>
         {!user ? (
           <>
-            {/* Niet ingelogd: alleen Smartschool login */}
             <Route path="/auth/smartschool/callback" element={<UniversalLogin />} />
             <Route path="*" element={<UniversalLogin />} />
           </>
         ) : (
           <>
-            {/* Ingelogd: callback redirect naar homepage */}
             <Route path="/auth/smartschool/callback" element={<Navigate to="/" replace />} />
             <Route path="/setup-account" element={<SetupAccount />} />
             
@@ -226,19 +210,26 @@ function App() {
                 <Route path="/klas/:klasNaam" element={<GroupDetail />} />
                 <Route path="/sporttesten" element={<Sporttesten />} />
                 <Route path="/sporttesten/:testId" element={<TestDetailBeheer />} />
-                    <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
+                <Route path="/testbeheer/:testId" element={<TestDetailBeheer />} />
                 <Route path="/nieuwe-testafname" element={<NieuweTestafname />} />
                 <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
                 <Route path="/trainingsbeheer/schema/:schemaId" element={<SchemaDetail />} />
+
+                {/* Welzijnsmodule — enkel zichtbaar als module actief is (bewaakt in Gezondheid.jsx) */}
                 <Route path="/gezondheid" element={<Gezondheid />} />
-                <Route path="/welzijnsmonitor" element={<Welzijnsmonitor />} />
                 <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
                 <Route path="/gezondheid/mentaal" element={<MentaalDetail />} />
                 <Route path="/gezondheid/voeding" element={<VoedingDetail />} />
                 <Route path="/gezondheid/slaap" element={<SlaapDetail />} />
                 <Route path="/gezondheid/hart" element={<HartDetail />} />
-                <Route path="/gezondheid/ehbo" element={<EHBODetail />} />
-                
+
+                {/* EHBO staat los van welzijn — altijd toegankelijk voor leerlingen */}
+                <Route path="/ehbo" element={<EHBODetail />} />
+                {/* Oude /gezondheid/ehbo redirect voor bestaande bookmarks/links */}
+                <Route path="/gezondheid/ehbo" element={<Navigate to="/ehbo" replace />} />
+
+                <Route path="/welzijnsmonitor" element={<Welzijnsmonitor />} />
+
                 <Route path="/instellingen" element={<Instellingen />}>
                   <Route index element={<AlgemeenInstellingen />} />
                   <Route path="trainingsbeheer" element={<Trainingsbeheer />} />

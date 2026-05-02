@@ -5,7 +5,6 @@ export default function ProtectedRoute({ profile, school, activeRole }) {
   const location = useLocation();
   const userRole = activeRole || profile?.rol;
 
-  // Profiel nog niet geladen — toon laadindicator
   if (!profile) {
     return (
       <div className="fixed inset-0 bg-white flex items-center justify-center">
@@ -14,24 +13,26 @@ export default function ProtectedRoute({ profile, school, activeRole }) {
     );
   }
 
-  // Onboarding niet voltooid → setup-account
   if (!profile.onboarding_complete && location.pathname !== '/setup-account') {
     return <Navigate to="/setup-account" replace />;
   }
 
-  // Onboarding voltooid maar op setup-account → home
   if (profile.onboarding_complete && location.pathname === '/setup-account') {
     return <Navigate to="/" replace />;
   }
 
   if (!userRole) {
-    return <div className="fixed inset-0 bg-white flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-    </div>;
+    return (
+      <div className="fixed inset-0 bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+      </div>
+    );
   }
 
   const rolePermissions = {
     '/gezondheid': ['leerling', 'administrator', 'super-administrator'],
+    // EHBO staat los van welzijn — altijd toegankelijk voor leerlingen
+    '/ehbo': ['leerling', 'administrator', 'super-administrator'],
     '/welzijnsmonitor': ['leerkracht', 'administrator', 'super-administrator'],
     '/groepsbeheer': ['leerkracht', 'administrator', 'super-administrator'],
     '/groep': ['leerkracht', 'administrator', 'super-administrator'],

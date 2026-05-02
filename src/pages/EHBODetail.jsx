@@ -9,6 +9,7 @@ import { useEnhancedScenario, useAdaptiveAnalysis, useAccessibilityFeatures } fr
 import { EnhancedUIComponents } from '../utils/enhancedEHBO.jsx';
 import { RoleBasedScenarios, ComplicationSystem, ScenarioChainSystem } from '../utils/advancedEnhancedEHBO';
 import { Phase3UIComponents } from '../components/EHBO/EnhancedScenarioManager';
+import { useNavigate } from 'react-router-dom';
 
 
 function shuffleArray(array) {
@@ -23,7 +24,7 @@ const EHBODetail = () => {
   const { profile } = useOutletContext();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeScenario, setActiveScenario] = useState(null);
- 
+ const navigate = useNavigate();
 
   const [userProgress, setUserProgress] = useState({
     completedScenarios: [],
@@ -2554,10 +2555,10 @@ const TheoryTab = () => (
         
         {/* Header */}
         <div className="mb-8">
-          <Link to="/gezondheid" className="inline-flex items-center text-gray-600 hover:text-emerald-700 mb-6 group">
-            <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
-            Terug naar Mijn Gezondheid
-          </Link>
+         <button onClick={() => navigate(-1)} className="inline-flex items-center text-gray-600 hover:text-emerald-700 mb-6 group">
+  <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
+  Terug
+</button>
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-800 mb-2">EHBO & Veiligheid</h1>
