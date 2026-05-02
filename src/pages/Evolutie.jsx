@@ -4,14 +4,7 @@ import { useOutletContext } from 'react-router-dom';
 import StudentSearch from '../components/StudentSearch';
 import EvolutionCard from '../components/EvolutionCard';
 import PageHeader from '../components/PageHeader';
-import { getStudentEvolutionData } from '../utils/firebaseUtils';
-
-import { 
-    generateSchoolYears, 
-    getCurrentSchoolYear, 
-    filterTestDataBySchoolYear,
-    formatSchoolYear 
-} from '../utils/schoolyearUtils';
+import { generateSchoolYears, getCurrentSchoolYear, filterTestDataBySchoolYear, formatSchoolYear } from '../utils/schoolyearUtils';
 
 export default function Evolutie() {
     const { profile, selectedStudent, setSelectedStudent } = useOutletContext();
@@ -72,9 +65,15 @@ export default function Evolutie() {
             setLoading(true);
             setError(null);
             try {
-                // Voor ingelogde leerling: gebruik toegestane_gebruikers_id als leerling_id
                 const leerlingId = selectedStudent.toegestane_gebruikers_id || selectedStudent.id;
-                const allData = await getStudentEvolutionData(leerlingId, profile.school_id, profile._token);
+                const response = await fetch('/api/tests', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get_student_evolution', leerlingId, schoolId: profile.school_id })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'API fout');
+                const allData = data.evolutionData || [];
                 const dataToShow = (selectedYear === 'all')
                     ? allData
                     : filterTestDataBySchoolYear(allData, selectedYear);
@@ -127,10 +126,12 @@ const exportToCSV = () => {
         return;
     }
 
+    const studentLabel = selectedStudent?.naam || selectedStudent?.nickname || 'Leerling';
+    
     let csvContent = '';
     
     // Header informatie
-    csvContent += `EVOLUTIE RAPPORT - ${selectedStudent.naam.toUpperCase()}\n`;
+    csvContent += `EVOLUTIE RAPPORT - ${studentLabel.toUpperCase()}\n`;
     csvContent += `Schooljaar,${selectedYear === 'all' ? 'Alle Schooljaren' : formatSchoolYear(selectedYear)}\n`;
     csvContent += `Export datum,${new Date().toLocaleDateString('nl-BE')}\n`;
     csvContent += `Export tijd,${new Date().toLocaleTimeString('nl-BE')}\n`;
@@ -385,7 +386,7 @@ const exportToCSV = () => {
     link.setAttribute('href', url);
     
     const yearLabel = selectedYear === 'all' ? 'Alle_Jaren' : formatSchoolYear(selectedYear).replace('/', '-');
-    const fileName = `${selectedStudent.naam.replace(/\s+/g, '_')}_Uitgebreid_Evolutie_${yearLabel}.csv`;
+    const fileName = `${studentLabel.replace(/\s+/g, '_')}_Uitgebreid_Evolutie_${yearLabel}.csv`;
     link.setAttribute('download', fileName);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);

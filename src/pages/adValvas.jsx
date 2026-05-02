@@ -698,9 +698,8 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     const fetchAllAdValvasData = async () => {
         setLoading(true);
         try {
-            const user = auth.currentUser;
-            if (!user) throw new Error("Gebruiker niet ingelogd");
-            const token = await user.getIdToken();
+            const token = profile._token;
+            if (!token) throw new Error("Geen token beschikbaar");
 
             const response = await fetch('/api/content', {
                 method: 'GET',
