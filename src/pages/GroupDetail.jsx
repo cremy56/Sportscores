@@ -6,7 +6,7 @@ import { useParams, Link, useOutletContext } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import {
     TrashIcon, PlusIcon, ArrowLeftIcon,
-    UserPlusIcon, XMarkIcon
+    UserPlusIcon, XMarkIcon, ShieldExclamationIcon, ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -149,11 +149,131 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded, token, profil
 }
 
 // =============================================
+// MODAL: Vrijstelling instellen / opheffen
+// =============================================
+function VrijstellingModal({ leerling, isOpen, onClose, onConfirm, loading }) {
+    const morgen = new Date();
+    morgen.setDate(morgen.getDate() + 1);
+    const morgenStr = morgen.toISOString().split('T')[0];
+
+    // Standaard einddatum: 2 weken
+    const defaultEind = new Date();
+    defaultEind.setDate(defaultEind.getDate() + 14);
+    const defaultEindStr = defaultEind.toISOString().split('T')[0];
+
+    const [einddatum, setEinddatum] = useState(defaultEindStr);
+
+    // Reset datum bij openen
+    useEffect(() => {
+        if (isOpen) setEinddatum(defaultEindStr);
+    }, [isOpen]);
+
+    if (!isOpen || !leerling) return null;
+
+    const isVrijgesteld = leerling.vrijgesteld;
+    const formatDatum = (iso) => {
+        if (!iso) return '';
+        return new Date(iso).toLocaleDateString('nl-BE', { day: 'numeric', month: 'long', year: 'numeric' });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-gray-900">
+                        {isVrijgesteld ? 'Vrijstelling opheffen' : 'Leerling vrijstellen'}
+                    </h2>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
+                        <XMarkIcon className="h-6 w-6" />
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-3 mb-6 p-4 bg-gray-50 rounded-2xl">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-purple-700 font-bold text-sm">
+                            {leerling.naam?.charAt(0) || '?'}
+                        </span>
+                    </div>
+                    <div>
+                        <p className="font-medium text-gray-900">{leerling.naam}</p>
+                        {leerling.klas && <p className="text-xs text-gray-500">{leerling.klas}</p>}
+                    </div>
+                </div>
+
+                {isVrijgesteld ? (
+                    <>
+                        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                            <div className="flex items-center gap-2 text-amber-800 mb-1">
+                                <ShieldExclamationIcon className="h-5 w-5 flex-shrink-0" />
+                                <span className="font-medium text-sm">Momenteel vrijgesteld</span>
+                            </div>
+                            {leerling.vrijstelling_einddatum && (
+                                <p className="text-sm text-amber-700 ml-7">
+                                    tot en met {formatDatum(leerling.vrijstelling_einddatum)}
+                                </p>
+                            )}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-6">
+                            Na opheffing kan de leerling opnieuw deelnemen aan sporttesten en worden XP-blokkades opgeheven.
+                        </p>
+                        <div className="flex gap-3">
+                            <button onClick={onClose} className="flex-1 px-4 py-3 border border-gray-200 rounded-2xl text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium">
+                                Annuleren
+                            </button>
+                            <button
+                                onClick={() => onConfirm({ vrijgesteld: false })}
+                                disabled={loading}
+                                className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-2xl transition-colors text-sm font-medium disabled:opacity-50"
+                            >
+                                {loading ? 'Bezig...' : 'Vrijstelling opheffen'}
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <p className="text-sm text-gray-600 mb-4">
+                            De leerling wordt tijdelijk vrijgesteld van fysieke sporttesten en doorverwezen naar het Sport Lab. Er wordt geen reden opgeslagen.
+                        </p>
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Vrijgesteld tot en met <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={einddatum}
+                                min={morgenStr}
+                                onChange={(e) => setEinddatum(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Na deze datum wordt de vrijstelling automatisch inactief.
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={onClose} className="flex-1 px-4 py-3 border border-gray-200 rounded-2xl text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium">
+                                Annuleren
+                            </button>
+                            <button
+                                onClick={() => onConfirm({ vrijgesteld: true, einddatum })}
+                                disabled={loading || !einddatum}
+                                className="flex-1 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl transition-colors text-sm font-medium disabled:opacity-50"
+                            >
+                                {loading ? 'Bezig...' : 'Vrijstellen'}
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// =============================================
 // HOOFD COMPONENT
 // =============================================
 export default function GroupDetail() {
-    const { groepId, klasNaam } = useParams();  // ✅ beide params
-    const isKlas = !!klasNaam;                   // read-only modus
+    const { groepId, klasNaam } = useParams();
+    const isKlas = !!klasNaam;
     const { profile } = useOutletContext();
 
     const [group, setGroup] = useState(null);
@@ -163,10 +283,16 @@ export default function GroupDetail() {
     const [showRemoveStudentModal, setShowRemoveStudentModal] = useState(false);
     const [studentToRemove, setStudentToRemove] = useState(null);
     const [scoresByLeerling, setScoresByLeerling] = useState({});
-    const [loadingScores, setLoadingScores] = useState(false);
     const [isSortModalOpen, setIsSortModalOpen] = useState(false);
     const [currentSort, setCurrentSort] = useState('naam');
     const [availableTests, setAvailableTests] = useState([]);
+
+    // Vrijstelling modal state
+    const [vrijstellingLeerling, setVrijstellingLeerling] = useState(null);
+    const [vrijstellingLoading, setVrijstellingLoading] = useState(false);
+
+    // Leerkrachten en admins mogen vrijstelling instellen
+    const kanVrijstellen = ['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol);
 
     // =============================================
     // ALLE DATA LADEN via API
@@ -257,6 +383,42 @@ export default function GroupDetail() {
         }
     };
 
+    // =============================================
+    // VRIJSTELLING INSTELLEN / OPHEFFEN
+    // =============================================
+    const handleVrijstellingConfirm = async ({ vrijgesteld, einddatum }) => {
+        if (!vrijstellingLeerling) return;
+        setVrijstellingLoading(true);
+        try {
+            await apiPost('set_vrijstelling', {
+                leerlingId: vrijstellingLeerling.id,
+                schoolId: profile.school_id,
+                vrijgesteld,
+                einddatum: einddatum || null
+            }, profile._token);
+
+            const naam = vrijstellingLeerling.naam;
+            if (vrijgesteld) {
+                toast.success(`${naam} vrijgesteld van sporttesten.`);
+            } else {
+                toast.success(`Vrijstelling van ${naam} opgeheven.`);
+            }
+
+            setVrijstellingLeerling(null);
+            fetchGroupData();
+        } catch (error) {
+            toast.error('Kon vrijstelling niet instellen: ' + error.message);
+        } finally {
+            setVrijstellingLoading(false);
+        }
+    };
+
+    // Einddatum formatteren voor badge
+    const formatEinddatumShort = (iso) => {
+        if (!iso) return '';
+        return new Date(iso).toLocaleDateString('nl-BE', { day: 'numeric', month: 'short' });
+    };
+
     if (loading) return (
         <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
             <div className="bg-white p-8 rounded-2xl shadow-sm">
@@ -328,7 +490,16 @@ export default function GroupDetail() {
                     {/* LEDENLIJST */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 lg:p-8">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="font-bold text-xl text-gray-800">Groepsleden ({members.length})</h2>
+                            <div className="flex items-center gap-3">
+                                <h2 className="font-bold text-xl text-gray-800">Groepsleden ({members.length})</h2>
+                                {/* Teller vrijgestelde leerlingen */}
+                                {members.filter(m => m.vrijgesteld).length > 0 && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full">
+                                        <ShieldExclamationIcon className="h-3.5 w-3.5" />
+                                        {members.filter(m => m.vrijgesteld).length} vrijgesteld
+                                    </span>
+                                )}
+                            </div>
                             {members.length > 1 && (
                                 <button onClick={() => setIsSortModalOpen(true)} className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-sm font-medium text-gray-700">
                                     <ArrowLeftIcon className="h-5 w-5 rotate-90" />
@@ -343,7 +514,7 @@ export default function GroupDetail() {
                                 const ranking = currentSort !== 'naam' ? getRankingForTest(lid.id, currentSort) : null;
 
                                 return (
-                                    <li key={lid.id} className="flex items-center py-4 space-x-4">
+                                    <li key={lid.id} className={`flex items-center py-4 space-x-4 ${lid.vrijgesteld ? 'bg-amber-50/50 -mx-2 px-2 rounded-xl' : ''}`}>
                                         {currentSort !== 'naam' && (
                                             <div className="flex-shrink-0 w-8 text-center">
                                                 {ranking ? (
@@ -352,7 +523,21 @@ export default function GroupDetail() {
                                             </div>
                                         )}
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-md font-medium text-gray-900 truncate">{lid.naam}</p>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <p className="text-md font-medium text-gray-900 truncate">{lid.naam}</p>
+                                                {/* Vrijgesteld badge */}
+                                                {lid.vrijgesteld && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-medium rounded-full flex-shrink-0">
+                                                        <ShieldExclamationIcon className="h-3 w-3" />
+                                                        vrijgesteld
+                                                        {lid.vrijstelling_einddatum && (
+                                                            <span className="opacity-75">
+                                                                t.e.m. {formatEinddatumShort(lid.vrijstelling_einddatum)}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </div>
                                             {lid.klas && <p className="text-xs text-gray-400">{lid.klas}</p>}
                                             <div className="mt-2 flex flex-wrap gap-2">
                                                 {afgenomenTesten.length > 0 ? (
@@ -366,11 +551,33 @@ export default function GroupDetail() {
                                                 )}
                                             </div>
                                         </div>
-                                        {!isKlas && (
-                                            <button onClick={() => handleRemoveStudentClick(lid)} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors">
-                                                <TrashIcon className="h-5 w-5" />
-                                            </button>
-                                        )}
+
+                                        {/* Actieknoppen */}
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                            {/* Vrijstelling toggle — zichtbaar voor leerkrachten in groep én klas view */}
+                                            {kanVrijstellen && (
+                                                <button
+                                                    onClick={() => setVrijstellingLeerling(lid)}
+                                                    title={lid.vrijgesteld ? 'Vrijstelling opheffen' : 'Leerling vrijstellen'}
+                                                    className={`p-2 rounded-full transition-colors ${
+                                                        lid.vrijgesteld
+                                                            ? 'text-amber-600 bg-amber-100 hover:bg-amber-200'
+                                                            : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                                                    }`}
+                                                >
+                                                    {lid.vrijgesteld
+                                                        ? <ShieldExclamationIcon className="h-5 w-5" />
+                                                        : <ShieldCheckIcon className="h-5 w-5" />
+                                                    }
+                                                </button>
+                                            )}
+                                            {/* Verwijder knop — enkel in groep view */}
+                                            {!isKlas && (
+                                                <button onClick={() => handleRemoveStudentClick(lid)} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors">
+                                                    <TrashIcon className="h-5 w-5" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </li>
                                 );
                             }) : (
@@ -392,6 +599,13 @@ export default function GroupDetail() {
             <ConfirmModal isOpen={showRemoveStudentModal} onClose={() => setShowRemoveStudentModal(false)} onConfirm={handleRemoveStudent} title="Leerling Verwijderen">
                 Weet u zeker dat u "{studentToRemove?.naam}" uit deze groep wilt verwijderen?
             </ConfirmModal>
+            <VrijstellingModal
+                leerling={vrijstellingLeerling}
+                isOpen={!!vrijstellingLeerling}
+                onClose={() => setVrijstellingLeerling(null)}
+                onConfirm={handleVrijstellingConfirm}
+                loading={vrijstellingLoading}
+            />
         </>
     );
 }

@@ -18,7 +18,7 @@ import {
 import {
     handleGetGroepen, handleGetMijnKlassen, handleCreateGroep, handleUpdateGroep,
     handleDeleteGroep, handleGetGroepDetail, handleAddLeerling, handleRemoveLeerling,
-    handleGetKlasDetail,
+    handleGetKlasDetail, handleSetVrijstelling,
 } from './handlers/groepen.js';
 
 import {
@@ -87,6 +87,7 @@ export default async function handler(req, res) {
             case 'add_leerling':            return await handleAddLeerling(req, res, decodedToken);
             case 'remove_leerling':         return await handleRemoveLeerling(req, res, decodedToken);
             case 'get_klas_detail':         return await handleGetKlasDetail(req, res, decodedToken);
+            case 'set_vrijstelling': return handleSetVrijstelling(req, res, decodedToken);
 
             // ── Trainingsschemas & Oefeningen ──────────────────────────────────
             case 'get_groeiplan_data':          return await handleGetGroeiplanData(req, res, decodedToken);
