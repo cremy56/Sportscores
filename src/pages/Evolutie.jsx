@@ -274,10 +274,11 @@ export default function Evolutie() {
     
     Object.entries(grouped_data).forEach(([categoryName, testsInCategory]) => {
         const stats = calculateStats(testsInCategory);
-        
+        const eenheid = testsInCategory[0]?.eenheid || '';
+
         csvContent += `CATEGORIE: ${categoryName}\n`;
         if (stats) {
-            csvContent += `Samenvatting: ${stats.count} scores | Gemiddelde: ${stats.average} | Trend: ${stats.trend} (${stats.improvement > 0 ? '+' : ''}${stats.improvement}%)\n`;
+            csvContent += `Samenvatting: ${stats.count} scores | Gemiddelde: ${formateerScore(stats.average, eenheid)} | Trend: ${stats.trend} (${stats.improvement > 0 ? '+' : ''}${stats.improvement}%)\n`;
         }
         csvContent += `Test,Datum,Score,Eenheid,Rapportpunt,Verschil t.o.v. vorige,Positie in categorie,Opmerkingen\n`;
         
@@ -390,7 +391,7 @@ export default function Evolutie() {
         const scores = scoresByMonth[monthKey];
         const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
         
-        csvContent += `${monthName},${year},${scores.length},${Math.round(avgScore * 10) / 10}\n`;
+        csvContent += `${monthName},${year},${scores.length},${Math.round(avgScore * 10) / 10} (ruwe waarde)\n`;
     });
     
     csvContent += `\n`;
@@ -413,7 +414,7 @@ export default function Evolutie() {
         const overallMin = Math.min(...allNumericScores);
         const overallMax = Math.max(...allNumericScores);
         
-        csvContent += `TOTAAL SAMENVATTING\n`;
+        csvContent += `TOTAAL SAMENVATTING (ruwe waarden — tijdscores in seconden)\n`;
         csvContent += `Totaal aantal scores,${allNumericScores.length}\n`;
         csvContent += `Gemiddelde over alle categorieën,${Math.round(overallAverage * 10) / 10}\n`;
         csvContent += `Laagste score ooit,${overallMin}\n`;
