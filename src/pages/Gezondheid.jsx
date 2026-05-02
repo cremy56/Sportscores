@@ -497,7 +497,7 @@ const getHartslagScore = () => {
 
 
 {/* 6 Thema Tiles voor NAVIGATIE */}
-<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 max-w-7xl mx-auto">
+<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 max-w-7xl mx-auto">
   <div onClick={() => handleTileClick('/gezondheid/beweging')} className="bg-blue-50 rounded-xl p-4 border-2 border-blue-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
     <div className="text-center"><div className="text-2xl mb-2">🏃‍♂️</div><div className="text-lg font-bold text-blue-600">{welzijnScores.beweging}%</div><div className="text-sm text-gray-600 font-medium">Beweging</div></div>
   </div>
@@ -517,14 +517,7 @@ const getHartslagScore = () => {
       <div className="text-sm text-gray-600 font-medium">Hart</div>
     </div>
   </div>
-  {/* NIEUWE EHBO TEGEL */}
-  <div onClick={() => handleTileClick('/ehbo')} className="bg-emerald-50 rounded-xl p-4 border-2 border-emerald-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
-    <div className="text-center">
-      <div className="text-2xl mb-2">🚑</div>
-      <div className="text-lg font-bold text-emerald-600">EHBO</div>
-      <div className="text-sm text-gray-600 font-medium">Veiligheid</div>
-    </div>
-  </div>
+
 </div>
         </div>
       </div>
