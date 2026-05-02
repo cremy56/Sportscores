@@ -2555,10 +2555,6 @@ const TheoryTab = () => (
         
         {/* Header */}
         <div className="mb-8">
-         <button onClick={() => navigate(-1)} className="inline-flex items-center text-gray-600 hover:text-emerald-700 mb-6 group">
-  <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
-  Terug
-</button>
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-800 mb-2">EHBO & Veiligheid</h1>
