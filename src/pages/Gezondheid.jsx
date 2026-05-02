@@ -434,6 +434,12 @@ const getHartslagScore = () => {
             De welzijnsmodule is momenteel niet actief voor jouw school.
             Neem contact op met je administrator als je vragen hebt.
           </p>
+          <button 
+            onClick={() => navigate('/ehbo')}
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            <span>🚑</span> Ga naar EHBO & Veiligheid
+          </button>
         </div>
       </div>
     );
@@ -512,7 +518,7 @@ const getHartslagScore = () => {
     </div>
   </div>
   {/* NIEUWE EHBO TEGEL */}
-  <div onClick={() => handleTileClick('/gezondheid/ehbo')} className="bg-emerald-50 rounded-xl p-4 border-2 border-emerald-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
+  <div onClick={() => handleTileClick('/ehbo')} className="bg-emerald-50 rounded-xl p-4 border-2 border-emerald-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-105">
     <div className="text-center">
       <div className="text-2xl mb-2">🚑</div>
       <div className="text-lg font-bold text-emerald-600">EHBO</div>

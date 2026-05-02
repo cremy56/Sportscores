@@ -485,7 +485,9 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && welzijnActief && (
               <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
             )}
-
+            {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
+              <li><NavLink to="/ehbo" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>EHBO</NavLink></li>
+            )}
             {isTeacherOrAdmin && welzijnActief && (
               <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
             )}
@@ -549,7 +551,9 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && welzijnActief && (
               <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
             )}
-
+            {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
+              <li><NavLink to="/ehbo" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>EHBO</NavLink></li>
+            )}
             {isTeacherOrAdmin && (
               <>
                 {welzijnActief && (
