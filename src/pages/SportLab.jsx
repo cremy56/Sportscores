@@ -595,21 +595,20 @@ function getTakenVoorRol(rol, niveau, sport) {
 // ─── GEEN SESSIE — WACHTSCHERM ────────────────────────────────────────────────
 function GeenSessieScherm({ isVrijgesteld }) {
     return (
-        <div className="max-w-lg text-center py-12">
-            <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-3xl text-gray-400">—</span>
+        <div className="flex justify-center">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center max-w-md w-full">
+                <h3 className="text-lg font-bold text-slate-800 mb-2">Geen actieve sessie</h3>
+                <p className="text-slate-500 text-sm">
+                    Er is momenteel geen Sport Lab sessie actief voor jouw klas.
+                    Wacht tot je leerkracht een sessie start.
+                </p>
+                {isVrijgesteld && (
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-center gap-2 text-left">
+                        <ShieldExclamationIcon className="w-4 h-4 flex-shrink-0" />
+                        <span>Je bent vrijgesteld. Zodra de leerkracht een sessie start, heb je ook toegang tot de Blessurebewuste Sporter rol.</span>
+                    </div>
+                )}
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">Geen actieve sessie</h3>
-            <p className="text-gray-500 text-sm mb-4">
-                Er is momenteel geen Sport Lab sessie actief voor jouw klas.
-                Wacht tot je leerkracht een sessie start.
-            </p>
-            {isVrijgesteld && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-center gap-2 text-left">
-                    <ShieldExclamationIcon className="w-4 h-4 flex-shrink-0" />
-                    <span>Je bent vrijgesteld van sporttesten. Zodra de leerkracht een sessie start, heb je toegang tot alle rollen inclusief de Blessurebewuste Sporter.</span>
-                </div>
-            )}
         </div>
     );
 }
