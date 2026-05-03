@@ -230,6 +230,18 @@ function SessieStartForm({ profile, onSessieGestart }) {
 // ─── LEERKRACHT: ACTIEVE SESSIE BEHEER ────────────────────────────────────────
 function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
     const [loading, setLoading] = useState(false);
+    const [duur, setDuur] = useState(0);
+    const [toonAfbreekBevestiging, setToonAfbreekBevestiging] = useState(false);
+
+    // Live timer
+    useEffect(() => {
+        const startTijd = sessie.start_tijd ? new Date(sessie.start_tijd) : null;
+        if (!startTijd) return;
+        const updateDuur = () => setDuur(Math.floor((Date.now() - startTijd.getTime()) / 60000));
+        updateDuur();
+        const interval = setInterval(updateDuur, 30000);
+        return () => clearInterval(interval);
+    }, [sessie.start_tijd]);
 
     const handleEvaluatieFase = async () => {
         setLoading(true);
@@ -248,7 +260,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
         }
     };
 
-    const handleSluitDefinitief = async () => {
+    const handleAfbreken = async () => {
         setLoading(true);
         try {
             await apiPost('sluit_sportlab_sessie', {
@@ -256,7 +268,8 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                 sessieId: sessie.id,
                 definitief: true
             }, profile._token);
-            toast.success('Sessie definitief gesloten.');
+            toast.success('Sessie afgebroken. Je kan een nieuwe starten.');
+            setToonAfbreekBevestiging(false);
             onSessieGesloten();
         } catch (e) {
             toast.error(e.message);
@@ -265,53 +278,92 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
         }
     };
 
-    const startTijd = sessie.start_tijd ? new Date(sessie.start_tijd) : null;
-    const duur = startTijd
-        ? Math.floor((Date.now() - startTijd.getTime()) / 60000)
-        : 0;
-
     return (
-        <div className="flex justify-center"><div className="bg-white rounded-2xl border-2 border-emerald-300 shadow-sm p-6 max-w-xl w-full">
-            <div className="flex items-center justify-between mb-4">
-                <span className="font-bold text-emerald-700">Sessie Actief</span>
-                <span className="text-sm text-slate-500">{duur} min bezig</span>
-            </div>
+        <div className="flex justify-center">
+            <div className="max-w-xl w-full space-y-4">
 
-            <div className="bg-emerald-50 rounded-xl p-4 mb-6">
-                <p className="text-2xl font-bold text-emerald-800 mb-1">{sessie.sport}</p>
-                {sessie.klas && <p className="text-sm text-emerald-600">Klas {sessie.klas}</p>}
-            </div>
+                {/* Actieve sessie kaart */}
+                <div className="bg-white rounded-2xl border-2 border-emerald-400 shadow-sm overflow-hidden">
+                    {/* Status balk */}
+                    <div className="bg-emerald-500 px-5 py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                            <span className="font-semibold text-white text-sm">
+                                {sessie.status === 'evaluatie' ? 'Evaluatiefase' : 'Sessie Actief'}
+                            </span>
+                        </div>
+                        <span className="text-emerald-100 text-sm">{duur} min</span>
+                    </div>
 
-            <p className="text-sm text-gray-600 mb-4">
-                Vertel de leerlingen verbaal welke rol ze kunnen opnemen. Ze kiezen zelf in de app.
-                Klik op <strong>Evaluatiefase</strong> aan het einde van de les om de reflectie te starten.
-            </p>
+                    <div className="p-5">
+                        {/* Sport & klas */}
+                        <div className="flex items-baseline justify-between mb-4">
+                            <h2 className="text-2xl font-bold text-slate-900">{sessie.sport}</h2>
+                            {sessie.klas && (
+                                <span className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                                    {sessie.klas}
+                                </span>
+                            )}
+                        </div>
 
-            <div className="flex gap-3">
-                <button
-                    onClick={handleEvaluatieFase}
-                    disabled={loading || sessie.status === 'evaluatie'}
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-medium py-3 px-4 rounded-xl transition-colors text-sm flex items-center justify-center gap-2"
-                >
-                    <StopIcon className="w-4 h-4" />
-                    Evaluatiefase (3 min)
-                </button>
-                <button
-                    onClick={handleSluitDefinitief}
-                    disabled={loading}
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors text-sm"
-                >
-                    Sluiten
-                </button>
-            </div>
+                        <p className="text-sm text-slate-500 mb-5">
+                            Leerlingen kiezen hun rol via de app. Klik op <strong className="text-slate-700">Evaluatiefase</strong> op het einde van de les.
+                        </p>
 
-            {sessie.status === 'evaluatie' && (
-                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-center gap-2">
-                    <ClockIcon className="w-4 h-4 flex-shrink-0" />
-                    Evaluatievenster open — leerlingen kunnen nu reflecteren.
+                        {/* Evaluatie fase melding */}
+                        {sessie.status === 'evaluatie' && (
+                            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-center gap-2">
+                                <ClockIcon className="w-4 h-4 flex-shrink-0" />
+                                Evaluatievenster open — leerlingen kunnen nu reflecteren.
+                            </div>
+                        )}
+
+                        {/* Actieknoppen */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleEvaluatieFase}
+                                disabled={loading || sessie.status === 'evaluatie'}
+                                className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-medium py-3 px-4 rounded-xl transition-colors text-sm"
+                            >
+                                {sessie.status === 'evaluatie' ? 'Evaluatie loopt...' : 'Start Evaluatiefase'}
+                            </button>
+                            <button
+                                onClick={() => setToonAfbreekBevestiging(true)}
+                                disabled={loading}
+                                className="px-4 py-3 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors text-sm font-medium border border-slate-200 hover:border-red-200"
+                            >
+                                Afbreken
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            )}
-        </div></div>
+
+                {/* Afbreek bevestiging */}
+                {toonAfbreekBevestiging && (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+                        <p className="font-semibold text-red-800 mb-1">Sessie afbreken?</p>
+                        <p className="text-sm text-red-700 mb-4">
+                            Leerlingen die nog niet gereflecteerd hebben verliezen hun voortgang. Je kan daarna een nieuwe sessie starten.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setToonAfbreekBevestiging(false)}
+                                className="flex-1 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50"
+                            >
+                                Annuleren
+                            </button>
+                            <button
+                                onClick={handleAfbreken}
+                                disabled={loading}
+                                className="flex-1 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl disabled:opacity-50"
+                            >
+                                {loading ? 'Bezig...' : 'Ja, afbreken'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }
 
@@ -331,7 +383,7 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, onRolGekozen }) {
                 sessieId: sessie.id,
                 rol: geselecteerdeRol
             }, profile._token);
-            toast.success('+10 XP verdiend voor deelname!');
+            toast.success('Rol gekozen!');
             onRolGekozen(geselecteerdeRol);
         } catch (e) {
             toast.error(e.message);
@@ -631,6 +683,8 @@ export default function SportLab() {
     const [eigenDeelname, setEigenDeelname] = useState(null);
     const [loading, setLoading] = useState(true);
     const [gekozenRol, setGekozenRol] = useState(null);
+    // Leerkracht: eigen actieve sessie apart bijhouden
+    const [leerkrachtSessie, setLeerkrachtSessie] = useState(null);
 
     const isLeerling = profile?.rol === 'leerling';
     const isTeacher = ['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol);
@@ -657,17 +711,22 @@ export default function SportLab() {
     const fetchSessie = useCallback(async () => {
         if (!profile?._token || !profile?.school_id) return;
         try {
-            const data = await apiPost('get_actieve_sportlab_sessie', {
-                schoolId: profile.school_id
-            }, profile._token);
-            setSessie(data.sessie || null);
-            setEigenDeelname(data.eigen_deelname || null);
-            // NIET automatisch gekozenRol instellen vanuit polling —
-            // dit veroorzaakt terugspringen als gebruiker manueel naar overzicht ging.
-            // Rol wordt enkel ingesteld via handleRolGekozen (expliciete keuze).
-            // if (data.eigen_deelname?.rol) {
-            //     setGekozenRol(data.eigen_deelname.rol);
-            // }
+            // Leerkracht: eigen sessies ophalen
+            if (['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol)) {
+                const data = await apiPost('get_sportlab_sessies', {
+                    schoolId: profile.school_id
+                }, profile._token);
+                const actief = (data.sessies || []).find(s => ['actief', 'evaluatie'].includes(s.status));
+                setLeerkrachtSessie(actief || null);
+            } else {
+                // Leerling: actieve sessie ophalen
+                const data = await apiPost('get_actieve_sportlab_sessie', {
+                    schoolId: profile.school_id
+                }, profile._token);
+                setSessie(data.sessie || null);
+                setEigenDeelname(data.eigen_deelname || null);
+                // Niet automatisch gekozenRol instellen — veroorzaakt terugspringen
+            }
         } catch (e) {
             console.error('Fout bij laden sessie:', e);
         } finally {
@@ -713,9 +772,9 @@ export default function SportLab() {
                     {/* LEERKRACHT VIEW */}
                     {isTeacher && (
                         <>
-                            {sessie && isSessieActiefClient(sessie) ? (
+                            {leerkrachtSessie ? (
                                 <ActieveSessieLeerkracht
-                                    sessie={sessie}
+                                    sessie={leerkrachtSessie}
                                     profile={profile}
                                     onSessieGesloten={handleSessieGesloten}
                                 />
