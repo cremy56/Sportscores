@@ -406,7 +406,7 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, onRolGekozen }) {
 }
 
 // ─── LEERLING: ACTIEVE ROL VIEW ───────────────────────────────────────────────
-function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteerd }) {
+function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteerd, onTerug }) {
     const rolData = ROLLEN.find(r => r.id === rol) || ROLLEN[0];
     const [fase, setFase] = useState(
         sessie.status === 'evaluatie' ? 'reflectie' : 'actief'
@@ -424,6 +424,15 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
 
     return (
         <div className="max-w-2xl">
+            {/* Terug knop */}
+            <button
+                onClick={onTerug}
+                className="inline-flex items-center text-slate-500 hover:text-slate-800 mb-6 group text-sm"
+            >
+                <ChevronRightIcon className="w-4 h-4 mr-1 rotate-180 transition-transform group-hover:-translate-x-1" />
+                Terug naar overzicht
+            </button>
+
             {/* Actieve rol banner */}
             <div className={`${rolData.bg} border ${rolData.border} rounded-2xl p-5 mb-6`}>
                 <div className="flex items-center justify-between mb-2">
@@ -626,10 +635,8 @@ export default function SportLab() {
 
     // Vrijstelling check
     const einddatum = profile?.vrijstelling_einddatum
-    ? (profile.vrijstelling_einddatum.toDate
-        ? profile.vrijstelling_einddatum.toDate()
-        : new Date(profile.vrijstelling_einddatum))
-    : null;
+        ? new Date(profile.vrijstelling_einddatum)
+        : null;
     const isVrijgesteld = profile?.vrijgesteld_van_testen === true
         && einddatum && einddatum > new Date();
 
@@ -665,6 +672,7 @@ export default function SportLab() {
     const handleSessieGesloten = () => fetchSessie();
     const handleRolGekozen = (rol) => { setGekozenRol(rol); fetchSessie(); };
     const handleGereflecteerd = () => fetchSessie();
+    const handleTerugNaarOverzicht = () => { setGekozenRol(null); setEigenDeelname(null); };
 
     if (loading) return (
         <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
@@ -719,6 +727,7 @@ export default function SportLab() {
                                     deelname={eigenDeelname}
                                     profile={profile}
                                     onGereflecteerd={handleGereflecteerd}
+                                    onTerug={handleTerugNaarOverzicht}
                                 />
                             ) : (
                                 <RolKeuze
