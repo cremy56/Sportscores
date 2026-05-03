@@ -5,8 +5,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import {
     PlayIcon, StopIcon, ChevronRightIcon,
     StarIcon, CheckCircleIcon, ClockIcon,
-    ShieldExclamationIcon, TrophyIcon, UsersIcon,
-    WhistleIcon
+    ShieldExclamationIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
@@ -113,8 +112,30 @@ function NiveauBadge({ niveau }) {
 // ─── LEERKRACHT: SESSIE STARTEN ───────────────────────────────────────────────
 function SessieStartForm({ profile, onSessieGestart }) {
     const [sport, setSport] = useState('');
-    const [klas, setKlas] = useState('');
+    const [geselecteerdeKlas, setGeselecteerdeKlas] = useState('');
     const [loading, setLoading] = useState(false);
+    const [klassenEnGroepen, setKlassenEnGroepen] = useState({ klassen: [], groepen: [] });
+    const [loadingKlassen, setLoadingKlassen] = useState(true);
+
+    useEffect(() => {
+        const fetchKlassenEnGroepen = async () => {
+            try {
+                const [klassenData, groepenData] = await Promise.all([
+                    apiPost('get_mijn_klassen', { schoolId: profile.school_id }, profile._token),
+                    apiPost('get_groepen', { schoolId: profile.school_id }, profile._token),
+                ]);
+                setKlassenEnGroepen({
+                    klassen: klassenData.klassen || [],
+                    groepen: groepenData.groepen || [],
+                });
+            } catch (e) {
+                console.error('Fout bij laden klassen:', e);
+            } finally {
+                setLoadingKlassen(false);
+            }
+        };
+        fetchKlassenEnGroepen();
+    }, []);
 
     const handleStart = async () => {
         if (!sport) { toast.error('Kies een sport.'); return; }
@@ -123,7 +144,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
             const data = await apiPost('start_sportlab_sessie', {
                 schoolId: profile.school_id,
                 sport,
-                klas: klas || null
+                klas: geselecteerdeKlas || null,
             }, profile._token);
             toast.success(`Sport Lab sessie gestart voor ${sport}!`);
             onSessieGestart(data.sessie_id);
@@ -136,14 +157,9 @@ function SessieStartForm({ profile, onSessieGestart }) {
 
     return (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 max-w-lg mx-auto">
-            <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-                    <PlayIcon className="w-5 h-5 text-emerald-600" />
-                </div>
-                <div>
-                    <h2 className="font-bold text-gray-900">Nieuwe Sport Lab Sessie</h2>
-                    <p className="text-sm text-gray-500">Leerlingen kunnen daarna joinen via de app</p>
-                </div>
+            <div className="mb-6">
+                <h2 className="font-bold text-gray-900 text-lg">Nieuwe Sport Lab Sessie</h2>
+                <p className="text-sm text-gray-500 mt-1">Leerlingen kunnen daarna joinen via de app</p>
             </div>
 
             <div className="space-y-4">
@@ -163,15 +179,35 @@ function SessieStartForm({ profile, onSessieGestart }) {
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Klas <span className="text-gray-400 font-normal">(optioneel)</span>
+                        Klas of groep <span className="text-gray-400 font-normal">(optioneel — leeg = iedereen)</span>
                     </label>
-                    <input
-                        type="text"
-                        value={klas}
-                        onChange={e => setKlas(e.target.value)}
-                        placeholder="bv. 3A"
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-                    />
+                    {loadingKlassen ? (
+                        <div className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-400 text-sm">
+                            Klassen laden...
+                        </div>
+                    ) : (
+                        <select
+                            value={geselecteerdeKlas}
+                            onChange={e => setGeselecteerdeKlas(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 text-gray-800"
+                        >
+                            <option value="">— Alle leerlingen —</option>
+                            {klassenEnGroepen.klassen.length > 0 && (
+                                <optgroup label="Klassen">
+                                    {klassenEnGroepen.klassen.map(k => (
+                                        <option key={k} value={k}>{k}</option>
+                                    ))}
+                                </optgroup>
+                            )}
+                            {klassenEnGroepen.groepen.length > 0 && (
+                                <optgroup label="Mijn groepen">
+                                    {klassenEnGroepen.groepen.map(g => (
+                                        <option key={g.id} value={g.naam}>{g.naam}</option>
+                                    ))}
+                                </optgroup>
+                            )}
+                        </select>
+                    )}
                 </div>
 
                 <button
@@ -339,7 +375,6 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, onRolGekozen }) {
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-start gap-3 flex-1">
-                                    <span className="text-2xl flex-shrink-0">{rol.emoji}</span>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap mb-1">
                                             <span className={`font-bold ${isGekozen ? rol.tekst : 'text-gray-900'}`}>
@@ -396,7 +431,6 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
             {/* Actieve rol banner */}
             <div className={`bg-gradient-to-r ${rolData.kleur} rounded-2xl p-5 text-white mb-6 shadow-md`}>
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-4xl">{rolData.emoji}</span>
                     <NiveauBadge niveau={niveau} />
                 </div>
                 <h2 className="text-xl font-bold mb-1">{rolData.naam}</h2>
@@ -704,33 +738,7 @@ export default function SportLab() {
                         </>
                     )}
 
-                    {/* XP UITLEG — enkel voor leerlingen */}
-                    {isLeerling && (
-                        <div className="mt-8 bg-white rounded-2xl border border-gray-100 p-5">
-                            <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                <TrophyIcon className="w-5 h-5 text-amber-500" />
-                                Hoe verdien ik XP?
-                            </h3>
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div className="flex items-center gap-2 text-gray-600">
-                                    <span className="font-bold text-emerald-600 w-14">+10 XP</span>
-                                    Rol kiezen & joinen
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-600">
-                                    <span className="font-bold text-emerald-600 w-14">+20 XP</span>
-                                    Zelfreflectie invullen
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-600">
-                                    <span className="font-bold text-emerald-600 w-14">+25 XP</span>
-                                    Oefeningen voltooid
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-600">
-                                    <span className="font-bold text-emerald-600 w-14">+100 XP</span>
-                                    Level-up (leerkracht)
-                                </div>
-                            </div>
-                        </div>
-                    )}
+
                 </div>
             </div>
         </>

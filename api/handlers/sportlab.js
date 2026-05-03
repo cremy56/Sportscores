@@ -146,22 +146,32 @@ export async function handleGetActieveSportLabSessie(req, res, decodedToken) {
         const userSnap = await db.collection('users').doc(decodedToken.uid).get();
         const userData = userSnap.data();
 
-        // Zoek actieve sessie voor school + klas van de leerling
-        let query = db.collection('sport_lab_sessions')
+        // Zoek actieve sessies voor de school.
+        // Klas-filtering in code: sessie zonder klas = voor iedereen,
+        // sessie met klas = enkel voor die klas.
+        const snap = await db.collection('sport_lab_sessions')
             .where('school_id', '==', verifiedSchoolId)
-            .where('status', 'in', ['actief', 'evaluatie']);
-
-        if (userData?.klas) {
-            query = query.where('klas', '==', userData.klas);
-        }
-
-        const snap = await query.orderBy('start_tijd', 'desc').limit(1).get();
+            .where('status', 'in', ['actief', 'evaluatie'])
+            .orderBy('start_tijd', 'desc')
+            .limit(10)
+            .get();
 
         if (snap.empty) {
             return res.status(200).json({ success: true, sessie: null });
         }
 
-        const sessieData = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        // Filter op klas in code
+        const leerlingKlas = userData?.klas || null;
+        const matchendDoc = snap.docs.find(d => {
+            const sessieKlas = d.data().klas;
+            return !sessieKlas || sessieKlas === leerlingKlas;
+        });
+
+        if (!matchendDoc) {
+            return res.status(200).json({ success: true, sessie: null });
+        }
+
+        const sessieData = { id: matchendDoc.id, ...matchendDoc.data() };
 
         // Check of sessie niet verlopen is
         if (!isSessieActief(sessieData)) {

@@ -21,6 +21,11 @@ const XP = {
   LEADERBOARD: [1000, 750, 500, 250, 100],
   PR: 500,
   SPORTTEST: 50,
+  // Sport Lab
+  SPORTLAB_DEELNAME: 10,
+  SPORTLAB_REFLECTIE: 20,
+  SPORTLAB_OEFENINGEN: 25,
+  SPORTLAB_LEVEL_UP: 100,
 };
 
 const Rewards = () => {
@@ -116,6 +121,22 @@ const Rewards = () => {
           </div>
         </div>
       </div>
+
+      {/* Vrijstelling banner */}
+      {isVrijgesteld && (
+        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+          <span className="text-xl flex-shrink-0">🩺</span>
+          <div>
+            <p className="font-semibold text-amber-800 text-sm">Je bent vrijgesteld van sporttesten</p>
+            <p className="text-sm text-amber-700 mt-0.5">
+              Je XP-score wordt niet extra bestraft. Via het Sport Lab kan je de Blessurebewuste Sporter rol kiezen en punten blijven verdienen.
+              {einddatum && (
+                <span className="ml-1">Vrijstelling geldig tot {einddatum.toLocaleDateString('nl-BE', { day: 'numeric', month: 'long' })}.</span>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
     );
   };
 
@@ -246,6 +267,78 @@ const Rewards = () => {
     </div>
   );
 
+  // Vrijstelling check
+  const einddatum = profile?.vrijstelling_einddatum
+    ? new Date(profile.vrijstelling_einddatum)
+    : null;
+  const isVrijgesteld = profile?.vrijgesteld_van_testen === true
+    && einddatum && einddatum > new Date();
+
+  const SportLabTab = () => (
+    <div className="bg-white rounded-xl shadow-lg p-6 border">
+      <h3 className="text-lg font-semibold mb-4">Sport Lab — XP Verdienen</h3>
+      <p className="text-sm text-gray-500 mb-6">
+        In het Sport Lab neem je een actieve rol op tijdens de les — ook als je niet mee kan sporten.
+        Alle Sport Lab XP telt mee voor je Periodescore, Jaarscore en Carrièrescore.
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div>
+          <h4 className="font-bold text-emerald-700 mb-3 border-b-2 border-emerald-200 pb-2">
+            Per les verdienen
+          </h4>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-700">Rol kiezen & joinen</span>
+              <span className="font-bold text-emerald-600">+{XP.SPORTLAB_DEELNAME} XP</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-700">Zelfreflectie volledig invullen</span>
+              <span className="font-bold text-emerald-600">+{XP.SPORTLAB_REFLECTIE} XP</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-700">Oefeningen afgevinkt (vrijgesteld)</span>
+              <span className="font-bold text-emerald-600">+{XP.SPORTLAB_OEFENINGEN} XP</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm text-gray-700">Level-up behaald (goedgekeurd door leerkracht)</span>
+              <span className="font-bold text-emerald-600">+{XP.SPORTLAB_LEVEL_UP} XP</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-blue-700 mb-3 border-b-2 border-blue-200 pb-2">
+            De 4 rollen
+          </h4>
+          <div className="space-y-3">
+            {[
+              { naam: 'De Arbiter', beschrijving: 'Spelregels, beslissingen, wedstrijdleiding', niveaus: 3 },
+              { naam: 'De Coach', beschrijving: 'Observeren, analyseren, peer-teaching', niveaus: 3 },
+              { naam: 'De Toernooileider', beschrijving: 'Scores, rangschikking, organisatie', niveaus: 3 },
+              { naam: 'Blessurebewuste Sporter', beschrijving: 'Aangepaste oefeningen in toegestane zone', niveaus: 3, vrijgesteldOnly: true },
+            ].map(rol => (
+              <div key={rol.naam} className={`p-3 rounded-xl border ${rol.vrijgesteldOnly ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium text-sm text-gray-900">{rol.naam}</span>
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: rol.niveaus }).map((_, i) => (
+                      <span key={i} className="text-xs">⭐</span>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">{rol.beschrijving}</p>
+                {rol.vrijgesteldOnly && (
+                  <span className="text-xs text-purple-700 font-medium">Enkel voor vrijgestelde leerlingen</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 pt-20 pb-6">
@@ -275,10 +368,21 @@ const Rewards = () => {
           >
             Hoe Verdien Ik Punten?
           </button>
+          <button
+            onClick={() => setActiveTab('sportlab')}
+            className={`px-4 py-2 font-medium text-sm ${
+              activeTab === 'sportlab'
+                ? 'border-b-2 border-purple-500 text-purple-600'
+                : 'text-gray-500'
+            }`}
+          >
+            Sport Lab
+          </button>
         </div>
 
         {activeTab === 'overzicht' && <OverviewTab />}
         {activeTab === 'verdienen' && <EarningsTab />}
+        {activeTab === 'sportlab' && <SportLabTab />}
       </div>
     </div>
   );
