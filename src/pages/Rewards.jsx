@@ -50,7 +50,11 @@ const Rewards = () => {
     return <div className="p-8 text-gray-500">Rewards zijn alleen voor leerlingen.</div>;
   }
 
-  const einddatum = profile?.vrijstelling_einddatum ? new Date(profile.vrijstelling_einddatum) : null;
+  const einddatum = profile?.vrijstelling_einddatum
+    ? (profile.vrijstelling_einddatum.toDate
+        ? profile.vrijstelling_einddatum.toDate()
+        : new Date(profile.vrijstelling_einddatum))
+    : null;
   const isVrijgesteld = profile?.vrijgesteld_van_testen === true && einddatum && einddatum > new Date();
 
   const OverviewTab = () => {
