@@ -141,6 +141,33 @@ function SessieStartForm({ profile, onSessieGestart }) {
         fetchKlassenEnGroepen();
     }, []);
 
+    const [vrijgesteldeLeerlingen, setVrijgesteldeLeerlingen] = useState([]);
+    const [loadingVrijgesteld, setLoadingVrijgesteld] = useState(false);
+
+    // Vrijgestelde leerlingen ophalen bij klas selectie
+    useEffect(() => {
+        if (!geselecteerdeKlas || !profile?.school_id) {
+            setVrijgesteldeLeerlingen([]);
+            return;
+        }
+        const fetchVrijgesteld = async () => {
+            setLoadingVrijgesteld(true);
+            try {
+                const data = await apiPost('get_klas_detail', {
+                    klasNaam: geselecteerdeKlas,
+                    schoolId: profile.school_id,
+                }, profile._token);
+                const vrijgesteld = (data.members || []).filter(m => m.vrijgesteld);
+                setVrijgesteldeLeerlingen(vrijgesteld);
+            } catch (e) {
+                setVrijgesteldeLeerlingen([]);
+            } finally {
+                setLoadingVrijgesteld(false);
+            }
+        };
+        fetchVrijgesteld();
+    }, [geselecteerdeKlas, profile?.school_id]);
+
     const handleStart = async () => {
         if (!sport) { toast.error('Kies een sport.'); return; }
         setLoading(true);
@@ -214,6 +241,22 @@ function SessieStartForm({ profile, onSessieGestart }) {
                     )}
                 </div>
 
+                {/* Vrijgestelde leerlingen preview */}
+                {geselecteerdeKlas && !loadingVrijgesteld && vrijgesteldeLeerlingen.length > 0 && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                        <p className="text-xs font-medium text-amber-800 mb-2">
+                            🩺 Vrijgesteld in {geselecteerdeKlas} — krijgen toegang tot Body Fixer:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {vrijgesteldeLeerlingen.map(l => (
+                                <span key={l.id} className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">
+                                    {l.naam}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 <button
                     onClick={handleStart}
                     disabled={loading || !sport}
@@ -232,6 +275,8 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
     const [loading, setLoading] = useState(false);
     const [duur, setDuur] = useState(0);
     const [toonAfbreekBevestiging, setToonAfbreekBevestiging] = useState(false);
+    const [deelnames, setDeelnames] = useState(sessie.deelnames || []);
+    const [vrijgesteld, setVrijgesteld] = useState(sessie.vrijgestelde_leerlingen || []);
 
     // Live timer
     useEffect(() => {
@@ -242,6 +287,12 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
         const interval = setInterval(updateDuur, 30000);
         return () => clearInterval(interval);
     }, [sessie.start_tijd]);
+
+    // Update deelnames wanneer sessie prop wijzigt (via polling)
+    useEffect(() => {
+        setDeelnames(sessie.deelnames || []);
+        setVrijgesteld(sessie.vrijgestelde_leerlingen || []);
+    }, [sessie]);
 
     const handleEvaluatieFase = async () => {
         setLoading(true);
@@ -306,9 +357,54 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                             )}
                         </div>
 
-                        <p className="text-sm text-slate-500 mb-5">
+                        <p className="text-sm text-slate-500 mb-4">
                             Leerlingen kiezen hun rol via de app. Klik op <strong className="text-slate-700">Evaluatiefase</strong> op het einde van de les.
                         </p>
+
+                        {/* Live deelnames overzicht */}
+                        <div className="mb-4 border border-slate-100 rounded-xl overflow-hidden">
+                            <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                <span className="text-xs font-medium text-slate-600">Deelnames</span>
+                                <span className="text-xs text-slate-400">{deelnames.length} gejoind</span>
+                            </div>
+                            {deelnames.length === 0 ? (
+                                <div className="px-4 py-3 text-xs text-slate-400 italic">
+                                    Nog niemand gekozen — leerlingen joinen via de app.
+                                </div>
+                            ) : (
+                                <ul className="divide-y divide-slate-50">
+                                    {deelnames.map(d => (
+                                        <li key={d.id} className="px-4 py-2.5 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-medium text-slate-800">{d.nickname}</span>
+                                                {d.is_vrijgesteld && (
+                                                    <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">🩺</span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-slate-500">{d.rol_naam}</span>
+                                                {d.voltooid && (
+                                                    <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">✓ reflectie</span>
+                                                )}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+
+                            {/* Vrijgestelde leerlingen zonder rol */}
+                            {vrijgesteld.filter(v => !deelnames.some(d => d.is_vrijgesteld)).length > 0 && (
+                                <div className="px-4 py-2 bg-amber-50 border-t border-amber-100">
+                                    <p className="text-xs text-amber-700">
+                                        🩺 Vrijgesteld zonder rol:{' '}
+                                        {vrijgesteld
+                                            .filter(v => !deelnames.some(d => d.is_vrijgesteld))
+                                            .map(v => v.nickname)
+                                            .join(', ')}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Evaluatie fase melding */}
                         {sessie.status === 'evaluatie' && (
@@ -716,7 +812,10 @@ export default function SportLab() {
                 const data = await apiPost('get_sportlab_sessies', {
                     schoolId: profile.school_id
                 }, profile._token);
-                const actief = (data.sessies || []).find(s => ['actief', 'evaluatie'].includes(s.status));
+                // Zoek actieve sessie — inclusief deelnames en vrijgestelde leerlingen
+                const actief = (data.sessies || [])
+                    .filter(s => ['actief', 'evaluatie'].includes(s.status))
+                    .sort((a, b) => new Date(b.start_tijd) - new Date(a.start_tijd))[0] || null;
                 setLeerkrachtSessie(actief || null);
             } else {
                 // Leerling: actieve sessie ophalen

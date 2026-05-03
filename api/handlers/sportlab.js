@@ -209,7 +209,10 @@ export async function handleGetActieveSportLabSessie(req, res, decodedToken) {
     }
 }
 
-// ─── 4. LEERKRACHT: OVERZICHT EIGEN SESSIES ───────────────────────────────────
+// ─── 4. LEERKRACHT: OVERZICHT EIGEN SESSIES + LIVE DEELNAMES ─────────────────
+// Geeft actieve sessie terug met:
+//   - deelnames per rol (nickname, voltooid)
+//   - vrijgestelde leerlingen in de klas (badge in UI)
 export async function handleGetSportLabSessies(req, res, decodedToken) {
     try {
         const { schoolId } = req.body;
@@ -222,25 +225,74 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
             return res.status(403).json({ error: 'Geen toegang.' });
         }
 
+        // Geen orderBy — vermijdt Firestore composite index vereiste
         const snap = await db.collection('sport_lab_sessions')
             .where('leerkracht_id', '==', decodedToken.uid)
-            .orderBy('start_tijd', 'desc')
-            .limit(10)
+            .limit(20)
             .get();
+
+        // ROL_DB omgekeerd voor leesbare UI-naam
+        const ROL_UI = {
+            arbiter: 'De Arbiter',
+            coach: 'De Coach',
+            toernooileider: 'De Toernooileider',
+            alternatief: 'Body Fixer',
+        };
 
         const sessies = await Promise.all(snap.docs.map(async (d) => {
             const sessieData = { id: d.id, ...d.data() };
 
-            // Aantal deelnames ophalen
+            // Deelnames ophalen met nickname
             const deelnamesSnap = await db.collection('sport_lab_deelnames')
                 .where('sessie_id', '==', d.id)
                 .get();
 
+            // Nickname per deelnemer ophalen
+            const deelnames = await Promise.all(deelnamesSnap.docs.map(async (dd) => {
+                const data = dd.data();
+                const userSnap = await db.collection('users').doc(data.leerling_firebase_uid).get();
+                const nickname = userSnap.exists ? (userSnap.data().nickname || 'Leerling') : 'Leerling';
+                return {
+                    id: dd.id,
+                    nickname,
+                    rol: data.rol,
+                    rol_naam: ROL_UI[data.rol] || data.rol,
+                    voltooid: data.voltooid || false,
+                    is_vrijgesteld: data.rol === 'alternatief',
+                };
+            }));
+
+            // Vrijgestelde leerlingen in de klas ophalen (enkel als sessie een klas heeft)
+            let vrijgesteldeLeerlingen = [];
+            if (sessieData.klas && ['actief', 'evaluatie'].includes(sessieData.status)) {
+                const nu = new Date();
+                const vrijgesteldenSnap = await db.collection('users')
+                    .where('school_id', '==', verifiedSchoolId)
+                    .where('klas', '==', sessieData.klas)
+                    .where('vrijgesteld_van_testen', '==', true)
+                    .get();
+
+                vrijgesteldeLeerlingen = vrijgesteldenSnap.docs
+                    .filter(ud => {
+                        const eind = ud.data().vrijstelling_einddatum?.toDate?.();
+                        return eind && eind > nu;
+                    })
+                    .map(ud => ({
+                        uid: ud.id,
+                        nickname: ud.data().nickname || 'Leerling',
+                        heeft_rol: deelnames.some(dl => dl.is_vrijgesteld),
+                    }));
+            }
+
             return {
-                ...sessieData,
+                id: sessieData.id,
+                sport: sessieData.sport,
+                klas: sessieData.klas || null,
+                status: sessieData.status,
                 start_tijd: sessieData.start_tijd?.toDate?.()?.toISOString() || null,
                 gesloten_op: sessieData.gesloten_op?.toDate?.()?.toISOString() || null,
-                aantal_deelnames: deelnamesSnap.size,
+                deelnames,
+                vrijgestelde_leerlingen: vrijgesteldeLeerlingen,
             };
         }));
 
