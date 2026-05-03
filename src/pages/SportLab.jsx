@@ -8,7 +8,7 @@ import {
     CheckCircleIcon,
     ClockIcon,
     ShieldExclamationIcon,
-    PlayIcon,
+     PlayIcon,
     StopIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
@@ -160,7 +160,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
     };
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 max-w-xl">
+        <div className="flex justify-center"><div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 max-w-xl w-full">
             <div className="mb-6">
                 <h2 className="font-bold text-slate-900 text-lg">Nieuwe Sport Lab Sessie</h2>
                 <p className="text-sm text-slate-500 mt-1">Leerlingen kunnen daarna joinen via de app</p>
@@ -223,7 +223,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
                     {loading ? 'Starten...' : 'Sessie Starten'}
                 </button>
             </div>
-        </div>
+        </div></div>
     );
 }
 
@@ -271,7 +271,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
         : 0;
 
     return (
-        <div className="bg-white rounded-2xl border-2 border-emerald-300 shadow-sm p-6 max-w-xl">
+        <div className="flex justify-center"><div className="bg-white rounded-2xl border-2 border-emerald-300 shadow-sm p-6 max-w-xl w-full">
             <div className="flex items-center justify-between mb-4">
                 <span className="font-bold text-emerald-700">Sessie Actief</span>
                 <span className="text-sm text-slate-500">{duur} min bezig</span>
@@ -311,7 +311,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                     Evaluatievenster open — leerlingen kunnen nu reflecteren.
                 </div>
             )}
-        </div>
+        </div></div>
     );
 }
 

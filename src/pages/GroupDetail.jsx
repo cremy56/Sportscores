@@ -232,7 +232,7 @@ function VrijstellingModal({ leerling, isOpen, onClose, onConfirm, loading }) {
                 ) : (
                     <>
                         <p className="text-sm text-gray-600 mb-4">
-                            De leerling wordt tijdelijk vrijgesteld van fysieke sporttesten en doorverwezen naar het Sport Lab. Er wordt geen reden opgeslagen.
+                            De leerling wordt tijdelijk vrijgesteld van fysieke sporttesten en doorverwezen naar het Sport Lab.
                         </p>
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">

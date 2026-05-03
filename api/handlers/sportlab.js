@@ -262,9 +262,10 @@ export async function handleJoinSportLabSessie(req, res, decodedToken) {
         if (!ROL_DB[rol]) return res.status(400).json({ error: 'Ongeldige rol.' });
 
         // School uren check
-        if (!isBinnenSchoolUren()) {
-            return res.status(403).json({ error: 'Sport Lab is enkel beschikbaar tijdens schooluren.' });
-        }
+       // FIX: tijdelijk uitschakelen tijdens ontwikkeling
+// if (!isBinnenSchoolUren()) {
+//     return res.status(403).json({ error: 'Sport Lab is enkel beschikbaar tijdens schooluren.' });
+// }
 
         // Sessie valideren
         const sessieSnap = await db.collection('sport_lab_sessions').doc(sessieId).get();
