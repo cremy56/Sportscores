@@ -262,10 +262,9 @@ export async function handleJoinSportLabSessie(req, res, decodedToken) {
         if (!ROL_DB[rol]) return res.status(400).json({ error: 'Ongeldige rol.' });
 
         // School uren check
-       // FIX: tijdelijk uitschakelen tijdens ontwikkeling
-// if (!isBinnenSchoolUren()) {
-//     return res.status(403).json({ error: 'Sport Lab is enkel beschikbaar tijdens schooluren.' });
-// }
+        if (!isBinnenSchoolUren()) {
+            return res.status(403).json({ error: 'Sport Lab is enkel beschikbaar tijdens schooluren.' });
+        }
 
         // Sessie valideren
         const sessieSnap = await db.collection('sport_lab_sessions').doc(sessieId).get();
@@ -322,20 +321,7 @@ export async function handleJoinSportLabSessie(req, res, decodedToken) {
             });
             deelnameId = deelnameRef.id;
 
-            // Deelname XP toekennen
-            await db.collection('users').doc(decodedToken.uid).update({
-                xp: FieldValue.increment(XP.DEELNAME),
-                xp_current_period: FieldValue.increment(XP.DEELNAME),
-                xp_current_school_year: FieldValue.increment(XP.DEELNAME),
-            });
-
-            await db.collection('users').doc(decodedToken.uid)
-                .collection('xp_transactions').add({
-                    amount: XP.DEELNAME,
-                    reason: 'sportlab_deelname',
-                    source_id: sessieId,
-                    created_at: Timestamp.now(),
-                });
+            // Geen XP bij enkel joinen — XP wordt pas verdiend bij zelfreflectie
         }
 
         return res.status(200).json({ success: true, deelname_id: deelnameId });

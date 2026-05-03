@@ -8,6 +8,8 @@ import {
     CheckCircleIcon,
     ClockIcon,
     ShieldExclamationIcon,
+    PlayIcon,
+    StopIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
@@ -660,9 +662,12 @@ export default function SportLab() {
             }, profile._token);
             setSessie(data.sessie || null);
             setEigenDeelname(data.eigen_deelname || null);
-            if (data.eigen_deelname?.rol) {
-                setGekozenRol(data.eigen_deelname.rol);
-            }
+            // NIET automatisch gekozenRol instellen vanuit polling —
+            // dit veroorzaakt terugspringen als gebruiker manueel naar overzicht ging.
+            // Rol wordt enkel ingesteld via handleRolGekozen (expliciete keuze).
+            // if (data.eigen_deelname?.rol) {
+            //     setGekozenRol(data.eigen_deelname.rol);
+            // }
         } catch (e) {
             console.error('Fout bij laden sessie:', e);
         } finally {
