@@ -8,8 +8,6 @@ import {
     CheckCircleIcon,
     ClockIcon,
     ShieldExclamationIcon,
-     PlayIcon,
-    StopIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
@@ -86,7 +84,7 @@ const ROLLEN = [
     },
     {
         id: 'alternatief',
-        naam: 'Blessurebewuste Sporter',
+        naam: 'Body Fixer',
         subtitel: 'Aangepaste training',
         emoji: '🩺',
         kleur: 'from-purple-400 to-violet-500',
@@ -353,7 +351,7 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, onRolGekozen }) {
             {isVrijgesteld && (
                 <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-sm text-amber-800">
                     <ShieldExclamationIcon className="w-4 h-4 flex-shrink-0" />
-                    Je bent vrijgesteld van sporttesten. De Blessurebewuste Sporter rol is voor jou beschikbaar.
+                    Je bent vrijgesteld van sporttesten. De Body Fixer rol is voor jou beschikbaar.
                 </div>
             )}
 
@@ -607,7 +605,7 @@ function GeenSessieScherm({ isVrijgesteld }) {
                 {isVrijgesteld && (
                     <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-center gap-2 text-left">
                         <ShieldExclamationIcon className="w-4 h-4 flex-shrink-0" />
-                        <span>Je bent vrijgesteld. Zodra de leerkracht een sessie start, heb je ook toegang tot de Blessurebewuste Sporter rol.</span>
+                        <span>Je bent vrijgesteld. Zodra de leerkracht een sessie start, heb je ook toegang tot de Body Fixer rol.</span>
                     </div>
                 )}
             </div>
