@@ -3,8 +3,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import {
-    PlayIcon, StopIcon, ChevronRightIcon,
-    StarIcon, CheckCircleIcon, ClockIcon,
+    ChevronRightIcon,
+    StarIcon,
+    CheckCircleIcon,
+    ClockIcon,
     ShieldExclamationIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
@@ -102,7 +104,7 @@ const ROLLEN = [
 // ─── NIVEAU BADGE ─────────────────────────────────────────────────────────────
 function NiveauBadge({ niveau }) {
     return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-700">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-slate-700">
             {'⭐'.repeat(niveau)}{'☆'.repeat(3 - niveau)}
             <span className="ml-0.5">Lvl {niveau}</span>
         </span>
@@ -156,10 +158,10 @@ function SessieStartForm({ profile, onSessieGestart }) {
     };
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 max-w-lg mx-auto">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 max-w-xl">
             <div className="mb-6">
-                <h2 className="font-bold text-gray-900 text-lg">Nieuwe Sport Lab Sessie</h2>
-                <p className="text-sm text-gray-500 mt-1">Leerlingen kunnen daarna joinen via de app</p>
+                <h2 className="font-bold text-slate-900 text-lg">Nieuwe Sport Lab Sessie</h2>
+                <p className="text-sm text-slate-500 mt-1">Leerlingen kunnen daarna joinen via de app</p>
             </div>
 
             <div className="space-y-4">
@@ -267,16 +269,10 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
         : 0;
 
     return (
-        <div className="bg-white rounded-2xl border-2 border-emerald-300 shadow-sm p-6 max-w-lg mx-auto">
+        <div className="bg-white rounded-2xl border-2 border-emerald-300 shadow-sm p-6 max-w-xl">
             <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse" />
-                    <span className="font-bold text-emerald-700">Sessie Actief</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                    <ClockIcon className="w-4 h-4" />
-                    <span>{duur} min</span>
-                </div>
+                <span className="font-bold text-emerald-700">Sessie Actief</span>
+                <span className="text-sm text-slate-500">{duur} min bezig</span>
             </div>
 
             <div className="bg-emerald-50 rounded-xl p-4 mb-6">
@@ -343,7 +339,7 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, onRolGekozen }) {
     };
 
     return (
-        <div className="max-w-2xl mx-auto">
+        <div>
             <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3">
                 <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse flex-shrink-0" />
                 <div>
@@ -427,15 +423,15 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
     const niveauInfo = rolData.niveaus[niveau - 1];
 
     return (
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-2xl">
             {/* Actieve rol banner */}
-            <div className={`bg-gradient-to-r ${rolData.kleur} rounded-2xl p-5 text-white mb-6 shadow-md`}>
+            <div className={`${rolData.bg} border ${rolData.border} rounded-2xl p-5 mb-6`}>
                 <div className="flex items-center justify-between mb-2">
+                    <h2 className={`text-xl font-bold ${rolData.tekst}`}>{rolData.naam}</h2>
                     <NiveauBadge niveau={niveau} />
                 </div>
-                <h2 className="text-xl font-bold mb-1">{rolData.naam}</h2>
-                <p className="text-white/80 text-sm">{sessie.sport}</p>
-                <p className="text-white/90 text-sm mt-2 font-medium">{niveauInfo}</p>
+                <p className="text-slate-500 text-sm">{sessie.sport}</p>
+                <p className={`text-sm mt-2 font-medium ${rolData.tekst}`}>{niveauInfo}</p>
             </div>
 
             {fase === 'actief' && (
@@ -443,7 +439,7 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                     <h3 className={`font-bold ${rolData.tekst} mb-3`}>Jouw taken vandaag</h3>
                     <div className="space-y-2">
                         {getTakenVoorRol(rol, niveau, sessie.sport).map((taak, i) => (
-                            <div key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                            <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
                                 <CheckCircleIcon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${rolData.tekst}`} />
                                 <span>{taak}</span>
                             </div>
@@ -527,7 +523,7 @@ function ZelfreflectieForm({ rol, rolData, deelnameId, sessie, profile, onIngedi
                         }`}>
                             {oefeningenAfgevinkt && <CheckCircleSolid className="w-3 h-3 text-white" />}
                         </div>
-                        <span className="text-sm font-medium text-gray-700">
+                        <span className="text-sm font-medium text-slate-700">
                             Ik heb mijn aangepaste oefeningen voltooid (+25 XP)
                         </span>
                     </div>
@@ -599,11 +595,11 @@ function getTakenVoorRol(rol, niveau, sport) {
 // ─── GEEN SESSIE — WACHTSCHERM ────────────────────────────────────────────────
 function GeenSessieScherm({ isVrijgesteld }) {
     return (
-        <div className="max-w-md mx-auto text-center py-12">
+        <div className="max-w-lg text-center py-12">
             <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-4xl">🏟️</span>
+                <span className="text-3xl text-gray-400">—</span>
             </div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Geen actieve sessie</h3>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Geen actieve sessie</h3>
             <p className="text-gray-500 text-sm mb-4">
                 Er is momenteel geen Sport Lab sessie actief voor jouw klas.
                 Wacht tot je leerkracht een sessie start.
@@ -679,15 +675,12 @@ export default function SportLab() {
         <>
             <Toaster position="top-center" />
             <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-                <div className="max-w-3xl mx-auto px-4 pt-20 pb-10">
+                <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8">
 
                     {/* HEADER */}
-                    <div className="mb-8">
-                        <div className="flex items-center gap-3 mb-2">
-                            <span className="text-3xl">🏟️</span>
-                            <h1 className="text-3xl font-bold text-gray-900">Sport Lab</h1>
-                        </div>
-                        <p className="text-gray-500">
+                    <div className="mb-8 mt-20">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Sport Lab</h1>
+                        <p className="text-slate-500">
                             {isLeerling
                                 ? 'Kies je rol voor de les en verdien XP door actief bij te dragen.'
                                 : 'Start een sessie en laat leerlingen hun rol kiezen via de app.'}
