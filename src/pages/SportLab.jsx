@@ -634,14 +634,23 @@ export default function SportLab() {
     const isTeacher = ['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol);
 
     // Vrijstelling check
+    // Firestore Timestamp heeft een .toDate() methode — new Date() werkt niet op een Timestamp object
     const einddatum = profile?.vrijstelling_einddatum
-        ? new Date(profile.vrijstelling_einddatum)
+        ? (profile.vrijstelling_einddatum.toDate
+            ? profile.vrijstelling_einddatum.toDate()
+            : new Date(profile.vrijstelling_einddatum))
         : null;
     const isVrijgesteld = profile?.vrijgesteld_van_testen === true
         && einddatum && einddatum > new Date();
 
     // Niveaus van de leerling per rol
     const niveaus = profile?.sportlab_niveaus || {};
+
+    // Reset rol bij elke mount → altijd overzicht tonen bij navigatie naar de pagina
+    useEffect(() => {
+        setGekozenRol(null);
+        setEigenDeelname(null);
+    }, []);
 
     const fetchSessie = useCallback(async () => {
         if (!profile?._token || !profile?.school_id) return;
