@@ -89,7 +89,7 @@ const Rewards = () => {
             <div>
               <p className="font-semibold text-amber-800 text-sm">Je bent vrijgesteld van sporttesten</p>
               <p className="text-sm text-amber-700 mt-0.5">
-                Je XP-score wordt niet extra bestraft. Via het Sport Lab kan je de Blessurebewuste Sporter rol kiezen en punten blijven verdienen.
+                Je XP-score wordt niet extra bestraft. Via het Sport Lab kan je punten blijven verdienen.
                 {einddatum && <span className="ml-1">Vrijstelling geldig tot {einddatum.toLocaleDateString('nl-BE', { day: 'numeric', month: 'long' })}.</span>}
               </p>
             </div>
@@ -103,6 +103,8 @@ const Rewards = () => {
     <div className="bg-white rounded-xl shadow-lg p-6 border">
       <h3 className="text-lg font-semibold mb-4">Hoe Verdien Ik Punten?</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+        {/* Kolom 1 */}
         <div>
           <h4 className="font-bold text-emerald-700 mb-3 border-b-2 border-emerald-200 pb-2">Inzet & Attitude</h4>
           <p className="text-xs text-gray-500 mb-4">Deze acties verhogen je Periodescore, Jaarscore en Carrièrescore.</p>
@@ -151,8 +153,19 @@ const Rewards = () => {
               <p className="font-semibold">Deelname Sporttest</p>
               <p className="text-sm text-gray-600 mt-1"><span className="font-bold">+{XP.SPORTTEST} XP</span> per officiële sporttest.</p>
             </div>
+            <div>
+              <p className="font-semibold">Sport Lab</p>
+              <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
+                <li>Rol kiezen & joinen: <span className="font-bold">+{XP.SPORTLAB_DEELNAME} XP</span></li>
+                <li>Zelfreflectie invullen: <span className="font-bold">+{XP.SPORTLAB_REFLECTIE} XP</span></li>
+                <li>Oefeningen afgevinkt: <span className="font-bold">+{XP.SPORTLAB_OEFENINGEN} XP</span></li>
+                <li>Level-up (leerkracht goedkeuring): <span className="font-bold">+{XP.SPORTLAB_LEVEL_UP} XP</span></li>
+              </ul>
+            </div>
           </div>
         </div>
+
+        {/* Kolom 2 */}
         <div>
           <h4 className="font-bold text-blue-700 mb-3 border-b-2 border-blue-200 pb-2">Sportprestaties & Teamwork</h4>
           <p className="text-xs text-gray-500 mb-4">Tellen mee voor Jaarscore en Carrièrescore, niet voor Periodescore.</p>
@@ -181,54 +194,6 @@ const Rewards = () => {
     </div>
   );
 
-  const SportLabTab = () => (
-    <div className="bg-white rounded-xl shadow-lg p-6 border">
-      <h3 className="text-lg font-semibold mb-4">Sport Lab — XP Verdienen</h3>
-      <p className="text-sm text-gray-500 mb-6">
-        In het Sport Lab neem je een actieve rol op tijdens de les — ook als je niet mee kan sporten.
-        Alle Sport Lab XP telt mee voor je Periodescore, Jaarscore en Carrièrescore.
-      </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div>
-          <h4 className="font-bold text-emerald-700 mb-3 border-b-2 border-emerald-200 pb-2">Per les verdienen</h4>
-          <div className="space-y-2">
-            {[
-              { label: 'Rol kiezen & joinen', xp: XP.SPORTLAB_DEELNAME },
-              { label: 'Zelfreflectie invullen', xp: XP.SPORTLAB_REFLECTIE },
-              { label: 'Oefeningen afgevinkt (vrijgesteld)', xp: XP.SPORTLAB_OEFENINGEN },
-              { label: 'Level-up (goedgekeurd door leerkracht)', xp: XP.SPORTLAB_LEVEL_UP },
-            ].map(({ label, xp }) => (
-              <div key={label} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                <span className="text-sm text-gray-700">{label}</span>
-                <span className="font-bold text-emerald-600 whitespace-nowrap ml-4">+{xp} XP</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h4 className="font-bold text-blue-700 mb-3 border-b-2 border-blue-200 pb-2">De 4 rollen</h4>
-          <div className="space-y-3">
-            {[
-              { naam: 'De Arbiter', beschrijving: 'Spelregels, beslissingen, wedstrijdleiding' },
-              { naam: 'De Coach', beschrijving: 'Observeren, analyseren, peer-teaching' },
-              { naam: 'De Toernooileider', beschrijving: 'Scores, rangschikking, organisatie' },
-              { naam: 'Blessurebewuste Sporter', beschrijving: 'Aangepaste oefeningen in toegestane zone', vrijgesteldOnly: true },
-            ].map(rol => (
-              <div key={rol.naam} className={`p-3 rounded-xl border ${rol.vrijgesteldOnly ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-sm text-gray-900">{rol.naam}</span>
-                  <span className="text-xs text-gray-400">3 levels</span>
-                </div>
-                <p className="text-xs text-gray-500">{rol.beschrijving}</p>
-                {rol.vrijgesteldOnly && <p className="text-xs text-purple-700 font-medium mt-1">Enkel voor vrijgestelde leerlingen</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
       <div className="max-w-7xl mx-auto px-4 pt-20 pb-6">
@@ -240,7 +205,6 @@ const Rewards = () => {
           {[
             { id: 'overzicht', label: 'Overzicht' },
             { id: 'verdienen', label: 'Hoe Verdien Ik Punten?' },
-            { id: 'sportlab', label: 'Sport Lab' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -253,7 +217,6 @@ const Rewards = () => {
         </div>
         {activeTab === 'overzicht' && <OverviewTab />}
         {activeTab === 'verdienen' && <EarningsTab />}
-        {activeTab === 'sportlab' && <SportLabTab />}
       </div>
     </div>
   );
