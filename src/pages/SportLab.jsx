@@ -545,6 +545,78 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, onRolGekozen }) {
     );
 }
 
+// ─── DIGITAAL SCOREBORD (Speciaal voor de Arbiter) ────────────────────────────
+function Scorebord({ rolData }) {
+    const [scoreA, setScoreA] = useState(0);
+    const [scoreB, setScoreB] = useState(0);
+
+    return (
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-4">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div className="flex items-center gap-2">
+                    <span className="text-xl">⏱️</span>
+                    <h3 className="font-bold text-slate-800 text-sm">Digitaal Scorebord</h3>
+                </div>
+                <button 
+                    onClick={() => { setScoreA(0); setScoreB(0); }} 
+                    className="text-xs font-medium text-slate-400 hover:text-red-500 transition-colors bg-white px-2 py-1 rounded-md border border-slate-200"
+                >
+                    Reset
+                </button>
+            </div>
+            
+            <div className="p-5 flex justify-between items-center gap-4">
+                {/* Team A */}
+                <div className="flex-1 flex flex-col items-center">
+                    <span className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest">Team A</span>
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        <button 
+                            onClick={() => setScoreA(Math.max(0, scoreA - 1))} 
+                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-100 text-slate-500 font-bold text-xl flex items-center justify-center hover:bg-slate-200 transition-colors"
+                        >
+                            -
+                        </button>
+                        <span className="text-4xl sm:text-5xl font-black text-slate-800 w-12 sm:w-16 text-center tabular-nums">
+                            {scoreA}
+                        </span>
+                        <button 
+                            onClick={() => setScoreA(scoreA + 1)} 
+                            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full text-white font-bold text-xl flex items-center justify-center shadow-sm transition-transform active:scale-95 bg-gradient-to-br ${rolData.kleur}`}
+                        >
+                            +
+                        </button>
+                    </div>
+                </div>
+                
+                {/* Divider */}
+                <div className="text-3xl font-black text-slate-200 mt-6">:</div>
+
+                {/* Team B */}
+                <div className="flex-1 flex flex-col items-center">
+                    <span className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest">Team B</span>
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        <button 
+                            onClick={() => setScoreB(Math.max(0, scoreB - 1))} 
+                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-100 text-slate-500 font-bold text-xl flex items-center justify-center hover:bg-slate-200 transition-colors"
+                        >
+                            -
+                        </button>
+                        <span className="text-4xl sm:text-5xl font-black text-slate-800 w-12 sm:w-16 text-center tabular-nums">
+                            {scoreB}
+                        </span>
+                        <button 
+                            onClick={() => setScoreB(scoreB + 1)} 
+                            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full text-white font-bold text-xl flex items-center justify-center shadow-sm transition-transform active:scale-95 bg-gradient-to-br ${rolData.kleur}`}
+                        >
+                            +
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── LEERLING: ACTIEVE ROL VIEW ───────────────────────────────────────────────
 function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteerd, onTerug }) {
     const rolData = ROLLEN.find(r => r.id === rol) || ROLLEN[0];
@@ -649,6 +721,11 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
 
             {fase === 'actief' && (
                 <div className="space-y-4 mb-4">
+
+                    {/* ── DIGITAAL SCOREBORD (Enkel voor Arbiter en eventueel Toernooileider) ── */}
+                    {(rol === 'arbiter' || rol === 'toernooileider') && (
+                        <Scorebord rolData={rolData} />
+                    )}
 
                     {/* ── TAKEN MET CHECKBOXES + VOORTGANGSBALK ── */}
                     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
