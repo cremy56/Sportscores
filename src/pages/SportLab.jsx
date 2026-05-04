@@ -464,12 +464,18 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
 }
 
 // ─── LEERLING: ROL KEUZE ──────────────────────────────────────────────────────
-function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, onRolGekozen }) {
-    const [loadingRol, setLoadingRol] = useState(null); // Houdt bij welke knop laadt
+function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, eigenDeelname, onRolGekozen }) {
+    const [loadingRol, setLoadingRol] = useState(null);
 
     const beschikbareRollen = ROLLEN.filter(r => !r.vrijgesteldOnly || isVrijgesteld);
 
     const handleKiesRol = async (rolId) => {
+        // NIEUW: Als de leerling deze rol al heeft, skip de API en laat ze direct weer binnen!
+        if (eigenDeelname && eigenDeelname.rol === rolId) {
+            onRolGekozen(rolId);
+            return;
+        }
+
         setLoadingRol(rolId);
         try {
             await apiPost('join_sportlab_sessie', {
@@ -1156,7 +1162,7 @@ export default function SportLab() {
     const handleSessieGesloten = () => fetchSessie();
     const handleRolGekozen = (rol) => { setGekozenRol(rol); fetchSessie(); };
     const handleGereflecteerd = () => fetchSessie();
-    const handleTerugNaarOverzicht = () => { setGekozenRol(null); setEigenDeelname(null); };
+    const handleTerugNaarOverzicht = () => { setGekozenRol(null); };
 
     if (loading) return (
         <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
@@ -1222,6 +1228,7 @@ export default function SportLab() {
                                     profile={profile}
                                     isVrijgesteld={isVrijgesteld}
                                     niveaus={niveaus}
+                                    eigenDeelname={eigenDeelname}
                                     onRolGekozen={handleRolGekozen}
                                 />
                             )}
