@@ -319,11 +319,14 @@ export async function handleJoinSportLabSessie(req, res, decodedToken) {
 
         if (!ROL_DB[rol]) return res.status(400).json({ error: 'Ongeldige rol.' });
 
-        // School uren check
+        // 1. HAAL EERST DE USER OP (verplaatst naar boven)
+        const userSnap = await db.collection('users').doc(decodedToken.uid).get();
+        const userData = userSnap.data();
 
-if (!isBinnenSchoolUren(userData?.rol)) {
-    return res.status(403).json({ error: 'Sport Lab is enkel beschikbaar tijdens schooluren.' });
-}
+        // 2. CHECK DAN PAS DE SCHOOLUREN MET DE ROL
+        if (!isBinnenSchoolUren(userData?.rol)) {
+            return res.status(403).json({ error: 'Sport Lab is enkel beschikbaar tijdens schooluren.' });
+        }
 
         // Sessie valideren
         const sessieSnap = await db.collection('sport_lab_sessions').doc(sessieId).get();
@@ -337,8 +340,6 @@ if (!isBinnenSchoolUren(userData?.rol)) {
         }
 
         // Check vrijstelling voor alternatieve rol
-        const userSnap = await db.collection('users').doc(decodedToken.uid).get();
-        const userData = userSnap.data();
         if (rol === 'alternatief') {
             const einddatum = userData?.vrijstelling_einddatum?.toDate?.();
             const isVrijgesteld = userData?.vrijgesteld_van_testen === true
