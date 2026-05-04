@@ -561,6 +561,25 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
     const [fase, setFase] = useState(
         sessie.status === 'evaluatie' ? 'reflectie' : 'actief'
     );
+    const [rolContent, setRolContent] = useState(null);
+    const [loadingContent, setLoadingContent] = useState(true);
+
+    // Dynamische content laden uit sport_lab_content collectie
+    useEffect(() => {
+        const fetchContent = async () => {
+            try {
+                const data = await apiPost('get_sportlab_content', {
+                    sport: sessie.sport.toLowerCase(),
+                }, profile._token);
+                setRolContent(data.content || null);
+            } catch (e) {
+                console.error('Content laden mislukt:', e);
+            } finally {
+                setLoadingContent(false);
+            }
+        };
+        fetchContent();
+    }, [sessie.sport]);
 
     // Auto-switch naar reflectie als sessie in evaluatiefase gaat
     useEffect(() => {
@@ -571,6 +590,24 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
     }, [sessie.status]);
 
     const niveauInfo = rolData.niveaus[niveau - 1];
+
+    // Haal taken op uit Firestore content, val terug op hardcoded
+    const getTaken = () => {
+        const niveauKey = `level${niveau}`;
+        const dbContent = rolContent?.[rol]?.[niveauKey];
+        if (dbContent?.taken?.length > 0) return dbContent.taken;
+        // Fallback naar hardcoded
+        return getTakenVoorRol(rol, niveau, sessie.sport);
+    };
+
+    const getSpelregels = () => {
+        return rolContent?.[rol]?.level1?.spelregels || [];
+    };
+
+    const getBeslissingen = () => {
+        const niveauKey = `level${niveau}`;
+        return rolContent?.[rol]?.[niveauKey]?.beslissingen || [];
+    };
 
     return (
         <div className="max-w-2xl">
@@ -594,16 +631,63 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
             </div>
 
             {fase === 'actief' && (
-                <div className={`${rolData.bg} border ${rolData.border} rounded-2xl p-5 mb-4`}>
-                    <h3 className={`font-bold ${rolData.tekst} mb-3`}>Jouw taken vandaag</h3>
-                    <div className="space-y-2">
-                        {getTakenVoorRol(rol, niveau, sessie.sport).map((taak, i) => (
-                            <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                                <CheckCircleIcon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${rolData.tekst}`} />
-                                <span>{taak}</span>
+                <div className="space-y-4 mb-4">
+                    {/* Taken */}
+                    <div className={`${rolData.bg} border ${rolData.border} rounded-2xl p-5`}>
+                        <h3 className={`font-bold ${rolData.tekst} mb-3`}>Jouw taken vandaag</h3>
+                        {loadingContent ? (
+                            <div className="text-sm text-slate-400">Laden...</div>
+                        ) : (
+                            <div className="space-y-2">
+                                {getTaken().map((taak, i) => (
+                                    <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                                        <CheckCircleIcon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${rolData.tekst}`} />
+                                        <span>{taak}</span>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        )}
                     </div>
+
+                    {/* Spelregels — enkel voor arbiter level 1 */}
+                    {rol === 'arbiter' && niveau === 1 && getSpelregels().length > 0 && (
+                        <details className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                            <summary className={`px-5 py-3 font-semibold text-sm cursor-pointer ${rolData.tekst} list-none flex items-center justify-between`}>
+                                <span>📋 Spelregels {sessie.sport}</span>
+                                <ChevronRightIcon className="w-4 h-4 transition-transform" />
+                            </summary>
+                            <div className="px-5 pb-4">
+                                <ul className="space-y-2 mt-2">
+                                    {getSpelregels().map((regel, i) => (
+                                        <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                                            <span className={`font-bold ${rolData.tekst} flex-shrink-0`}>{i + 1}.</span>
+                                            <span>{regel}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </details>
+                    )}
+
+                    {/* Beslissingen — voor arbiter level 2 en 3 */}
+                    {rol === 'arbiter' && niveau >= 2 && getBeslissingen().length > 0 && (
+                        <details className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                            <summary className={`px-5 py-3 font-semibold text-sm cursor-pointer ${rolData.tekst} list-none flex items-center justify-between`}>
+                                <span>⚖️ Typische beslissingen</span>
+                                <ChevronRightIcon className="w-4 h-4 transition-transform" />
+                            </summary>
+                            <div className="px-5 pb-4">
+                                <ul className="space-y-2 mt-2">
+                                    {getBeslissingen().map((beslissing, i) => (
+                                        <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                                            <span className="flex-shrink-0">❓</span>
+                                            <span>{beslissing}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </details>
+                    )}
                 </div>
             )}
 

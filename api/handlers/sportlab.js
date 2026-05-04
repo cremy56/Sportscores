@@ -533,3 +533,36 @@ export async function handleValideerLevelUp(req, res, decodedToken) {
         return res.status(500).json({ error: 'Fout bij valideren level-up' });
     }
 }
+// ─── 8. GET SPORT LAB CONTENT ─────────────────────────────────────────────────
+// Haalt content op uit sport_lab_content/{sport}
+// Bevat taken, spelregels en beslissingen per rol en niveau
+export async function handleGetSportLabContent(req, res, decodedToken) {
+    try {
+        const { sport } = req.body;
+        if (!sport) return res.status(400).json({ error: 'sport is verplicht.' });
+
+        const sportNorm = sport.toLowerCase().trim();
+        const contentRef = db.collection('sport_lab_content').doc(sportNorm);
+        const contentSnap = await contentRef.get();
+
+        // Fallback naar 'andere' als sport niet gevonden
+        if (!contentSnap.exists) {
+            const andereSnap = await db.collection('sport_lab_content').doc('andere').get();
+            return res.status(200).json({
+                success: true,
+                content: andereSnap.exists ? andereSnap.data() : null,
+                fallback: true,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            content: contentSnap.data(),
+            fallback: false,
+        });
+
+    } catch (error) {
+        console.error('❌ handleGetSportLabContent:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen content' });
+    }
+}

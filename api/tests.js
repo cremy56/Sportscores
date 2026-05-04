@@ -43,7 +43,7 @@ import {
     handleStartSportLabSessie, handleSluitSportLabSessie,
     handleGetActieveSportLabSessie, handleGetSportLabSessies,
     handleJoinSportLabSessie, handleSubmitZelfreflectie,
-    handleValideerLevelUp,
+    handleValideerLevelUp, handleGetSportLabContent,
 } from './handlers/sportlab.js';
 
 // ─── HOOFD HANDLER ────────────────────────────────────────────────────────────
@@ -137,6 +137,7 @@ export default async function handler(req, res) {
             case 'join_sportlab_sessie':         return await handleJoinSportLabSessie(req, res, decodedToken);
             case 'submit_zelfreflectie':         return await handleSubmitZelfreflectie(req, res, decodedToken);
             case 'valideer_level_up':            return await handleValideerLevelUp(req, res, decodedToken);
+            case 'get_sportlab_content':         return await handleGetSportLabContent(req, res, decodedToken);
 
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
