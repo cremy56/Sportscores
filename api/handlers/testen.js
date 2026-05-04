@@ -444,7 +444,7 @@ export async function handleUpdateScoreDate(req, res, decodedToken) {
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
         if (!Array.isArray(scoreIds) || scoreIds.length === 0) return res.status(400).json({ error: 'Geen score IDs.' });
 
-        const newDateObj = new Date(newDate + 'T02:00:00.000Z');
+        const newDateObj = new Date(`${newDate}T00:00:00`);
         const batch = db.batch();
         for (const scoreId of scoreIds) {
             batch.update(db.collection('scores').doc(scoreId), { datum: Timestamp.fromDate(newDateObj) });

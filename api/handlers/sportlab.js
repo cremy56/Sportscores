@@ -458,7 +458,7 @@ export async function handleSubmitZelfreflectie(req, res, decodedToken) {
             xp: FieldValue.increment(xpVerdient),
             xp_current_period: FieldValue.increment(xpVerdient),
             xp_current_school_year: FieldValue.increment(xpVerdient),
-            last_activity_date: new Date().toISOString().split('T')[0], // two-pillar streak
+            last_activity_date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Brussels' }).format(new Date()),
             last_activity: Timestamp.now(),
         });
 

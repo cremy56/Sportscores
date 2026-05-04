@@ -27,8 +27,8 @@ async function apiPost(action, body, token) {
 
 // ─── CONSTANTEN ───────────────────────────────────────────────────────────────
 const SPORTEN = [
-    'Basketbal', 'Volleybal', 'Voetbal', 'Badminton', 'Tennis',
-    'Atletiek', 'Zwemmen', 'Turnen', 'Handbal', 'Hockey',
+    'Basketbal', 'Volleybal', 'Voetbal', 'Badminton', 'Padel',
+     'Handbal', 'Hockey',
     'Tafeltennis', 'Andere'
 ];
 
@@ -607,7 +607,18 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
         return getTakenVoorRol(rol, niveau, sessie.sport);
     };
 
-    const getSpelregels = () => rolContent?.[rol]?.level1?.spelregels || [];
+    const getSpelregels = () => {
+        const niveauKey = `level${niveau}`;
+        // Niveau-specifieke spelregels — valt terug op level1 als niet beschikbaar
+        return rolContent?.[rol]?.[niveauKey]?.spelregels
+            || rolContent?.[rol]?.level1?.spelregels
+            || [];
+    };
+
+    const getNiveauUitleg = () => {
+        const niveauKey = `level${niveau}`;
+        return rolContent?.[rol]?.[niveauKey]?.uitleg || null;
+    };
     const getBeslissingen = () => {
         const niveauKey = `level${niveau}`;
         return rolContent?.[rol]?.[niveauKey]?.beslissingen || [];
@@ -638,6 +649,9 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                         <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">{sessie.sport}</p>
                         <h2 className="text-2xl font-bold">{rolData.naam}</h2>
                         <p className="text-white/80 text-sm mt-1">{niveauInfo}</p>
+                {getNiveauUitleg() && (
+    <p className="text-white/60 text-xs mt-2 leading-relaxed">{getNiveauUitleg()}</p>
+)}
                     </div>
                     <NiveauBadge niveau={niveau} />
                 </div>
@@ -702,8 +716,8 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                         )}
                     </div>
 
-                    {/* ── SPELREGEL FLASHCARDS (arbiter L1) ── */}
-                    {rol === 'arbiter' && niveau === 1 && spelregels.length > 0 && (
+                    {/* ── SPELREGEL FLASHCARDS (arbiter alle niveaus) ── */}
+                    {rol === 'arbiter' && spelregels.length > 0 && (
                         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                                 <h3 className="font-bold text-slate-800 text-sm">Spelregels {sessie.sport}</h3>
@@ -758,7 +772,9 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                     {rol === 'arbiter' && niveau >= 2 && beslissingen.length > 0 && (
                         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                                <h3 className="font-bold text-slate-800 text-sm">Wat doe jij als scheidsrechter?</h3>
+                                <h3 className="font-bold text-slate-800 text-sm">
+                                    {niveau === 2 ? 'Typische situaties — Level 2' : "Complexe scenario's — Level 3"}
+                                </h3>
                                 <span className="text-xs text-slate-400">{beslissingIndex + 1} / {beslissingen.length}</span>
                             </div>
                             <div className="p-5">
