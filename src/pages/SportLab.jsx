@@ -564,7 +564,16 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
     const [rolContent, setRolContent] = useState(null);
     const [loadingContent, setLoadingContent] = useState(true);
 
-    // Dynamische content laden uit sport_lab_content collectie
+    // Interactieve taken — leerling vinkt af
+    const [afgevinkt, setAfgevinkt] = useState({});
+
+    // Spelregel flashcard index
+    const [regelIndex, setRegelIndex] = useState(0);
+
+    // Beslissing scenario index
+    const [beslissingIndex, setBeslissingIndex] = useState(0);
+
+    // Dynamische content laden
     useEffect(() => {
         const fetchContent = async () => {
             try {
@@ -581,7 +590,7 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
         fetchContent();
     }, [sessie.sport]);
 
-    // Auto-switch naar reflectie als sessie in evaluatiefase gaat
+    // Auto-switch naar reflectie bij evaluatiefase
     useEffect(() => {
         if (sessie.status === 'evaluatie' && fase === 'actief') {
             setFase('reflectie');
@@ -591,102 +600,202 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
 
     const niveauInfo = rolData.niveaus[niveau - 1];
 
-    // Haal taken op uit Firestore content, val terug op hardcoded
     const getTaken = () => {
         const niveauKey = `level${niveau}`;
         const dbContent = rolContent?.[rol]?.[niveauKey];
         if (dbContent?.taken?.length > 0) return dbContent.taken;
-        // Fallback naar hardcoded
         return getTakenVoorRol(rol, niveau, sessie.sport);
     };
 
-    const getSpelregels = () => {
-        return rolContent?.[rol]?.level1?.spelregels || [];
-    };
-
+    const getSpelregels = () => rolContent?.[rol]?.level1?.spelregels || [];
     const getBeslissingen = () => {
         const niveauKey = `level${niveau}`;
         return rolContent?.[rol]?.[niveauKey]?.beslissingen || [];
     };
+
+    const taken = getTaken();
+    const aantalAfgevinkt = Object.values(afgevinkt).filter(Boolean).length;
+    const voortgang = taken.length > 0 ? Math.round((aantalAfgevinkt / taken.length) * 100) : 0;
+
+    const spelregels = getSpelregels();
+    const beslissingen = getBeslissingen();
 
     return (
         <div className="max-w-2xl mx-auto">
             {/* Terug knop */}
             <button
                 onClick={onTerug}
-                className="inline-flex items-center text-slate-500 hover:text-slate-800 mb-6 group text-sm"
+                className="inline-flex items-center text-slate-500 hover:text-slate-800 mb-5 group text-sm"
             >
                 <ChevronRightIcon className="w-4 h-4 mr-1 rotate-180 transition-transform group-hover:-translate-x-1" />
                 Terug naar overzicht
             </button>
 
-            {/* Actieve rol banner */}
-            <div className={`${rolData.bg} border ${rolData.border} rounded-2xl p-5 mb-6`}>
-                <div className="flex items-center justify-between mb-2">
-                    <h2 className={`text-xl font-bold ${rolData.tekst}`}>{rolData.naam}</h2>
+            {/* ROL HEADER — gradient banner */}
+            <div className={`bg-gradient-to-r ${rolData.kleur} rounded-2xl p-5 mb-5 text-white`}>
+                <div className="flex items-start justify-between">
+                    <div>
+                        <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">{sessie.sport}</p>
+                        <h2 className="text-2xl font-bold">{rolData.naam}</h2>
+                        <p className="text-white/80 text-sm mt-1">{niveauInfo}</p>
+                    </div>
                     <NiveauBadge niveau={niveau} />
                 </div>
-                <p className="text-slate-500 text-sm">{sessie.sport}</p>
-                <p className={`text-sm mt-2 font-medium ${rolData.tekst}`}>{niveauInfo}</p>
             </div>
 
             {fase === 'actief' && (
                 <div className="space-y-4 mb-4">
-                    {/* Taken */}
-                    <div className={`${rolData.bg} border ${rolData.border} rounded-2xl p-5`}>
-                        <h3 className={`font-bold ${rolData.tekst} mb-3`}>Jouw taken vandaag</h3>
+
+                    {/* ── TAKEN MET CHECKBOXES + VOORTGANGSBALK ── */}
+                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                        <div className="px-5 pt-5 pb-3">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="font-bold text-slate-800">Jouw missie vandaag</h3>
+                                <span className="text-xs font-medium text-slate-500">
+                                    {aantalAfgevinkt}/{taken.length}
+                                </span>
+                            </div>
+                            {/* Voortgangsbalk */}
+                            <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
+                                <div
+                                    className={`h-2 rounded-full transition-all duration-500 bg-gradient-to-r ${rolData.kleur}`}
+                                    style={{ width: `${voortgang}%` }}
+                                />
+                            </div>
+                        </div>
+
                         {loadingContent ? (
-                            <div className="text-sm text-slate-400">Laden...</div>
+                            <div className="px-5 pb-5 text-sm text-slate-400">Laden...</div>
                         ) : (
-                            <div className="space-y-2">
-                                {getTaken().map((taak, i) => (
-                                    <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                                        <CheckCircleIcon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${rolData.tekst}`} />
-                                        <span>{taak}</span>
-                                    </div>
+                            <div className="divide-y divide-slate-50">
+                                {taken.map((taak, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => setAfgevinkt(prev => ({ ...prev, [i]: !prev[i] }))}
+                                        className={`w-full text-left px-5 py-3.5 flex items-start gap-3 transition-colors ${
+                                            afgevinkt[i] ? 'bg-slate-50' : 'hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
+                                            afgevinkt[i]
+                                                ? `border-transparent bg-gradient-to-r ${rolData.kleur}`
+                                                : 'border-slate-300'
+                                        }`}>
+                                            {afgevinkt[i] && (
+                                                <CheckCircleSolid className="w-3 h-3 text-white" />
+                                            )}
+                                        </div>
+                                        <span className={`text-sm leading-relaxed ${
+                                            afgevinkt[i] ? 'text-slate-400 line-through' : 'text-slate-700'
+                                        }`}>
+                                            {taak}
+                                        </span>
+                                    </button>
                                 ))}
+                            </div>
+                        )}
+
+                        {voortgang === 100 && (
+                            <div className={`mx-5 mb-5 mt-2 p-3 rounded-xl bg-gradient-to-r ${rolData.kleur} text-white text-center text-sm font-semibold`}>
+                                Alle taken gedaan! 🎉
                             </div>
                         )}
                     </div>
 
-                    {/* Spelregels — enkel voor arbiter level 1 */}
-                    {rol === 'arbiter' && niveau === 1 && getSpelregels().length > 0 && (
-                        <details className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                            <summary className={`px-5 py-3 font-semibold text-sm cursor-pointer ${rolData.tekst} list-none flex items-center justify-between`}>
-                                <span>📋 Spelregels {sessie.sport}</span>
-                                <ChevronRightIcon className="w-4 h-4 transition-transform" />
-                            </summary>
-                            <div className="px-5 pb-4">
-                                <ul className="space-y-2 mt-2">
-                                    {getSpelregels().map((regel, i) => (
-                                        <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
-                                            <span className={`font-bold ${rolData.tekst} flex-shrink-0`}>{i + 1}.</span>
-                                            <span>{regel}</span>
-                                        </li>
-                                    ))}
-                                </ul>
+                    {/* ── SPELREGEL FLASHCARDS (arbiter L1) ── */}
+                    {rol === 'arbiter' && niveau === 1 && spelregels.length > 0 && (
+                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                                <h3 className="font-bold text-slate-800 text-sm">Spelregels {sessie.sport}</h3>
+                                <span className="text-xs text-slate-400">{regelIndex + 1} / {spelregels.length}</span>
                             </div>
-                        </details>
+                            <div className="p-5">
+                                {/* Flashcard */}
+                                <div className={`${rolData.bg} ${rolData.border} border rounded-xl p-5 min-h-[80px] flex items-center mb-4`}>
+                                    <div className="flex items-start gap-3">
+                                        <span className={`text-2xl font-black ${rolData.tekst} flex-shrink-0 leading-none`}>
+                                            {regelIndex + 1}
+                                        </span>
+                                        <p className={`text-sm leading-relaxed ${rolData.tekst} font-medium`}>
+                                            {spelregels[regelIndex]}
+                                        </p>
+                                    </div>
+                                </div>
+                                {/* Navigatie */}
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setRegelIndex(i => Math.max(0, i - 1))}
+                                        disabled={regelIndex === 0}
+                                        className="flex-1 py-2 text-sm font-medium border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-colors"
+                                    >
+                                        ← Vorige
+                                    </button>
+                                    <button
+                                        onClick={() => setRegelIndex(i => Math.min(spelregels.length - 1, i + 1))}
+                                        disabled={regelIndex === spelregels.length - 1}
+                                        className={`flex-1 py-2 text-sm font-medium rounded-xl text-white disabled:opacity-30 transition-colors bg-gradient-to-r ${rolData.kleur}`}
+                                    >
+                                        Volgende →
+                                    </button>
+                                </div>
+                                {/* Puntjes indicator */}
+                                <div className="flex justify-center gap-1.5 mt-3">
+                                    {spelregels.map((_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setRegelIndex(i)}
+                                            className={`w-2 h-2 rounded-full transition-all ${
+                                                i === regelIndex ? `bg-gradient-to-r ${rolData.kleur} w-4` : 'bg-slate-200'
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                     )}
 
-                    {/* Beslissingen — voor arbiter level 2 en 3 */}
-                    {rol === 'arbiter' && niveau >= 2 && getBeslissingen().length > 0 && (
-                        <details className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                            <summary className={`px-5 py-3 font-semibold text-sm cursor-pointer ${rolData.tekst} list-none flex items-center justify-between`}>
-                                <span>⚖️ Typische beslissingen</span>
-                                <ChevronRightIcon className="w-4 h-4 transition-transform" />
-                            </summary>
-                            <div className="px-5 pb-4">
-                                <ul className="space-y-2 mt-2">
-                                    {getBeslissingen().map((beslissing, i) => (
-                                        <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
-                                            <span className="flex-shrink-0">❓</span>
-                                            <span>{beslissing}</span>
-                                        </li>
-                                    ))}
-                                </ul>
+                    {/* ── SCENARIO KAARTEN (arbiter L2 & L3) ── */}
+                    {rol === 'arbiter' && niveau >= 2 && beslissingen.length > 0 && (
+                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                                <h3 className="font-bold text-slate-800 text-sm">Wat doe jij als scheidsrechter?</h3>
+                                <span className="text-xs text-slate-400">{beslissingIndex + 1} / {beslissingen.length}</span>
                             </div>
-                        </details>
+                            <div className="p-5">
+                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 min-h-[80px] flex items-center mb-4">
+                                    <p className="text-sm leading-relaxed text-slate-700 font-medium">
+                                        {beslissingen[beslissingIndex]}
+                                    </p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setBeslissingIndex(i => Math.max(0, i - 1))}
+                                        disabled={beslissingIndex === 0}
+                                        className="flex-1 py-2 text-sm font-medium border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-colors"
+                                    >
+                                        ← Vorige
+                                    </button>
+                                    <button
+                                        onClick={() => setBeslissingIndex(i => Math.min(beslissingen.length - 1, i + 1))}
+                                        disabled={beslissingIndex === beslissingen.length - 1}
+                                        className={`flex-1 py-2 text-sm font-medium rounded-xl text-white disabled:opacity-30 transition-colors bg-gradient-to-r ${rolData.kleur}`}
+                                    >
+                                        Volgende →
+                                    </button>
+                                </div>
+                                <div className="flex justify-center gap-1.5 mt-3">
+                                    {beslissingen.map((_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setBeslissingIndex(i)}
+                                            className={`w-2 h-2 rounded-full transition-all ${
+                                                i === beslissingIndex ? `bg-gradient-to-r ${rolData.kleur} w-4` : 'bg-slate-200'
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             )}
@@ -703,10 +812,10 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
             )}
 
             {deelname?.voltooid && (
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
-                    <CheckCircleSolid className="w-10 h-10 text-green-500 mx-auto mb-2" />
-                    <p className="font-bold text-green-800">Reflectie ingediend!</p>
-                    <p className="text-sm text-green-600 mt-1">XP is bijgeschreven op je account.</p>
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
+                    <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
+                    <p className="font-bold text-green-800 text-lg">Goed gedaan!</p>
+                    <p className="text-sm text-green-600 mt-1">Je reflectie is ingediend en XP is bijgeschreven.</p>
                 </div>
             )}
         </div>
