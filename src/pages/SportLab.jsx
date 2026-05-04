@@ -610,7 +610,7 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
     };
 
     return (
-        <div className="max-w-2xl">
+        <div className="max-w-2xl mx-auto">
             {/* Terug knop */}
             <button
                 onClick={onTerug}
