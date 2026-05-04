@@ -28,8 +28,8 @@ function isSessieActief(sessieData) {
     // Automatisch verlopen na 3 uur
     const start = sessieData.start_tijd?.toDate?.();
     if (!start) return false;
-    const drieUur = 3 * 60 * 60 * 1000;
-    return Date.now() - start.getTime() < drieUur;
+    const tweeUur = 2 * 60 * 60 * 1000;
+return Date.now() - start.getTime() < tweeUur;
 }
 
 // ─── HELPER: school uren check ─────────────────────────────────────────────────
