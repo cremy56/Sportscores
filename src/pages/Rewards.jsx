@@ -17,7 +17,6 @@ const XP = {
   LEADERBOARD: [1000, 750, 500, 250, 100],
   PR: 500,
   SPORTTEST: 50,
-  SPORTLAB_DEELNAME: 10,
   SPORTLAB_REFLECTIE: 20,
   SPORTLAB_OEFENINGEN: 25,
   SPORTLAB_LEVEL_UP: 100,
@@ -93,7 +92,7 @@ const Rewards = () => {
             <div>
               <p className="font-semibold text-amber-800 text-sm">Je bent vrijgesteld van sporttesten</p>
               <p className="text-sm text-amber-700 mt-0.5">
-                Je XP-score wordt niet extra bestraft. Via het Sport Lab kan je punten blijven verdienen.
+                Je XP-score wordt niet extra bestraft. Via het SportLab kan je punten blijven verdienen.
                 {einddatum && <span className="ml-1">Vrijstelling geldig tot {einddatum.toLocaleDateString('nl-BE', { day: 'numeric', month: 'long' })}.</span>}
               </p>
             </div>
@@ -158,9 +157,8 @@ const Rewards = () => {
               <p className="text-sm text-gray-600 mt-1"><span className="font-bold">+{XP.SPORTTEST} XP</span> per officiële sporttest.</p>
             </div>
             <div>
-              <p className="font-semibold">Sport Lab</p>
+              <p className="font-semibold">SportLab</p>
               <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
-                <li>Rol kiezen & joinen: <span className="font-bold">+{XP.SPORTLAB_DEELNAME} XP</span></li>
                 <li>Zelfreflectie invullen: <span className="font-bold">+{XP.SPORTLAB_REFLECTIE} XP</span></li>
                 <li>Oefeningen afgevinkt: <span className="font-bold">+{XP.SPORTLAB_OEFENINGEN} XP</span></li>
                 <li>Level-up (leerkracht goedkeuring): <span className="font-bold">+{XP.SPORTLAB_LEVEL_UP} XP</span></li>

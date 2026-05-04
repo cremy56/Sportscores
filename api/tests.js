@@ -129,7 +129,7 @@ export default async function handler(req, res) {
             case 'get_ehbo_stats':          return await handleGetEhboStats(req, res, decodedToken);
             case 'get_welzijn_stats':       return await handleGetWelzijnStats(req, res, decodedToken);
 
-            // ── Sport Lab ──────────────────────────────────────────────────────
+            // ── SportLab ──────────────────────────────────────────────────────
             case 'start_sportlab_sessie':        return await handleStartSportLabSessie(req, res, decodedToken);
             case 'sluit_sportlab_sessie':        return await handleSluitSportLabSessie(req, res, decodedToken);
             case 'get_actieve_sportlab_sessie':  return await handleGetActieveSportLabSessie(req, res, decodedToken);

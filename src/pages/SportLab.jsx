@@ -177,7 +177,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
                 sport,
                 klas: geselecteerdeKlas || null,
             }, profile._token);
-            toast.success(`Sport Lab sessie gestart voor ${sport}!`);
+            toast.success(`SportLab sessie gestart voor ${sport}!`);
             onSessieGestart(data.sessie_id);
         } catch (e) {
             toast.error(e.message);
@@ -189,7 +189,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
     return (
         <div className="flex justify-center"><div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 max-w-xl w-full">
             <div className="mb-6">
-                <h2 className="font-bold text-slate-900 text-lg">Nieuwe Sport Lab Sessie</h2>
+                <h2 className="font-bold text-slate-900 text-lg">Nieuwe SportLab Sessie</h2>
                 <p className="text-sm text-slate-500 mt-1">Leerlingen kunnen daarna joinen via de app</p>
             </div>
 
@@ -957,7 +957,7 @@ function GeenSessieScherm({ isVrijgesteld }) {
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center max-w-md w-full">
                 <h3 className="text-lg font-bold text-slate-800 mb-2">Geen actieve sessie</h3>
                 <p className="text-slate-500 text-sm">
-                    Er is momenteel geen Sport Lab sessie actief voor jouw klas.
+                    Er is momenteel geen SportLab sessie actief voor jouw klas.
                     Wacht tot je leerkracht een sessie start.
                 </p>
                 {isVrijgesteld && (
@@ -1057,13 +1057,16 @@ export default function SportLab() {
             <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
                 <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8">
 
-                    {/* HEADER */}
+                    // HEADER
                     <div className="mb-8 mt-20">
-                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Sport Lab</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">SportLab</h1>
                         <p className="text-slate-500">
-                            {isLeerling
-                                ? 'Kies je rol voor de les en verdien XP door actief bij te dragen.'
-                                : 'Start een sessie en laat leerlingen hun rol kiezen via de app.'}
+                            {isTeacher 
+                                ? 'Start een sessie en laat leerlingen hun rol kiezen via de app.' 
+                                : (isLeerling && !gekozenRol) 
+                                    ? 'Kies je rol voor de les en verdien XP door actief bij te dragen.' 
+                                    : 'Jouw actieve SportLab missie.'
+                            }
                         </p>
                     </div>
 

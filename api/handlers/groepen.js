@@ -389,7 +389,7 @@ export async function handleGetKlasDetail(req, res, decodedToken) {
 }
 
 // ─── SET VRIJSTELLING ─────────────────────────────────────────────────────────
-// Stelt een leerling vrij van fysieke testen (Sport Lab gatekeeper).
+// Stelt een leerling vrij van fysieke testen (SportLab gatekeeper).
 // Slaat GEEN reden op — enkel boolean + einddatum + wie registreerde.
 // leerlingId = smartschool_id_hash (toegestane_gebruikers_id op users doc)
 export async function handleSetVrijstelling(req, res, decodedToken) {

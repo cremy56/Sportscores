@@ -6,7 +6,6 @@ import { writeAuditLog } from '../../lib/auditLogger.js';
 
 // ─── XP BEDRAGEN ──────────────────────────────────────────────────────────────
 const XP = {
-    DEELNAME:        10,   // rol kiezen + sessie joinen
     ZELFREFLECTIE:   20,   // reflectie volledig invullen
     LEVEL_UP:       100,   // teacher-gevalideerde level-up
     ALTERNATIEF:     25,   // blessurebewuste sporter oefeningen afgevinkt
@@ -334,7 +333,7 @@ export async function handleJoinSportLabSessie(req, res, decodedToken) {
         const isSuperAdmin = userData?.rol === 'super-administrator';
         
         if (!isSuperAdmin && !isTestSessie && !isBinnenSchoolUren()) {
-            return res.status(403).json({ error: 'Sport Lab is enkel beschikbaar tijdens schooluren.' });
+            return res.status(403).json({ error: 'SportLab is enkel beschikbaar tijdens schooluren.' });
         }
 
         // 3. SESSIE STATUS VALIDATIE
@@ -547,7 +546,7 @@ export async function handleValideerLevelUp(req, res, decodedToken) {
         return res.status(500).json({ error: 'Fout bij valideren level-up' });
     }
 }
-// ─── 8. GET SPORT LAB CONTENT ─────────────────────────────────────────────────
+// ─── 8. GET SPORTLAB CONTENT ─────────────────────────────────────────────────
 // Haalt content op uit sport_lab_content/{sport}
 // Bevat taken, spelregels en beslissingen per rol en niveau
 export async function handleGetSportLabContent(req, res, decodedToken) {
