@@ -465,26 +465,23 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
 
 // ─── LEERLING: ROL KEUZE ──────────────────────────────────────────────────────
 function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, onRolGekozen }) {
-    const [geselecteerdeRol, setGeselecteerdeRol] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [loadingRol, setLoadingRol] = useState(null); // Houdt bij welke knop laadt
 
     const beschikbareRollen = ROLLEN.filter(r => !r.vrijgesteldOnly || isVrijgesteld);
 
-    const handleBevestig = async () => {
-        if (!geselecteerdeRol) return;
-        setLoading(true);
+    const handleKiesRol = async (rolId) => {
+        setLoadingRol(rolId);
         try {
             await apiPost('join_sportlab_sessie', {
                 schoolId: profile.school_id,
                 sessieId: sessie.id,
-                rol: geselecteerdeRol
+                rol: rolId
             }, profile._token);
             toast.success('Rol gekozen!');
-            onRolGekozen(geselecteerdeRol);
+            onRolGekozen(rolId);
         } catch (e) {
             toast.error(e.message);
-        } finally {
-            setLoading(false);
+            setLoadingRol(null);
         }
     };
 
@@ -508,49 +505,42 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, onRolGekozen }) {
             <div className="grid grid-cols-1 gap-3 mb-6">
                 {beschikbareRollen.map(rol => {
                     const niveau = niveaus?.[rol.id] || 1;
-                    const isGekozen = geselecteerdeRol === rol.id;
+                    const isLoading = loadingRol === rol.id;
+                    const isDisabled = loadingRol !== null; // Blokkeer andere knoppen tijdens laden
+
                     return (
                         <button
                             key={rol.id}
-                            onClick={() => setGeselecteerdeRol(rol.id)}
-                            className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
-                                isGekozen
-                                    ? `${rol.border} ${rol.bg} scale-[1.01] shadow-md`
-                                    : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm'
-                            }`}
+                            onClick={() => handleKiesRol(rol.id)}
+                            disabled={isDisabled}
+                            className={`w-full text-left p-4 rounded-2xl border-2 transition-all 
+                                ${isDisabled && !isLoading ? 'opacity-50 cursor-not-allowed' : ''}
+                                ${isLoading ? `${rol.border} ${rol.bg} scale-[1.01] shadow-md` : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm'}
+                            `}
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-start gap-3 flex-1">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                                            <span className={`font-bold ${isGekozen ? rol.tekst : 'text-gray-900'}`}>
+                                            <span className="font-bold text-gray-900">
                                                 {rol.naam}
                                             </span>
                                             <NiveauBadge niveau={niveau} />
                                         </div>
                                         <p className="text-xs text-gray-500 mb-2">{rol.beschrijving}</p>
-                                        <p className={`text-xs font-medium ${isGekozen ? rol.tekst : 'text-gray-400'}`}>
+                                        <p className="text-xs font-medium text-gray-400">
                                             {rol.niveaus[niveau - 1]}
                                         </p>
                                     </div>
                                 </div>
-                                {isGekozen && (
-                                    <CheckCircleSolid className={`w-5 h-5 flex-shrink-0 ${rol.tekst}`} />
+                                {isLoading && (
+                                    <div className="animate-spin w-5 h-5 border-2 border-slate-300 border-t-emerald-500 rounded-full flex-shrink-0" />
                                 )}
                             </div>
                         </button>
                     );
                 })}
             </div>
-
-            <button
-                onClick={handleBevestig}
-                disabled={!geselecteerdeRol || loading}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-semibold py-4 rounded-2xl transition-colors flex items-center justify-center gap-2"
-            >
-                <ChevronRightIcon className="w-5 h-5" />
-                {loading ? 'Bezig...' : 'Bevestig rol (+10 XP)'}
-            </button>
         </div>
     );
 }

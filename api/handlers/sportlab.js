@@ -34,7 +34,11 @@ return Date.now() - start.getTime() < tweeUur;
 
 // ─── HELPER: school uren check ─────────────────────────────────────────────────
 // Extra laag bovenop teacher session — blokkeert XP buiten schooluren
-function isBinnenSchoolUren() {
+// Pas de helper functie aan (rond regel 33):
+function isBinnenSchoolUren(userRol) {
+    // Superadmins mogen altijd doortesten
+    if (userRol === 'super-administrator') return true;
+
     const nu = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Brussels' }));
     const dag = nu.getDay(); // 0=zondag, 6=zaterdag
     const uur = nu.getHours();
@@ -48,6 +52,8 @@ function isBinnenSchoolUren() {
 
     return true;
 }
+
+
 
 // ─── 1. START SESSIE (leerkracht) ─────────────────────────────────────────────
 export async function handleStartSportLabSessie(req, res, decodedToken) {
@@ -314,9 +320,10 @@ export async function handleJoinSportLabSessie(req, res, decodedToken) {
         if (!ROL_DB[rol]) return res.status(400).json({ error: 'Ongeldige rol.' });
 
         // School uren check
-        if (!isBinnenSchoolUren()) {
-            return res.status(403).json({ error: 'Sport Lab is enkel beschikbaar tijdens schooluren.' });
-        }
+
+if (!isBinnenSchoolUren(userData?.rol)) {
+    return res.status(403).json({ error: 'Sport Lab is enkel beschikbaar tijdens schooluren.' });
+}
 
         // Sessie valideren
         const sessieSnap = await db.collection('sport_lab_sessions').doc(sessieId).get();
