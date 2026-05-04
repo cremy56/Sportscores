@@ -546,9 +546,33 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, onRolGekozen }) {
 }
 
 // ─── DIGITAAL SCOREBORD (Speciaal voor de Arbiter) ────────────────────────────
-function Scorebord({ rolData }) {
-    const [scoreA, setScoreA] = useState(0);
-    const [scoreB, setScoreB] = useState(0);
+function Scorebord({ rolData, sessieId }) {
+    // 1. Haal de opgeslagen score op (of begin bij 0)
+    const [scoreA, setScoreA] = useState(() => {
+        const opgeslagen = localStorage.getItem(`sportlab_scoreA_${sessieId}`);
+        return opgeslagen !== null ? parseInt(opgeslagen, 10) : 0;
+    });
+    
+    const [scoreB, setScoreB] = useState(() => {
+        const opgeslagen = localStorage.getItem(`sportlab_scoreB_${sessieId}`);
+        return opgeslagen !== null ? parseInt(opgeslagen, 10) : 0;
+    });
+
+    // 2. Sla de score direct op in localStorage als hij verandert
+    useEffect(() => {
+        localStorage.setItem(`sportlab_scoreA_${sessieId}`, scoreA);
+    }, [scoreA, sessieId]);
+
+    useEffect(() => {
+        localStorage.setItem(`sportlab_scoreB_${sessieId}`, scoreB);
+    }, [scoreB, sessieId]);
+
+    const handleReset = () => {
+        setScoreA(0);
+        setScoreB(0);
+        localStorage.removeItem(`sportlab_scoreA_${sessieId}`);
+        localStorage.removeItem(`sportlab_scoreB_${sessieId}`);
+    };
 
     return (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-4">
@@ -558,7 +582,7 @@ function Scorebord({ rolData }) {
                     <h3 className="font-bold text-slate-800 text-sm">Digitaal Scorebord</h3>
                 </div>
                 <button 
-                    onClick={() => { setScoreA(0); setScoreB(0); }} 
+                    onClick={handleReset} 
                     className="text-xs font-medium text-slate-400 hover:text-red-500 transition-colors bg-white px-2 py-1 rounded-md border border-slate-200"
                 >
                     Reset
@@ -626,8 +650,20 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
     const [rolContent, setRolContent] = useState(null);
     const [loadingContent, setLoadingContent] = useState(true);
 
-    // Interactieve taken — leerling vinkt af
-    const [afgevinkt, setAfgevinkt] = useState({});
+   // Haal afgevinkte taken uit het geheugen (gekoppeld aan deze sessie)
+const [afgevinkt, setAfgevinkt] = useState(() => {
+    try {
+        const opgeslagen = localStorage.getItem(`sportlab_taken_${sessie.id}`);
+        return opgeslagen ? JSON.parse(opgeslagen) : {};
+    } catch (e) {
+        return {};
+    }
+});
+
+// Sla afgevinkte taken op zodra er eentje wijzigt
+useEffect(() => {
+    localStorage.setItem(`sportlab_taken_${sessie.id}`, JSON.stringify(afgevinkt));
+}, [afgevinkt, sessie.id]);
 
     // Spelregel flashcard index
     const [regelIndex, setRegelIndex] = useState(0);
@@ -724,7 +760,7 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
 
                     {/* ── DIGITAAL SCOREBORD (Enkel voor Arbiter en eventueel Toernooileider) ── */}
                     {(rol === 'arbiter' || rol === 'toernooileider') && (
-                        <Scorebord rolData={rolData} />
+                        <Scorebord rolData={rolData} sessieId={sessie.id} />
                     )}
 
                     {/* ── TAKEN MET CHECKBOXES + VOORTGANGSBALK ── */}
