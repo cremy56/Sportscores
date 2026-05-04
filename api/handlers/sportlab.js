@@ -91,6 +91,7 @@ export async function handleStartSportLabSessie(req, res, decodedToken) {
             status: 'actief',
             start_tijd: Timestamp.now(),
             gesloten_op: null,
+            is_test_sessie: callerRol === 'super-administrator',
         });
 
         await writeAuditLog({
@@ -319,19 +320,24 @@ export async function handleJoinSportLabSessie(req, res, decodedToken) {
 
         if (!ROL_DB[rol]) return res.status(400).json({ error: 'Ongeldige rol.' });
 
-        // 1. HAAL EERST DE USER OP (verplaatst naar boven)
         const userSnap = await db.collection('users').doc(decodedToken.uid).get();
         const userData = userSnap.data();
 
-        // 2. CHECK DAN PAS DE SCHOOLUREN MET DE ROL
-        if (!isBinnenSchoolUren(userData?.rol)) {
-            return res.status(403).json({ error: 'Sport Lab is enkel beschikbaar tijdens schooluren.' });
-        }
-
-        // Sessie valideren
+        // 1. HAAL EERST DE SESSIE OP VOORDAT WE DE TIJD CHECKEN
         const sessieSnap = await db.collection('sport_lab_sessions').doc(sessieId).get();
         if (!sessieSnap.exists) return res.status(404).json({ error: 'Sessie niet gevonden.' });
         const sessieData = sessieSnap.data();
+
+        // 2. SCHOOLUREN CHECK (Met de nieuwe test-bypass)
+        // Als het een test-sessie is (aangemaakt door superadmin), mag de leerling er altijd in.
+        const isTestSessie = sessieData.is_test_sessie === true;
+        const isSuperAdmin = userData?.rol === 'super-administrator';
+        
+        if (!isSuperAdmin && !isTestSessie && !isBinnenSchoolUren()) {
+            return res.status(403).json({ error: 'Sport Lab is enkel beschikbaar tijdens schooluren.' });
+        }
+
+        // 3. SESSIE STATUS VALIDATIE
         if (!isSessieActief({ id: sessieId, ...sessieData })) {
             return res.status(400).json({ error: 'Sessie is niet meer actief.' });
         }
