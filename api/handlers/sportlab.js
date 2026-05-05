@@ -3,6 +3,7 @@ import { db } from '../../lib/firebaseAdmin.js';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { getSchoolId } from '../../lib/apiHelpers.js';
 import { writeAuditLog } from '../../lib/auditLogger.js';
+import { getMasterKey } from '../../lib/keyManager.js';
 
 // ─── XP BEDRAGEN ──────────────────────────────────────────────────────────────
 const XP = {
@@ -55,9 +56,10 @@ function isBinnenSchoolUren(userRol) {
 
 
 // ─── 1. START SESSIE (leerkracht) ─────────────────────────────────────────────
+
 export async function handleStartSportLabSessie(req, res, decodedToken) {
     try {
-        const { schoolId, sport, klas } = req.body;
+        const { schoolId, sport, doelType, doelId } = req.body; 
         const verifiedSchoolId = await getSchoolId(decodedToken.uid);
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
 
@@ -69,7 +71,7 @@ export async function handleStartSportLabSessie(req, res, decodedToken) {
 
         if (!sport?.trim()) return res.status(400).json({ error: 'Sport is verplicht.' });
 
-        // Sluit eventuele nog open sessies van deze leerkracht
+        // Sluit eventuele nog open sessies van deze leerkracht (zet ze klaar voor docent evaluatie)
         const openSessies = await db.collection('sport_lab_sessions')
             .where('leerkracht_id', '==', decodedToken.uid)
             .where('status', 'in', ['actief', 'evaluatie'])
@@ -77,7 +79,7 @@ export async function handleStartSportLabSessie(req, res, decodedToken) {
 
         const batch = db.batch();
         openSessies.docs.forEach(d => {
-            batch.update(d.ref, { status: 'gesloten', gesloten_op: Timestamp.now() });
+            batch.update(d.ref, { status: 'docent_evaluatie' });
         });
         await batch.commit();
 
@@ -86,18 +88,25 @@ export async function handleStartSportLabSessie(req, res, decodedToken) {
             school_id: verifiedSchoolId,
             leerkracht_id: decodedToken.uid,
             sport: sport.trim(),
-            klas: klas || null,
+            klas: doelType === 'klas' ? doelId : null,
+            groep_id: doelType === 'groep' ? doelId : null,
             status: 'actief',
             start_tijd: Timestamp.now(),
             gesloten_op: null,
-            is_test_sessie: callerRol === 'super-administrator',
+            is_test_sessie: callerRol === 'super-administrator', // Bypass voor schooluren
         });
 
+        // Audit log schrijven
         await writeAuditLog({
             action: 'sportlab_sessie_gestart',
             actor_uid: decodedToken.uid,
             school_id: verifiedSchoolId,
-            metadata: { sessie_id: sessieRef.id, sport, klas }
+            metadata: { 
+                sessie_id: sessieRef.id, 
+                sport, 
+                doelType: doelType || 'iedereen', 
+                doelId: doelId || null 
+            }
         });
 
         return res.status(200).json({ success: true, sessie_id: sessieRef.id });
@@ -162,20 +171,22 @@ export async function handleGetActieveSportLabSessie(req, res, decodedToken) {
             .limit(10)
             .get();
 
-        if (snap.empty) {
-            return res.status(200).json({ success: true, sessie: null });
-        }
+        if (snap.empty) return res.status(200).json({ success: true, sessie: null });
 
-        // Filter op klas in code
+        // Check in welke groepen de leerling zit
+        const groepenSnap = await db.collection('groepen').where('leerling_ids', 'array-contains', decodedToken.uid).get();
+        const studentGroepIds = groepenSnap.docs.map(d => d.id);
         const leerlingKlas = userData?.klas || null;
+
         const matchendDoc = snap.docs.find(d => {
-            const sessieKlas = d.data().klas;
-            return !sessieKlas || sessieKlas === leerlingKlas;
+            const data = d.data();
+            if (!data.klas && !data.groep_id) return true; // Voor iedereen
+            if (data.klas && data.klas === leerlingKlas) return true; // Match klas
+            if (data.groep_id && studentGroepIds.includes(data.groep_id)) return true; // Match groep
+            return false;
         });
 
-        if (!matchendDoc) {
-            return res.status(200).json({ success: true, sessie: null });
-        }
+        if (!matchendDoc) return res.status(200).json({ success: true, sessie: null });
 
         const sessieData = { id: matchendDoc.id, ...matchendDoc.data() };
 
@@ -577,5 +588,68 @@ export async function handleGetSportLabContent(req, res, decodedToken) {
     } catch (error) {
         console.error('❌ handleGetSportLabContent:', error);
         return res.status(500).json({ error: 'Fout bij ophalen content' });
+    }
+}
+// ─── 9. SAVE SPORT LAB SCORE (Docent) ─────────────────────────────────────────
+export async function handleSaveSportLabScore(req, res, decodedToken) {
+    try {
+        const { schoolId, sessieId, leerlingUid, rol, score, maxScore, groepId, levelUp } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
+        if (!['leerkracht', 'administrator', 'super-administrator'].includes(callerSnap.data()?.rol)) {
+            return res.status(403).json({ error: 'Enkel leerkrachten kunnen scoren.' });
+        }
+
+        const existingSnap = await db.collection('sport_lab_scores')
+            .where('sessie_id', '==', sessieId)
+            .where('leerling_id', '==', leerlingUid)
+            .limit(1).get();
+
+        if (!existingSnap.empty) {
+            // Update bestaande score
+            await existingSnap.docs[0].ref.update({
+                score: Number(score),
+                max_score: Number(maxScore),
+                level_up_toegekend: levelUp || false,
+                bijgewerkt_op: Timestamp.now()
+            });
+        } else {
+            // Nieuwe score in aparte, permanente collectie
+            await db.collection('sport_lab_scores').add({
+                school_id: verifiedSchoolId,
+                sessie_id: sessieId,
+                leerkracht_id: decodedToken.uid,
+                leerling_id: leerlingUid,
+                groep_id: groepId || null,
+                rol: rol,
+                score: Number(score),
+                max_score: Number(maxScore),
+                level_up_toegekend: levelUp || false,
+                datum: Timestamp.now()
+            });
+        }
+
+        // Als Level-up aangevinkt is, geef de leerling de +100 XP
+        if (levelUp) {
+            const leerlingRef = db.collection('users').doc(leerlingUid);
+            const lSnap = await leerlingRef.get();
+            const huidigNiveau = lSnap.data()?.sportlab_niveaus?.[rol] || 1;
+            
+            if (huidigNiveau < 3) {
+                await leerlingRef.update({
+                    [`sportlab_niveaus.${rol}`]: huidigNiveau + 1,
+                    xp: FieldValue.increment(XP.LEVEL_UP),
+                    xp_current_period: FieldValue.increment(XP.LEVEL_UP),
+                    xp_current_school_year: FieldValue.increment(XP.LEVEL_UP),
+                });
+            }
+        }
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('❌ handleSaveSportLabScore:', error);
+        return res.status(500).json({ error: 'Fout bij opslaan score' });
     }
 }

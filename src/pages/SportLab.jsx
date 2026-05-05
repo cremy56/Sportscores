@@ -116,11 +116,16 @@ function NiveauBadge({ niveau }) {
 // ─── LEERKRACHT: SESSIE STARTEN ───────────────────────────────────────────────
 function SessieStartForm({ profile, onSessieGestart }) {
     const [sport, setSport] = useState('');
-    const [geselecteerdeKlas, setGeselecteerdeKlas] = useState('');
+    const [doelgroep, setDoelgroep] = useState(''); // Formaat: "klas:4A", "groep:ID" of ""
     const [loading, setLoading] = useState(false);
+    
     const [klassenEnGroepen, setKlassenEnGroepen] = useState({ klassen: [], groepen: [] });
     const [loadingKlassen, setLoadingKlassen] = useState(true);
+    
+    const [vrijgesteldeLeerlingen, setVrijgesteldeLeerlingen] = useState([]);
+    const [loadingVrijgesteld, setLoadingVrijgesteld] = useState(false);
 
+    // Ophalen van Klassen & Groepen
     useEffect(() => {
         const fetchKlassenEnGroepen = async () => {
             try {
@@ -139,45 +144,60 @@ function SessieStartForm({ profile, onSessieGestart }) {
             }
         };
         fetchKlassenEnGroepen();
-    }, []);
+    }, [profile?.school_id, profile?._token]);
 
-    const [vrijgesteldeLeerlingen, setVrijgesteldeLeerlingen] = useState([]);
-    const [loadingVrijgesteld, setLoadingVrijgesteld] = useState(false);
-
-    // Vrijgestelde leerlingen ophalen bij klas selectie
+    // Vrijgestelde leerlingen ophalen voor preview (enkel bij klas-selectie)
     useEffect(() => {
-        if (!geselecteerdeKlas || !profile?.school_id) {
+        if (!doelgroep || !profile?.school_id || !doelgroep.startsWith('klas:')) {
             setVrijgesteldeLeerlingen([]);
             return;
         }
+        
         const fetchVrijgesteld = async () => {
             setLoadingVrijgesteld(true);
             try {
+                const klasNaam = doelgroep.split(':')[1];
                 const data = await apiPost('get_klas_detail', {
-                    klasNaam: geselecteerdeKlas,
+                    klasNaam: klasNaam,
                     schoolId: profile.school_id,
                 }, profile._token);
+                
                 const vrijgesteld = (data.members || []).filter(m => m.vrijgesteld);
                 setVrijgesteldeLeerlingen(vrijgesteld);
             } catch (e) {
+                console.error('Fout bij ophalen vrijstellingen:', e);
                 setVrijgesteldeLeerlingen([]);
             } finally {
                 setLoadingVrijgesteld(false);
             }
         };
         fetchVrijgesteld();
-    }, [geselecteerdeKlas, profile?.school_id]);
+    }, [doelgroep, profile?.school_id, profile?._token]);
 
     const handleStart = async () => {
         if (!sport) { toast.error('Kies een sport.'); return; }
         setLoading(true);
+        
+        let doelType = null;
+        let doelId = null;
+        
+        // Formaat parsen naar backend structuur
+        if (doelgroep.startsWith('klas:')) { 
+            doelType = 'klas'; 
+            doelId = doelgroep.split(':')[1]; 
+        } else if (doelgroep.startsWith('groep:')) { 
+            doelType = 'groep'; 
+            doelId = doelgroep.split(':')[1]; 
+        }
+
         try {
             const data = await apiPost('start_sportlab_sessie', {
                 schoolId: profile.school_id,
                 sport,
-                klas: geselecteerdeKlas || null,
+                doelType,
+                doelId
             }, profile._token);
-            toast.success(`SportLab sessie gestart voor ${sport}!`);
+            toast.success(`Sport Lab sessie gestart voor ${sport}!`);
             onSessieGestart(data.sessie_id);
         } catch (e) {
             toast.error(e.message);
@@ -187,86 +207,187 @@ function SessieStartForm({ profile, onSessieGestart }) {
     };
 
     return (
-        <div className="flex justify-center"><div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 max-w-xl w-full">
-            <div className="mb-6">
-                <h2 className="font-bold text-slate-900 text-lg">Nieuwe SportLab Sessie</h2>
-                <p className="text-sm text-slate-500 mt-1">Leerlingen kunnen daarna joinen via de app</p>
-            </div>
-
-            <div className="space-y-4">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Sport <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                        value={sport}
-                        onChange={e => setSport(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 text-gray-800"
-                    >
-                        <option value="">— Kies een sport —</option>
-                        {SPORTEN.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+        <div className="flex justify-center">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 max-w-xl w-full">
+                <div className="mb-6">
+                    <h2 className="font-bold text-slate-900 text-lg">Nieuwe Sport Lab Sessie</h2>
+                    <p className="text-sm text-slate-500 mt-1">Leerlingen kunnen daarna joinen via de app</p>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Klas of groep <span className="text-gray-400 font-normal">(optioneel — leeg = iedereen)</span>
-                    </label>
-                    {loadingKlassen ? (
-                        <div className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-400 text-sm">
-                            Klassen laden...
-                        </div>
-                    ) : (
+                <div className="space-y-4">
+                    {/* SPORT SELECTIE */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Sport <span className="text-red-500">*</span>
+                        </label>
                         <select
-                            value={geselecteerdeKlas}
-                            onChange={e => setGeselecteerdeKlas(e.target.value)}
+                            value={sport}
+                            onChange={e => setSport(e.target.value)}
                             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 text-gray-800"
                         >
-                            <option value="">— Alle leerlingen —</option>
-                            {klassenEnGroepen.klassen.length > 0 && (
-                                <optgroup label="Klassen">
-                                    {klassenEnGroepen.klassen.map(k => (
-                                        <option key={k} value={k}>{k}</option>
-                                    ))}
-                                </optgroup>
-                            )}
-                            {klassenEnGroepen.groepen.length > 0 && (
-                                <optgroup label="Mijn groepen">
-                                    {klassenEnGroepen.groepen.map(g => (
-                                        <option key={g.id} value={g.naam}>{g.naam}</option>
-                                    ))}
-                                </optgroup>
-                            )}
+                            <option value="">— Kies een sport —</option>
+                            {SPORTEN.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
-                    )}
-                </div>
-
-                {/* Vrijgestelde leerlingen preview */}
-                {geselecteerdeKlas && !loadingVrijgesteld && vrijgesteldeLeerlingen.length > 0 && (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                        <p className="text-xs font-medium text-amber-800 mb-2">
-                            🩺 Vrijgesteld in {geselecteerdeKlas} — krijgen toegang tot Body Fixer:
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                            {vrijgesteldeLeerlingen.map(l => (
-                                <span key={l.id} className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">
-                                    {l.naam}
-                                </span>
-                            ))}
-                        </div>
                     </div>
-                )}
 
-                <button
-                    onClick={handleStart}
-                    disabled={loading || !sport}
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
-                >
-                    <PlayIcon className="w-5 h-5" />
-                    {loading ? 'Starten...' : 'Sessie Starten'}
-                </button>
+                    {/* KLAS OF GROEP SELECTIE */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Klas of groep <span className="text-gray-400 font-normal">(optioneel — leeg = iedereen)</span>
+                        </label>
+                        {loadingKlassen ? (
+                            <div className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-400 text-sm">
+                                Klassen en groepen laden...
+                            </div>
+                        ) : (
+                            <select
+                                value={doelgroep}
+                                onChange={e => setDoelgroep(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 text-gray-800"
+                            >
+                                <option value="">— Alle leerlingen —</option>
+                                
+                                {klassenEnGroepen.klassen.length > 0 && (
+                                    <optgroup label="Klassen">
+                                        {klassenEnGroepen.klassen.map(k => (
+                                            <option key={`klas-${k}`} value={`klas:${k}`}>{k}</option>
+                                        ))}
+                                    </optgroup>
+                                )}
+                                
+                                {klassenEnGroepen.groepen.length > 0 && (
+                                    <optgroup label="Mijn groepen">
+                                        {klassenEnGroepen.groepen.map(g => (
+                                            <option key={`groep-${g.id}`} value={`groep:${g.id}`}>{g.naam}</option>
+                                        ))}
+                                    </optgroup>
+                                )}
+                            </select>
+                        )}
+                    </div>
+
+                    {/* VRIJGESTELDE LEERLINGEN PREVIEW (Enkel bij klas) */}
+                    {doelgroep.startsWith('klas:') && !loadingVrijgesteld && vrijgesteldeLeerlingen.length > 0 && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                            <p className="text-xs font-medium text-amber-800 mb-2">
+                                🩺 Vrijgesteld in {doelgroep.split(':')[1]} — krijgen toegang tot Body Fixer:
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {vrijgesteldeLeerlingen.map(l => (
+                                    <span key={l.id} className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">
+                                        {l.naam}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* START KNOP */}
+                    <button
+                        onClick={handleStart}
+                        disabled={loading || !sport}
+                        className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2"
+                    >
+                        <PlayIcon className="w-5 h-5" />
+                        {loading ? 'Starten...' : 'Sessie Starten'}
+                    </button>
+                </div>
             </div>
-        </div></div>
+        </div>
+    );
+}
+
+// ─── LEERKRACHT: ACTIEVE SESSIE BEHEER ────────────────────────────────────────
+// ─── HELPER COMPONENT VOOR DE DOCENT EVALUATIE ────────────────────────────────
+function BeoordelingRij({ d, sessie, profile, onOpgeslagen }) {
+    const [score, setScore] = useState(d.beoordeling?.score || '');
+    const [geefLevelUp, setGeefLevelUp] = useState(false);
+    const [loading, setLoading] = useState(false);
+
+    const opslaan = async () => {
+        if (score === '') {
+            toast.error('Vul een score in.');
+            return;
+        }
+        setLoading(true);
+        try {
+            await apiPost('save_sportlab_score', {
+                schoolId: profile.school_id, 
+                sessieId: sessie.id,
+                leerlingUid: d.leerling_uid, 
+                rol: d.rol,
+                score: score, 
+                maxScore: 10, // Zet dit op 20 als je liever op 20 evalueert
+                groepId: sessie.groep_id, 
+                levelUp: geefLevelUp
+            }, profile._token);
+            
+            toast.success(`Score opgeslagen voor ${d.echte_naam}`);
+            onOpgeslagen(); // Ververst de data (zodat het vinkje verschijnt)
+        } catch (e) {
+            toast.error(e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <li className="p-4 flex flex-col sm:flex-row gap-4 sm:items-center justify-between transition-colors hover:bg-slate-50">
+            <div>
+                <p className="font-bold text-slate-800">{d.echte_naam}</p>
+                <p className="text-xs text-slate-500">Nickname: {d.nickname} | {d.rol_naam} (Lvl {d.niveau})</p>
+            </div>
+            
+            {/* Als er al een score in de database zit (en dus beoordeeld is) */}
+            {d.beoordeeld ? (
+                <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                        {d.beoordeling.score} / {d.beoordeling.max_score}
+                    </span>
+                    {d.beoordeling.level_up_toegekend && (
+                        <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded-lg flex items-center gap-1">
+                            <CheckCircleSolid className="w-4 h-4" /> Level↑
+                        </span>
+                    )}
+                    <span className="text-xs font-medium text-emerald-600 flex items-center gap-1">
+                        <CheckCircleSolid className="w-4 h-4" /> Opgeslagen
+                    </span>
+                </div>
+            ) : (
+                <div className="flex items-center gap-2">
+                    <input 
+                        type="number" 
+                        max="10" 
+                        min="0"
+                        step="0.5"
+                        placeholder="/10" 
+                        value={score} 
+                        onChange={e => setScore(e.target.value)}
+                        className="w-16 px-2 py-1.5 border border-slate-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-purple-500 focus:border-purple-500" 
+                    />
+                    
+                    {d.rol !== 'alternatief' && d.niveau < 3 && (
+                        <label className="text-xs font-medium text-purple-700 flex items-center gap-1 bg-purple-50 px-2 py-1.5 rounded-lg border border-purple-200 cursor-pointer hover:bg-purple-100 transition-colors">
+                            <input 
+                                type="checkbox" 
+                                checked={geefLevelUp} 
+                                onChange={e => setGeefLevelUp(e.target.checked)} 
+                                className="accent-purple-600 rounded-sm" 
+                            />
+                            Level↑
+                        </label>
+                    )}
+                    
+                    <button 
+                        onClick={opslaan} 
+                        disabled={loading}
+                        className="text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                    >
+                        {loading ? '...' : 'Opslaan'}
+                    </button>
+                </div>
+            )}
+        </li>
     );
 }
 
@@ -294,16 +415,28 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
         setVrijgesteld(sessie.vrijgestelde_leerlingen || []);
     }, [sessie]);
 
-    const handleEvaluatieFase = async () => {
+    const alleReflectiesBinnen = deelnames.length > 0 && deelnames.every(d => d.voltooid);
+
+    // Status wijzigen API call
+    const veranderStatus = async (definitief, naarDocentEvaluatie = false) => {
         setLoading(true);
         try {
             await apiPost('sluit_sportlab_sessie', {
                 schoolId: profile.school_id,
                 sessieId: sessie.id,
-                definitief: false
+                definitief,
+                naarDocentEvaluatie
             }, profile._token);
-            toast.success('Evaluatievenster geopend — leerlingen hebben 10 minuten.');
-            onSessieGesloten();
+            
+            if (definitief) {
+                toast.success('Sessie definitief gesloten.');
+                setToonAfbreekBevestiging(false);
+            } else if (naarDocentEvaluatie) {
+                toast.success('Jouw evaluatiefase is gestart!');
+            } else {
+                toast.success('Evaluatievenster voor leerlingen geopend.');
+            }
+            onSessieGesloten(); // Vuur refresh in hoofdcomponent af
         } catch (e) {
             toast.error(e.message);
         } finally {
@@ -311,149 +444,202 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
         }
     };
 
-    const handleAfbreken = async () => {
-        setLoading(true);
-        try {
-            await apiPost('sluit_sportlab_sessie', {
-                schoolId: profile.school_id,
-                sessieId: sessie.id,
-                definitief: true
-            }, profile._token);
-            toast.success('Sessie afgebroken. Je kan een nieuwe starten.');
-            setToonAfbreekBevestiging(false);
-            onSessieGesloten();
-        } catch (e) {
-            toast.error(e.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // ─── RENDER: DOCENT EVALUATIE FASE ───
+    if (sessie.status === 'docent_evaluatie' || sessie.status === 'gesloten') {
+        const onbeoordeeld = deelnames.filter(d => !d.beoordeeld).length;
+        
+        return (
+            <div className="flex justify-center">
+                <div className="max-w-2xl w-full bg-white rounded-2xl border-2 border-purple-400 shadow-sm overflow-hidden mb-6">
+                    <div className="bg-purple-500 px-5 py-3 flex justify-between items-center">
+                        <span className="font-semibold text-white text-sm">Leerkracht Evaluatie ({sessie.sport})</span>
+                        <span className="text-purple-100 text-xs font-medium">
+                            Doel: {sessie.klas ? `Klas ${sessie.klas}` : (sessie.groep_id ? 'Groep' : 'Iedereen')}
+                        </span>
+                    </div>
+                    <div className="p-5">
+                        <h2 className="text-2xl font-bold text-slate-900 mb-2">Deelnames Beoordelen</h2>
+                        <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                            Vul hier het rapportpunt in. Deze scores worden bewaard in je administratie. 
+                            Vink <b>Level↑</b> aan voor extra inzet; dit levert de leerling direct +100 XP op. 
+                            Je ziet hier de veilige, ontsleutelde echte namen.
+                        </p>
 
+                        {deelnames.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-slate-400 italic bg-slate-50 rounded-xl mb-6">
+                                Er waren geen deelnemers in deze sessie.
+                            </div>
+                        ) : (
+                            <ul className="divide-y divide-slate-100 mb-6 border border-slate-200 rounded-xl overflow-hidden">
+                                {deelnames.map(d => (
+                                    <BeoordelingRij 
+                                        key={d.id} 
+                                        d={d} 
+                                        sessie={sessie} 
+                                        profile={profile} 
+                                        onOpgeslagen={onSessieGesloten} 
+                                    />
+                                ))}
+                            </ul>
+                        )}
+
+                        {sessie.status !== 'gesloten' && (
+                            <div className="mt-6 flex items-center justify-between">
+                                {onbeoordeeld > 0 ? (
+                                    <span className="text-sm font-medium text-amber-600">
+                                        Nog {onbeoordeeld} leerling(en) te beoordelen.
+                                    </span>
+                                ) : (
+                                    <span className="text-sm font-medium text-emerald-600 flex items-center gap-1">
+                                        <CheckCircleSolid className="w-5 h-5" /> Alles beoordeeld!
+                                    </span>
+                                )}
+                                
+                                <button 
+                                    onClick={() => veranderStatus(true)} 
+                                    disabled={loading}
+                                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-6 rounded-xl transition-colors disabled:opacity-50"
+                                >
+                                    {loading ? 'Bezig...' : 'Sessie Definitief Sluiten'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ─── RENDER: ACTIEF / LEERLING EVALUATIE FASE ───
     return (
         <div className="flex justify-center">
             <div className="max-w-xl w-full space-y-4">
-
-                {/* Actieve sessie kaart */}
                 <div className="bg-white rounded-2xl border-2 border-emerald-400 shadow-sm overflow-hidden">
-                    {/* Status balk */}
+                    
+                    {/* Status Balk */}
                     <div className="bg-emerald-500 px-5 py-3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                             <span className="font-semibold text-white text-sm">
-                                {sessie.status === 'evaluatie' ? 'Evaluatiefase' : 'Sessie Actief'}
+                                {sessie.status === 'evaluatie' ? 'Leerling Evaluatiefase' : 'Sessie Actief'}
                             </span>
                         </div>
-                        <span className="text-emerald-100 text-sm">{duur} min</span>
+                        <span className="text-emerald-100 text-sm font-medium">{duur} min</span>
                     </div>
 
                     <div className="p-5">
-                        {/* Sport & klas */}
                         <div className="flex items-baseline justify-between mb-4">
                             <h2 className="text-2xl font-bold text-slate-900">{sessie.sport}</h2>
-                            {sessie.klas && (
-                                <span className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                                    {sessie.klas}
-                                </span>
-                            )}
+                            <span className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                                {sessie.klas ? sessie.klas : (sessie.groep_id ? 'Groep' : 'Alle leerlingen')}
+                            </span>
                         </div>
 
-                        <p className="text-sm text-slate-500 mb-4">
-                            Leerlingen kiezen hun rol via de app. Klik op <strong className="text-slate-700">Evaluatiefase</strong> op het einde van de les.
-                        </p>
-
-                        {/* Live deelnames overzicht */}
-                        <div className="mb-4 border border-slate-100 rounded-xl overflow-hidden">
+                        {/* Live Deelnames Overzicht */}
+                        <div className="mb-4 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                             <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                                <span className="text-xs font-medium text-slate-600">Deelnames</span>
-                                <span className="text-xs text-slate-400">{deelnames.length} gejoind</span>
+                                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Deelnames (Nicknames)</span>
+                                <span className="text-xs font-medium text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                                    {deelnames.length} in sessie
+                                </span>
                             </div>
+                            
                             {deelnames.length === 0 ? (
-                                <div className="px-4 py-3 text-xs text-slate-400 italic">
-                                    Nog niemand gekozen — leerlingen joinen via de app.
+                                <div className="px-4 py-6 text-sm text-center text-slate-400 italic">
+                                    Nog niemand gekozen.<br/>Leerlingen kunnen nu joinen via de app.
                                 </div>
                             ) : (
                                 <ul className="divide-y divide-slate-50">
                                     {deelnames.map(d => (
-                                        <li key={d.id} className="px-4 py-2.5 flex items-center justify-between">
+                                        <li key={d.id} className="px-4 py-3 flex flex-wrap gap-2 items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm font-medium text-slate-800">{d.nickname}</span>
+                                                <span className="text-sm font-bold text-slate-800">{d.nickname}</span>
                                                 {d.is_vrijgesteld && (
-                                                    <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">🩺</span>
+                                                    <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-semibold">🩺</span>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-xs text-slate-500">{d.rol_naam}</span>
+                                                <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                                                    {d.rol_naam}
+                                                </span>
                                                 {d.voltooid && (
-                                                    <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">✓ reflectie</span>
+                                                    <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md flex items-center gap-1">
+                                                        <CheckCircleSolid className="w-3 h-3" /> Reflectie
+                                                    </span>
                                                 )}
                                             </div>
                                         </li>
                                     ))}
                                 </ul>
                             )}
-
-                            {/* Vrijgestelde leerlingen zonder rol */}
-                            {vrijgesteld.filter(v => !deelnames.some(d => d.is_vrijgesteld)).length > 0 && (
-                                <div className="px-4 py-2 bg-amber-50 border-t border-amber-100">
-                                    <p className="text-xs text-amber-700">
-                                        🩺 Vrijgesteld zonder rol:{' '}
-                                        {vrijgesteld
-                                            .filter(v => !deelnames.some(d => d.is_vrijgesteld))
-                                            .map(v => v.nickname)
-                                            .join(', ')}
-                                    </p>
-                                </div>
-                            )}
                         </div>
 
-                        {/* Evaluatie fase melding */}
-                        {sessie.status === 'evaluatie' && (
-                            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-center gap-2">
-                                <ClockIcon className="w-4 h-4 flex-shrink-0" />
-                                Evaluatievenster open — leerlingen kunnen nu reflecteren.
+                        {/* SLIMME AUTO-DETECTIE: Iedereen klaar? */}
+                        {sessie.status === 'evaluatie' && alleReflectiesBinnen ? (
+                            <div className="mb-5 p-4 bg-emerald-50 border border-emerald-200 rounded-xl shadow-sm">
+                                <p className="font-bold text-emerald-800 mb-3 flex items-center gap-2 text-sm">
+                                    <span className="text-lg">🎉</span> Alle leerlingen hebben gereflecteerd!
+                                </p>
+                                <button
+                                    onClick={() => veranderStatus(false, true)}
+                                    disabled={loading}
+                                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 rounded-xl transition-colors shadow-sm"
+                                >
+                                    Start Jouw Evaluatie (Punten & Levels)
+                                </button>
+                            </div>
+                        ) : sessie.status === 'evaluatie' ? (
+                            <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-3 shadow-sm">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+                                    <ClockIcon className="w-5 h-5 flex-shrink-0 animate-pulse" />
+                                    Wachten tot leerlingen klaar zijn met reflecteren...
+                                </div>
+                                <button
+                                    onClick={() => veranderStatus(false, true)}
+                                    className="text-xs font-bold text-amber-700 hover:text-amber-900 underline self-start transition-colors"
+                                >
+                                    Forceer: overslaan en ga nu al naar mijn evaluatie
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => veranderStatus(false, false)}
+                                    disabled={loading || deelnames.length === 0}
+                                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 px-4 rounded-xl transition-colors text-sm shadow-sm"
+                                >
+                                    Start Leerling Evaluatie
+                                </button>
+                                <button
+                                    onClick={() => setToonAfbreekBevestiging(true)}
+                                    disabled={loading}
+                                    className="px-5 py-3.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors text-sm font-bold border border-slate-200"
+                                >
+                                    Afbreken
+                                </button>
                             </div>
                         )}
-
-                        {/* Actieknoppen */}
-                        <div className="flex gap-3">
-                            <button
-                                onClick={handleEvaluatieFase}
-                                disabled={loading || sessie.status === 'evaluatie'}
-                                className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-medium py-3 px-4 rounded-xl transition-colors text-sm"
-                            >
-                                {sessie.status === 'evaluatie' ? 'Evaluatie loopt...' : 'Start Evaluatiefase'}
-                            </button>
-                            <button
-                                onClick={() => setToonAfbreekBevestiging(true)}
-                                disabled={loading}
-                                className="px-4 py-3 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors text-sm font-medium border border-slate-200 hover:border-red-200"
-                            >
-                                Afbreken
-                            </button>
-                        </div>
                     </div>
                 </div>
 
-                {/* Afbreek bevestiging */}
+                {/* Afbreek Bevestiging */}
                 {toonAfbreekBevestiging && (
-                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
-                        <p className="font-semibold text-red-800 mb-1">Sessie afbreken?</p>
-                        <p className="text-sm text-red-700 mb-4">
-                            Leerlingen die nog niet gereflecteerd hebben verliezen hun voortgang. Je kan daarna een nieuwe sessie starten.
-                        </p>
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 shadow-sm">
+                        <p className="font-bold text-red-800 mb-1">Sessie afbreken?</p>
+                        <p className="text-sm text-red-700 mb-4">Leerlingen verliezen hun onopgeslagen werk.</p>
                         <div className="flex gap-3">
-                            <button
-                                onClick={() => setToonAfbreekBevestiging(false)}
-                                className="flex-1 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50"
+                            <button 
+                                onClick={() => setToonAfbreekBevestiging(false)} 
+                                className="flex-1 py-2.5 text-sm font-bold text-slate-600 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors"
                             >
                                 Annuleren
                             </button>
-                            <button
-                                onClick={handleAfbreken}
-                                disabled={loading}
-                                className="flex-1 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl disabled:opacity-50"
+                            <button 
+                                onClick={() => veranderStatus(true)} 
+                                disabled={loading} 
+                                className="flex-1 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl disabled:opacity-50 shadow-sm transition-colors"
                             >
-                                {loading ? 'Bezig...' : 'Ja, afbreken'}
+                                Ja, afbreken
                             </button>
                         </div>
                     </div>
