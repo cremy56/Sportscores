@@ -1,7 +1,7 @@
 // api/handlers/sportlab.js
 import { db } from '../../lib/firebaseAdmin.js';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
-import { getSchoolId } from '../../lib/apiHelpers.js';
+import { getSchoolId, decryptName } from '../../lib/apiHelpers.js';
 import { writeAuditLog } from '../../lib/auditLogger.js';
 import { getMasterKey } from '../../lib/keyManager.js';
 
@@ -118,11 +118,9 @@ export async function handleStartSportLabSessie(req, res, decodedToken) {
 }
 
 // ─── 2. SLUIT SESSIE (leerkracht) ─────────────────────────────────────────────
-// status: 'evaluatie' → leerlingen krijgen 5 minuten om te reflecteren
-//         'gesloten'  → definitief gesloten
 export async function handleSluitSportLabSessie(req, res, decodedToken) {
     try {
-        const { schoolId, sessieId, definitief } = req.body;
+        const { schoolId, sessieId, definitief, naarDocentEvaluatie } = req.body;
         const verifiedSchoolId = await getSchoolId(decodedToken.uid);
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
 
@@ -135,7 +133,11 @@ export async function handleSluitSportLabSessie(req, res, decodedToken) {
             return res.status(403).json({ error: 'Alleen de sessie-eigenaar kan sluiten.' });
         }
 
-        const nieuweStatus = definitief ? 'gesloten' : 'evaluatie';
+        // Bepaal de nieuwe status
+        let nieuweStatus = 'evaluatie';
+        if (definitief) nieuweStatus = 'gesloten';
+        else if (naarDocentEvaluatie) nieuweStatus = 'docent_evaluatie';
+
         await sessieRef.update({
             status: nieuweStatus,
             ...(nieuweStatus === 'evaluatie' && { evaluatie_start: Timestamp.now() }),
@@ -227,9 +229,6 @@ export async function handleGetActieveSportLabSessie(req, res, decodedToken) {
 }
 
 // ─── 4. LEERKRACHT: OVERZICHT EIGEN SESSIES + LIVE DEELNAMES ─────────────────
-// Geeft actieve sessie terug met:
-//   - deelnames per rol (nickname, voltooid)
-//   - vrijgestelde leerlingen in de klas (badge in UI)
 export async function handleGetSportLabSessies(req, res, decodedToken) {
     try {
         const { schoolId } = req.body;
@@ -242,13 +241,11 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
             return res.status(403).json({ error: 'Geen toegang.' });
         }
 
-        // Geen orderBy — vermijdt Firestore composite index vereiste
         const snap = await db.collection('sport_lab_sessions')
             .where('leerkracht_id', '==', decodedToken.uid)
             .limit(20)
             .get();
 
-        // ROL_DB omgekeerd voor leesbare UI-naam
         const ROL_UI = {
             arbiter: 'De Arbiter',
             coach: 'De Coach',
@@ -256,32 +253,52 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
             alternatief: 'Body Fixer',
         };
 
+        const masterKey = await getMasterKey(); // Haal de encryptie-sleutel op
+
         const sessies = await Promise.all(snap.docs.map(async (d) => {
             const sessieData = { id: d.id, ...d.data() };
 
-            // Deelnames ophalen met nickname
             const deelnamesSnap = await db.collection('sport_lab_deelnames')
                 .where('sessie_id', '==', d.id)
                 .get();
 
-            // Nickname per deelnemer ophalen
             const deelnames = await Promise.all(deelnamesSnap.docs.map(async (dd) => {
                 const data = dd.data();
                 const userSnap = await db.collection('users').doc(data.leerling_firebase_uid).get();
                 const nickname = userSnap.exists ? (userSnap.data().nickname || 'Leerling') : 'Leerling';
+                
+                // NIEUW: Echte naam ontsleutelen
+                let echteNaam = 'Onbekend';
+                if (data.leerling_hash) {
+                    const tgSnap = await db.collection('toegestane_gebruikers').doc(data.leerling_hash).get();
+                    if (tgSnap.exists && tgSnap.data().encrypted_name) {
+                        echteNaam = decryptName(tgSnap.data().encrypted_name, masterKey);
+                    }
+                }
+
+                // Check of er al een score op 10 is gegeven
+                const scoreSnap = await db.collection('sport_lab_scores')
+                    .where('sessie_id', '==', d.id)
+                    .where('leerling_id', '==', data.leerling_firebase_uid)
+                    .limit(1).get();
+
                 return {
                     id: dd.id,
+                    leerling_uid: data.leerling_firebase_uid,
+                    niveau: data.niveau || 1,
                     nickname,
+                    echte_naam: echteNaam,
                     rol: data.rol,
                     rol_naam: ROL_UI[data.rol] || data.rol,
                     voltooid: data.voltooid || false,
                     is_vrijgesteld: data.rol === 'alternatief',
+                    beoordeeld: !scoreSnap.empty,
+                    beoordeling: !scoreSnap.empty ? scoreSnap.docs[0].data() : null
                 };
             }));
 
-            // Vrijgestelde leerlingen in de klas ophalen (enkel als sessie een klas heeft)
             let vrijgesteldeLeerlingen = [];
-            if (sessieData.klas && ['actief', 'evaluatie'].includes(sessieData.status)) {
+            if (sessieData.klas && ['actief', 'evaluatie', 'docent_evaluatie'].includes(sessieData.status)) {
                 const nu = new Date();
                 const vrijgesteldenSnap = await db.collection('users')
                     .where('school_id', '==', verifiedSchoolId)
@@ -305,6 +322,7 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                 id: sessieData.id,
                 sport: sessieData.sport,
                 klas: sessieData.klas || null,
+                groep_id: sessieData.groep_id || null,
                 status: sessieData.status,
                 start_tijd: sessieData.start_tijd?.toDate?.()?.toISOString() || null,
                 gesloten_op: sessieData.gesloten_op?.toDate?.()?.toISOString() || null,
