@@ -538,7 +538,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                         {/* Live Deelnames Overzicht */}
                         <div className="mb-4 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                             <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Deelnames (Nicknames)</span>
+                                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Deelnames</span>
                                 <span className="text-xs font-medium text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">
                                     {deelnames.length} in sessie
                                 </span>
@@ -553,7 +553,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                                     {deelnames.map(d => (
                                         <li key={d.id} className="px-4 py-3 flex flex-wrap gap-2 items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm font-bold text-slate-800">{d.nickname}</span>
+                                                <span className="text-sm font-bold text-slate-800">{d.echte_naam}</span>
                                                 {d.is_vrijgesteld && (
                                                     <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-semibold">🩺</span>
                                                 )}
@@ -1318,7 +1318,7 @@ export default function SportLab() {
                 }, profile._token);
                 // Zoek actieve sessie — inclusief deelnames en vrijgestelde leerlingen
                 const actief = (data.sessies || [])
-                    .filter(s => ['actief', 'evaluatie'].includes(s.status))
+                    .filter(s => ['actief', 'evaluatie', 'docent_evaluatie'].includes(s.status))
                     .sort((a, b) => new Date(b.start_tijd) - new Date(a.start_tijd))[0] || null;
                 setLeerkrachtSessie(actief || null);
             } else {
