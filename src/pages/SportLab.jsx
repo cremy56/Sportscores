@@ -886,18 +886,31 @@ function DigitaalKlembord({ rolData, sessie, niveau, content, deelnameId, profil
     const afronden = () => setFase('rapport');
     
 
-    // NIEUW: De anonieme teller updaten (Nu mét schoolId voor de veiligheidscheck)
+    // ─── DEBUG VERSIE VAN RESET ───
     const reset = async () => {
-        // Stuur op de achtergrond een signaal naar de backend
-        if (deelnameId && profile?._token && profile?.school_id) {
-            try {
-                await apiPost('sportlab_observatie_klaar', { 
-                    deelnameId: deelnameId,
-                    schoolId: profile.school_id // <--- Dit ontbrak waardoor hij geweigerd werd!
-                }, profile._token);
-            } catch(e) { 
-                console.error("Kon teller niet updaten", e); 
-            }
+        // Check of de app weet WIE er aan het observeren is
+        if (!deelnameId) {
+            toast.error("❌ Oeps! De app is je sessie-ID kwijt. Herlaad de pagina even.");
+            setFase('setup');
+            setDoelwit('');
+            return;
+        }
+
+        // Toon een laad-schermpje
+        const toastId = toast.loading("Teller doorgeven aan leerkracht...");
+        
+        try {
+            await apiPost('sportlab_observatie_klaar', { 
+                deelnameId: deelnameId,
+                schoolId: profile?.school_id 
+            }, profile?._token);
+            
+            // Als de database het accepteert:
+            toast.success("✅ Observatie succesvol geteld!", { id: toastId });
+        } catch(e) { 
+            console.error("Kon teller niet updaten", e); 
+            // Als de server weigert (bijv. oude code), vertelt hij WAAROM:
+            toast.error(`❌ Fout: ${e.message}`, { id: toastId, duration: 6000 });
         }
         
         setFase('setup');
