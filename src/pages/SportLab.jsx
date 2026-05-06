@@ -333,12 +333,12 @@ function BeoordelingRij({ d, sessie, profile, onOpgeslagen }) {
             <div>
                 <div className="flex items-center gap-2">
                     <p className="font-bold text-slate-800">{d.echte_naam}</p>
-                   {/* DEBUG OOGJE: We tonen hem nu ALTIJD bij de coach */}
-                                                {d.rol === 'coach' && (
-                                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
-                                                        👁️ {d.observaties_aantal !== undefined ? d.observaties_aantal : 'LEEG'}
-                                                    </span>
-                                                )}
+                   {/* HET OOGJE VOOR DE COACH */}
+                    {d.rol === 'coach' && d.observaties_aantal > 0 && (
+                        <span className="text-[10px] font-bold text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                            👁️ {d.observaties_aantal}
+                        </span>
+                    )}
                 </div>
                 <p className="text-xs text-slate-500">Nickname: {d.nickname} | {d.rol_naam} (Lvl {d.niveau})</p>
             </div>
@@ -894,29 +894,16 @@ function DigitaalKlembord({ rolData, sessie, niveau, content, deelnameId, profil
 
     // ─── DEBUG VERSIE VAN RESET ───
     const reset = async () => {
-        // Check of de app weet WIE er aan het observeren is
-        if (!deelnameId) {
-            toast.error("❌ Oeps! De app is je sessie-ID kwijt. Herlaad de pagina even.");
-            setFase('setup');
-            setDoelwit('');
-            return;
-        }
-
-        // Toon een laad-schermpje
-        const toastId = toast.loading("Teller doorgeven aan leerkracht...");
-        
-        try {
-            await apiPost('sportlab_observatie_klaar', { 
-                deelnameId: deelnameId,
-                schoolId: profile?.school_id 
-            }, profile?._token);
-            
-            // Als de database het accepteert:
-            toast.success("✅ Observatie succesvol geteld!", { id: toastId });
-        } catch(e) { 
-            console.error("Kon teller niet updaten", e); 
-            // Als de server weigert (bijv. oude code), vertelt hij WAAROM:
-            toast.error(`❌ Fout: ${e.message}`, { id: toastId, duration: 6000 });
+        // Stuur op de achtergrond een signaal naar de backend
+        if (deelnameId && profile?._token && profile?.school_id) {
+            try {
+                await apiPost('sportlab_observatie_klaar', { 
+                    deelnameId: deelnameId,
+                    schoolId: profile.school_id 
+                }, profile._token);
+            } catch(e) { 
+                console.error("Kon teller niet updaten", e); 
+            }
         }
         
         setFase('setup');
