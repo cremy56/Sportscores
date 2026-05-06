@@ -1656,10 +1656,11 @@ export default function SportLab() {
         <>
             <Toaster position="top-center" />
             <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-                <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8">
+                {/* HIER ZIT DE FIX: pt-24 toegevoegd aan de container zodat hij NOOIT onder de navigatiebalk schuift */}
+                <div className="max-w-7xl mx-auto px-4 pt-24 pb-8 lg:px-8">
 
-                   {/* HEADER */}
-                    <div className="mb-6 mt-24 hidden md:block">
+                   {/* HEADER (Nu is enkel de tekst verborgen op mobiel, zonder dat we de lay-out kapot maken) */}
+                    <div className="mb-6 hidden md:block">
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">SportLab</h1>
                         <p className="text-slate-500 text-sm">
                             {isTeacher 
