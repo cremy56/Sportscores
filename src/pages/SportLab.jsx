@@ -906,29 +906,29 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
 
     return (
         <div className="relative pt-6 pb-2 mb-6 max-w-sm mx-auto mt-6">
-            {/* HET ZILVEREN KLEMMETJE BOVENAAN */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-8 bg-gradient-to-b from-slate-200 to-slate-400 rounded-t-xl border-t border-x border-slate-400 shadow-md z-20 flex items-center justify-center">
-                <div className="w-16 h-2 bg-slate-300 rounded-full shadow-inner border border-slate-400/50"></div>
+            {/* HET ZILVEREN KLEMMETJE BOVENAAN (Strakker en moderner) */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-8 bg-gradient-to-b from-slate-100 to-slate-300 rounded-t-xl border-t border-x border-slate-300 shadow-sm z-20 flex items-center justify-center">
+                <div className="w-16 h-1.5 bg-slate-400/40 rounded-full shadow-inner"></div>
             </div>
             
-            {/* HET BRUINE BORD */}
-            <div className="bg-amber-800 p-2 rounded-b-xl rounded-t-md shadow-xl relative z-10 border-b-4 border-amber-900">
+            {/* HET MODERNE TACTISCHE BORD (Antraciet ipv Bruin) */}
+            <div className="bg-slate-800 p-2 rounded-b-xl rounded-t-md shadow-xl relative z-10 border-b-4 border-slate-900">
                 
-                {/* HET WITTE PAPIER */}
-                <div className="bg-[#faf9f5] rounded-md min-h-[300px] shadow-inner overflow-hidden relative">
+                {/* HET WITTE PAPIER (Fris wit ipv vergeeld) */}
+                <div className="bg-white rounded-md min-h-[300px] shadow-inner overflow-hidden relative">
                     
-                    {/* Rode marge-lijn van papier */}
-                    <div className="absolute left-6 top-0 bottom-0 w-px bg-red-200 z-0"></div>
+                    {/* Subtiele grijze marge-lijn (ipv fel rood) */}
+                    <div className="absolute left-6 top-0 bottom-0 w-px bg-slate-100 z-0"></div>
 
                     <div className="relative z-10">
                         {/* Header van het papier */}
-                        <div className="px-5 py-3 border-b border-blue-100 flex items-center justify-between bg-[#f4f2eb]">
+                        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                             <h3 className={`font-black ${rolData.tekst} text-sm uppercase tracking-wide ml-4`}>
                                 Digitaal Klembord
                             </h3>
                             {fase === 'observatie' && (
-                                <span className="text-xs font-bold text-slate-600 flex items-center gap-1">
-                                    <ClockIcon className="w-4 h-4" /> {formatTijd(duur)}
+                                <span className="text-xs font-bold text-slate-600 flex items-center gap-1 bg-white px-2 py-1 rounded-md shadow-sm">
+                                    <ClockIcon className="w-3.5 h-3.5" /> {formatTijd(duur)}
                                 </span>
                             )}
                         </div>
@@ -939,17 +939,17 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
                                 <div className="space-y-4">
                                     {!isTeamFocus ? (
                                         <div>
-                                            <label className="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase">Wie observeer je?</label>
+                                            <label className="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Wie observeer je?</label>
                                             <input 
                                                 type="text" 
                                                 placeholder="Naam of hesjes-kleur..." 
                                                 value={doelwit} 
                                                 onChange={e => setDoelwit(e.target.value)}
-                                                className="w-full border-b-2 border-dashed border-slate-300 bg-transparent px-2 py-2 text-sm focus:outline-none focus:border-blue-500 font-medium text-blue-900 placeholder:font-normal"
+                                                className="w-full border-b-2 border-dashed border-slate-300 bg-transparent px-2 py-2 text-sm focus:outline-none focus:border-blue-500 font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-normal"
                                             />
                                         </div>
                                     ) : (
-                                        <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl text-sm text-blue-800 font-medium">
+                                        <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-800 font-medium">
                                             Je focust je nu op het héle team.
                                         </div>
                                     )}
@@ -964,7 +964,7 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
                             {fase === 'observatie' && (
                                 <div className="space-y-5">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-1 w-full">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1 w-full">
                                             {isTeamFocus ? 'Team Focus' : `Speler: ${doelwit}`}
                                         </span>
                                     </div>
@@ -1008,7 +1008,7 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
                                                 TIME-OUT
                                             </button>
                                         ) : (
-                                            <button onClick={afronden} disabled={duur < 60} className={`w-full py-3 rounded-xl font-bold shadow-md transition-all active:scale-95 ${duur < 60 ? 'bg-slate-200 text-slate-400 opacity-70' : `text-white bg-gradient-to-r ${rolData.kleur}`}`}>
+                                            <button onClick={afronden} disabled={duur < 60} className={`w-full py-3 rounded-xl font-bold shadow-sm transition-all active:scale-95 ${duur < 60 ? 'bg-slate-100 text-slate-400 opacity-80' : `text-white shadow-md bg-gradient-to-r ${rolData.kleur}`}`}>
                                                 {duur < 60 ? 'Observeer nog even...' : 'Maak Rapport Op'}
                                             </button>
                                         )}
@@ -1020,7 +1020,7 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
                             {fase === 'rapport' && (
                                 <div className="space-y-5 animate-fade-in text-center py-2">
                                     <h4 className="font-black text-slate-800 text-xl">Rapport Klaar!</h4>
-                                    <p className="text-sm text-slate-600">Stap het veld in en spreek {isTeamFocus ? 'het team' : <strong className="text-blue-700">{doelwit}</strong>} aan.</p>
+                                    <p className="text-sm text-slate-600">Stap het veld in en spreek {isTeamFocus ? 'het team' : <strong className={`font-bold ${rolData.tekst}`}>{doelwit}</strong>} aan.</p>
 
                                     {analyses.length > 0 && (
                                         <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-left">
