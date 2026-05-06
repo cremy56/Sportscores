@@ -293,7 +293,8 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                     voltooid: data.voltooid || false,
                     is_vrijgesteld: data.rol === 'alternatief',
                     beoordeeld: !scoreSnap.empty,
-                    beoordeling: !scoreSnap.empty ? scoreSnap.docs[0].data() : null
+                    beoordeling: !scoreSnap.empty ? scoreSnap.docs[0].data() : null,
+                    observaties_aantal: data.observaties_aantal || 0
                 };
             }));
 

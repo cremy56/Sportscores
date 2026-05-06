@@ -470,17 +470,34 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                                 Er waren geen deelnemers in deze sessie.
                             </div>
                         ) : (
-                            <ul className="divide-y divide-slate-100 mb-6 border border-slate-200 rounded-xl overflow-hidden">
-                                {deelnames.map(d => (
-                                    <BeoordelingRij 
-                                        key={d.id} 
-                                        d={d} 
-                                        sessie={sessie} 
-                                        profile={profile} 
-                                        onOpgeslagen={onSessieGesloten} 
-                                    />
-                                ))}
-                            </ul>
+                            <ul className="divide-y divide-slate-50">
+                                    {deelnames.map(d => (
+                                        <li key={d.id} className="px-4 py-3 flex flex-wrap gap-2 items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-bold text-slate-800">{d.echte_naam}</span>
+                                                {d.is_vrijgesteld && (
+                                                    <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-semibold">🩺</span>
+                                                )}
+                                                {/* NIEUW: Toon het aantal observaties van de coach */}
+                                                {d.rol === 'coach' && d.observaties_aantal > 0 && (
+                                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                                                        👁️ {d.observaties_aantal}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                                                    {d.rol_naam}
+                                                </span>
+                                                {d.voltooid && (
+                                                    <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md flex items-center gap-1">
+                                                        <CheckCircleSolid className="w-3 h-3" /> Reflectie
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
                         )}
 
                         {sessie.status !== 'gesloten' && (
