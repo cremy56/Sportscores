@@ -333,12 +333,12 @@ function BeoordelingRij({ d, sessie, profile, onOpgeslagen }) {
             <div>
                 <div className="flex items-center gap-2">
                     <p className="font-bold text-slate-800">{d.echte_naam}</p>
-                    {/* HET OOGJE VOOR DE COACH */}
-                    {d.rol === 'coach' && d.observaties_aantal > 0 && (
-                        <span className="text-[10px] font-bold text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
-                            👁️ {d.observaties_aantal}
-                        </span>
-                    )}
+                   {/* DEBUG OOGJE: We tonen hem nu ALTIJD bij de coach */}
+                                                {d.rol === 'coach' && (
+                                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                                                        👁️ {d.observaties_aantal !== undefined ? d.observaties_aantal : 'LEEG'}
+                                                    </span>
+                                                )}
                 </div>
                 <p className="text-xs text-slate-500">Nickname: {d.nickname} | {d.rol_naam} (Lvl {d.niveau})</p>
             </div>
