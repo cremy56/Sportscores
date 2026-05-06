@@ -1614,7 +1614,7 @@ export default function SportLab() {
                 <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8">
 
                    {/* HEADER */}
-                    <div className={`mb-6 mt-4 ${((isTeacher && leerkrachtSessie) || (isLeerling && gekozenRol)) ? 'hidden md:block' : 'block'}`}>
+                    <div className={`mb-6 mt-24 ${((isTeacher && leerkrachtSessie) || (isLeerling && gekozenRol)) ? 'hidden md:block' : 'block'}`}>
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">SportLab</h1>
                         <p className="text-slate-500 text-sm">
                             {isTeacher 
