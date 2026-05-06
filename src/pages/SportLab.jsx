@@ -305,10 +305,7 @@ function BeoordelingRij({ d, sessie, profile, onOpgeslagen }) {
     const [loading, setLoading] = useState(false);
 
     const opslaan = async () => {
-        if (score === '') {
-            toast.error('Vul een score in.');
-            return;
-        }
+        if (score === '') { toast.error('Vul een score in.'); return; }
         setLoading(true);
         try {
             await apiPost('save_sportlab_score', {
@@ -317,13 +314,13 @@ function BeoordelingRij({ d, sessie, profile, onOpgeslagen }) {
                 leerlingUid: d.leerling_uid, 
                 rol: d.rol,
                 score: score, 
-                maxScore: 10, // Zet dit op 20 als je liever op 20 evalueert
+                maxScore: 10,
                 groepId: sessie.groep_id, 
                 levelUp: geefLevelUp
             }, profile._token);
             
             toast.success(`Score opgeslagen voor ${d.echte_naam}`);
-            onOpgeslagen(); // Ververst de data (zodat het vinkje verschijnt)
+            onOpgeslagen(); 
         } catch (e) {
             toast.error(e.message);
         } finally {
@@ -334,11 +331,18 @@ function BeoordelingRij({ d, sessie, profile, onOpgeslagen }) {
     return (
         <li className="p-4 flex flex-col sm:flex-row gap-4 sm:items-center justify-between transition-colors hover:bg-slate-50">
             <div>
-                <p className="font-bold text-slate-800">{d.echte_naam}</p>
+                <div className="flex items-center gap-2">
+                    <p className="font-bold text-slate-800">{d.echte_naam}</p>
+                    {/* HET OOGJE VOOR DE COACH */}
+                    {d.rol === 'coach' && d.observaties_aantal > 0 && (
+                        <span className="text-[10px] font-bold text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                            👁️ {d.observaties_aantal}
+                        </span>
+                    )}
+                </div>
                 <p className="text-xs text-slate-500">Nickname: {d.nickname} | {d.rol_naam} (Lvl {d.niveau})</p>
             </div>
             
-            {/* Als er al een score in de database zit (en dus beoordeeld is) */}
             {d.beoordeeld ? (
                 <div className="flex items-center gap-3">
                     <span className="text-sm font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
@@ -356,33 +360,17 @@ function BeoordelingRij({ d, sessie, profile, onOpgeslagen }) {
             ) : (
                 <div className="flex items-center gap-2">
                     <input 
-                        type="number" 
-                        max="10" 
-                        min="0"
-                        step="0.5"
-                        placeholder="/10" 
-                        value={score} 
-                        onChange={e => setScore(e.target.value)}
-                        className="w-16 px-2 py-1.5 border border-slate-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-purple-500 focus:border-purple-500" 
+                        type="number" max="10" min="0" step="0.5" placeholder="/10" 
+                        value={score} onChange={e => setScore(e.target.value)}
+                        className="w-16 px-2 py-1.5 border border-slate-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-purple-500" 
                     />
-                    
                     {d.rol !== 'alternatief' && d.niveau < 3 && (
-                        <label className="text-xs font-medium text-purple-700 flex items-center gap-1 bg-purple-50 px-2 py-1.5 rounded-lg border border-purple-200 cursor-pointer hover:bg-purple-100 transition-colors">
-                            <input 
-                                type="checkbox" 
-                                checked={geefLevelUp} 
-                                onChange={e => setGeefLevelUp(e.target.checked)} 
-                                className="accent-purple-600 rounded-sm" 
-                            />
+                        <label className="text-xs font-medium text-purple-700 flex items-center gap-1 bg-purple-50 px-2 py-1.5 rounded-lg border border-purple-200 cursor-pointer">
+                            <input type="checkbox" checked={geefLevelUp} onChange={e => setGeefLevelUp(e.target.checked)} className="accent-purple-600" />
                             Level↑
                         </label>
                     )}
-                    
-                    <button 
-                        onClick={opslaan} 
-                        disabled={loading}
-                        className="text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
-                    >
+                    <button onClick={opslaan} disabled={loading} className="text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 px-3 py-1.5 rounded-lg">
                         {loading ? '...' : 'Opslaan'}
                     </button>
                 </div>
@@ -460,9 +448,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                     <div className="p-5">
                         <h2 className="text-2xl font-bold text-slate-900 mb-2">Deelnames Beoordelen</h2>
                         <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                            Vul hier het rapportpunt in. Deze scores worden bewaard in je administratie. 
-                            Vink <b>Level↑</b> aan voor extra inzet; dit levert de leerling direct +100 XP op. 
-                            Je ziet hier de veilige, ontsleutelde echte namen.
+                            Vul hier het rapportpunt in. Vink <b>Level↑</b> aan voor extra inzet (+100 XP).
                         </p>
 
                         {deelnames.length === 0 ? (
@@ -471,33 +457,17 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                             </div>
                         ) : (
                             <ul className="divide-y divide-slate-50">
-                                    {deelnames.map(d => (
-                                        <li key={d.id} className="px-4 py-3 flex flex-wrap gap-2 items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm font-bold text-slate-800">{d.echte_naam}</span>
-                                                {d.is_vrijgesteld && (
-                                                    <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-semibold">🩺</span>
-                                                )}
-                                                {/* HIER WAS HIJ VERGETEN: Live teller voor coach */}
-                                                {d.rol === 'coach' && d.observaties_aantal > 0 && (
-                                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
-                                                        👁️ {d.observaties_aantal}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
-                                                    {d.rol_naam}
-                                                </span>
-                                                {d.voltooid && (
-                                                    <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md flex items-center gap-1">
-                                                        <CheckCircleSolid className="w-3 h-3" /> Reflectie
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
+                                {deelnames.map(d => (
+                                    /* HIER GEBRUIKEN WE DE COMPONENT MET DE INPUTVELDEN */
+                                    <BeoordelingRij 
+                                        key={d.id} 
+                                        d={d} 
+                                        sessie={sessie} 
+                                        profile={profile} 
+                                        onOpgeslagen={() => {}} 
+                                    />
+                                ))}
+                            </ul>
                         )}
 
                         {sessie.status !== 'gesloten' && (
