@@ -833,6 +833,219 @@ function Scorebord({ rolData, sessieId }) {
     );
 }
 
+// ─── DIGITAAL KLEMBORD (Speciaal voor de Coach) ───────────────────────────────
+function DigitaalKlembord({ rolData, sessie, niveau, content }) {
+    const [fase, setFase] = useState('setup'); // setup, observatie, rapport
+    const [doelwit, setDoelwit] = useState('');
+    const [startTijd, setStartTijd] = useState(null);
+    const [duur, setDuur] = useState(0);
+    
+    // Scores per index: { 0: { plus: 0, min: 0 }, 1: { plus: 0, min: 0 } }
+    const [scores, setScores] = useState({}); 
+    const [analyses, setAnalyses] = useState([]); // Level 2: opgeslagen fout-redenen
+    
+    // Level 2/3 states
+    const [actieveMinIndex, setActieveMinIndex] = useState(null);
+    
+    const isTeamFocus = niveau === 3;
+    const items = isTeamFocus ? (content?.tactiek || []) : (content?.kijkwijzer || []);
+    const analyseOpties = content?.analyse_opties || [];
+
+    // Live timer tijdens observatie
+    useEffect(() => {
+        if (fase !== 'observatie' || !startTijd) return;
+        const interval = setInterval(() => {
+            setDuur(Math.floor((Date.now() - startTijd) / 1000));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [fase, startTijd]);
+
+    const handleStart = () => {
+        if (!isTeamFocus && !doelwit.trim()) {
+            toast.error('Vul in wie je gaat observeren.');
+            return;
+        }
+        setStartTijd(Date.now());
+        setDuur(0);
+        setScores({});
+        setAnalyses([]);
+        setFase('observatie');
+    };
+
+    const turf = (index, type) => {
+        if (type === 'min' && niveau === 2 && analyseOpties.length > 0) {
+            // Level 2: dwing de "Waarom?" vraag af
+            setActieveMinIndex(index);
+            return;
+        }
+        voegScoreToe(index, type);
+    };
+
+    const voegScoreToe = (index, type) => {
+        setScores(prev => ({
+            ...prev,
+            [index]: {
+                plus: (prev[index]?.plus || 0) + (type === 'plus' ? 1 : 0),
+                min: (prev[index]?.min || 0) + (type === 'min' ? 1 : 0),
+            }
+        }));
+    };
+
+    const slaAnalyseOp = (reden) => {
+        if (actieveMinIndex !== null) {
+            voegScoreToe(actieveMinIndex, 'min');
+            setAnalyses(prev => [...prev, { item: items[actieveMinIndex], reden }]);
+            setActieveMinIndex(null);
+        }
+    };
+
+    const afronden = () => {
+        setFase('rapport');
+    };
+
+    const reset = () => {
+        setFase('setup');
+        setDoelwit('');
+    };
+
+    const formatTijd = (sec) => `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, '0')}`;
+
+    if (!content) return <div className="p-5 text-sm text-slate-500">Klembord laden...</div>;
+
+    return (
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-5">
+            {/* Header */}
+            <div className={`px-5 py-4 border-b border-slate-100 flex items-center justify-between ${rolData.bg}`}>
+                <div className="flex items-center gap-2">
+                    <span className="text-xl">📋</span>
+                    <h3 className={`font-bold ${rolData.tekst} text-sm`}>Digitaal Klembord</h3>
+                </div>
+                {fase === 'observatie' && (
+                    <span className="text-xs font-bold bg-white px-2 py-1 rounded-md text-slate-600 shadow-sm flex items-center gap-1">
+                        <ClockIcon className="w-3.5 h-3.5" /> {formatTijd(duur)}
+                    </span>
+                )}
+            </div>
+
+            <div className="p-5">
+                {/* ── FASE 1: SETUP ── */}
+                {fase === 'setup' && (
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600 mb-4">{content.uitleg}</p>
+                        
+                        {!isTeamFocus ? (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Wie observeer je?</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Naam of hesjes-kleur..." 
+                                    value={doelwit} 
+                                    onChange={e => setDoelwit(e.target.value)}
+                                    className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                        ) : (
+                            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800 font-medium">
+                                Je focust je nu op het héle team en de algemene tactiek.
+                            </div>
+                        )}
+                        
+                        <button onClick={handleStart} className={`w-full py-3 rounded-xl text-white font-bold transition-transform active:scale-95 bg-gradient-to-r ${rolData.kleur}`}>
+                            Start Observatie
+                        </button>
+                    </div>
+                )}
+
+                {/* ── FASE 2: OBSERVATIE ── */}
+                {fase === 'observatie' && (
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                {isTeamFocus ? 'Team Focus' : `Speler: ${doelwit}`}
+                            </span>
+                        </div>
+
+                        <div className="space-y-3">
+                            {items.map((item, i) => (
+                                <div key={i} className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                    <p className="text-sm font-medium text-slate-700 mb-3">{item}</p>
+                                    
+                                    {actieveMinIndex === i ? (
+                                        <div className="animate-fade-in">
+                                            <p className="text-xs font-bold text-red-600 mb-2">Wat ging er precies mis?</p>
+                                            <div className="flex flex-col gap-1.5">
+                                                {analyseOpties.map((optie, oi) => (
+                                                    <button key={oi} onClick={() => slaAnalyseOp(optie)} className="text-left text-xs bg-white border border-red-200 hover:bg-red-50 text-red-700 px-3 py-2 rounded-lg transition-colors">
+                                                        {optie}
+                                                    </button>
+                                                ))}
+                                                <button onClick={() => setActieveMinIndex(null)} className="text-xs text-slate-400 underline mt-1 text-center">Annuleren</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => turf(i, 'min')} className="flex-1 py-2 bg-white border border-red-200 hover:bg-red-50 text-red-600 rounded-lg flex justify-center items-center gap-1 transition-colors">
+                                                <span className="text-lg leading-none font-bold">-</span>
+                                                <span className="text-xs font-semibold">{scores[i]?.min || 0}</span>
+                                            </button>
+                                            <button onClick={() => turf(i, 'plus')} className="flex-1 py-2 bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-600 rounded-lg flex justify-center items-center gap-1 transition-colors">
+                                                <span className="text-lg leading-none font-bold">+</span>
+                                                <span className="text-xs font-semibold">{scores[i]?.plus || 0}</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="pt-4 mt-2 border-t border-slate-100">
+                            {isTeamFocus ? (
+                                <button onClick={afronden} className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-xl shadow-sm text-lg tracking-wider">
+                                    TIME-OUT AANVRAGEN
+                                </button>
+                            ) : (
+                                <div className="flex flex-col gap-2">
+                                    {duur < 60 && <p className="text-xs text-center text-slate-400">Kijk minimaal 1 minuut voor je een rapport maakt.</p>}
+                                    <button onClick={afronden} className={`w-full py-3 rounded-xl font-bold transition-colors ${duur < 60 ? 'bg-slate-100 text-slate-400' : `text-white bg-gradient-to-r ${rolData.kleur}`}`}>
+                                        Maak Rapport Op
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── FASE 3: RAPPORT & FEEDBACK ── */}
+                {fase === 'rapport' && (
+                    <div className="space-y-5 animate-fade-in">
+                        <div className="text-center">
+                            <h4 className="font-black text-slate-800 text-lg">Feedback Moment</h4>
+                            <p className="text-sm text-slate-500 mt-1">Stap nu het veld in en spreek {isTeamFocus ? 'het team' : doelwit} aan.</p>
+                        </div>
+
+                        {analyses.length > 0 && (
+                            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                                <p className="text-xs font-bold text-red-800 mb-2 uppercase">Jouw Analyses:</p>
+                                <ul className="text-xs text-red-700 space-y-1 list-disc pl-4">
+                                    {analyses.map((a, i) => <li key={i}>{a.reden}</li>)}
+                                </ul>
+                            </div>
+                        )}
+
+                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                            <p className="text-sm font-bold text-blue-800 mb-1">Wat wordt jouw Tip?</p>
+                            <p className="text-xs text-blue-600 mb-3">Kies de belangrijkste werkpunt of compliment en bespreek dit.</p>
+                            <button onClick={reset} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm">
+                                Tip Besproken! (Reset Klembord)
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 // ─── LEERLING: ACTIEVE ROL VIEW ───────────────────────────────────────────────
 function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteerd, onTerug }) {
     const rolData = ROLLEN.find(r => r.id === rol) || ROLLEN[0];
@@ -842,20 +1055,20 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
     const [rolContent, setRolContent] = useState(null);
     const [loadingContent, setLoadingContent] = useState(true);
 
-   // Haal afgevinkte taken uit het geheugen (gekoppeld aan deze sessie)
-const [afgevinkt, setAfgevinkt] = useState(() => {
-    try {
-        const opgeslagen = localStorage.getItem(`sportlab_taken_${sessie.id}`);
-        return opgeslagen ? JSON.parse(opgeslagen) : {};
-    } catch (e) {
-        return {};
-    }
-});
+    // Haal afgevinkte taken uit het geheugen (gekoppeld aan deze sessie)
+    const [afgevinkt, setAfgevinkt] = useState(() => {
+        try {
+            const opgeslagen = localStorage.getItem(`sportlab_taken_${sessie.id}`);
+            return opgeslagen ? JSON.parse(opgeslagen) : {};
+        } catch (e) {
+            return {};
+        }
+    });
 
-// Sla afgevinkte taken op zodra er eentje wijzigt
-useEffect(() => {
-    localStorage.setItem(`sportlab_taken_${sessie.id}`, JSON.stringify(afgevinkt));
-}, [afgevinkt, sessie.id]);
+    // Sla afgevinkte taken op zodra er eentje wijzigt
+    useEffect(() => {
+        localStorage.setItem(`sportlab_taken_${sessie.id}`, JSON.stringify(afgevinkt));
+    }, [afgevinkt, sessie.id]);
 
     // Spelregel flashcard index
     const [regelIndex, setRegelIndex] = useState(0);
@@ -878,7 +1091,7 @@ useEffect(() => {
             }
         };
         fetchContent();
-    }, [sessie.sport]);
+    }, [sessie.sport, profile._token]);
 
     // Auto-switch naar reflectie bij evaluatiefase
     useEffect(() => {
@@ -886,7 +1099,7 @@ useEffect(() => {
             setFase('reflectie');
             toast('Evaluatievenster geopend — vul je reflectie in!', { icon: '⏱️' });
         }
-    }, [sessie.status]);
+    }, [sessie.status, fase]);
 
     const niveauInfo = rolData.niveaus[niveau - 1];
 
@@ -909,6 +1122,7 @@ useEffect(() => {
         const niveauKey = `level${niveau}`;
         return rolContent?.[rol]?.[niveauKey]?.uitleg || null;
     };
+    
     const getBeslissingen = () => {
         const niveauKey = `level${niveau}`;
         return rolContent?.[rol]?.[niveauKey]?.beslissingen || [];
@@ -939,9 +1153,9 @@ useEffect(() => {
                         <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">{sessie.sport}</p>
                         <h2 className="text-2xl font-bold">{rolData.naam}</h2>
                         <p className="text-white/80 text-sm mt-1">{niveauInfo}</p>
-                {getNiveauUitleg() && (
-    <p className="text-white/60 text-xs mt-2 leading-relaxed">{getNiveauUitleg()}</p>
-)}
+                        {getNiveauUitleg() && (
+                            <p className="text-white/60 text-xs mt-2 leading-relaxed">{getNiveauUitleg()}</p>
+                        )}
                     </div>
                     <NiveauBadge niveau={niveau} />
                 </div>
@@ -950,70 +1164,82 @@ useEffect(() => {
             {fase === 'actief' && (
                 <div className="space-y-4 mb-4">
 
-                    {/* ── DIGITAAL SCOREBORD (Enkel voor Arbiter en eventueel Toernooileider) ── */}
+                    {/* ── DIGITAAL KLEMBORD (Coach) ── */}
+                    {rol === 'coach' && !loadingContent && (
+                        <DigitaalKlembord 
+                            rolData={rolData} 
+                            sessie={sessie} 
+                            niveau={niveau} 
+                            content={rolContent?.coach?.[`level${niveau}`]} 
+                        />
+                    )}
+
+                    {/* ── DIGITAAL SCOREBORD (Arbiter en Toernooileider) ── */}
                     {(rol === 'arbiter' || rol === 'toernooileider') && (
                         <Scorebord rolData={rolData} sessieId={sessie.id} />
                     )}
 
-                    {/* ── TAKEN MET CHECKBOXES + VOORTGANGSBALK ── */}
-                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                        <div className="px-5 pt-5 pb-3">
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="font-bold text-slate-800">Jouw missie vandaag</h3>
-                                <span className="text-xs font-medium text-slate-500">
-                                    {aantalAfgevinkt}/{taken.length}
-                                </span>
+                    {/* ── TAKEN MET CHECKBOXES + VOORTGANGSBALK (Niet voor de coach) ── */}
+                    {rol !== 'coach' && (
+                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-4">
+                            <div className="px-5 pt-5 pb-3">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="font-bold text-slate-800">Jouw missie vandaag</h3>
+                                    <span className="text-xs font-medium text-slate-500">
+                                        {aantalAfgevinkt}/{taken.length}
+                                    </span>
+                                </div>
+                                {/* Voortgangsbalk */}
+                                <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
+                                    <div
+                                        className={`h-2 rounded-full transition-all duration-500 bg-gradient-to-r ${rolData.kleur}`}
+                                        style={{ width: `${voortgang}%` }}
+                                    />
+                                </div>
                             </div>
-                            {/* Voortgangsbalk */}
-                            <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
-                                <div
-                                    className={`h-2 rounded-full transition-all duration-500 bg-gradient-to-r ${rolData.kleur}`}
-                                    style={{ width: `${voortgang}%` }}
-                                />
-                            </div>
+
+                            {loadingContent ? (
+                                <div className="px-5 pb-5 text-sm text-slate-400">Laden...</div>
+                            ) : (
+                                <div className="divide-y divide-slate-50">
+                                    {taken.map((taak, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setAfgevinkt(prev => ({ ...prev, [i]: !prev[i] }))}
+                                            className={`w-full text-left px-5 py-3.5 flex items-start gap-3 transition-colors ${
+                                                afgevinkt[i] ? 'bg-slate-50' : 'hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
+                                                afgevinkt[i]
+                                                    ? `border-transparent bg-gradient-to-r ${rolData.kleur}`
+                                                    : 'border-slate-300'
+                                            }`}>
+                                                {afgevinkt[i] && (
+                                                    <CheckCircleSolid className="w-3 h-3 text-white" />
+                                                )}
+                                            </div>
+                                            <span className={`text-sm leading-relaxed ${
+                                                afgevinkt[i] ? 'text-slate-400 line-through' : 'text-slate-700'
+                                            }`}>
+                                                {taak}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {voortgang === 100 && (
+                                <div className={`mx-5 mb-5 mt-2 p-3 rounded-xl bg-gradient-to-r ${rolData.kleur} text-white text-center text-sm font-semibold`}>
+                                    Alle taken gedaan! 🎉
+                                </div>
+                            )}
                         </div>
-
-                        {loadingContent ? (
-                            <div className="px-5 pb-5 text-sm text-slate-400">Laden...</div>
-                        ) : (
-                            <div className="divide-y divide-slate-50">
-                                {taken.map((taak, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => setAfgevinkt(prev => ({ ...prev, [i]: !prev[i] }))}
-                                        className={`w-full text-left px-5 py-3.5 flex items-start gap-3 transition-colors ${
-                                            afgevinkt[i] ? 'bg-slate-50' : 'hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
-                                            afgevinkt[i]
-                                                ? `border-transparent bg-gradient-to-r ${rolData.kleur}`
-                                                : 'border-slate-300'
-                                        }`}>
-                                            {afgevinkt[i] && (
-                                                <CheckCircleSolid className="w-3 h-3 text-white" />
-                                            )}
-                                        </div>
-                                        <span className={`text-sm leading-relaxed ${
-                                            afgevinkt[i] ? 'text-slate-400 line-through' : 'text-slate-700'
-                                        }`}>
-                                            {taak}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {voortgang === 100 && (
-                            <div className={`mx-5 mb-5 mt-2 p-3 rounded-xl bg-gradient-to-r ${rolData.kleur} text-white text-center text-sm font-semibold`}>
-                                Alle taken gedaan! 🎉
-                            </div>
-                        )}
-                    </div>
+                    )}
 
                     {/* ── SPELREGEL FLASHCARDS (arbiter alle niveaus) ── */}
                     {rol === 'arbiter' && spelregels.length > 0 && (
-                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-4">
                             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                                 <h3 className="font-bold text-slate-800 text-sm">Spelregels {sessie.sport}</h3>
                                 <span className="text-xs text-slate-400">{regelIndex + 1} / {spelregels.length}</span>
@@ -1065,7 +1291,7 @@ useEffect(() => {
 
                     {/* ── SCENARIO KAARTEN (arbiter L2 & L3) ── */}
                     {rol === 'arbiter' && niveau >= 2 && beslissingen.length > 0 && (
-                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-4">
                             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                                 <h3 className="font-bold text-slate-800 text-sm">
                                     {niveau === 2 ? 'Typische situaties — Level 2' : "Complexe scenario's — Level 3"}
@@ -1123,7 +1349,7 @@ useEffect(() => {
             )}
 
             {deelname?.voltooid && (
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center animate-fade-in">
                     <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
                     <p className="font-bold text-green-800 text-lg">Goed gedaan!</p>
                     <p className="text-sm text-green-600 mt-1">Je reflectie is ingediend en XP is bijgeschreven.</p>
@@ -1139,12 +1365,14 @@ function ZelfreflectieForm({ rol, rolData, deelnameId, sessie, profile, onIngedi
     const [samenwerking, setSamenwerking] = useState(0);
     const [leerwaarde, setLeerwaarde] = useState(0);
     const [oefeningenAfgevinkt, setOefeningenAfgevinkt] = useState(false);
+    const [hoofdtip, setHoofdtip] = useState(''); // NIEUW VOOR COACH
     const [loading, setLoading] = useState(false);
 
-    const isVolledig = inzet > 0 && samenwerking > 0 && leerwaarde > 0;
+    // Is formulier geldig? (Voor coach moet de tip ook ingevuld zijn)
+    const isVolledig = inzet > 0 && samenwerking > 0 && leerwaarde > 0 && (rol !== 'coach' || hoofdtip !== '');
 
     const handleIndienen = async () => {
-        if (!isVolledig) { toast.error('Vul alle velden in.'); return; }
+        if (!isVolledig) { toast.error('Vul alle verplichte velden in.'); return; }
         setLoading(true);
         try {
             const data = await apiPost('submit_zelfreflectie', {
@@ -1155,6 +1383,7 @@ function ZelfreflectieForm({ rol, rolData, deelnameId, sessie, profile, onIngedi
                     samenwerking,
                     leerwaarde,
                     oefeningen_afgevinkt: oefeningenAfgevinkt,
+                    hoofdtip_gegeven: hoofdtip || null, // Stuur de tip mee
                 }
             }, profile._token);
             toast.success(`+${data.xp_earned} XP verdiend!`);
@@ -1174,6 +1403,29 @@ function ZelfreflectieForm({ rol, rolData, deelnameId, sessie, profile, onIngedi
                 <SterrenRating label="Mijn samenwerking met de klas" waarde={samenwerking} onChange={setSamenwerking} />
                 <SterrenRating label="Wat ik heb bijgeleerd" waarde={leerwaarde} onChange={setLeerwaarde} />
 
+                {/* Specifieke Coach Vraag */}
+                {rol === 'coach' && (
+                    <div className="mt-4 p-4 bg-white rounded-xl border border-blue-100">
+                        <label className="block text-sm font-bold text-blue-900 mb-2">
+                            Verantwoording Klembord
+                        </label>
+                        <p className="text-xs text-slate-500 mb-2">Welk type tip heb jij vandaag het vaakst gegeven?</p>
+                        <select 
+                            value={hoofdtip} 
+                            onChange={e => setHoofdtip(e.target.value)}
+                            className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="">— Kies een optie —</option>
+                            <option value="techniek_verbeteren">Techniek & Houding verbeteren</option>
+                            <option value="tactiek_ruimte">Tactiek: Ruimtegebruik / Vrijlopen</option>
+                            <option value="keuzes_maken">Betere keuzes maken (minder forceren)</option>
+                            <option value="communicatie">Onderlinge communicatie stimuleren</option>
+                            <option value="complimenten">Vooral complimenten uitgedeeld (ging perfect)</option>
+                        </select>
+                    </div>
+                )}
+
+                {/* Alternatief rol checkbox */}
                 {rol === 'alternatief' && (
                     <div
                         onClick={() => setOefeningenAfgevinkt(!oefeningenAfgevinkt)}

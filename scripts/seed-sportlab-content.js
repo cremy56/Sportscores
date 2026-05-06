@@ -83,7 +83,58 @@ const CONTENT = {
                     'Het scorebord klopt niet meer — hoe herstel je dit zonder discussie?',
                 ],
             },
-        },
+            },
+            coach: {
+            level1: {
+                uitleg: 'De Spotter — Observeer één speler en turf de acties uit de kijkwijzer. Kijk goed naar de uitvoering en keuzes.',
+                kijkwijzer: [
+                    'Passen en vangen gebeurt met 2 handen',
+                    'Neemt een shot als hij/zij vrij staat (zonder te forceren)',
+                    'Beweegt direct naar een vrije ruimte ná een pass (give-and-go)',
+                    'Neemt de juiste basishouding aan in verdediging (door de knieën, armen breed)'
+                ],
+                taken: [
+                    'Kies 1 speler uit je team om te observeren.',
+                    'Turf de acties: tik op (+) bij een goede actie en (-) als het beter kon.',
+                    'Maak na enkele minuten een rapport op in je hoofd.',
+                    'Stap het veld in en geef de speler 1 concrete, positieve tip.'
+                ]
+            },
+            level2: {
+                uitleg: 'De Analist — Kijk verder dan goed of fout: probeer het spelinzicht te doorgronden. Wáárom mislukt een actie?',
+                kijkwijzer: [
+                    'Passen en vangen gebeurt met 2 handen',
+                    'Neemt een shot als hij/zij vrij staat (zonder te forceren)',
+                    'Beweegt direct naar een vrije ruimte ná een pass (give-and-go)',
+                    'Neemt de juiste basishouding aan in verdediging'
+                ],
+                analyse_opties: [
+                    'Keek niet goed naar de situatie (gebrek aan overzicht)',
+                    'Te weinig ruimte (verdediger zat te dichtbij)',
+                    'Te gehaast / nam te veel risico',
+                    'Verkeerde looplijn gekozen of bleef stilstaan na de pas'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Geef bij een minnetje (-) aan wát volgens jou de oorzaak is.',
+                    'Bespreek je analyse achteraf met de speler: focus op het wegnemen van de oorzaak.'
+                ]
+            },
+            level3: {
+                uitleg: 'De Interveniënt — Observeer nu het héle team. Stuur bij op algemene tactiek en onderlinge samenwerking.',
+                tactiek: [
+                    'Spelers gebruiken de volledige breedte en diepte van het veld (spacing)',
+                    'Er is duidelijke onderlinge communicatie op het veld',
+                    'De balcirculatie is hoog (de bal doet het werk, niet dribbelen)',
+                    'Het team schakelt snel om bij balverlies of balwinst'
+                ],
+                taken: [
+                    'Observeer het team als geheel.',
+                    'Druk op de "Time-Out" knop als de tactiek structureel niet gevolgd wordt.',
+                    'Spreek de groep kort toe en geef 1 duidelijk werkpunt mee voor de volgende aanval.'
+                ]
+            }
+        }
     },
 
     volleybal: {
@@ -148,9 +199,58 @@ const CONTENT = {
                     'Bij 24-24: hoe gaat het verder?',
                 ],
             },
-        },
+            },
+       coach: {
+            level1: {
+                uitleg: 'De Spotter — Let op de basishouding en de bereidheid van de speler om de bal te spelen.',
+                kijkwijzer: [
+                    'Beweegt naar de bal toe (in plaats van te wachten)',
+                    'Buigt goed door de knieën bij de onderhandse receptie',
+                    'Speelt de bal in een boog omhoog (tijd winnen)',
+                    'Communiceert duidelijk ("Los!" of "Ik!")'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Turf de acties: (+) voor een goede uitvoering, (-) voor een werkpunt.',
+                    'Geef de speler 1 duidelijke tip om de volgende beurt toe te passen.'
+                ]
+            },
+            level2: {
+                uitleg: 'De Analist — Fouten in volleybal ontstaan vaak vóór de bal wordt geraakt. Analyseer de voorbereiding.',
+                kijkwijzer: [
+                    'Beweegt naar de bal toe (in plaats van te wachten)',
+                    'Buigt goed door de knieën bij de onderhandse receptie',
+                    'Speelt de bal in een boog omhoog',
+                    'Communiceert duidelijk ("Los!" of "Ik!")'
+                ],
+                analyse_opties: [
+                    'Stond stil in plaats van in beweging te blijven (voetenwerk)',
+                    'Armen niet goed gestrekt of verkeerde hoek',
+                    'Te laat vertrokken / verkeerde inschatting van de bal',
+                    'Er was twijfel door gebrek aan communicatie'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Kies bij een (-) wat de onderliggende fout was.',
+                    'Ga naar de speler en leg uit wáárom de bal niet goed aankwam.'
+                ]
+            },
+            level3: {
+                uitleg: 'De Interveniënt — Kijk naar de samenwerking in de driehoeken op het veld.',
+                tactiek: [
+                    'Spelers dekken elkaars ruimtes goed af (geen gaten)',
+                    'De spelverdeler wordt steevast goed aangespeeld',
+                    'Er is variatie in de aanval (niet steeds dezelfde persoon)',
+                    'De spelers roepen elkaar bij naam'
+                ],
+                taken: [
+                    'Observeer de opstelling en beweging van het héle team.',
+                    'Roep een "Time-Out" in als de organisatie wegvalt.',
+                    'Geef het team één duidelijke tactische afspraak mee.'
+                ]
+            }
+        }
     },
-
     voetbal: {
         arbiter: {
             level1: {
@@ -213,7 +313,57 @@ const CONTENT = {
                     'Een speler beweert dat de bal over de lijn was maar jij zag het niet — wat doe je?',
                 ],
             },
-        },
+            },
+     coach: {
+            level1: {
+                uitleg: 'De Spotter — Observeer de balcontrole en de keuzes die een speler maakt.',
+                kijkwijzer: [
+                    'Kijkt over de schouder (scant de ruimte) vóór hij/zij de bal krijgt',
+                    'Maakt zich goed aanspeelbaar (komt uit de dekking)',
+                    'Neemt de bal aan en legt hem direct speelklaar',
+                    'Passt zuiver met de binnenkant van de voet'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Turf met (+) en (-) hoe goed de kijkwijzer wordt gevolgd.',
+                    'Geef de speler kort een compliment én een werkpuntje.'
+                ]
+            },
+            level2: {
+                uitleg: 'De Analist — Balverlies ontstaat door een gebrek aan overzicht of techniek. Analyseer waarom.',
+                kijkwijzer: [
+                    'Kijkt over de schouder (scant de ruimte) vóór hij/zij de bal krijgt',
+                    'Maakt zich goed aanspeelbaar (komt uit de dekking)',
+                    'Neemt de bal aan en legt hem direct speelklaar',
+                    'Passt zuiver met de binnenkant van de voet'
+                ],
+                analyse_opties: [
+                    'Keek pas rond nádat de bal ontvangen was (te traag)',
+                    'Zocht te weinig de vrije ruimte op / bleef achter de verdediger',
+                    'Balcontrole was te onrustig of sprong te ver weg',
+                    'Verkeerde traptechniek of onvoldoende balsnelheid'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Registreer bij elke fout (-) direct de oorzaak.',
+                    'Stap na enkele minuten af op de speler om je analyse te delen.'
+                ]
+            },
+            level3: {
+                uitleg: 'De Interveniënt — Kijk of het team als een blok beweegt in aanval en verdediging.',
+                tactiek: [
+                    'Bij balbezit: speelveld zo groot mogelijk maken (breedte en diepte)',
+                    'Bij balverlies: compact verdedigen en het centrum sluiten',
+                    'Er wordt actief druk gezet op de balbezitter',
+                    'Snel omschakelen tussen aanval en verdediging'
+                ],
+                taken: [
+                    'Observeer de veldbezetting van je team.',
+                    'Druk op de "Time-Out" knop als ze als "kluitje" spelen.',
+                    'Leg de tactiek stil en positioneer de spelers beter.'
+                ]
+            }
+        }
     },
 
     badminton: {
@@ -279,6 +429,56 @@ const CONTENT = {
                 ],
             },
         },
+        coach: {
+            level1: {
+                uitleg: 'De Spotter — Let op het voetenwerk en de slagvoorbereiding van je speler.',
+                kijkwijzer: [
+                    'Keert na élke slag direct terug naar de centrale basispositie',
+                    'Slaat de shuttle op het hoogst mogelijke punt (arm gestrekt)',
+                    'Gebruikt licht en verend voetenwerk',
+                    'Heeft het racket klaar en omhoog vóór de shuttle aankomt'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Turf met (+) en (-) tijdens de rally.',
+                    'Stap na een punt naar de speler en geef 1 gerichte tip.'
+                ]
+            },
+            level2: {
+                uitleg: 'De Analist — Slechte slagen zijn vaak het gevolg van traag voetenwerk. Zoek de fout.',
+                kijkwijzer: [
+                    'Keert na élke slag direct terug naar de centrale basispositie',
+                    'Slaat de shuttle op het hoogst mogelijke punt (arm gestrekt)',
+                    'Gebruikt licht en verend voetenwerk',
+                    'Heeft het racket klaar en omhoog vóór de shuttle aankomt'
+                ],
+                analyse_opties: [
+                    'Bleef na de slag stilstaan aan de rand van het veld',
+                    'Liet de shuttle te ver zakken (bal onder nethoogte geraakt)',
+                    'Stond plat op de voeten en was daardoor te traag',
+                    'Gebruikte een verkeerde greep (grip) voor de slag'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Geef bij een (-) de oorzaak aan.',
+                    'Geef feedback tussen twee punten door: richt je op het oplossen van de oorzaak.'
+                ]
+            },
+            level3: {
+                uitleg: 'De Interveniënt — Kijk naar de tactische slagen en de opbouw van een rally.',
+                tactiek: [
+                    'De speler zoekt bewust de hoeken en dwingt de tegenstander te lopen',
+                    'Korte (drops) en diepe (clears) slagen worden onvoorspelbaar afgewisseld',
+                    'Fouten van de tegenstander worden herkend en uitgebuit',
+                    'Bij dubbelspel: er is een duidelijke taakverdeling en communicatie'
+                ],
+                taken: [
+                    'Kijk naar de speler of het duo als geheel.',
+                    'Vraag een "Time-Out" aan (tussen 2 rally\'s) als er tactiekloos geslagen wordt.',
+                    'Geef een duidelijke tactische opdracht (bijv. "Speel hem nu naar zijn backhand").'
+                ]
+            }
+        }
     },
 
     padel: {
@@ -344,6 +544,56 @@ const CONTENT = {
                 ],
             },
         },
+    coach: {
+            level1: {
+                uitleg: 'De Spotter — Focus op de basishouding en het verdedigende geduld van de speler.',
+                kijkwijzer: [
+                    'Houdt het racket in de \'ready positie\' (voor de borst)',
+                    'Buigt goed door de knieën bij lage ballen (geen bolle rug)',
+                    'Laat de bal indien nodig eerst het glas raken om tijd te winnen',
+                    'Plaatst de bal gecontroleerd terug (controle is belangrijker dan kracht)'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Turf met (+) of (-) hoe de speler presteert op de kijkwijzer.',
+                    'Geef tijdens een pauze een technische tip over hun houding.'
+                ]
+            },
+            level2: {
+                uitleg: 'De Analist — In padel is positie en geduld alles. Waarom verliest de speler het punt?',
+                kijkwijzer: [
+                    'Houdt het racket in de \'ready positie\'',
+                    'Buigt goed door de knieën bij lage ballen',
+                    'Laat de bal indien nodig eerst het glas raken',
+                    'Plaatst de bal gecontroleerd terug'
+                ],
+                analyse_opties: [
+                    'Racket hing te laag of te ontspannen vóór de slag',
+                    'Stond te recht op en schepte de bal de lucht in',
+                    'Raakte in paniek door de naderende achterwand (verkeerde timing)',
+                    'Sloeg te hard en ongecontroleerd in plaats van geplaatst'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Als de bal in het net belandt (-), noteer direct waarom.',
+                    'Bespreek je observaties rustig met de speler.'
+                ]
+            },
+            level3: {
+                uitleg: 'De Interveniënt — Kijk naar de samenwerking en veldbezetting van het duo.',
+                tactiek: [
+                    'Het duo beweegt als één lijn op en neer (lijn houden)',
+                    'Er wordt actief gebruik gemaakt van de lob om het net over te nemen',
+                    'Ze dwingen de tegenstander diep in de hoeken',
+                    'Goede communicatie bij ballen in het midden ("Ik", "Jij", "Laat")'
+                ],
+                taken: [
+                    'Observeer het samenspel van het duo.',
+                    'Gebruik een "Time-Out" als het duo niet meer opschuift naar het net.',
+                    'Leg tactisch uit waar het gat valt en hoe ze dit oplossen.'
+                ]
+            }
+        }
     },
 
     handbal: {
@@ -409,6 +659,56 @@ const CONTENT = {
                 ],
             },
         },
+    coach: {
+            level1: {
+                uitleg: 'De Spotter — Observeer de balhandeling en de dreiging naar het doel.',
+                kijkwijzer: [
+                    'Vangt de bal met 2 handen en vormt een stevige \'W\' met de duimen',
+                    'Dribbelt niet onnodig maar zoekt direct de pass',
+                    'Durft de ruimte tussen twee verdedigers aan te vallen (diepte)',
+                    'Houdt de werparm hoog en achter het hoofd bij een worp'
+                ],
+                taken: [
+                    'Kies 1 veldspeler om op te focussen.',
+                    'Turf met (+) en (-) de handelingen.',
+                    'Stap na een wisselmoment af op de speler voor een snelle tip.'
+                ]
+            },
+            level2: {
+                uitleg: 'De Analist — Handbal is snel. Waarom verliest de speler de bal of de snelheid?',
+                kijkwijzer: [
+                    'Vangt de bal veilig met 2 handen',
+                    'Dribbelt niet onnodig maar zoekt de pass',
+                    'Valt de ruimte tussen verdedigers aan',
+                    'Houdt de werparm hoog en gereed'
+                ],
+                analyse_opties: [
+                    'Ving de bal met gestrekte vingers in plaats van de W-vorm',
+                    'Dribbelde zichzelf vast of vertraagde de tegenaanval',
+                    'Liep recht op een verdediger af in plaats van in het "gat"',
+                    'Schoot of passte vanuit een te lage, voorspelbare armpositie'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Duid bij fouten (-) de oorzaak aan in de app.',
+                    'Coach de speler specifiek op zijn/haar grootste werkpunt.'
+                ]
+            },
+            level3: {
+                uitleg: 'De Interveniënt — Kijk of het team als een machine functioneert in aanval/verdediging.',
+                tactiek: [
+                    'Aanval wordt goed in de breedte opgezet (spelers staan niet samen)',
+                    'Snelle balcirculatie dwingt de verdediging om te schuiven',
+                    'Er wordt uitgestapt door de verdediger op de balbezitter',
+                    'Duidelijke afspraken achterin (overnemen van elkaars mannetjes)'
+                ],
+                taken: [
+                    'Kijk naar de organisatie van het hele team.',
+                    'Roep een "Time-Out" als ze te statisch worden.',
+                    'Geef één duidelijke afspraak door over balcirculatie of verdediging.'
+                ]
+            }
+        }
     },
 
     hockey: {
@@ -474,6 +774,56 @@ const CONTENT = {
                 ],
             },
         },
+    coach: {
+            level1: {
+                uitleg: 'De Spotter — Focus op basistechniek, want fouten in techniek zijn gevaarlijk in hockey.',
+                kijkwijzer: [
+                    'Houdt de stick veilig en laag bij de grond',
+                    'Kijkt op voor de pass (in plaats van alleen naar de bal te staren)',
+                    'Neemt de bal aan met een dempende beweging ("stick zacht maken")',
+                    'Zet direct een nieuwe loopactie in na de pass'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Turf met (+) en (-) hoe veilig en effectief de speler is.',
+                    'Geef een compliment en 1 tip voor balcontrole.'
+                ]
+            },
+            level2: {
+                uitleg: 'De Analist — Beoordeel waarom de bal wegsprong of het spel vertraagde.',
+                kijkwijzer: [
+                    'Houdt de stick veilig en laag',
+                    'Kijkt op voor de pass',
+                    'Aanname van de bal gebeurt verend/dempend',
+                    'Zet nieuwe actie in na de pass'
+                ],
+                analyse_opties: [
+                    'Stick zat te hoog (risico op fouten of trage reactie)',
+                    'Passte blind in het drukste gebied (turnover)',
+                    'Hield de stick te stijf, waardoor de bal ver weg sprong bij aanname',
+                    'Bleef stilstaan en bewonderde de eigen pass'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Geef bij balverlies de juiste oorzaak op.',
+                    'Bespreek hoe de techniek het spel kan versnellen.'
+                ]
+            },
+            level3: {
+                uitleg: 'De Interveniënt — Kijk naar het gebruik van de ruimte en balverplaatsing.',
+                tactiek: [
+                    'De bal wordt rustig in een \'kom\' achterin rondgespeeld tot er ruimte is',
+                    'Het veld wordt maximaal in de breedte én diepte gebruikt',
+                    'Verdedigers sluiten elkaars passlijnen goed af',
+                    'Het team beslist samen wanneer ze massaal voorwaarts druk zetten'
+                ],
+                taken: [
+                    'Observeer de opbouw van achteruit.',
+                    'Vraag een "Time-Out" als het een kluitjes-hockey wordt.',
+                    'Herstel de posities en wijs het team op de flanken.'
+                ]
+            }
+        }
     },
 
     tafeltennis: {
@@ -539,6 +889,56 @@ const CONTENT = {
                 ],
             },
         },
+   coach: {
+            level1: {
+                uitleg: 'De Spotter — Observeer de houding en de basisbeweging van de speler.',
+                kijkwijzer: [
+                    'Heeft een goede basispositie (licht gebogen benen, vlak achter de tafel)',
+                    'Slaat vloeiend door de bal heen (follow-through van het batje)',
+                    'Houdt de ogen op de bal én op de beweging van de tegenstander',
+                    'Gebruikt actief de pols bij de service'
+                ],
+                taken: [
+                    'Kies 1 speler aan de tafel om te observeren.',
+                    'Turf met (+) en (-) tijdens het spelen.',
+                    'Geef tussen twee games of momenten een technische aanwijzing.'
+                ]
+            },
+            level2: {
+                uitleg: 'De Analist — Veel punten gaan verloren door verkeerd te reageren op effect.',
+                kijkwijzer: [
+                    'Heeft een goede actieve basispositie',
+                    'Slaat vloeiend door de bal heen',
+                    'Houdt goed overzicht op de bal en tegenstander',
+                    'Gebruikt goed polswerk'
+                ],
+                analyse_opties: [
+                    'Stond te recht op of reikte te ver over de tafel',
+                    'De armbeweging was te "hakkerig" of stopte te abrupt',
+                    'Slaagde er niet in het inkomende effect van de tegenstander te "lezen"',
+                    'Raakte de bal te laat (liet hem te ver vallen achter de tafel)'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Noteer bij een fout in het net of buiten tafel de oorzaak.',
+                    'Laat de speler weten welk effect of houding het probleem is.'
+                ]
+            },
+            level3: {
+                uitleg: 'De Interveniënt — Ontdek de zwakte van de tegenstander en pas de strategie aan.',
+                tactiek: [
+                    'Speler plaatst de bal bewust diep, kort of wijd (laat de ander lopen)',
+                    'Er is variatie in service en slagen om ritme te breken',
+                    'Speler merkt op of de tegenstander slechter is in forehand of backhand',
+                    'Speler blijft mentaal rustig na een fout en past zich aan'
+                ],
+                taken: [
+                    'Observeer de match vanuit tactisch standpunt.',
+                    'Gebruik de 1-minuut time-out (expedite) om bij te sturen.',
+                    'Fluister een tactiek in: "Sla nu alles op zijn backhand".'
+                ]
+            }
+        }
     },
 
     andere: {
@@ -602,7 +1002,57 @@ const CONTENT = {
                 ],
             },
         },
-    },
+   coach: {
+            level1: {
+                uitleg: 'De Spotter — Observeer de basisacties die de leerkracht voor dit spel heeft uitgelegd.',
+                kijkwijzer: [
+                    'Kijkt goed naar de medespeler vóór de actie',
+                    'Voert de afgesproken basistechniek correct en veilig uit',
+                    'Beweegt zich vrij nadat de actie is voltooid',
+                    'Toont inzet en doet actief mee met het spel'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Turf de acties: (+) voor goed, (-) voor werkpunt.',
+                    'Geef de speler 1 concrete en positieve tip op basis van je lijst.'
+                ]
+            },
+            level2: {
+                uitleg: 'De Analist — Probeer te begrijpen wáárom een spelmoment slaagt of mislukt.',
+                kijkwijzer: [
+                    'Kijkt goed naar de medespeler vóór de actie',
+                    'Voert de basistechniek correct en veilig uit',
+                    'Beweegt zich vrij nadat de actie is voltooid',
+                    'Speelt samen'
+                ],
+                analyse_opties: [
+                    'Actie werd te gehaast en onder druk uitgevoerd',
+                    'Ging voor de moeilijke optie in plaats van de makkelijke (verkeerde beslissing)',
+                    'De uitgelegde techniek werd niet toegepast of vergeten',
+                    'Er was onvoldoende communicatie of de spelers liepen in elkaars weg'
+                ],
+                taken: [
+                    'Kies 1 speler om te observeren.',
+                    'Als je een (-) geeft, denk na wáárom het misging en vul dit in.',
+                    'Bespreek de oorzaken rustig met de speler.'
+                ]
+            },
+            level3: {
+                uitleg: 'De Interveniënt — Focus op de teamtactiek en grijp in indien de afspraken niet nageleefd worden.',
+                tactiek: [
+                    'Het team gebruikt de ruimte goed en staat niet op een kluitje',
+                    'Iedereen is betrokken bij het spel (niemand wordt uitgesloten)',
+                    'De taken tussen aanval en verdediging (of de rollen van het spel) zijn duidelijk verdeeld',
+                    'Spelers peppen elkaar op bij verlies'
+                ],
+                taken: [
+                    'Observeer het team als geheel.',
+                    'Leg het spel kort stil (Time-Out) als het doel van het spel verloren gaat.',
+                    'Geef het team 1 duidelijke, constructieve opdracht mee om direct aan te passen.'
+                ]
+            }
+        }
+    }
 };
 
 // ─── SEEDING FUNCTIE ──────────────────────────────────────────────────────────

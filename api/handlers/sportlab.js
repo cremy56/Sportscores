@@ -489,6 +489,7 @@ export async function handleSubmitZelfreflectie(req, res, decodedToken) {
                 samenwerking: zelfreflectie.samenwerking,
                 leerwaarde: zelfreflectie.leerwaarde,
                 oefeningen_afgevinkt: zelfreflectie.oefeningen_afgevinkt || false,
+                hoofdtip_gegeven: zelfreflectie.hoofdtip_gegeven || null,
             },
             xp_earned: FieldValue.increment(xpVerdient),
             voltooid: true,
