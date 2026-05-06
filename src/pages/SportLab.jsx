@@ -874,7 +874,6 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
 
     const turf = (index, type) => {
         if (type === 'min' && niveau === 2 && analyseOpties.length > 0) {
-            // Level 2: dwing de "Waarom?" vraag af
             setActieveMinIndex(index);
             return;
         }
@@ -899,148 +898,147 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
         }
     };
 
-    const afronden = () => {
-        setFase('rapport');
-    };
-
-    const reset = () => {
-        setFase('setup');
-        setDoelwit('');
-    };
-
+    const afronden = () => setFase('rapport');
+    const reset = () => { setFase('setup'); setDoelwit(''); };
     const formatTijd = (sec) => `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, '0')}`;
 
     if (!content) return <div className="p-5 text-sm text-slate-500">Klembord laden...</div>;
 
     return (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-5">
-            {/* Header */}
-            <div className={`px-5 py-4 border-b border-slate-100 flex items-center justify-between ${rolData.bg}`}>
-                <div className="flex items-center gap-2">
-                    <span className="text-xl">📋</span>
-                    <h3 className={`font-bold ${rolData.tekst} text-sm`}>Digitaal Klembord</h3>
-                </div>
-                {fase === 'observatie' && (
-                    <span className="text-xs font-bold bg-white px-2 py-1 rounded-md text-slate-600 shadow-sm flex items-center gap-1">
-                        <ClockIcon className="w-3.5 h-3.5" /> {formatTijd(duur)}
-                    </span>
-                )}
+        <div className="relative pt-6 pb-2 mb-6 max-w-sm mx-auto mt-6">
+            {/* HET ZILVEREN KLEMMETJE BOVENAAN */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-8 bg-gradient-to-b from-slate-200 to-slate-400 rounded-t-xl border-t border-x border-slate-400 shadow-md z-20 flex items-center justify-center">
+                <div className="w-16 h-2 bg-slate-300 rounded-full shadow-inner border border-slate-400/50"></div>
             </div>
+            
+            {/* HET BRUINE BORD */}
+            <div className="bg-amber-800 p-2 rounded-b-xl rounded-t-md shadow-xl relative z-10 border-b-4 border-amber-900">
+                
+                {/* HET WITTE PAPIER */}
+                <div className="bg-[#faf9f5] rounded-md min-h-[300px] shadow-inner overflow-hidden relative">
+                    
+                    {/* Rode marge-lijn van papier */}
+                    <div className="absolute left-6 top-0 bottom-0 w-px bg-red-200 z-0"></div>
 
-            <div className="p-5">
-                {/* ── FASE 1: SETUP ── */}
-                {fase === 'setup' && (
-                    <div className="space-y-4">
-                        <p className="text-sm text-slate-600 mb-4">{content.uitleg}</p>
-                        
-                        {!isTeamFocus ? (
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Wie observeer je?</label>
-                                <input 
-                                    type="text" 
-                                    placeholder="Naam of hesjes-kleur..." 
-                                    value={doelwit} 
-                                    onChange={e => setDoelwit(e.target.value)}
-                                    className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
-                        ) : (
-                            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800 font-medium">
-                                Je focust je nu op het héle team en de algemene tactiek.
-                            </div>
-                        )}
-                        
-                        <button onClick={handleStart} className={`w-full py-3 rounded-xl text-white font-bold transition-transform active:scale-95 bg-gradient-to-r ${rolData.kleur}`}>
-                            Start Observatie
-                        </button>
-                    </div>
-                )}
-
-                {/* ── FASE 2: OBSERVATIE ── */}
-                {fase === 'observatie' && (
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                {isTeamFocus ? 'Team Focus' : `Speler: ${doelwit}`}
-                            </span>
+                    <div className="relative z-10">
+                        {/* Header van het papier */}
+                        <div className="px-5 py-3 border-b border-blue-100 flex items-center justify-between bg-[#f4f2eb]">
+                            <h3 className={`font-black ${rolData.tekst} text-sm uppercase tracking-wide ml-4`}>
+                                Digitaal Klembord
+                            </h3>
+                            {fase === 'observatie' && (
+                                <span className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                                    <ClockIcon className="w-4 h-4" /> {formatTijd(duur)}
+                                </span>
+                            )}
                         </div>
 
-                        <div className="space-y-3">
-                            {items.map((item, i) => (
-                                <div key={i} className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                                    <p className="text-sm font-medium text-slate-700 mb-3">{item}</p>
-                                    
-                                    {actieveMinIndex === i ? (
-                                        <div className="animate-fade-in">
-                                            <p className="text-xs font-bold text-red-600 mb-2">Wat ging er precies mis?</p>
-                                            <div className="flex flex-col gap-1.5">
-                                                {analyseOpties.map((optie, oi) => (
-                                                    <button key={oi} onClick={() => slaAnalyseOp(optie)} className="text-left text-xs bg-white border border-red-200 hover:bg-red-50 text-red-700 px-3 py-2 rounded-lg transition-colors">
-                                                        {optie}
-                                                    </button>
-                                                ))}
-                                                <button onClick={() => setActieveMinIndex(null)} className="text-xs text-slate-400 underline mt-1 text-center">Annuleren</button>
-                                            </div>
+                        <div className="p-5 ml-4">
+                            {/* ── FASE 1: SETUP ── */}
+                            {fase === 'setup' && (
+                                <div className="space-y-4">
+                                    {!isTeamFocus ? (
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase">Wie observeer je?</label>
+                                            <input 
+                                                type="text" 
+                                                placeholder="Naam of hesjes-kleur..." 
+                                                value={doelwit} 
+                                                onChange={e => setDoelwit(e.target.value)}
+                                                className="w-full border-b-2 border-dashed border-slate-300 bg-transparent px-2 py-2 text-sm focus:outline-none focus:border-blue-500 font-medium text-blue-900 placeholder:font-normal"
+                                            />
                                         </div>
                                     ) : (
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={() => turf(i, 'min')} className="flex-1 py-2 bg-white border border-red-200 hover:bg-red-50 text-red-600 rounded-lg flex justify-center items-center gap-1 transition-colors">
-                                                <span className="text-lg leading-none font-bold">-</span>
-                                                <span className="text-xs font-semibold">{scores[i]?.min || 0}</span>
-                                            </button>
-                                            <button onClick={() => turf(i, 'plus')} className="flex-1 py-2 bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-600 rounded-lg flex justify-center items-center gap-1 transition-colors">
-                                                <span className="text-lg leading-none font-bold">+</span>
-                                                <span className="text-xs font-semibold">{scores[i]?.plus || 0}</span>
-                                            </button>
+                                        <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl text-sm text-blue-800 font-medium">
+                                            Je focust je nu op het héle team.
                                         </div>
                                     )}
+                                    
+                                    <button onClick={handleStart} className={`w-full py-3 rounded-xl text-white font-bold transition-transform active:scale-95 shadow-md bg-gradient-to-r ${rolData.kleur}`}>
+                                        Start Observatie
+                                    </button>
                                 </div>
-                            ))}
-                        </div>
+                            )}
 
-                        <div className="pt-4 mt-2 border-t border-slate-100">
-                            {isTeamFocus ? (
-                                <button onClick={afronden} className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-xl shadow-sm text-lg tracking-wider">
-                                    TIME-OUT AANVRAGEN
-                                </button>
-                            ) : (
-                                <div className="flex flex-col gap-2">
-                                    {duur < 60 && <p className="text-xs text-center text-slate-400">Kijk minimaal 1 minuut voor je een rapport maakt.</p>}
-                                    <button onClick={afronden} className={`w-full py-3 rounded-xl font-bold transition-colors ${duur < 60 ? 'bg-slate-100 text-slate-400' : `text-white bg-gradient-to-r ${rolData.kleur}`}`}>
-                                        Maak Rapport Op
+                            {/* ── FASE 2: OBSERVATIE ── */}
+                            {fase === 'observatie' && (
+                                <div className="space-y-5">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-1 w-full">
+                                            {isTeamFocus ? 'Team Focus' : `Speler: ${doelwit}`}
+                                        </span>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {items.map((item, i) => (
+                                            <div key={i} className="animate-fade-in">
+                                                <p className="text-sm font-medium text-slate-800 mb-2 leading-snug">{item}</p>
+                                                
+                                                {actieveMinIndex === i ? (
+                                                    <div className="bg-red-50/80 border border-red-100 rounded-xl p-3 shadow-inner">
+                                                        <p className="text-xs font-bold text-red-600 mb-2">Waarom?</p>
+                                                        <div className="flex flex-col gap-1.5">
+                                                            {analyseOpties.map((optie, oi) => (
+                                                                <button key={oi} onClick={() => slaAnalyseOp(optie)} className="text-left text-xs bg-white border border-red-200 hover:border-red-400 text-red-700 px-3 py-2 rounded-lg transition-colors shadow-sm">
+                                                                    {optie}
+                                                                </button>
+                                                            ))}
+                                                            <button onClick={() => setActieveMinIndex(null)} className="text-[10px] uppercase font-bold text-slate-400 mt-2">Annuleren</button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-3">
+                                                        <button onClick={() => turf(i, 'min')} className="flex-1 py-1.5 bg-white border border-red-200 hover:border-red-400 text-red-600 rounded-lg flex justify-center items-center gap-2 transition-all active:scale-95 shadow-sm">
+                                                            <span className="text-xl font-black leading-none">-</span>
+                                                            <span className="text-sm font-bold bg-red-50 px-2 rounded-md">{scores[i]?.min || 0}</span>
+                                                        </button>
+                                                        <button onClick={() => turf(i, 'plus')} className="flex-1 py-1.5 bg-white border border-emerald-200 hover:border-emerald-400 text-emerald-600 rounded-lg flex justify-center items-center gap-2 transition-all active:scale-95 shadow-sm">
+                                                            <span className="text-xl font-black leading-none">+</span>
+                                                            <span className="text-sm font-bold bg-emerald-50 px-2 rounded-md">{scores[i]?.plus || 0}</span>
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="pt-4 mt-2">
+                                        {isTeamFocus ? (
+                                            <button onClick={afronden} className="w-full py-3.5 bg-orange-500 text-white font-black rounded-xl shadow-md text-lg tracking-wider active:scale-95 transition-transform">
+                                                TIME-OUT
+                                            </button>
+                                        ) : (
+                                            <button onClick={afronden} disabled={duur < 60} className={`w-full py-3 rounded-xl font-bold shadow-md transition-all active:scale-95 ${duur < 60 ? 'bg-slate-200 text-slate-400 opacity-70' : `text-white bg-gradient-to-r ${rolData.kleur}`}`}>
+                                                {duur < 60 ? 'Observeer nog even...' : 'Maak Rapport Op'}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── FASE 3: RAPPORT ── */}
+                            {fase === 'rapport' && (
+                                <div className="space-y-5 animate-fade-in text-center py-2">
+                                    <h4 className="font-black text-slate-800 text-xl">Rapport Klaar!</h4>
+                                    <p className="text-sm text-slate-600">Stap het veld in en spreek {isTeamFocus ? 'het team' : <strong className="text-blue-700">{doelwit}</strong>} aan.</p>
+
+                                    {analyses.length > 0 && (
+                                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-left">
+                                            <p className="text-xs font-black text-red-800 mb-2 uppercase tracking-wider">Jouw Analyses:</p>
+                                            <ul className="text-xs text-red-700 space-y-1.5 list-disc pl-4 font-medium">
+                                                {analyses.map((a, i) => <li key={i}>{a.reden}</li>)}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    <button onClick={reset} className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform">
+                                        Tip Besproken (Reset)
                                     </button>
                                 </div>
                             )}
                         </div>
                     </div>
-                )}
-
-                {/* ── FASE 3: RAPPORT & FEEDBACK ── */}
-                {fase === 'rapport' && (
-                    <div className="space-y-5 animate-fade-in">
-                        <div className="text-center">
-                            <h4 className="font-black text-slate-800 text-lg">Feedback Moment</h4>
-                            <p className="text-sm text-slate-500 mt-1">Stap nu het veld in en spreek {isTeamFocus ? 'het team' : doelwit} aan.</p>
-                        </div>
-
-                        {analyses.length > 0 && (
-                            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                                <p className="text-xs font-bold text-red-800 mb-2 uppercase">Jouw Analyses:</p>
-                                <ul className="text-xs text-red-700 space-y-1 list-disc pl-4">
-                                    {analyses.map((a, i) => <li key={i}>{a.reden}</li>)}
-                                </ul>
-                            </div>
-                        )}
-
-                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-                            <p className="text-sm font-bold text-blue-800 mb-1">Wat wordt jouw Tip?</p>
-                            <p className="text-xs text-blue-600 mb-3">Kies de belangrijkste werkpunt of compliment en bespreek dit.</p>
-                            <button onClick={reset} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm">
-                                Tip Besproken! (Reset Klembord)
-                            </button>
-                        </div>
-                    </div>
-                )}
+                </div>
             </div>
         </div>
     );
@@ -1147,17 +1145,18 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
             </button>
 
             {/* ROL HEADER — gradient banner */}
-            <div className={`bg-gradient-to-r ${rolData.kleur} rounded-2xl p-5 mb-5 text-white`}>
-                <div className="flex items-start justify-between">
-                    <div>
-                        <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">{sessie.sport}</p>
-                        <h2 className="text-2xl font-bold">{rolData.naam}</h2>
-                        <p className="text-white/80 text-sm mt-1">{niveauInfo}</p>
-                        {getNiveauUitleg() && (
-                            <p className="text-white/60 text-xs mt-2 leading-relaxed">{getNiveauUitleg()}</p>
-                        )}
+            <div className={`bg-gradient-to-r ${rolData.kleur} rounded-2xl p-4 mb-5 text-white shadow-sm mt-4`}>
+                <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                        <p className="text-white/70 text-xs font-bold uppercase tracking-wider mb-0.5">{sessie.sport}</p>
+                        <h2 className="text-xl font-bold leading-tight">{rolData.naam}</h2>
+                        <p className="text-white/90 text-sm mt-1.5 leading-snug">
+                            {getNiveauUitleg() || niveauInfo}
+                        </p>
                     </div>
-                    <NiveauBadge niveau={niveau} />
+                    <div className="mt-1">
+                        <NiveauBadge niveau={niveau} />
+                    </div>
                 </div>
             </div>
 
@@ -1614,10 +1613,10 @@ export default function SportLab() {
             <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
                 <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8">
 
-                   // HEADER
-                    <div className="mb-8 mt-20">
-                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">SportLab</h1>
-                        <p className="text-slate-500">
+                   {/* HEADER */}
+                    <div className={`mb-6 mt-4 ${((isTeacher && leerkrachtSessie) || (isLeerling && gekozenRol)) ? 'hidden md:block' : 'block'}`}>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">SportLab</h1>
+                        <p className="text-slate-500 text-sm">
                             {isTeacher 
                                 ? 'Start een sessie en laat leerlingen hun rol kiezen via de app.' 
                                 : (isLeerling && !gekozenRol) 
