@@ -834,7 +834,7 @@ function Scorebord({ rolData, sessieId }) {
 }
 
 // ─── DIGITAAL KLEMBORD (Speciaal voor de Coach) ───────────────────────────────
-function DigitaalKlembord({ rolData, sessie, niveau, content }) {
+function DigitaalKlembord({ rolData, sessie, niveau, content, deelnameId, profile }) {
     const [fase, setFase] = useState('setup'); // setup, observatie, rapport
     const [doelwit, setDoelwit] = useState('');
     const [startTijd, setStartTijd] = useState(null);
@@ -843,8 +843,6 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
     // Scores per index: { 0: { plus: 0, min: 0 }, 1: { plus: 0, min: 0 } }
     const [scores, setScores] = useState({}); 
     const [analyses, setAnalyses] = useState([]); // Level 2: opgeslagen fout-redenen
-    
-    // Level 2/3 states
     const [actieveMinIndex, setActieveMinIndex] = useState(null);
     
     const isTeamFocus = niveau === 3;
@@ -899,26 +897,40 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
     };
 
     const afronden = () => setFase('rapport');
-    const reset = () => { setFase('setup'); setDoelwit(''); };
+    
+    // NIEUW: De anonieme teller updaten
+    const reset = async () => {
+        // Stuur op de achtergrond een signaal naar de backend (zonder naam!)
+        if (deelnameId && profile?._token) {
+            try {
+                apiPost('sportlab_observatie_klaar', { deelnameId }, profile._token)
+                    .catch(e => console.error("Kon teller niet updaten", e));
+            } catch(e) { /* ignore */ }
+        }
+        
+        setFase('setup');
+        setDoelwit('');
+    };
+
     const formatTijd = (sec) => `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, '0')}`;
 
-    if (!content) return <div className="p-5 text-sm text-slate-500">Klembord laden...</div>;
+   if (!content) return <div className="p-5 text-sm text-slate-500">Klembord laden...</div>;
 
     return (
         <div className="relative pt-6 pb-2 mb-6 max-w-sm mx-auto mt-6">
-            {/* HET ZILVEREN KLEMMETJE BOVENAAN (Strakker en moderner) */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-8 bg-gradient-to-b from-slate-100 to-slate-300 rounded-t-xl border-t border-x border-slate-300 shadow-sm z-20 flex items-center justify-center">
-                <div className="w-16 h-1.5 bg-slate-400/40 rounded-full shadow-inner"></div>
+            {/* HET ZILVEREN KLEMMETJE BOVENAAN */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-8 bg-gradient-to-b from-slate-200 to-slate-400 rounded-t-xl border-t border-x border-slate-400 shadow-md z-20 flex items-center justify-center">
+                <div className="w-16 h-1.5 bg-slate-500/50 rounded-full shadow-inner"></div>
             </div>
             
-            {/* HET MODERNE TACTISCHE BORD (Antraciet ipv Bruin) */}
-            <div className="bg-slate-800 p-2 rounded-b-xl rounded-t-md shadow-xl relative z-10 border-b-4 border-slate-900">
+            {/* HET DONKERBLAUWE BORD (bg-blue-900 en border-blue-950) */}
+            <div className="bg-blue-900 p-2 rounded-b-xl rounded-t-md shadow-xl relative z-10 border-b-4 border-blue-950">
                 
-                {/* HET WITTE PAPIER (Fris wit ipv vergeeld) */}
+                {/* HET WITTE PAPIER */}
                 <div className="bg-white rounded-md min-h-[300px] shadow-inner overflow-hidden relative">
                     
-                    {/* Subtiele grijze marge-lijn (ipv fel rood) */}
-                    <div className="absolute left-6 top-0 bottom-0 w-px bg-slate-100 z-0"></div>
+                    {/* Subtiele grijze marge-lijn */}
+                    <div className="absolute left-6 top-0 bottom-0 w-px bg-slate-200 z-0"></div>
 
                     <div className="relative z-10">
                         {/* Header van het papier */}
@@ -927,7 +939,7 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
                                 Digitaal Klembord
                             </h3>
                             {fase === 'observatie' && (
-                                <span className="text-xs font-bold text-slate-600 flex items-center gap-1 bg-white px-2 py-1 rounded-md shadow-sm">
+                                <span className="text-xs font-bold text-slate-600 flex items-center gap-1 bg-white px-2 py-1 rounded-md shadow-sm border border-slate-200">
                                     <ClockIcon className="w-3.5 h-3.5" /> {formatTijd(duur)}
                                 </span>
                             )}
@@ -964,7 +976,7 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
                             {fase === 'observatie' && (
                                 <div className="space-y-5">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1 w-full">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-1 w-full">
                                             {isTeamFocus ? 'Team Focus' : `Speler: ${doelwit}`}
                                         </span>
                                     </div>
@@ -1023,7 +1035,7 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
                                     <p className="text-sm text-slate-600">Stap het veld in en spreek {isTeamFocus ? 'het team' : <strong className={`font-bold ${rolData.tekst}`}>{doelwit}</strong>} aan.</p>
 
                                     {analyses.length > 0 && (
-                                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-left">
+                                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-left shadow-inner">
                                             <p className="text-xs font-black text-red-800 mb-2 uppercase tracking-wider">Jouw Analyses:</p>
                                             <ul className="text-xs text-red-700 space-y-1.5 list-disc pl-4 font-medium">
                                                 {analyses.map((a, i) => <li key={i}>{a.reden}</li>)}
@@ -1031,7 +1043,7 @@ function DigitaalKlembord({ rolData, sessie, niveau, content }) {
                                         </div>
                                     )}
 
-                                    <button onClick={reset} className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform">
+                                    <button onClick={reset} className="w-full py-3 bg-blue-900 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform">
                                         Tip Besproken (Reset)
                                     </button>
                                 </div>
@@ -1170,6 +1182,8 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                             sessie={sessie} 
                             niveau={niveau} 
                             content={rolContent?.coach?.[`level${niveau}`]} 
+                            deelnameId={deelname?.id} // NIEUW
+                            profile={profile}
                         />
                     )}
 

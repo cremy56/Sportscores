@@ -672,3 +672,28 @@ export async function handleSaveSportLabScore(req, res, decodedToken) {
         return res.status(500).json({ error: 'Fout bij opslaan score' });
     }
 }
+// ─── 10. ANONIEME TELLER VOOR COACH ──────────────────────────────────────────
+export async function handleSportlabObservatieKlaar(req, res, decodedToken) {
+    try {
+        const { schoolId, deelnameId } = req.body;
+        
+        // Beveiliging: check of het request van de juiste school komt
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        if (!deelnameId) return res.status(400).json({ error: 'Deelname ID ontbreekt.' });
+
+        const deelnameRef = db.collection('sport_lab_deelnames').doc(deelnameId);
+        
+        // Gebruik FieldValue.increment om de teller veilig met +1 te verhogen
+        await deelnameRef.update({
+            observaties_aantal: FieldValue.increment(1)
+        });
+
+        return res.status(200).json({ success: true });
+
+    } catch (error) {
+        console.error('❌ handleSportlabObservatieKlaar:', error);
+        return res.status(500).json({ error: 'Fout bij updaten observatie teller' });
+    }
+}
