@@ -915,14 +915,19 @@ function DigitaalKlembord({ rolData, sessie, niveau, content, deelnameId, profil
 
     const afronden = () => setFase('rapport');
     
-    // NIEUW: De anonieme teller updaten
+
+    // NIEUW: De anonieme teller updaten (Nu mét schoolId voor de veiligheidscheck)
     const reset = async () => {
-        // Stuur op de achtergrond een signaal naar de backend (zonder naam!)
-        if (deelnameId && profile?._token) {
+        // Stuur op de achtergrond een signaal naar de backend
+        if (deelnameId && profile?._token && profile?.school_id) {
             try {
-                apiPost('sportlab_observatie_klaar', { deelnameId }, profile._token)
-                    .catch(e => console.error("Kon teller niet updaten", e));
-            } catch(e) { /* ignore */ }
+                await apiPost('sportlab_observatie_klaar', { 
+                    deelnameId: deelnameId,
+                    schoolId: profile.school_id // <--- Dit ontbrak waardoor hij geweigerd werd!
+                }, profile._token);
+            } catch(e) { 
+                console.error("Kon teller niet updaten", e); 
+            }
         }
         
         setFase('setup');
