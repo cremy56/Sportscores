@@ -1022,49 +1022,56 @@ function DigitaalKlembord({ rolData, sessie, niveau, content, deelnameId, profil
 
                             {/* ── FASE 3: RAPPORT ── */}
                             {fase === 'rapport' && (() => {
-                                // Zoek uit welke taak de speler het allerbeste deed (meeste plusjes)
-                                let maxPlus = 0;
-                                let bestePunt = null;
-                                Object.keys(scores).forEach(key => {
-                                    if (scores[key]?.plus > maxPlus) {
-                                        maxPlus = scores[key].plus;
-                                        bestePunt = items[key];
-                                    }
+                                // Bepaal het sterkste punt en het werkpunt op basis van de scores
+                                let maxPlus = -1, maxMin = -1;
+                                let besteItem = "", werkpuntItem = "";
+
+                                Object.entries(scores).forEach(([idx, val]) => {
+                                    if (val.plus > maxPlus) { maxPlus = val.plus; besteItem = items[idx]; }
+                                    if (val.min > maxMin) { maxMin = val.min; werkpuntItem = items[idx]; }
                                 });
+
+                                // Gebruik de specifieke analyse (reden) uit Level 2 als die er is
+                                const specifiekeFout = analyses.length > 0 ? analyses[0].reden : null;
 
                                 return (
                                     <div className="space-y-4 animate-fade-in text-center py-2">
                                         <h4 className="font-black text-slate-800 text-xl">Rapport Klaar!</h4>
                                         <p className="text-sm text-slate-600">Stap het veld in en spreek {isTeamFocus ? 'het team' : <strong className={`font-bold ${rolData.tekst}`}>{doelwit}</strong>} aan.</p>
 
-                                        {/* NIEUW: Kant-en-klare feedback suggesties */}
+                                        {/* DYNAMISCHE FEEDBACK SUGGESTIES */}
                                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-left shadow-inner text-sm text-blue-900 mt-2">
                                             <p className="text-[11px] font-black text-blue-800 mb-3 uppercase tracking-wider flex items-center gap-1.5">
                                                 <span>💬</span> Wat kan je zeggen?
                                             </p>
                                             <div className="space-y-3">
-                                                {bestePunt && (
+                                                {besteItem && maxPlus > 0 && (
                                                     <p>
                                                         <span className="font-bold text-emerald-600 block text-xs uppercase mb-0.5">Compliment</span> 
-                                                        "Top gedaan met: <span className="lowercase">{bestePunt}</span>!"
+                                                        "Top gedaan met: <span className="lowercase">{besteItem}</span>!"
                                                     </p>
                                                 )}
-                                                {analyses.length > 0 ? (
+                                                {specifiekeFout ? (
                                                     <p>
                                                         <span className="font-bold text-red-500 block text-xs uppercase mb-0.5">Werkpuntje</span> 
-                                                        "Probeer volgende keer te letten op: <span className="lowercase">{analyses[0].reden}</span>."
+                                                        "Let de volgende keer op: <span className="lowercase">{specifiekeFout}</span>."
+                                                    </p>
+                                                ) : werkpuntItem && maxMin > 0 ? (
+                                                    <p>
+                                                        <span className="font-bold text-red-500 block text-xs uppercase mb-0.5">Werkpuntje</span> 
+                                                        "Probeer nog te verbeteren op: <span className="lowercase">{werkpuntItem}</span>."
                                                     </p>
                                                 ) : (
                                                     <p>
-                                                        <span className="font-bold text-purple-600 block text-xs uppercase mb-0.5">Aanmoediging</span> 
-                                                        "Je bent super goed bezig, ga zo door!"
+                                                        <span className="font-bold text-purple-600 block text-xs uppercase mb-0.5">Algemeen</span> 
+                                                        "Je bent goed bezig, blijf focussen op de kijkwijzer!"
                                                     </p>
                                                 )}
                                             </div>
                                         </div>
 
-                                        <button onClick={reset} className="w-full py-3.5 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-xl shadow-md active:scale-95 transition-colors mt-4">
-                                            Feedback gegeven (Start nieuwe observatie)
+                                        <button onClick={reset} className="w-full py-3.5 bg-blue-900 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform mt-4">
+                                            Feedback gegeven (Nieuwe start)
                                         </button>
                                     </div>
                                 );
@@ -1652,8 +1659,7 @@ export default function SportLab() {
                 <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8">
 
                    {/* HEADER */}
-                   {/* NIEUW: (isLeerling && sessie) verbergt de titel nu óók als ze nog moeten kiezen, mits er een actieve sessie is */}
-                    <div className={`mb-6 mt-24 ${((isTeacher && leerkrachtSessie) || (isLeerling && sessie)) ? 'hidden md:block' : 'block'}`}>
+                    <div className="mb-6 mt-24 hidden md:block">
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">SportLab</h1>
                         <p className="text-slate-500 text-sm">
                             {isTeacher 
