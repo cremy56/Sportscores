@@ -478,7 +478,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                                                 {d.is_vrijgesteld && (
                                                     <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-semibold">🩺</span>
                                                 )}
-                                                {/* NIEUW: Toon het aantal observaties van de coach */}
+                                                {/* HIER WAS HIJ VERGETEN: Live teller voor coach */}
                                                 {d.rol === 'coach' && d.observaties_aantal > 0 && (
                                                     <span className="text-[10px] font-bold text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
                                                         👁️ {d.observaties_aantal}
