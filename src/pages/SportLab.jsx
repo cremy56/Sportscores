@@ -1051,25 +1051,54 @@ function DigitaalKlembord({ rolData, sessie, niveau, content, deelnameId, profil
                             )}
 
                             {/* ── FASE 3: RAPPORT ── */}
-                            {fase === 'rapport' && (
-                                <div className="space-y-5 animate-fade-in text-center py-2">
-                                    <h4 className="font-black text-slate-800 text-xl">Rapport Klaar!</h4>
-                                    <p className="text-sm text-slate-600">Stap het veld in en spreek {isTeamFocus ? 'het team' : <strong className={`font-bold ${rolData.tekst}`}>{doelwit}</strong>} aan.</p>
+                            {fase === 'rapport' && (() => {
+                                // Zoek uit welke taak de speler het allerbeste deed (meeste plusjes)
+                                let maxPlus = 0;
+                                let bestePunt = null;
+                                Object.keys(scores).forEach(key => {
+                                    if (scores[key]?.plus > maxPlus) {
+                                        maxPlus = scores[key].plus;
+                                        bestePunt = items[key];
+                                    }
+                                });
 
-                                    {analyses.length > 0 && (
-                                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-left shadow-inner">
-                                            <p className="text-xs font-black text-red-800 mb-2 uppercase tracking-wider">Jouw Analyses:</p>
-                                            <ul className="text-xs text-red-700 space-y-1.5 list-disc pl-4 font-medium">
-                                                {analyses.map((a, i) => <li key={i}>{a.reden}</li>)}
-                                            </ul>
+                                return (
+                                    <div className="space-y-4 animate-fade-in text-center py-2">
+                                        <h4 className="font-black text-slate-800 text-xl">Rapport Klaar!</h4>
+                                        <p className="text-sm text-slate-600">Stap het veld in en spreek {isTeamFocus ? 'het team' : <strong className={`font-bold ${rolData.tekst}`}>{doelwit}</strong>} aan.</p>
+
+                                        {/* NIEUW: Kant-en-klare feedback suggesties */}
+                                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-left shadow-inner text-sm text-blue-900 mt-2">
+                                            <p className="text-[11px] font-black text-blue-800 mb-3 uppercase tracking-wider flex items-center gap-1.5">
+                                                <span>💬</span> Wat kan je zeggen?
+                                            </p>
+                                            <div className="space-y-3">
+                                                {bestePunt && (
+                                                    <p>
+                                                        <span className="font-bold text-emerald-600 block text-xs uppercase mb-0.5">Compliment</span> 
+                                                        "Top gedaan met: <span className="lowercase">{bestePunt}</span>!"
+                                                    </p>
+                                                )}
+                                                {analyses.length > 0 ? (
+                                                    <p>
+                                                        <span className="font-bold text-red-500 block text-xs uppercase mb-0.5">Werkpuntje</span> 
+                                                        "Probeer volgende keer te letten op: <span className="lowercase">{analyses[0].reden}</span>."
+                                                    </p>
+                                                ) : (
+                                                    <p>
+                                                        <span className="font-bold text-purple-600 block text-xs uppercase mb-0.5">Aanmoediging</span> 
+                                                        "Je bent super goed bezig, ga zo door!"
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
 
-                                    <button onClick={reset} className="w-full py-3 bg-blue-900 text-white font-bold rounded-xl shadow-md active:scale-95 transition-transform">
-                                        Tip Besproken (Reset)
-                                    </button>
-                                </div>
-                            )}
+                                        <button onClick={reset} className="w-full py-3.5 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-xl shadow-md active:scale-95 transition-colors mt-4">
+                                            Feedback gegeven (Start nieuwe observatie)
+                                        </button>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -1570,26 +1599,20 @@ export default function SportLab() {
     const [eigenDeelname, setEigenDeelname] = useState(null);
     const [loading, setLoading] = useState(true);
     const [gekozenRol, setGekozenRol] = useState(null);
-    // Leerkracht: eigen actieve sessie apart bijhouden
     const [leerkrachtSessie, setLeerkrachtSessie] = useState(null);
 
     const isLeerling = profile?.rol === 'leerling';
     const isTeacher = ['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol);
 
-    // Vrijstelling check
-    // Firestore Timestamp heeft een .toDate() methode — new Date() werkt niet op een Timestamp object
     const einddatum = profile?.vrijstelling_einddatum
         ? (profile.vrijstelling_einddatum.toDate
             ? profile.vrijstelling_einddatum.toDate()
             : new Date(profile.vrijstelling_einddatum))
         : null;
-    const isVrijgesteld = profile?.vrijgesteld_van_testen === true
-        && einddatum && einddatum > new Date();
+    const isVrijgesteld = profile?.vrijgesteld_van_testen === true && einddatum && einddatum > new Date();
 
-    // Niveaus van de leerling per rol
     const niveaus = profile?.sportlab_niveaus || {};
 
-    // Reset rol bij elke mount → altijd overzicht tonen bij navigatie naar de pagina
     useEffect(() => {
         setGekozenRol(null);
         setEigenDeelname(null);
@@ -1598,24 +1621,16 @@ export default function SportLab() {
     const fetchSessie = useCallback(async () => {
         if (!profile?._token || !profile?.school_id) return;
         try {
-            // Leerkracht: eigen sessies ophalen
             if (['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol)) {
-                const data = await apiPost('get_sportlab_sessies', {
-                    schoolId: profile.school_id
-                }, profile._token);
-                // Zoek actieve sessie — inclusief deelnames en vrijgestelde leerlingen
+                const data = await apiPost('get_sportlab_sessies', { schoolId: profile.school_id }, profile._token);
                 const actief = (data.sessies || [])
                     .filter(s => ['actief', 'evaluatie', 'docent_evaluatie'].includes(s.status))
                     .sort((a, b) => new Date(b.start_tijd) - new Date(a.start_tijd))[0] || null;
                 setLeerkrachtSessie(actief || null);
             } else {
-                // Leerling: actieve sessie ophalen
-                const data = await apiPost('get_actieve_sportlab_sessie', {
-                    schoolId: profile.school_id
-                }, profile._token);
+                const data = await apiPost('get_actieve_sportlab_sessie', { schoolId: profile.school_id }, profile._token);
                 setSessie(data.sessie || null);
                 setEigenDeelname(data.eigen_deelname || null);
-                // Niet automatisch gekozenRol instellen — veroorzaakt terugspringen
             }
         } catch (e) {
             console.error('Fout bij laden sessie:', e);
@@ -1626,16 +1641,33 @@ export default function SportLab() {
 
     useEffect(() => {
         fetchSessie();
-        // Poll elke 15 seconden voor sessie-status updates
         const interval = setInterval(fetchSessie, 15000);
         return () => clearInterval(interval);
     }, [fetchSessie]);
 
+    // NIEUW: Onderschep de hardware 'terug'-knop op de smartphone
+    useEffect(() => {
+        if (gekozenRol) {
+            window.history.pushState({ roleActive: true }, '');
+            const handlePopState = () => setGekozenRol(null);
+            window.addEventListener('popstate', handlePopState);
+            return () => window.removeEventListener('popstate', handlePopState);
+        }
+    }, [gekozenRol]);
+
     const handleSessieGestart = () => fetchSessie();
     const handleSessieGesloten = () => fetchSessie();
     const handleRolGekozen = (rol) => { setGekozenRol(rol); fetchSessie(); };
+    
+    const handleTerugNaarOverzicht = () => { 
+        setGekozenRol(null); 
+        // Forceer browser-back zodat de geschiedenis netjes opgeruimd blijft
+        if (window.history.state?.roleActive) {
+            window.history.back();
+        }
+    };
+    
     const handleGereflecteerd = () => fetchSessie();
-    const handleTerugNaarOverzicht = () => { setGekozenRol(null); };
 
     if (loading) return (
         <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
@@ -1650,7 +1682,8 @@ export default function SportLab() {
                 <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8">
 
                    {/* HEADER */}
-                    <div className={`mb-6 mt-24 ${((isTeacher && leerkrachtSessie) || (isLeerling && gekozenRol)) ? 'hidden md:block' : 'block'}`}>
+                   {/* NIEUW: (isLeerling && sessie) verbergt de titel nu óók als ze nog moeten kiezen, mits er een actieve sessie is */}
+                    <div className={`mb-6 mt-24 ${((isTeacher && leerkrachtSessie) || (isLeerling && sessie)) ? 'hidden md:block' : 'block'}`}>
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">SportLab</h1>
                         <p className="text-slate-500 text-sm">
                             {isTeacher 
