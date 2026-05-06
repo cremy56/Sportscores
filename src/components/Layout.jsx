@@ -430,7 +430,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     '/highscores': 'Highscores',
     '/evolutie': evolutieLinkText,
     '/groeiplan': groeiplanLinkText,
-    '/gezondheid': 'Mijn Gezondheid',
+    '/gezondheid': 'Gezondheid',
     '/welzijnsmonitor': 'Welzijnsmonitor',
     '/groepsbeheer': 'Groepsbeheer',
     '/sporttesten': 'Sporttesten',
@@ -444,7 +444,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   const currentTitle = Object.entries(routeTitles)
     .sort((a, b) => b[0].length - a[0].length)
     .find(([path]) => location.pathname.startsWith(path))?.[1] || 'SportScores';
-    
+
   return (
     <div>
       <Toaster position="top-center" />
@@ -486,7 +486,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
 
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && welzijnActief && (
-              <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
+              <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gezondheid</NavLink></li>
             )}
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/ehbo" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>EHBO</NavLink></li>
@@ -556,7 +556,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
 
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && welzijnActief && (
-              <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Mijn Gezondheid</NavLink></li>
+              <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gezondheid</NavLink></li>
             )}
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/ehbo" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>EHBO</NavLink></li>

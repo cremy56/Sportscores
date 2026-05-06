@@ -170,7 +170,7 @@ const BewegingDetail = () => {
                 <div className="hidden lg:block mb-12">
                     <Link to="/gezondheid" className="inline-flex items-center text-gray-600 hover:text-blue-700 mb-6 group">
                         <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
-                        Terug naar Mijn Gezondheid
+                        Terug naar Gezondheid
                     </Link>
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Mijn Beweging</h1>
                 </div>

@@ -430,7 +430,7 @@ const MijnGezondheid = () => {
       <div className="mb-4 mt-20">
         <div className="flex justify-between items-start mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Mijn Gezondheid</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Gezondheid</h1>
             <div className="flex items-center gap-3 text-gray-400 text-sm">
               <span>🔒 Privé gegevens</span>
               <button

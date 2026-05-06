@@ -513,7 +513,7 @@ const HartDetail = () => {
         <div className="hidden lg:block mb-12">
           <Link to="/gezondheid" className="inline-flex items-center text-gray-600 hover:text-red-700 mb-6 group">
             <ArrowLeftIcon className="h-5 w-5 mr-2 transition-transform group-hover:-translate-x-1" />
-            Terug naar Mijn Gezondheid
+            Terug naar Gezondheid
           </Link>
           <div className="flex justify-between items-center">
             <div>
