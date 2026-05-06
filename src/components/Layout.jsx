@@ -441,8 +441,10 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     '/sportlab': 'SportLab',
   };
 
-  const currentTitle = Object.entries(routeTitles).find(([path]) => location.pathname.startsWith(path))?.[1] || 'SportScores';
-
+  const currentTitle = Object.entries(routeTitles)
+    .sort((a, b) => b[0].length - a[0].length)
+    .find(([path]) => location.pathname.startsWith(path))?.[1] || 'SportScores';
+    
   return (
     <div>
       <Toaster position="top-center" />

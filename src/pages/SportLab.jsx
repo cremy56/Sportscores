@@ -106,7 +106,7 @@ const ROLLEN = [
 // ─── NIVEAU BADGE ─────────────────────────────────────────────────────────────
 function NiveauBadge({ niveau }) {
     return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-slate-700">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-gray-200 rounded-full text-xs font-bold text-slate-700 whitespace-nowrap flex-shrink-0 shadow-sm">
             {'⭐'.repeat(niveau)}{'☆'.repeat(3 - niveau)}
             <span className="ml-0.5">Lvl {niveau}</span>
         </span>
@@ -1614,7 +1614,7 @@ export default function SportLab() {
             <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
                 <div className="max-w-7xl mx-auto px-4 py-4 lg:px-8">
 
-                    // HEADER
+                   // HEADER
                     <div className="mb-8 mt-20">
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">SportLab</h1>
                         <p className="text-slate-500">
