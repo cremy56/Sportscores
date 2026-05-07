@@ -1124,7 +1124,7 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
     const [loadingKlas, setLoadingKlas] = useState(mode === 'database');
     const [extraNamen, setExtraNamen] = useState("");
     const [aantalTeams, setAantalTeams] = useState(4);
-    const [aantalSpelersFallback, setAantalSpelersFallback] = useState(20); // Voor als er geen klas is
+    const [aantalSpelersFallback, setAantalSpelersFallback] = useState(20);
     const [teams, setTeams] = useState([]);
     const [toernooiType, setToernooiType] = useState('poule');
     const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -1159,24 +1159,24 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
     const genereerTeams = () => {
         let pool = [];
         if (mode === 'database') {
-            if (klasLijst.length > 0) {
-                // Gebruik de aangevinkte namen uit de database
-                pool = klasLijst
-                    .filter(l => geselecteerdeIds.includes(l.id))
-                    .map(l => ({ id: l.id, naam: l.naam }));
-            } else {
-                // Geen klaslijst? Genereer anonieme spelers via de fallback slider
+            // Voeg de aangevinkte leerlingen uit de database toe
+            pool = klasLijst
+                .filter(l => geselecteerdeIds.includes(l.id))
+                .map(l => ({ id: l.id, naam: l.naam }));
+            
+            // Als er geen klas is én er is niks ingevuld, gebruik de anonieme slider fallback
+            if (klasLijst.length === 0 && !sessie.klas && !sessie.groep_id) {
                 pool = Array.from({ length: aantalSpelersFallback }, (_, i) => ({ id: `anon_${i}`, naam: `Speler ${i+1}` }));
             }
             
-            // Voeg altijd de handmatig getypte extra namen toe
+            // Voeg ALTIJD de handmatig getypte extra namen toe
             if (extraNamen.trim()) {
                 extraNamen.split(',').forEach((n, i) => {
                     if (n.trim()) pool.push({ id: `extra_${i}`, naam: n.trim() });
                 });
             }
         } else {
-            // Manual mode (Level 2 leerling): vult later zelf namen in
+            // Manual mode (Level 2/3 leerling): vult later zelf namen in
             pool = Array.from({ length: aantalSpelersFallback }, (_, i) => ({ id: `p_${i}`, naam: `Speler ${i+1}` }));
         }
 
@@ -1209,81 +1209,110 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
         }
     };
 
+    // Bepaal de container styling (Leerkracht = Plat & naadloos, Leerling = Apart kader)
+    const containerClasses = mode === 'database' 
+        ? "animate-fade-in text-slate-800" 
+        : "bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm animate-fade-in";
+
     return (
-        <div className="bg-white border-2 border-indigo-100 rounded-2xl overflow-hidden shadow-sm animate-fade-in mt-2">
-            {/* NIEUWE STYLING: Zacht Indigo in plaats van hard zwart */}
-            <div className={`p-4 font-bold flex justify-between items-center ${mode === 'database' ? 'bg-indigo-50 border-b border-indigo-100 text-indigo-900' : `bg-gradient-to-r ${rolData.kleur} text-white`}`}>
-                <div className="flex items-center gap-2">
-                    <span className="text-xl">🏆</span>
-                    <span>Toernooi Manager</span>
+        <div className={containerClasses}>
+            
+            {/* Header voor Leerling-weergave */}
+            {mode === 'manual' && (
+                <div className={`p-4 font-bold flex justify-between items-center bg-gradient-to-r ${rolData.kleur} text-white`}>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xl">🏆</span>
+                        <span>Toernooi Manager</span>
+                    </div>
+                    <span className="text-[10px] px-2 py-1 rounded border border-white/30 font-bold uppercase tracking-wider bg-white/20">
+                        Privacy Mode
+                    </span>
                 </div>
-                <span className={`text-[10px] px-2 py-1 rounded border font-bold uppercase tracking-wider ${mode === 'database' ? 'bg-indigo-100 border-indigo-200 text-indigo-700' : 'bg-white/20 border-white/30 text-white'}`}>
-                    {mode === 'database' ? 'Leerkracht Setup' : 'Privacy Mode'}
-                </span>
-            </div>
+            )}
+
+            {/* Header voor Leerkracht-weergave (Naadloos) */}
+            {mode === 'database' && (
+                <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">🏆</span>
+                    <h3 className="text-lg font-bold text-slate-800">Toernooi Indeling</h3>
+                </div>
+            )}
 
             {stap === 'selectie' && mode === 'database' && (
-                <div className="p-5 space-y-5">
+                <div className="space-y-5">
+                    
+                    {/* KLASLIJST OF MELDING */}
                     <div>
-                        <h4 className="text-sm font-bold text-slate-800 mb-1">Wie speelt er mee in het toernooi?</h4>
-                        <p className="text-xs text-slate-500 mb-3">Vink afwezige of geblesseerde leerlingen uit.</p>
-                        
-                        {loadingKlas ? (
-                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm text-slate-500 animate-pulse">
-                                Klaslijst ophalen...
-                            </div>
-                        ) : klasLijst.length > 0 ? (
-                            <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto p-2 bg-slate-50 border border-slate-100 rounded-xl">
-                                {klasLijst.map(l => (
-                                    <label key={l.id} className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs cursor-pointer transition-colors ${geselecteerdeIds.includes(l.id) ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-semibold shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
-                                        <input type="checkbox" checked={geselecteerdeIds.includes(l.id)} onChange={() => {
-                                            setGeselecteerdeIds(prev => prev.includes(l.id) ? prev.filter(id => id !== l.id) : [...prev, l.id]);
-                                        }} className="accent-indigo-600 w-4 h-4 rounded" />
-                                        <span className="truncate">{l.naam}</span>
-                                    </label>
-                                ))}
-                            </div>
+                        {sessie.klas || sessie.groep_id ? (
+                            <>
+                                <p className="text-sm font-medium text-slate-600 mb-3">
+                                    Aanwezigen uit <strong>{sessie.klas || 'de groep'}</strong>:
+                                </p>
+                                
+                                {loadingKlas ? (
+                                    <div className="p-4 bg-slate-50 rounded-xl text-sm text-slate-500 animate-pulse border border-slate-100">
+                                        Klaslijst ophalen...
+                                    </div>
+                                ) : klasLijst.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto">
+                                        {klasLijst.map(l => (
+                                            <label key={l.id} className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm cursor-pointer transition-colors ${geselecteerdeIds.includes(l.id) ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                                                <input type="checkbox" checked={geselecteerdeIds.includes(l.id)} onChange={() => {
+                                                    setGeselecteerdeIds(prev => prev.includes(l.id) ? prev.filter(id => id !== l.id) : [...prev, l.id]);
+                                                }} className="accent-emerald-600 w-4 h-4 rounded" />
+                                                <span className="truncate">{l.naam}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-4 bg-amber-50 text-amber-800 rounded-xl text-sm border border-amber-200">
+                                        Geen leerlingen gevonden in de database. Vul hun namen hieronder handmatig in.
+                                    </div>
+                                )}
+                            </>
                         ) : (
-                            // VANGNET: Als er geen klas is gekozen bij het starten van de sessie
-                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
-                                <p className="font-bold mb-1">Geen specifieke klas gekoppeld.</p>
-                                <p className="text-xs leading-relaxed">Deze sessie staat open voor 'Alle leerlingen'. Vul hieronder in hoeveel anonieme spelers je wilt, of typ hun namen handmatig.</p>
+                            <div className="p-4 bg-slate-50 rounded-xl text-sm text-slate-600 border border-slate-200">
+                                <p className="font-bold mb-1">Geen specifieke klas geselecteerd.</p>
+                                <p>Kies met de slider het aantal spelers dat meedoet.</p>
                             </div>
                         )}
                     </div>
                     
-                    <div className="space-y-4 pt-2 border-t border-slate-100">
-                        {/* Als de klaslijst leeg is, toon we deze handige slider */}
-                        {klasLijst.length === 0 && (
+                    {/* EXTRA SPELERS & SLIDERS */}
+                    <div className="space-y-4 pt-4 border-t border-slate-100">
+                        {/* Fallback slider (enkel als er geen klas is, of klas leeg is) */}
+                        {(!sessie.klas && !sessie.groep_id) || klasLijst.length === 0 ? (
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Aantal basisspelers</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Aantal anonieme spelers</label>
                                 <div className="flex items-center gap-4 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                    <input type="range" min="4" max="40" value={aantalSpelersFallback} onChange={e => setAantalSpelersFallback(parseInt(e.target.value))} className="flex-1 accent-indigo-500" />
+                                    <input type="range" min="4" max="40" value={aantalSpelersFallback} onChange={e => setAantalSpelersFallback(parseInt(e.target.value))} className="flex-1 accent-emerald-500" />
                                     <span className="font-black text-xl text-slate-800 w-8 text-center">{aantalSpelersFallback}</span>
                                 </div>
                             </div>
-                        )}
+                        ) : null}
 
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Extra Spelers Toevoegen</label>
-                            <input type="text" placeholder="Bv. Kobe, Lars (scheiden met komma)" className="w-full text-sm p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 focus:bg-white transition-colors" value={extraNamen} onChange={e => setExtraNamen(e.target.value)} />
+                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Voeg extra spelers toe</label>
+                            <input type="text" placeholder="Bv. Kobe, Lars (scheiden met komma)" className="w-full text-sm p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50 focus:bg-white transition-colors" value={extraNamen} onChange={e => setExtraNamen(e.target.value)} />
                         </div>
                     </div>
                     
+                    {/* TEAM KEUZE & START */}
                     <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                        <span className="text-sm font-bold text-slate-700">Aantal Teams: <span className="text-xl ml-2 text-indigo-600">{aantalTeams}</span></span>
-                        <input type="range" min="2" max="10" value={aantalTeams} onChange={e => setAantalTeams(parseInt(e.target.value))} className="w-1/2 accent-indigo-600" />
+                        <span className="text-sm font-bold text-slate-700">Aantal Teams: <span className="text-xl ml-2 text-emerald-600">{aantalTeams}</span></span>
+                        <input type="range" min="2" max="10" value={aantalTeams} onChange={e => setAantalTeams(parseInt(e.target.value))} className="w-1/2 accent-emerald-600" />
                     </div>
 
-                    <button onClick={genereerTeams} className="w-full py-3.5 mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-md">
+                    <button onClick={genereerTeams} className="w-full py-3.5 mt-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition-colors shadow-md">
                         Verdeel in teams
                     </button>
                 </div>
             )}
 
+            {/* FASE 2: BUILDER SCHERM */}
             {stap === 'builder' && (
-                <div className="p-4 space-y-4 bg-slate-50">
-                    <div className="bg-indigo-50 border border-indigo-200 text-indigo-800 p-3 rounded-xl text-xs font-medium">
+                <div className={`space-y-4 ${mode === 'manual' ? 'p-4 bg-slate-50' : ''}`}>
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-xl text-xs font-medium">
                         💡 Controleer de teams. Tik op speler A en daarna op speler B om ze te wisselen.
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1294,7 +1323,7 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
                                 }} />
                                 <div className="p-2 space-y-1">
                                     {t.spelers.map((s, sIdx) => (
-                                        <div key={s.id} onClick={() => handlePlayerTap(tIdx, sIdx)} className={`p-2 rounded bg-white text-xs border cursor-pointer transition-colors ${selectedPlayer?.tIdx === tIdx && selectedPlayer?.sIdx === sIdx ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200 font-bold shadow-inner' : 'border-slate-100 hover:border-indigo-300 hover:bg-indigo-50'}`}>
+                                        <div key={s.id} onClick={() => handlePlayerTap(tIdx, sIdx)} className={`p-2 rounded bg-white text-xs border cursor-pointer transition-colors ${selectedPlayer?.tIdx === tIdx && selectedPlayer?.sIdx === sIdx ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200 font-bold shadow-inner' : 'border-slate-100 hover:border-emerald-300 hover:bg-emerald-50'}`}>
                                             {mode === 'database' ? s.naam : (
                                                 <input className="w-full outline-none bg-transparent" value={s.naam} onChange={e => {
                                                     const nt = [...teams]; nt[tIdx].spelers[sIdx].naam = e.target.value; setTeams(nt);
@@ -1309,7 +1338,7 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
                     
                     <div className="pt-4 border-t border-slate-200">
                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Kies Toernooivorm</label>
-                        <select className="w-full p-3 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none bg-white" value={toernooiType} onChange={e => setToernooiType(e.target.value)}>
+                        <select className="w-full p-3 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none bg-white" value={toernooiType} onChange={e => setToernooiType(e.target.value)}>
                             <option value="poule">Poule (Iedereen speelt tegen elkaar)</option>
                             <option value="knockout">Knock-out (Met verliezersronde)</option>
                             <option value="king">Koning van het Veld (Doorschuiven)</option>
@@ -1317,13 +1346,13 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
                         
                         <div className="flex gap-3 mt-4">
                             <button onClick={() => setStap('selectie')} className="px-4 py-3 text-sm font-bold text-slate-500 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-colors shadow-sm">Terug</button>
-                            <button onClick={() => onStart({ teams, type: toernooiType })} className={`flex-1 py-3 text-white font-black rounded-xl shadow-md transition-transform active:scale-95 ${mode === 'database' ? 'bg-indigo-600 hover:bg-indigo-700' : `bg-gradient-to-r ${rolData.kleur}`}`}>Start Toernooi</button>
+                            <button onClick={() => onStart({ teams, type: toernooiType })} className={`flex-1 py-3 text-white font-black rounded-xl shadow-md transition-transform active:scale-95 ${mode === 'database' ? 'bg-emerald-600 hover:bg-emerald-700' : `bg-gradient-to-r ${rolData.kleur}`}`}>Start Toernooi</button>
                         </div>
                     </div>
                 </div>
             )}
             
-            {/* Manual mode start scherm (voor leerling Level 2/3) */}
+            {/* FASE 1 VOOR LEERLING: START SCHERM (Enkel in manual mode) */}
             {stap === 'selectie' && mode === 'manual' && (
                 <div className="p-6 space-y-6 text-center">
                     <p className="text-sm text-slate-600">Stel je toernooi handmatig in. Je moet straks zelf de voornamen van de spelers intypen.</p>
