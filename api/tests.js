@@ -45,7 +45,8 @@ import {
     handleJoinSportLabSessie, handleSubmitZelfreflectie,
     handleValideerLevelUp, handleGetSportLabContent,
     handleSaveSportLabScore, handleSportlabObservatieKlaar,
-    handleGetSportLabToernooiSpelers, handleStartToernooi
+    handleGetSportLabToernooiSpelers, handleStartToernooi,
+    handleUpdateMatchScore, handleStopToernooi
 } from './handlers/sportlab.js';
 
 // ─── HOOFD HANDLER ────────────────────────────────────────────────────────────
@@ -144,6 +145,8 @@ export default async function handler(req, res) {
             case 'sportlab_observatie_klaar':    return await handleSportlabObservatieKlaar(req, res, decodedToken); // <--- DEZE REGEL TOEVOEGEN
             case 'get_sportlab_toernooi_spelers': return await handleGetSportLabToernooiSpelers(req, res, decodedToken);
             case 'start_toernooi': return await handleStartToernooi(req, res, decodedToken);
+            case 'update_match_score': return await handleUpdateMatchScore(req, res, decodedToken);
+            case 'stop_toernooi': return await handleStopToernooi(req, res, decodedToken);
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
         }

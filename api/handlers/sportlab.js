@@ -867,3 +867,54 @@ export async function handleStartToernooi(req, res, decodedToken) {
         return res.status(500).json({ error: 'Fout bij berekenen toernooischema' });
     }
 }
+// ─── 13. TOERNOOI SCORES UPDATEN ─────────────────────────────────────────────
+export async function handleUpdateMatchScore(req, res, decodedToken) {
+    try {
+        const { schoolId, toernooiId, matchId, winstVoor } = req.body;
+        
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const toernooiRef = db.collection('sport_lab_toernooien').doc(toernooiId);
+        const toernooiSnap = await toernooiRef.get();
+        if (!toernooiSnap.exists) return res.status(404).json({ error: 'Toernooi niet gevonden.' });
+
+        // Omdat wedstrijden in een array zitten, passen we de array in het geheugen aan
+        const toernooi = toernooiSnap.data();
+        const nieuweWedstrijden = toernooi.wedstrijden.map(m => {
+            if (m.id === matchId) {
+                return { ...m, winst_voor: winstVoor, gespeeld: winstVoor !== null };
+            }
+            return m;
+        });
+
+        await toernooiRef.update({ wedstrijden: nieuweWedstrijden });
+        return res.status(200).json({ success: true });
+
+    } catch (error) {
+        console.error('❌ handleUpdateMatchScore:', error);
+        return res.status(500).json({ error: 'Fout bij opslaan score' });
+    }
+}
+
+// ─── 14. TOERNOOI BEËINDIGEN / RESETTEN (Leerkracht) ─────────────────────────
+export async function handleStopToernooi(req, res, decodedToken) {
+    try {
+        const { schoolId, toernooiId } = req.body;
+        
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
+        if (!['leerkracht', 'administrator', 'super-administrator'].includes(callerSnap.data()?.rol)) {
+            return res.status(403).json({ error: 'Enkel leerkrachten kunnen een toernooi wissen.' });
+        }
+
+        await db.collection('sport_lab_toernooien').doc(toernooiId).update({ status: 'gestopt' });
+        return res.status(200).json({ success: true });
+
+    } catch (error) {
+        console.error('❌ handleStopToernooi:', error);
+        return res.status(500).json({ error: 'Fout bij stoppen toernooi' });
+    }
+}
