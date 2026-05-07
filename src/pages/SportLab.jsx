@@ -393,9 +393,9 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
     const [toonAfbreekBevestiging, setToonAfbreekBevestiging] = useState(false);
     const [deelnames, setDeelnames] = useState(sessie.deelnames || []);
     const [vrijgesteld, setVrijgesteld] = useState(sessie.vrijgestelde_leerlingen || []);
-    // NIEUW: Handmatige schakelaar voor als de leerkracht zelf een toernooi wil starten
+    
+    // Toernooi beheerders-states
     const [toonToernooiBuilder, setToonToernooiBuilder] = useState(false);
-    // NIEUW: Check of er al een leerling is die deze rol heeft
     const heeftToernooileider = deelnames.some(d => d.rol === 'toernooileider');
 
     // Live timer
@@ -408,7 +408,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
         return () => clearInterval(interval);
     }, [sessie.start_tijd]);
 
-    // Update deelnames wanneer sessie prop wijzigt (via polling)
+    // Polling sync voor live updates van leerlingen
     useEffect(() => {
         setDeelnames(sessie.deelnames || []);
         setVrijgesteld(sessie.vrijgestelde_leerlingen || []);
@@ -416,7 +416,6 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
 
     const alleReflectiesBinnen = deelnames.length > 0 && deelnames.every(d => d.voltooid);
 
-    // Status wijzigen API call
     const veranderStatus = async (definitief, naarDocentEvaluatie = false) => {
         setLoading(true);
         try {
@@ -435,7 +434,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
             } else {
                 toast.success('Evaluatievenster voor leerlingen geopend.');
             }
-            onSessieGesloten(); // Vuur refresh in hoofdcomponent af
+            onSessieGesloten();
         } catch (e) {
             toast.error(e.message);
         } finally {
@@ -443,33 +442,32 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
         }
     };
 
-    // ─── RENDER: DOCENT EVALUATIE FASE ───
+    // ─── RENDER: DOCENT EVALUATIE FASE (Punten geven) ───
     if (sessie.status === 'docent_evaluatie' || sessie.status === 'gesloten') {
         const onbeoordeeld = deelnames.filter(d => !d.beoordeeld).length;
         
         return (
             <div className="flex justify-center">
                 <div className="max-w-2xl w-full bg-white rounded-2xl border-2 border-purple-400 shadow-sm overflow-hidden mb-6">
-                    <div className="bg-purple-500 px-5 py-3 flex justify-between items-center">
-                        <span className="font-semibold text-white text-sm">Leerkracht Evaluatie ({sessie.sport})</span>
-                        <span className="text-purple-100 text-xs font-medium">
-                            Doel: {sessie.klas ? `Klas ${sessie.klas}` : (sessie.groep_id ? 'Groep' : 'Iedereen')}
+                    <div className="bg-purple-500 px-5 py-3 flex justify-between items-center text-white">
+                        <span className="font-semibold text-sm">Leerkracht Evaluatie ({sessie.sport})</span>
+                        <span className="text-purple-100 text-xs font-medium uppercase tracking-wider">
+                            {sessie.klas ? `Klas ${sessie.klas}` : (sessie.groep_id ? 'Groep' : 'Iedereen')}
                         </span>
                     </div>
                     <div className="p-5">
                         <h2 className="text-2xl font-bold text-slate-900 mb-2">Deelnames Beoordelen</h2>
                         <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                            Vul hier het rapportpunt in. Vink <b>Level↑</b> aan voor extra inzet (+100 XP).
+                            Vul hier de scores in. Vink <b>Level↑</b> aan als een leerling klaar is voor de volgende stap (+100 XP).
                         </p>
 
                         {deelnames.length === 0 ? (
                             <div className="p-4 text-center text-sm text-slate-400 italic bg-slate-50 rounded-xl mb-6">
-                                Er waren geen deelnemers in deze sessie.
+                                Er waren geen actieve deelnemers in deze sessie.
                             </div>
                         ) : (
-                            <ul className="divide-y divide-slate-50">
+                            <ul className="divide-y divide-slate-50 border border-slate-100 rounded-xl overflow-hidden">
                                 {deelnames.map(d => (
-                                    /* HIER GEBRUIKEN WE DE COMPONENT MET DE INPUTVELDEN */
                                     <BeoordelingRij 
                                         key={d.id} 
                                         d={d} 
@@ -496,7 +494,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                                 <button 
                                     onClick={() => veranderStatus(true)} 
                                     disabled={loading}
-                                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-6 rounded-xl transition-colors disabled:opacity-50"
+                                    className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-6 rounded-xl transition-colors disabled:opacity-50 shadow-md"
                                 >
                                     {loading ? 'Bezig...' : 'Sessie Definitief Sluiten'}
                                 </button>
@@ -508,7 +506,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
         );
     }
 
-    // ─── RENDER: ACTIEF / LEERLING EVALUATIE FASE ───
+    // ─── RENDER: ACTIEVE LES FASE ───
     return (
         <div className="flex justify-center">
             <div className="max-w-xl w-full space-y-4">
@@ -528,32 +526,13 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                     <div className="p-5">
                         <div className="flex items-baseline justify-between mb-4">
                             <h2 className="text-2xl font-bold text-slate-900">{sessie.sport}</h2>
-                            <span className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                            <span className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
                                 {sessie.klas ? sessie.klas : (sessie.groep_id ? 'Groep' : 'Alle leerlingen')}
                             </span>
                         </div>
-                        {/* ── TOERNOOI BEHEER (Slim verborgen) ── */}
-                        {(heeftToernooileider || toonToernooiBuilder) ? (
-                            <div className="mb-4 animate-fade-in">
-                                <ToernooiBuilder 
-                                    mode="database" 
-                                    deelnames={deelnames} 
-                                    rolData={ROLLEN.find(r => r.id === 'toernooileider')} 
-                                    onStart={(data) => console.log("Leerkracht start toernooi", data)} 
-                                />
-                            </div>
-                        ) : (
-                            <div className="mb-4">
-                                <button
-                                    onClick={() => setToonToernooiBuilder(true)}
-                                    className="w-full py-3 border-2 border-dashed border-emerald-300 text-emerald-600 font-bold rounded-xl hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm"
-                                >
-                                    <span>🏆</span> Zelf Toernooi Organiseren (Zonder leerling Toernooileider)
-                                </button>
-                            </div>
-                        )}
+
                         {/* Live Deelnames Overzicht */}
-                        <div className="mb-4 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+                        <div className="mb-2 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                             <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                                 <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Deelnames</span>
                                 <span className="text-xs font-medium text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">
@@ -563,63 +542,81 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                             
                             {deelnames.length === 0 ? (
                                 <div className="px-4 py-6 text-sm text-center text-slate-400 italic">
-                                    Nog niemand gekozen.<br/>Leerlingen kunnen nu joinen via de app.
+                                    Nog geen rollen gekozen.<br/>Leerlingen kunnen nu joinen via de app.
                                 </div>
                             ) : (
                                 <ul className="divide-y divide-slate-50">
-                                {deelnames.map(d => (
-                                    <li key={d.id} className="px-4 py-3 flex flex-wrap gap-2 items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-slate-800">{d.echte_naam}</span>
-                                            {d.is_vrijgesteld && (
-                                                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-semibold">🩺</span>
-                                            )}
-                                            {/* LIVE TELLER TIJDENS DE LES */}
-                                            {d.rol === 'coach' && d.observaties_aantal > 0 && (
-                                                <span className="text-[10px] font-bold text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
-                                                    👁️ {d.observaties_aantal}
+                                    {deelnames.map(d => (
+                                        <li key={d.id} className="px-4 py-3 flex flex-wrap gap-2 items-center justify-between transition-colors hover:bg-slate-50">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-bold text-slate-800">{d.echte_naam}</span>
+                                                {d.is_vrijgesteld && <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-semibold">🩺</span>}
+                                                {/* Live observatie teller voor coaches */}
+                                                {d.rol === 'coach' && d.observaties_aantal > 0 && (
+                                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                                                        👁️ {d.observaties_aantal}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                                    {d.rol_naam}
                                                 </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
-                                                {d.rol_naam}
-                                            </span>
-                                            {d.voltooid && (
-                                                <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md flex items-center gap-1">
-                                                    <CheckCircleSolid className="w-3 h-3" /> Reflectie
-                                                </span>
-                                            )}
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
+                                                {d.voltooid && (
+                                                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                        <CheckCircleSolid className="w-3 h-3" /> OK
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
                             )}
                         </div>
 
-                        {/* SLIMME AUTO-DETECTIE: Iedereen klaar? */}
+                        {/* ── TOERNOOI BEHEER (Onder de deelnames geplaatst) ── */}
+                        <div className="my-6 border-t border-slate-200 pt-6">
+                            {(heeftToernooileider || toonToernooiBuilder) ? (
+                                <ToernooiBuilder 
+                                    mode="database" 
+                                    sessie={sessie} 
+                                    profile={profile}
+                                    rolData={ROLLEN.find(r => r.id === 'toernooileider')} 
+                                    onStart={(data) => console.log("Toernooi wordt verzonden...", data)} 
+                                />
+                            ) : (
+                                <button
+                                    onClick={() => setToonToernooiBuilder(true)}
+                                    className="w-full py-3 border-2 border-dashed border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:text-slate-800 transition-colors flex items-center justify-center gap-2 text-sm"
+                                >
+                                    <span>🏆</span> Toernooi schema aanmaken voor de klas
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Knoppen voor statusbeheer onderaan */}
                         {sessie.status === 'evaluatie' && alleReflectiesBinnen ? (
                             <div className="mb-5 p-4 bg-emerald-50 border border-emerald-200 rounded-xl shadow-sm">
-                                <p className="font-bold text-emerald-800 mb-3 flex items-center gap-2 text-sm">
-                                    <span className="text-lg">🎉</span> Alle leerlingen hebben gereflecteerd!
+                                <p className="font-bold text-emerald-800 mb-3 flex items-center gap-2 text-sm text-center justify-center">
+                                    🎉 Alle leerlingen hebben gereflecteerd!
                                 </p>
                                 <button
                                     onClick={() => veranderStatus(false, true)}
                                     disabled={loading}
-                                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 rounded-xl transition-colors shadow-sm"
+                                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md"
                                 >
                                     Start Jouw Evaluatie (Punten & Levels)
                                 </button>
                             </div>
                         ) : sessie.status === 'evaluatie' ? (
                             <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-3 shadow-sm">
-                                <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
-                                    <ClockIcon className="w-5 h-5 flex-shrink-0 animate-pulse" />
+                                <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 justify-center">
+                                    <ClockIcon className="w-4 h-4 animate-pulse" />
                                     Wachten tot leerlingen klaar zijn met reflecteren...
                                 </div>
                                 <button
                                     onClick={() => veranderStatus(false, true)}
-                                    className="text-xs font-bold text-amber-700 hover:text-amber-900 underline self-start transition-colors"
+                                    className="text-[10px] font-black text-amber-700 hover:text-amber-900 underline uppercase tracking-widest transition-colors"
                                 >
                                     Forceer: overslaan en ga nu al naar mijn evaluatie
                                 </button>
@@ -629,7 +626,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                                 <button
                                     onClick={() => veranderStatus(false, false)}
                                     disabled={loading || deelnames.length === 0}
-                                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 px-4 rounded-xl transition-colors text-sm shadow-sm"
+                                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 px-4 rounded-xl transition-colors text-sm shadow-md"
                                 >
                                     Start Leerling Evaluatie
                                 </button>
@@ -645,22 +642,22 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                     </div>
                 </div>
 
-                {/* Afbreek Bevestiging */}
+                {/* Afbreek Bevestiging Dialog */}
                 {toonAfbreekBevestiging && (
-                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 shadow-sm">
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 shadow-sm animate-fade-in">
                         <p className="font-bold text-red-800 mb-1">Sessie afbreken?</p>
-                        <p className="text-sm text-red-700 mb-4">Leerlingen verliezen hun onopgeslagen werk.</p>
+                        <p className="text-xs text-red-700 mb-4">Deelnames worden gestopt en leerlingen worden uit de sessie gehaald.</p>
                         <div className="flex gap-3">
                             <button 
                                 onClick={() => setToonAfbreekBevestiging(false)} 
-                                className="flex-1 py-2.5 text-sm font-bold text-slate-600 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors"
+                                className="flex-1 py-2.5 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors"
                             >
                                 Annuleren
                             </button>
                             <button 
                                 onClick={() => veranderStatus(true)} 
                                 disabled={loading} 
-                                className="flex-1 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl disabled:opacity-50 shadow-sm transition-colors"
+                                className="flex-1 py-2.5 text-xs font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-sm transition-colors"
                             >
                                 Ja, afbreken
                             </button>
@@ -1119,29 +1116,51 @@ function DigitaalKlembord({ rolData, sessie, niveau, content, deelnameId, profil
         </div>
     );
 }
-// ─── DIGITAAL WEDSTRIJDSECRETARIAAT: TEAM BUILDER (Anoniem & Flexibel) ───
-function ToernooiBuilder({ deelnames, rolData, mode = 'manual', onStart }) {
-    const [stap, setStap] = useState('selectie'); // selectie, builder
+// ─── DIGITAAL WEDSTRIJDSECRETARIAAT: TEAM BUILDER ───
+function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart }) {
+    const [stap, setStap] = useState('selectie'); 
+    const [klasLijst, setKlasLijst] = useState([]);
     const [geselecteerdeIds, setGeselecteerdeIds] = useState([]);
+    const [loadingKlas, setLoadingKlas] = useState(mode === 'database');
     const [extraNamen, setExtraNamen] = useState("");
     const [aantalTeams, setAantalTeams] = useState(4);
     const [teams, setTeams] = useState([]);
     const [toernooiType, setToernooiType] = useState('poule');
     const [selectedPlayer, setSelectedPlayer] = useState(null);
 
-    // Initialiseer selectie bij database mode
+    // Haal de echte klaslijst op voor de leerkracht
     useEffect(() => {
-        if (mode === 'database' && deelnames) {
-            setGeselecteerdeIds(deelnames.filter(d => !d.is_vrijgesteld).map(d => d.leerling_uid));
+        if (mode === 'database' && sessie && profile) {
+            const fetchKlas = async () => {
+                try {
+                    let leden = [];
+                    if (sessie.klas) {
+                        const data = await apiPost('get_klas_detail', { klasNaam: sessie.klas, schoolId: profile.school_id }, profile._token);
+                        leden = data.members || [];
+                    } else if (sessie.groep_id) {
+                        const data = await apiPost('get_groep_detail', { groepId: sessie.groep_id, schoolId: profile.school_id }, profile._token);
+                        leden = data.groep?.leden || [];
+                    }
+                    // Filter vrijgestelde leerlingen er standaard uit, en zet de rest in de selectie
+                    const actieveLeden = leden.filter(l => !l.vrijgesteld);
+                    setKlasLijst(actieveLeden);
+                    setGeselecteerdeIds(actieveLeden.map(l => l.id));
+                } catch (e) {
+                    console.error("Kon klas niet laden", e);
+                } finally {
+                    setLoadingKlas(false);
+                }
+            };
+            fetchKlas();
         }
-    }, [mode, deelnames]);
+    }, [mode, sessie, profile]);
 
     const genereerTeams = () => {
         let pool = [];
         if (mode === 'database') {
-            pool = deelnames
-                .filter(d => geselecteerdeIds.includes(d.leerling_uid))
-                .map(d => ({ id: d.leerling_uid, naam: d.echte_naam }));
+            pool = klasLijst
+                .filter(l => geselecteerdeIds.includes(l.id))
+                .map(l => ({ id: l.id, naam: l.naam }));
             
             if (extraNamen.trim()) {
                 extraNamen.split(',').forEach((n, i) => {
@@ -1153,7 +1172,6 @@ function ToernooiBuilder({ deelnames, rolData, mode = 'manual', onStart }) {
             pool = Array.from({ length: 20 }, (_, i) => ({ id: `p_${i}`, naam: `Speler ${i+1}` }));
         }
 
-        // Shuffle
         pool.sort(() => Math.random() - 0.5);
 
         const nieuweTeams = Array.from({ length: aantalTeams }, (_, i) => ({
@@ -1181,47 +1199,65 @@ function ToernooiBuilder({ deelnames, rolData, mode = 'manual', onStart }) {
     };
 
     return (
-        <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm animate-fade-in">
-            <div className={`p-4 text-white font-bold flex justify-between bg-gradient-to-r ${rolData.kleur}`}>
-                <span>🏆 Toernooi Manager</span>
-                <span className="text-xs bg-white/20 px-2 py-1 rounded">{mode === 'database' ? 'Admin Mode' : 'Privacy Mode'}</span>
+        <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm animate-fade-in mt-2">
+            {/* STIJL FIX: Strakke donkere header i.p.v. groen in groen */}
+            <div className={`p-4 text-white font-bold flex justify-between ${mode === 'database' ? 'bg-slate-800' : `bg-gradient-to-r ${rolData.kleur}`}`}>
+                <div className="flex items-center gap-2">
+                    <span className="text-xl">🏆</span>
+                    <span>Toernooi Manager</span>
+                </div>
+                <span className="text-xs bg-white/20 px-2 py-1 rounded border border-white/30">
+                    {mode === 'database' ? 'Leerkracht Setup' : 'Privacy Mode'}
+                </span>
             </div>
 
             {stap === 'selectie' && mode === 'database' && (
                 <div className="p-5 space-y-4">
-                    <p className="text-sm font-bold text-slate-700">Wie doet er mee?</p>
-                    <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
-                        {deelnames.map(d => (
-                            <label key={d.leerling_uid} className={`flex items-center gap-2 p-2 rounded-lg border text-xs transition-colors ${geselecteerdeIds.includes(d.leerling_uid) ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
-                                <input type="checkbox" checked={geselecteerdeIds.includes(d.leerling_uid)} onChange={() => {
-                                    setGeselecteerdeIds(prev => prev.includes(d.leerling_uid) ? prev.filter(id => id !== d.leerling_uid) : [...prev, d.leerling_uid]);
-                                }} />
-                                <span className="truncate">{d.echte_naam}</span>
-                            </label>
-                        ))}
+                    <p className="text-sm font-bold text-slate-700 border-b pb-2">Wie speelt er mee in het toernooi?</p>
+                    
+                    {loadingKlas ? (
+                        <p className="text-sm text-slate-500 animate-pulse">Klaslijst laden...</p>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
+                            {klasLijst.map(l => (
+                                <label key={l.id} className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${geselecteerdeIds.includes(l.id) ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-medium' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>
+                                    <input type="checkbox" checked={geselecteerdeIds.includes(l.id)} onChange={() => {
+                                        setGeselecteerdeIds(prev => prev.includes(l.id) ? prev.filter(id => id !== l.id) : [...prev, l.id]);
+                                    }} className="accent-emerald-600" />
+                                    <span className="truncate">{l.naam}</span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                    
+                    <input type="text" placeholder="Extra spelers? (scheiden met komma, bv. gastleerlingen)" className="w-full text-sm p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-800 outline-none" value={extraNamen} onChange={e => setExtraNamen(e.target.value)} />
+                    
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                        <span className="text-sm font-bold text-slate-700">Aantal Teams: <span className="text-xl ml-2">{aantalTeams}</span></span>
+                        <input type="range" min="2" max="8" value={aantalTeams} onChange={e => setAantalTeams(parseInt(e.target.value))} className="w-1/2 accent-slate-800" />
                     </div>
-                    <input type="text" placeholder="Extra namen? (scheiden met komma)" className="w-full text-sm p-3 border rounded-xl" value={extraNamen} onChange={e => setExtraNamen(e.target.value)} />
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-500">Teams: {aantalTeams}</span>
-                        <input type="range" min="2" max="8" value={aantalTeams} onChange={e => setAantalTeams(parseInt(e.target.value))} className="w-1/2 accent-emerald-500" />
-                    </div>
-                    <button onClick={genereerTeams} className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl">Genereer Teams</button>
+                    <button onClick={genereerTeams} className="w-full py-3.5 mt-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition-colors shadow-md">
+                        Genereer Teams
+                    </button>
                 </div>
             )}
 
             {stap === 'builder' && (
                 <div className="p-4 space-y-4">
+                    <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-xl text-xs font-medium">
+                        💡 Controleer de teams. Tik op speler A en daarna op speler B om ze te wisselen.
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {teams.map((t, tIdx) => (
-                            <div key={t.id} className="border rounded-xl bg-slate-50 overflow-hidden">
-                                <input className="w-full bg-slate-200 p-2 text-xs font-black uppercase text-center" value={t.naam} onChange={e => {
+                            <div key={t.id} className="border rounded-xl bg-slate-50 overflow-hidden shadow-sm">
+                                <input className="w-full bg-slate-200 p-2 text-xs font-black uppercase text-center outline-none focus:bg-slate-300 transition-colors" value={t.naam} onChange={e => {
                                     const nt = [...teams]; nt[tIdx].naam = e.target.value; setTeams(nt);
                                 }} />
                                 <div className="p-2 space-y-1">
                                     {t.spelers.map((s, sIdx) => (
-                                        <div key={s.id} onClick={() => handlePlayerTap(tIdx, sIdx)} className={`p-2 rounded bg-white text-xs border shadow-sm ${selectedPlayer?.tIdx === tIdx && selectedPlayer?.sIdx === sIdx ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200' : 'border-transparent'}`}>
+                                        <div key={s.id} onClick={() => handlePlayerTap(tIdx, sIdx)} className={`p-2 rounded bg-white text-xs border cursor-pointer ${selectedPlayer?.tIdx === tIdx && selectedPlayer?.sIdx === sIdx ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200 font-bold' : 'border-slate-200 hover:border-slate-300'}`}>
                                             {mode === 'database' ? s.naam : (
-                                                <input className="w-full outline-none" value={s.naam} onChange={e => {
+                                                <input className="w-full outline-none bg-transparent" value={s.naam} onChange={e => {
                                                     const nt = [...teams]; nt[tIdx].spelers[sIdx].naam = e.target.value; setTeams(nt);
                                                 }} />
                                             )}
@@ -1231,23 +1267,32 @@ function ToernooiBuilder({ deelnames, rolData, mode = 'manual', onStart }) {
                             </div>
                         ))}
                     </div>
-                    <select className="w-full p-3 border rounded-xl text-sm" value={toernooiType} onChange={e => setToernooiType(e.target.value)}>
-                        <option value="poule">Poule (Klassiek)</option>
-                        <option value="knockout">Knock-out (Bracket)</option>
-                        <option value="king">Koning van het Veld</option>
-                    </select>
-                    <button onClick={() => onStart({ teams, type: toernooiType })} className={`w-full py-4 text-white font-black rounded-xl bg-gradient-to-r ${rolData.kleur}`}>Start Toernooi</button>
+                    
+                    <div className="pt-4 border-t border-slate-100">
+                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Kies Toernooivorm</label>
+                        <select className="w-full p-3 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-slate-800 outline-none" value={toernooiType} onChange={e => setToernooiType(e.target.value)}>
+                            <option value="poule">Poule (Iedereen speelt tegen elkaar)</option>
+                            <option value="knockout">Knock-out (Met verliezersronde)</option>
+                            <option value="king">Koning van het Veld (Doorschuiven)</option>
+                        </select>
+                        
+                        <div className="flex gap-3 mt-4">
+                            <button onClick={() => setStap('selectie')} className="px-4 py-3 text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Terug</button>
+                            <button onClick={() => onStart({ teams, type: toernooiType })} className={`flex-1 py-3 text-white font-black rounded-xl shadow-md ${mode === 'database' ? 'bg-slate-800 hover:bg-slate-900' : `bg-gradient-to-r ${rolData.kleur}`}`}>Start Toernooi</button>
+                        </div>
+                    </div>
                 </div>
             )}
             
-            {/* Manual mode start scherm (voor leerling) */}
+            {/* Manual mode start scherm (voor leerling Level 2/3) */}
             {stap === 'selectie' && mode === 'manual' && (
-                <div className="p-5 space-y-4 text-center">
-                    <p className="text-sm text-slate-500">Stel je toernooi handmatig in.</p>
-                    <div className="flex flex-col gap-4">
-                        <input type="number" placeholder="Aantal spelers" className="p-3 border rounded-xl" onChange={e => setAantalTeams(Math.ceil(parseInt(e.target.value)/4))} />
-                        <button onClick={genereerTeams} className="w-full py-4 bg-slate-800 text-white font-bold rounded-xl shadow-lg">Start Bouwen</button>
+                <div className="p-6 space-y-6 text-center">
+                    <p className="text-sm text-slate-600">Stel je toernooi handmatig in. Je moet straks zelf de voornamen van de spelers intypen.</p>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Aantal Spelers Totaal</label>
+                        <input type="number" min="4" placeholder="Bv. 20" className="w-full p-3 border rounded-xl text-center text-lg font-bold" onChange={e => setAantalTeams(Math.max(2, Math.ceil(parseInt(e.target.value)/4)))} />
                     </div>
+                    <button onClick={genereerTeams} className={`w-full py-4 text-white font-bold rounded-xl shadow-md bg-gradient-to-r ${rolData.kleur}`}>Start Bouwen</button>
                 </div>
             )}
         </div>
