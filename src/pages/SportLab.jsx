@@ -594,73 +594,82 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                             )}
                         </div>
 
-                        {/* Knoppen voor statusbeheer onderaan */}
-                        {sessie.status === 'evaluatie' && alleReflectiesBinnen ? (
-                            <div className="mb-5 p-4 bg-emerald-50 border border-emerald-200 rounded-xl shadow-sm">
-                                <p className="font-bold text-emerald-800 mb-3 flex items-center gap-2 text-sm text-center justify-center">
-                                    🎉 Alle leerlingen hebben gereflecteerd!
-                                </p>
-                                <button
-                                    onClick={() => veranderStatus(false, true)}
-                                    disabled={loading}
-                                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md"
-                                >
-                                    Start Jouw Evaluatie (Punten & Levels)
-                                </button>
-                            </div>
-                        ) : sessie.status === 'evaluatie' ? (
-                            <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-3 shadow-sm">
-                                <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 justify-center">
-                                    <ClockIcon className="w-4 h-4 animate-pulse" />
-                                    Wachten tot leerlingen klaar zijn met reflecteren...
+                        {/* ── AFGESCHEIDEN BEDIENINGS-PANEEL ONDERAAN ── */}
+                        <div className="mt-8 pt-6 border-t-4 border-slate-100/80 bg-slate-50/50 -mx-5 px-5 pb-5 mb-[-20px] rounded-b-2xl">
+                            {sessie.status === 'evaluatie' && alleReflectiesBinnen ? (
+                                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl shadow-sm">
+                                    <p className="font-bold text-emerald-800 mb-3 flex items-center gap-2 text-sm text-center justify-center">
+                                        🎉 Alle leerlingen hebben gereflecteerd!
+                                    </p>
+                                    <button
+                                        onClick={() => veranderStatus(false, true)}
+                                        disabled={loading}
+                                        className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md"
+                                    >
+                                        Start Jouw Evaluatie (Punten & Levels)
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={() => veranderStatus(false, true)}
-                                    className="text-[10px] font-black text-amber-700 hover:text-amber-900 underline uppercase tracking-widest transition-colors"
-                                >
-                                    Forceer: overslaan en ga nu al naar mijn evaluatie
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => veranderStatus(false, false)}
-                                    disabled={loading || deelnames.length === 0}
-                                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 px-4 rounded-xl transition-colors text-sm shadow-md"
-                                >
-                                    Start Leerling Evaluatie
-                                </button>
-                                <button
-                                    onClick={() => setToonAfbreekBevestiging(true)}
-                                    disabled={loading}
-                                    className="px-5 py-3.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors text-sm font-bold border border-slate-200"
-                                >
-                                    Afbreken
-                                </button>
-                            </div>
-                        )}
+                            ) : sessie.status === 'evaluatie' ? (
+                                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-3 shadow-sm">
+                                    <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 justify-center">
+                                        <ClockIcon className="w-4 h-4 animate-pulse" />
+                                        Wachten tot leerlingen klaar zijn met reflecteren...
+                                    </div>
+                                    <button
+                                        onClick={() => veranderStatus(false, true)}
+                                        className="text-[10px] font-black text-amber-700 hover:text-amber-900 underline uppercase tracking-widest transition-colors text-center"
+                                    >
+                                        Forceer: overslaan en ga nu al naar mijn evaluatie
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => veranderStatus(false, false)}
+                                        disabled={loading || deelnames.length === 0}
+                                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 px-4 rounded-xl transition-colors text-sm shadow-md"
+                                    >
+                                        Start Leerling Evaluatie
+                                    </button>
+                                    <button
+                                        onClick={() => setToonAfbreekBevestiging(true)}
+                                        disabled={loading}
+                                        className="px-5 py-3.5 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-xl transition-colors text-sm font-bold border border-slate-200 bg-white shadow-sm"
+                                    >
+                                        Afbreken
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Afbreek Bevestiging Dialog */}
+                {/* ── ECHTE POP-UP MODAL VOOR AFBREEK BEVESTIGING ── */}
                 {toonAfbreekBevestiging && (
-                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 shadow-sm animate-fade-in">
-                        <p className="font-bold text-red-800 mb-1">Sessie afbreken?</p>
-                        <p className="text-xs text-red-700 mb-4">Deelnames worden gestopt en leerlingen worden uit de sessie gehaald.</p>
-                        <div className="flex gap-3">
-                            <button 
-                                onClick={() => setToonAfbreekBevestiging(false)} 
-                                className="flex-1 py-2.5 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors"
-                            >
-                                Annuleren
-                            </button>
-                            <button 
-                                onClick={() => veranderStatus(true)} 
-                                disabled={loading} 
-                                className="flex-1 py-2.5 text-xs font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-sm transition-colors"
-                            >
-                                Ja, afbreken
-                            </button>
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+                        <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-auto transform scale-100">
+                            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4 mx-auto border-4 border-white shadow-sm">
+                                <span className="text-3xl">⚠️</span>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-800 text-center mb-2">Sessie afbreken?</h3>
+                            <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed">
+                                Let op: leerlingen verliezen hun onopgeslagen werk en worden uit de sessie gehaald.
+                            </p>
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setToonAfbreekBevestiging(false)} 
+                                    className="flex-1 py-3 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                                >
+                                    Annuleren
+                                </button>
+                                <button 
+                                    onClick={() => veranderStatus(true)} 
+                                    disabled={loading} 
+                                    className="flex-1 py-3 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-sm transition-colors"
+                                >
+                                    Ja, afbreken
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1123,13 +1132,12 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
     const [geselecteerdeIds, setGeselecteerdeIds] = useState([]);
     const [loadingKlas, setLoadingKlas] = useState(mode === 'database');
     const [extraNamen, setExtraNamen] = useState("");
-    const [aantalTeams, setAantalTeams] = useState(4);
-    const [aantalSpelersFallback, setAantalSpelersFallback] = useState(20);
+    const [aantalTeams, setAantalTeams] = useState(3);
+    const [aantalSpelersFallback, setAantalSpelersFallback] = useState(20); // Enkel nog voor leerling-mode
     const [teams, setTeams] = useState([]);
     const [toernooiType, setToernooiType] = useState('poule');
     const [selectedPlayer, setSelectedPlayer] = useState(null);
 
-    // Haal de echte klaslijst op voor de leerkracht
     useEffect(() => {
         if (mode === 'database' && sessie && profile) {
             const fetchKlas = async () => {
@@ -1142,7 +1150,6 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
                         const data = await apiPost('get_groep_detail', { groepId: sessie.groep_id, schoolId: profile.school_id }, profile._token);
                         leden = data.groep?.leden || [];
                     }
-                    
                     const actieveLeden = leden.filter(l => !l.vrijgesteld);
                     setKlasLijst(actieveLeden);
                     setGeselecteerdeIds(actieveLeden.map(l => l.id));
@@ -1159,38 +1166,30 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
     const genereerTeams = () => {
         let pool = [];
         if (mode === 'database') {
-            // Voeg de aangevinkte leerlingen uit de database toe
             pool = klasLijst
                 .filter(l => geselecteerdeIds.includes(l.id))
                 .map(l => ({ id: l.id, naam: l.naam }));
             
-            // Als er geen klas is én er is niks ingevuld, gebruik de anonieme slider fallback
-            if (klasLijst.length === 0 && !sessie.klas && !sessie.groep_id) {
-                pool = Array.from({ length: aantalSpelersFallback }, (_, i) => ({ id: `anon_${i}`, naam: `Speler ${i+1}` }));
-            }
-            
-            // Voeg ALTIJD de handmatig getypte extra namen toe
             if (extraNamen.trim()) {
                 extraNamen.split(',').forEach((n, i) => {
                     if (n.trim()) pool.push({ id: `extra_${i}`, naam: n.trim() });
                 });
             }
+
+            if (pool.length === 0) {
+                toast.error("Voeg ten minste een paar spelers toe.");
+                return;
+            }
         } else {
-            // Manual mode (Level 2/3 leerling): vult later zelf namen in
+            // Manual mode (Level 2/3 leerling): genereert wel anonieme spelers via slider
             pool = Array.from({ length: aantalSpelersFallback }, (_, i) => ({ id: `p_${i}`, naam: `Speler ${i+1}` }));
         }
 
-        // Hussel de spelers
         pool.sort(() => Math.random() - 0.5);
-
-        // Maak de lege teams aan
         const nieuweTeams = Array.from({ length: aantalTeams }, (_, i) => ({
-            id: `t_${i}`,
-            naam: `Team ${String.fromCharCode(65 + i)}`,
-            spelers: []
+            id: `t_${i}`, naam: `Team ${String.fromCharCode(65 + i)}`, spelers: []
         }));
 
-        // Verdeel spelers over de teams
         pool.forEach((s, i) => nieuweTeams[i % aantalTeams].spelers.push(s));
         setTeams(nieuweTeams);
         setStap('builder');
@@ -1209,7 +1208,6 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
         }
     };
 
-    // Bepaal de container styling (Leerkracht = Plat & naadloos, Leerling = Apart kader)
     const containerClasses = mode === 'database' 
         ? "animate-fade-in text-slate-800" 
         : "bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm animate-fade-in";
@@ -1217,42 +1215,29 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
     return (
         <div className={containerClasses}>
             
-            {/* Header voor Leerling-weergave */}
             {mode === 'manual' && (
                 <div className={`p-4 font-bold flex justify-between items-center bg-gradient-to-r ${rolData.kleur} text-white`}>
                     <div className="flex items-center gap-2">
-                        <span className="text-xl">🏆</span>
-                        <span>Toernooi Manager</span>
+                        <span className="text-xl">🏆</span><span>Toernooi Manager</span>
                     </div>
-                    <span className="text-[10px] px-2 py-1 rounded border border-white/30 font-bold uppercase tracking-wider bg-white/20">
-                        Privacy Mode
-                    </span>
+                    <span className="text-[10px] px-2 py-1 rounded border border-white/30 font-bold uppercase tracking-wider bg-white/20">Privacy Mode</span>
                 </div>
             )}
 
-            {/* Header voor Leerkracht-weergave (Naadloos) */}
             {mode === 'database' && (
                 <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">🏆</span>
-                    <h3 className="text-lg font-bold text-slate-800">Toernooi Indeling</h3>
+                    <span className="text-2xl">🏆</span><h3 className="text-lg font-bold text-slate-800">Toernooi Indeling</h3>
                 </div>
             )}
 
             {stap === 'selectie' && mode === 'database' && (
                 <div className="space-y-5">
-                    
-                    {/* KLASLIJST OF MELDING */}
                     <div>
                         {sessie.klas || sessie.groep_id ? (
                             <>
-                                <p className="text-sm font-medium text-slate-600 mb-3">
-                                    Aanwezigen uit <strong>{sessie.klas || 'de groep'}</strong>:
-                                </p>
-                                
+                                <p className="text-sm font-medium text-slate-600 mb-3">Aanwezigen uit <strong>{sessie.klas || 'de groep'}</strong>:</p>
                                 {loadingKlas ? (
-                                    <div className="p-4 bg-slate-50 rounded-xl text-sm text-slate-500 animate-pulse border border-slate-100">
-                                        Klaslijst ophalen...
-                                    </div>
+                                    <div className="p-4 bg-slate-50 rounded-xl text-sm text-slate-500 animate-pulse border border-slate-100">Klaslijst ophalen...</div>
                                 ) : klasLijst.length > 0 ? (
                                     <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto">
                                         {klasLijst.map(l => (
@@ -1266,50 +1251,34 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
                                     </div>
                                 ) : (
                                     <div className="p-4 bg-amber-50 text-amber-800 rounded-xl text-sm border border-amber-200">
-                                        Geen leerlingen gevonden in de database. Vul hun namen hieronder handmatig in.
+                                        Geen leerlingen gevonden in deze klas. Vul hun namen hieronder handmatig in.
                                     </div>
                                 )}
                             </>
-                        ) : (
-                            <div className="p-4 bg-slate-50 rounded-xl text-sm text-slate-600 border border-slate-200">
-                                <p className="font-bold mb-1">Geen specifieke klas geselecteerd.</p>
-                                <p>Kies met de slider het aantal spelers dat meedoet.</p>
-                            </div>
-                        )}
+                        ) : null}
                     </div>
                     
-                    {/* EXTRA SPELERS & SLIDERS */}
-                    <div className="space-y-4 pt-4 border-t border-slate-100">
-                        {/* Fallback slider (enkel als er geen klas is, of klas leeg is) */}
-                        {(!sessie.klas && !sessie.groep_id) || klasLijst.length === 0 ? (
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Aantal anonieme spelers</label>
-                                <div className="flex items-center gap-4 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                    <input type="range" min="4" max="40" value={aantalSpelersFallback} onChange={e => setAantalSpelersFallback(parseInt(e.target.value))} className="flex-1 accent-emerald-500" />
-                                    <span className="font-black text-xl text-slate-800 w-8 text-center">{aantalSpelersFallback}</span>
-                                </div>
-                            </div>
-                        ) : null}
-
+                    <div className="space-y-4 pt-2 border-t border-slate-100">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Voeg extra spelers toe</label>
-                            <input type="text" placeholder="Bv. Kobe, Lars (scheiden met komma)" className="w-full text-sm p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50 focus:bg-white transition-colors" value={extraNamen} onChange={e => setExtraNamen(e.target.value)} />
+                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                                {sessie.klas ? 'Voeg extra spelers toe' : 'Vul hier de spelers in'}
+                            </label>
+                            <input type="text" placeholder="Bv. Kobe, Lars, Frits (scheiden met komma)" className="w-full text-sm p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50 focus:bg-white transition-colors" value={extraNamen} onChange={e => setExtraNamen(e.target.value)} />
                         </div>
                     </div>
                     
-                    {/* TEAM KEUZE & START */}
                     <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                         <span className="text-sm font-bold text-slate-700">Aantal Teams: <span className="text-xl ml-2 text-emerald-600">{aantalTeams}</span></span>
                         <input type="range" min="2" max="10" value={aantalTeams} onChange={e => setAantalTeams(parseInt(e.target.value))} className="w-1/2 accent-emerald-600" />
                     </div>
 
-                    <button onClick={genereerTeams} className="w-full py-3.5 mt-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition-colors shadow-md">
+                    {/* VERNIEUWDE ZACHTE KNOP */}
+                    <button onClick={genereerTeams} className="w-full py-3.5 mt-2 bg-white border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-bold rounded-xl transition-colors shadow-sm">
                         Verdeel in teams
                     </button>
                 </div>
             )}
 
-            {/* FASE 2: BUILDER SCHERM */}
             {stap === 'builder' && (
                 <div className={`space-y-4 ${mode === 'manual' ? 'p-4 bg-slate-50' : ''}`}>
                     <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-xl text-xs font-medium">
@@ -1346,13 +1315,13 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
                         
                         <div className="flex gap-3 mt-4">
                             <button onClick={() => setStap('selectie')} className="px-4 py-3 text-sm font-bold text-slate-500 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-colors shadow-sm">Terug</button>
-                            <button onClick={() => onStart({ teams, type: toernooiType })} className={`flex-1 py-3 text-white font-black rounded-xl shadow-md transition-transform active:scale-95 ${mode === 'database' ? 'bg-emerald-600 hover:bg-emerald-700' : `bg-gradient-to-r ${rolData.kleur}`}`}>Start Toernooi</button>
+                            {/* VERNIEUWDE START KNOP (Groen) */}
+                            <button onClick={() => onStart({ teams, type: toernooiType })} className={`flex-1 py-3 text-white font-black rounded-xl shadow-md transition-transform active:scale-95 ${mode === 'database' ? 'bg-emerald-500 hover:bg-emerald-600' : `bg-gradient-to-r ${rolData.kleur}`}`}>Start Toernooi</button>
                         </div>
                     </div>
                 </div>
             )}
             
-            {/* FASE 1 VOOR LEERLING: START SCHERM (Enkel in manual mode) */}
             {stap === 'selectie' && mode === 'manual' && (
                 <div className="p-6 space-y-6 text-center">
                     <p className="text-sm text-slate-600">Stel je toernooi handmatig in. Je moet straks zelf de voornamen van de spelers intypen.</p>
