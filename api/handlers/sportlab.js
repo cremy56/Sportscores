@@ -333,6 +333,19 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                     }));
             }
 
+            // --- NIEUW: Zoek ook voor de leerkracht of er een actief toernooi is ---
+            const toernooiSnap = await db.collection('sport_lab_toernooien')
+                .where('sessie_id', '==', d.id)
+                .where('status', '==', 'actief')
+                .limit(1)
+                .get();
+
+            const actiefToernooi = toernooiSnap.empty ? null : {
+                id: toernooiSnap.docs[0].id,
+                ...toernooiSnap.docs[0].data()
+            };
+            // ----------------------------------------------------------------------
+
             return {
                 id: sessieData.id,
                 sport: sessieData.sport,
@@ -343,6 +356,7 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                 gesloten_op: sessieData.gesloten_op?.toDate?.()?.toISOString() || null,
                 deelnames,
                 vrijgestelde_leerlingen: vrijgesteldeLeerlingen,
+                toernooi: actiefToernooi // <--- FIX: Geef toernooi mee aan de leerkracht!
             };
         }));
 
