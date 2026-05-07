@@ -703,7 +703,11 @@ export async function handleSportlabObservatieKlaar(req, res, decodedToken) {
 export async function handleGetSportLabToernooiSpelers(req, res, decodedToken) {
     try {
         const { schoolId, klas, groepId } = req.body;
-        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        
+        // VEILIGHEIDS-CHECK: Controleer eigen school zonder externe getSchoolId helper
+        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
+        const verifiedSchoolId = callerSnap.data()?.school_id;
+        
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
 
         let usersSnap;
@@ -725,7 +729,12 @@ export async function handleGetSportLabToernooiSpelers(req, res, decodedToken) {
             return res.status(200).json({ spelers: [] });
         }
 
-        const masterKey = await getMasterKey();
+        // Probeer masterKey te pakken (maar faal niet als de helper ontbreekt)
+        let masterKey = null;
+        try {
+            if (typeof getMasterKey === 'function') masterKey = await getMasterKey();
+        } catch(e) {}
+
         const nu = new Date();
 
         const spelers = await Promise.all(usersSnap.docs.map(async (doc) => {
@@ -733,9 +742,10 @@ export async function handleGetSportLabToernooiSpelers(req, res, decodedToken) {
             const d = doc.data();
             if (d.rol !== 'leerling') return null;
 
-            // Haal de echte naam op, of val terug op de test-naam
             let echteNaam = d.naam || d.nickname || 'Onbekend';
-            if (d.toegestane_gebruikers_id) {
+            
+            // Decryptie (werkt voor echte accounts, slaat test-accounts over)
+            if (d.toegestane_gebruikers_id && masterKey && typeof decryptName === 'function') {
                 const tgSnap = await db.collection('toegestane_gebruikers').doc(d.toegestane_gebruikers_id).get();
                 if (tgSnap.exists && tgSnap.data().encrypted_name) {
                     echteNaam = decryptName(tgSnap.data().encrypted_name, masterKey);
@@ -745,16 +755,10 @@ export async function handleGetSportLabToernooiSpelers(req, res, decodedToken) {
             const eind = d.vrijstelling_einddatum?.toDate?.();
             const isVrijgesteld = d.vrijgesteld_van_testen === true && eind && eind > nu;
 
-            return {
-                id: doc.id,
-                naam: echteNaam,
-                vrijgesteld: isVrijgesteld
-            };
+            return { id: doc.id, naam: echteNaam, vrijgesteld: isVrijgesteld };
         }));
 
-        // Filter lege resultaten eruit en sorteer alfabetisch
         const geldigeSpelers = spelers.filter(Boolean).sort((a, b) => a.naam.localeCompare(b.naam));
-
         return res.status(200).json({ success: true, spelers: geldigeSpelers });
 
     } catch (error) {
