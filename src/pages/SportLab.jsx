@@ -577,12 +577,16 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
 
                         {/* ── TOERNOOI BEHEER (Onder de deelnames geplaatst) ── */}
                         <div className="my-6 border-t border-slate-200 pt-6">
-                            {(heeftToernooileider || toonToernooiBuilder) ? (
-                               <ToernooiBuilder 
-                                    mode="database" 
-                                    sessie={sessie} 
-                                    profile={profile}
+                            {sessie.toernooi ? (
+                                <ToernooiDashboard 
+                                    toernooi={sessie.toernooi} 
                                     rolData={ROLLEN.find(r => r.id === 'toernooileider')} 
+                                    isLeerkracht={true}
+                                />
+                            ) : (heeftToernooileider || toonToernooiBuilder) ? (
+                                <ToernooiBuilder 
+                                    mode="database" sessie={sessie} profile={profile}
+                                    rolData={ROLLEN.find(r => r.id === 'toernooileider')}
                                     onStart={async (toernooiData) => {
                                         try {
                                             const toastId = toast.loading('Schema berekenen...');
@@ -1355,6 +1359,40 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
     );
 }
 
+// ─── DIGITAAL WEDSTRIJDSECRETARIAAT: HET DASHBOARD (Fase 3) ──────────────────
+function ToernooiDashboard({ toernooi, rolData, isLeerkracht }) {
+    if (!toernooi || !toernooi.wedstrijden) return null;
+
+    return (
+        <div className="animate-fade-in space-y-4">
+            <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <span>🏟️</span> Wedstrijdschema ({toernooi.type})
+                </h3>
+                <span className="text-[10px] font-black px-2 py-1 bg-emerald-100 text-emerald-700 rounded-lg uppercase">Live</span>
+            </div>
+
+            <div className="space-y-3">
+                {toernooi.wedstrijden.map((match) => (
+                    <div key={match.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
+                        <div className="flex-1 text-right pr-4 font-bold text-slate-700 text-sm">{match.team1.naam}</div>
+                        <div className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-400">VS</div>
+                        <div className="flex-1 text-left pl-4 font-bold text-slate-700 text-sm">{match.team2.naam}</div>
+                        
+                        {/* Straks voegen we hier de score-knoppen toe voor de toernooileider! */}
+                    </div>
+                ))}
+            </div>
+            
+            {isLeerkracht && (
+                <button className="w-full py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100">
+                    Toernooi Beëindigen / Resetten
+                </button>
+            )}
+        </div>
+    );
+}
+
 // ─── LEERLING: ACTIEVE ROL VIEW ───────────────────────────────────────────────
 function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteerd, onTerug }) {
     const rolData = ROLLEN.find(r => r.id === rol) || ROLLEN[0];
@@ -1421,7 +1459,6 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
 
     const getSpelregels = () => {
         const niveauKey = `level${niveau}`;
-        // Niveau-specifieke spelregels — valt terug op level1 als niet beschikbaar
         return rolContent?.[rol]?.[niveauKey]?.spelregels
             || rolContent?.[rol]?.level1?.spelregels
             || [];
@@ -1455,7 +1492,7 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                 Terug naar overzicht
             </button>
 
-            {/* ROL HEADER — gradient banner */}
+            {/* ROL HEADER */}
             <div className={`bg-gradient-to-r ${rolData.kleur} rounded-2xl p-4 mb-5 text-white shadow-sm mt-4`}>
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
@@ -1481,19 +1518,27 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                             sessie={sessie} 
                             niveau={niveau} 
                             content={rolContent?.coach?.[`level${niveau}`]} 
-                            deelnameId={deelname?.id} // NIEUW
+                            deelnameId={deelname?.id}
                             profile={profile}
                         />
                     )}
 
-                    {/* ── DIGITAAL SCOREBORD (Enkel voor de Arbiter) ── */}
+                    {/* ── DIGITAAL SCOREBORD (Arbiter) ── */}
                     {rol === 'arbiter' && (
                         <Scorebord rolData={rolData} sessieId={sessie.id} />
                     )}
-                    {/* ── DIGITAAL WEDSTRIJDSECRETARIAAT (Voor de Toernooileider) ── */}
+
+                    {/* ── DIGITAAL WEDSTRIJDSECRETARIAAT (Toernooileider) ── */}
                     {rol === 'toernooileider' && (
                         <>
-                            {niveau === 1 ? (
+                            {sessie.toernooi ? (
+                                /* Als er een toernooi is: toon dashboard voor alle niveaus */
+                                <ToernooiDashboard 
+                                    toernooi={sessie.toernooi} 
+                                    rolData={rolData} 
+                                    isLeerkracht={false} 
+                                />
+                            ) : niveau === 1 ? (
                                 /* LEVEL 1: Wacht op de leerkracht */
                                 <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm mb-4">
                                     <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1508,10 +1553,8 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                             ) : (
                                 /* LEVEL 2 & 3: Mogen zelf bouwen (Privacy Mode) */
                                 <ToernooiBuilder 
-                                    mode="database" 
-                                    sessie={sessie} 
-                                    profile={profile}
-                                    rolData={ROLLEN.find(r => r.id === 'toernooileider')} 
+                                    mode="manual"
+                                    rolData={rolData}
                                     onStart={async (toernooiData) => {
                                         try {
                                             const toastId = toast.loading('Schema berekenen...');
@@ -1522,17 +1565,16 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                                                 type: toernooiData.type
                                             }, profile._token);
                                             toast.success('Toernooi gestart!', { id: toastId });
-                                            // Hier triggeren we later Fase 3 (Het Dashboard tonen)
                                         } catch(e) {
                                             toast.error('Fout bij starten: ' + e.message);
                                         }
-                                    }} 
+                                    }}
                                 />
                             )}
                         </>
                     )}
 
-                    {/* ── TAKEN MET CHECKBOXES + VOORTGANGSBALK (Niet voor de coach) ── */}
+                    {/* ── TAKENLIJST (Niet voor de coach) ── */}
                     {rol !== 'coach' && (
                         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-4">
                             <div className="px-5 pt-5 pb-3">
@@ -1542,7 +1584,6 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                                         {aantalAfgevinkt}/{taken.length}
                                     </span>
                                 </div>
-                                {/* Voortgangsbalk */}
                                 <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
                                     <div
                                         className={`h-2 rounded-full transition-all duration-500 bg-gradient-to-r ${rolData.kleur}`}
@@ -1568,37 +1609,26 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                                                     ? `border-transparent bg-gradient-to-r ${rolData.kleur}`
                                                     : 'border-slate-300'
                                             }`}>
-                                                {afgevinkt[i] && (
-                                                    <CheckCircleSolid className="w-3 h-3 text-white" />
-                                                )}
+                                                {afgevinkt[i] && <CheckCircleSolid className="w-3 h-3 text-white" />}
                                             </div>
-                                            <span className={`text-sm leading-relaxed ${
-                                                afgevinkt[i] ? 'text-slate-400 line-through' : 'text-slate-700'
-                                            }`}>
+                                            <span className={`text-sm leading-relaxed ${afgevinkt[i] ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                                                 {taak}
                                             </span>
                                         </button>
                                     ))}
                                 </div>
                             )}
-
-                            {voortgang === 100 && (
-                                <div className={`mx-5 mb-5 mt-2 p-3 rounded-xl bg-gradient-to-r ${rolData.kleur} text-white text-center text-sm font-semibold`}>
-                                    Alle taken gedaan! 🎉
-                                </div>
-                            )}
                         </div>
                     )}
 
-                    {/* ── SPELREGEL FLASHCARDS (arbiter alle niveaus) ── */}
+                    {/* ── SPELREGEL FLASHCARDS (Arbiter) ── */}
                     {rol === 'arbiter' && spelregels.length > 0 && (
-                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-4">
+                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-4 shadow-sm">
                             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                                 <h3 className="font-bold text-slate-800 text-sm">Spelregels {sessie.sport}</h3>
                                 <span className="text-xs text-slate-400">{regelIndex + 1} / {spelregels.length}</span>
                             </div>
                             <div className="p-5">
-                                {/* Flashcard */}
                                 <div className={`${rolData.bg} ${rolData.border} border rounded-xl p-5 min-h-[80px] flex items-center mb-4`}>
                                     <div className="flex items-start gap-3">
                                         <span className={`text-2xl font-black ${rolData.tekst} flex-shrink-0 leading-none`}>
@@ -1609,7 +1639,6 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                                         </p>
                                     </div>
                                 </div>
-                                {/* Navigatie */}
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => setRegelIndex(i => Math.max(0, i - 1))}
@@ -1625,64 +1654,6 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                                     >
                                         Volgende →
                                     </button>
-                                </div>
-                                {/* Puntjes indicator */}
-                                <div className="flex justify-center gap-1.5 mt-3">
-                                    {spelregels.map((_, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => setRegelIndex(i)}
-                                            className={`w-2 h-2 rounded-full transition-all ${
-                                                i === regelIndex ? `bg-gradient-to-r ${rolData.kleur} w-4` : 'bg-slate-200'
-                                            }`}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* ── SCENARIO KAARTEN (arbiter L2 & L3) ── */}
-                    {rol === 'arbiter' && niveau >= 2 && beslissingen.length > 0 && (
-                        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-4">
-                            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                                <h3 className="font-bold text-slate-800 text-sm">
-                                    {niveau === 2 ? 'Typische situaties — Level 2' : "Complexe scenario's — Level 3"}
-                                </h3>
-                                <span className="text-xs text-slate-400">{beslissingIndex + 1} / {beslissingen.length}</span>
-                            </div>
-                            <div className="p-5">
-                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 min-h-[80px] flex items-center mb-4">
-                                    <p className="text-sm leading-relaxed text-slate-700 font-medium">
-                                        {beslissingen[beslissingIndex]}
-                                    </p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setBeslissingIndex(i => Math.max(0, i - 1))}
-                                        disabled={beslissingIndex === 0}
-                                        className="flex-1 py-2 text-sm font-medium border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-colors"
-                                    >
-                                        ← Vorige
-                                    </button>
-                                    <button
-                                        onClick={() => setBeslissingIndex(i => Math.min(beslissingen.length - 1, i + 1))}
-                                        disabled={beslissingIndex === beslissingen.length - 1}
-                                        className={`flex-1 py-2 text-sm font-medium rounded-xl text-white disabled:opacity-30 transition-colors bg-gradient-to-r ${rolData.kleur}`}
-                                    >
-                                        Volgende →
-                                    </button>
-                                </div>
-                                <div className="flex justify-center gap-1.5 mt-3">
-                                    {beslissingen.map((_, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => setBeslissingIndex(i)}
-                                            className={`w-2 h-2 rounded-full transition-all ${
-                                                i === beslissingIndex ? `bg-gradient-to-r ${rolData.kleur} w-4` : 'bg-slate-200'
-                                            }`}
-                                        />
-                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -1702,7 +1673,7 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
             )}
 
             {deelname?.voltooid && (
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center animate-fade-in">
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center animate-fade-in mb-4">
                     <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
                     <p className="font-bold text-green-800 text-lg">Goed gedaan!</p>
                     <p className="text-sm text-green-600 mt-1">Je reflectie is ingediend en XP is bijgeschreven.</p>

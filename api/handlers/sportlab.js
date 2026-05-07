@@ -209,6 +209,19 @@ export async function handleGetActieveSportLabSessie(req, res, decodedToken) {
             ...deelnameSnap.docs[0].data()
         };
 
+        // --- NIEUW: Zoek of er een actief toernooi is voor deze sessie ---
+        const toernooiSnap = await db.collection('sport_lab_toernooien')
+            .where('sessie_id', '==', sessieData.id)
+            .where('status', '==', 'actief')
+            .limit(1)
+            .get();
+
+        const actiefToernooi = toernooiSnap.empty ? null : {
+            id: toernooiSnap.docs[0].id,
+            ...toernooiSnap.docs[0].data()
+        };
+        // ----------------------------------------------------------------
+
         return res.status(200).json({
             success: true,
             sessie: {
@@ -218,6 +231,7 @@ export async function handleGetActieveSportLabSessie(req, res, decodedToken) {
                 status: sessieData.status,
                 start_tijd: sessieData.start_tijd?.toDate?.()?.toISOString() || null,
                 evaluatie_start: sessieData.evaluatie_start?.toDate?.()?.toISOString() || null,
+                toernooi: actiefToernooi // <--- Geef het toernooi mee aan de app
             },
             eigen_deelname: eigenDeelname,
         });
