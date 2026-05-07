@@ -698,46 +698,67 @@ export async function handleSportlabObservatieKlaar(req, res, decodedToken) {
         return res.status(500).json({ error: 'Fout bij updaten observatie teller' });
     }
 }
-// ─── TIJDELIJK SCRIPT: 10 TEST-LEERLINGEN TOEVOEGEN ──────────────────────────
-export async function handleMaakTestLeerlingenAan(req, res, decodedToken) {
+
+// ─── 11. HAAL ALLE SPELERS OP VOOR TOERNOOI (Inclusief test-leerlingen) ──────
+export async function handleGetSportLabToernooiSpelers(req, res, decodedToken) {
     try {
-        // Enkel leerkrachten mogen dit script uitvoeren
-        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
-        if (!['leerkracht', 'administrator', 'super-administrator'].includes(callerSnap.data()?.rol)) {
-            return res.status(403).json({ error: 'Niet toegestaan' });
+        const { schoolId, klas, groepId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        let usersSnap;
+        if (klas) {
+            usersSnap = await db.collection('users')
+                .where('school_id', '==', verifiedSchoolId)
+                .where('klas', '==', klas)
+                .where('rol', '==', 'leerling')
+                .get();
+        } else if (groepId) {
+            const groepSnap = await db.collection('groepen').doc(groepId).get();
+            if (!groepSnap.exists) return res.status(200).json({ spelers: [] });
+            const leerlingIds = groepSnap.data().leerling_ids || [];
+            
+            if (leerlingIds.length === 0) return res.status(200).json({ spelers: [] });
+            const docRefs = leerlingIds.map(id => db.collection('users').doc(id));
+            usersSnap = { docs: await db.getAll(...docRefs) };
+        } else {
+            return res.status(200).json({ spelers: [] });
         }
 
-        const testNamen = ["Kobe", "Lars", "Emma", "Jan", "Piet", "Joris", "Corneel", "Lotte", "Sofie", "Tom"];
-        
-        const batch = db.batch();
-        
-        testNamen.forEach((naam, index) => {
-            const nieuwDocRef = db.collection('users').doc(); // Genereer automatisch een Firebase ID
-            batch.set(nieuwDocRef, {
-                klas: "6sport2",
-                rol: "leerling",
-                school_id: "ka_beveren",
-                nickname: `Test ${naam}`,
-                naam: `Test ${naam}`, // Voor get_klas_detail compatibiliteit
-                gender: index % 2 === 0 ? "M" : "V", // Afwisselend Jongen/Meisje
-                is_active: true,
-                onboarding_complete: true,
-                vrijgesteld_van_testen: false,
-                sportlab_niveaus: {
-                    arbiter: 1,
-                    coach: 1,
-                    toernooileider: 1,
-                    alternatief: 1
-                },
-                created_at: new Date()
-            });
-        });
+        const masterKey = await getMasterKey();
+        const nu = new Date();
 
-        await batch.commit();
+        const spelers = await Promise.all(usersSnap.docs.map(async (doc) => {
+            if (!doc.exists) return null;
+            const d = doc.data();
+            if (d.rol !== 'leerling') return null;
 
-        return res.status(200).json({ success: true, message: "10 test-leerlingen toegevoegd!" });
+            // Haal de echte naam op, of val terug op de test-naam
+            let echteNaam = d.naam || d.nickname || 'Onbekend';
+            if (d.toegestane_gebruikers_id) {
+                const tgSnap = await db.collection('toegestane_gebruikers').doc(d.toegestane_gebruikers_id).get();
+                if (tgSnap.exists && tgSnap.data().encrypted_name) {
+                    echteNaam = decryptName(tgSnap.data().encrypted_name, masterKey);
+                }
+            }
+
+            const eind = d.vrijstelling_einddatum?.toDate?.();
+            const isVrijgesteld = d.vrijgesteld_van_testen === true && eind && eind > nu;
+
+            return {
+                id: doc.id,
+                naam: echteNaam,
+                vrijgesteld: isVrijgesteld
+            };
+        }));
+
+        // Filter lege resultaten eruit en sorteer alfabetisch
+        const geldigeSpelers = spelers.filter(Boolean).sort((a, b) => a.naam.localeCompare(b.naam));
+
+        return res.status(200).json({ success: true, spelers: geldigeSpelers });
+
     } catch (error) {
-        console.error('❌ Fout bij aanmaken test-leerlingen:', error);
-        return res.status(500).json({ error: "Fout bij aanmaken test-leerlingen" });
+        console.error('❌ handleGetSportLabToernooiSpelers:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen spelers' });
     }
 }

@@ -1139,19 +1139,20 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
     const [toernooiType, setToernooiType] = useState('poule');
     const [selectedPlayer, setSelectedPlayer] = useState(null);
 
+   // Haal de klaslijst op via de soepele SportLab route
     useEffect(() => {
         if (mode === 'database' && sessie && profile) {
             const fetchKlas = async () => {
                 try {
-                    let leden = [];
-                    if (sessie.klas) {
-                        const data = await apiPost('get_klas_detail', { klasNaam: sessie.klas, schoolId: profile.school_id }, profile._token);
-                        leden = data.members || [];
-                    } else if (sessie.groep_id) {
-                        const data = await apiPost('get_groep_detail', { groepId: sessie.groep_id, schoolId: profile.school_id }, profile._token);
-                        leden = data.groep?.leden || [];
-                    }
+                    const data = await apiPost('get_sportlab_toernooi_spelers', { 
+                        klas: sessie.klas, 
+                        groepId: sessie.groep_id, 
+                        schoolId: profile.school_id 
+                    }, profile._token);
+                    
+                    const leden = data.spelers || [];
                     const actieveLeden = leden.filter(l => !l.vrijgesteld);
+                    
                     setKlasLijst(actieveLeden);
                     setGeselecteerdeIds(actieveLeden.map(l => l.id));
                 } catch (e) {
