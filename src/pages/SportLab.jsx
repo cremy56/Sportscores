@@ -298,22 +298,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
                         <PlayIcon className="w-5 h-5" />
                         {loading ? 'Starten...' : 'Sessie Starten'}
                     </button>
-                    {/* TIJDELIJKE SCRIPT KNOP */}
-                    <button
-                        onClick={async () => {
-                            if(window.confirm("Wil je 10 nep-leerlingen toevoegen aan 6sport2?")) {
-                                try {
-                                    await apiPost('maak_test_leerlingen', {}, profile._token);
-                                    alert("Gelukt! De leerlingen zitten in de database.");
-                                } catch(e) {
-                                    alert("Fout: " + e.message);
-                                }
-                            }
-                        }}
-                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-3 px-6 rounded-xl transition-colors mt-4"
-                    >
-                        🛠️ SCRIPT: Genereer 10 test-leerlingen
-                    </button>
+                    
                 </div>
             </div>
         </div>
