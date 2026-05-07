@@ -393,6 +393,10 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
     const [toonAfbreekBevestiging, setToonAfbreekBevestiging] = useState(false);
     const [deelnames, setDeelnames] = useState(sessie.deelnames || []);
     const [vrijgesteld, setVrijgesteld] = useState(sessie.vrijgestelde_leerlingen || []);
+    // NIEUW: Handmatige schakelaar voor als de leerkracht zelf een toernooi wil starten
+    const [toonToernooiBuilder, setToonToernooiBuilder] = useState(false);
+    // NIEUW: Check of er al een leerling is die deze rol heeft
+    const heeftToernooileider = deelnames.some(d => d.rol === 'toernooileider');
 
     // Live timer
     useEffect(() => {
@@ -528,15 +532,26 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                                 {sessie.klas ? sessie.klas : (sessie.groep_id ? 'Groep' : 'Alle leerlingen')}
                             </span>
                         </div>
-                        {/* NIEUW: Toernooi knop voor leerkracht */}
-                        <div className="mb-4">
-                            <ToernooiBuilder 
-                                mode="database" 
-                                deelnames={deelnames} 
-                                rolData={ROLLEN.find(r => r.id === 'toernooileider')} 
-                                onStart={(data) => console.log("Leerkracht start toernooi", data)} 
-                            />
-                        </div>
+                        {/* ── TOERNOOI BEHEER (Slim verborgen) ── */}
+                        {(heeftToernooileider || toonToernooiBuilder) ? (
+                            <div className="mb-4 animate-fade-in">
+                                <ToernooiBuilder 
+                                    mode="database" 
+                                    deelnames={deelnames} 
+                                    rolData={ROLLEN.find(r => r.id === 'toernooileider')} 
+                                    onStart={(data) => console.log("Leerkracht start toernooi", data)} 
+                                />
+                            </div>
+                        ) : (
+                            <div className="mb-4">
+                                <button
+                                    onClick={() => setToonToernooiBuilder(true)}
+                                    className="w-full py-3 border-2 border-dashed border-emerald-300 text-emerald-600 font-bold rounded-xl hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm"
+                                >
+                                    <span>🏆</span> Zelf Toernooi Organiseren (Zonder leerling Toernooileider)
+                                </button>
+                            </div>
+                        )}
                         {/* Live Deelnames Overzicht */}
                         <div className="mb-4 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                             <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
