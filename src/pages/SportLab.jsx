@@ -298,6 +298,22 @@ function SessieStartForm({ profile, onSessieGestart }) {
                         <PlayIcon className="w-5 h-5" />
                         {loading ? 'Starten...' : 'Sessie Starten'}
                     </button>
+                    {/* TIJDELIJKE SCRIPT KNOP */}
+                    <button
+                        onClick={async () => {
+                            if(window.confirm("Wil je 10 nep-leerlingen toevoegen aan 6sport2?")) {
+                                try {
+                                    await apiPost('maak_test_leerlingen', {}, profile._token);
+                                    alert("Gelukt! De leerlingen zitten in de database.");
+                                } catch(e) {
+                                    alert("Fout: " + e.message);
+                                }
+                            }
+                        }}
+                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-3 px-6 rounded-xl transition-colors mt-4"
+                    >
+                        🛠️ SCRIPT: Genereer 10 test-leerlingen
+                    </button>
                 </div>
             </div>
         </div>
@@ -1474,16 +1490,32 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                     {rol === 'arbiter' && (
                         <Scorebord rolData={rolData} sessieId={sessie.id} />
                     )}
-                    {/* ── DIGITAAL WEDSTRIJDSECRETARIAAT ── */}
+                    {/* ── DIGITAAL WEDSTRIJDSECRETARIAAT (Voor de Toernooileider) ── */}
                     {rol === 'toernooileider' && (
                         <>
                             {niveau === 1 ? (
-                                <div className="bg-white p-8 rounded-2xl border text-center">
-                                    <span className="text-4xl block mb-4">⏳</span>
-                                    <p className="text-sm text-slate-500">De leerkracht zet het toernooi klaar. Even geduld...</p>
+                                /* LEVEL 1: Wacht op de leerkracht */
+                                <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm mb-4">
+                                    <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <span className="text-3xl">⏳</span>
+                                    </div>
+                                    <h3 className="font-bold text-slate-800 mb-2">Wachten op Toernooi...</h3>
+                                    <p className="text-sm text-slate-500 leading-relaxed">
+                                        Als Level 1 Scorekeeper zet de leerkracht het toernooi voor je klaar. 
+                                        Zodra het toernooi is ingedeeld, verschijnt hier je wedstrijd-lijst!
+                                    </p>
                                 </div>
                             ) : (
-                                <ToernooiBuilder mode="manual" rolData={rolData} onStart={(d) => console.log(d)} />
+                                /* LEVEL 2 & 3: Mogen zelf bouwen (Privacy Mode) */
+                                <ToernooiBuilder 
+                                    mode="manual"
+                                    rolData={rolData}
+                                    onStart={(toernooiData) => {
+                                        // Hier bouwen we straks Fase 2: Opslaan in database!
+                                        console.log("Toernooi klaar om te starten!", toernooiData);
+                                        alert("Klaar voor Fase 2: " + toernooiData.type);
+                                    }}
+                                />
                             )}
                         </>
                     )}

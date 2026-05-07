@@ -698,3 +698,46 @@ export async function handleSportlabObservatieKlaar(req, res, decodedToken) {
         return res.status(500).json({ error: 'Fout bij updaten observatie teller' });
     }
 }
+// ─── TIJDELIJK SCRIPT: 10 TEST-LEERLINGEN TOEVOEGEN ──────────────────────────
+export async function handleMaakTestLeerlingenAan(req, res, decodedToken) {
+    try {
+        // Enkel leerkrachten mogen dit script uitvoeren
+        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
+        if (!['leerkracht', 'administrator', 'super-administrator'].includes(callerSnap.data()?.rol)) {
+            return res.status(403).json({ error: 'Niet toegestaan' });
+        }
+
+        const testNamen = ["Kobe", "Lars", "Emma", "Jan", "Piet", "Joris", "Corneel", "Lotte", "Sofie", "Tom"];
+        
+        const batch = db.batch();
+        
+        testNamen.forEach((naam, index) => {
+            const nieuwDocRef = db.collection('users').doc(); // Genereer automatisch een Firebase ID
+            batch.set(nieuwDocRef, {
+                klas: "6sport2",
+                rol: "leerling",
+                school_id: "ka_beveren",
+                nickname: `Test ${naam}`,
+                naam: `Test ${naam}`, // Voor get_klas_detail compatibiliteit
+                gender: index % 2 === 0 ? "M" : "V", // Afwisselend Jongen/Meisje
+                is_active: true,
+                onboarding_complete: true,
+                vrijgesteld_van_testen: false,
+                sportlab_niveaus: {
+                    arbiter: 1,
+                    coach: 1,
+                    toernooileider: 1,
+                    alternatief: 1
+                },
+                created_at: new Date()
+            });
+        });
+
+        await batch.commit();
+
+        return res.status(200).json({ success: true, message: "10 test-leerlingen toegevoegd!" });
+    } catch (error) {
+        console.error('❌ Fout bij aanmaken test-leerlingen:', error);
+        return res.status(500).json({ error: "Fout bij aanmaken test-leerlingen" });
+    }
+}
