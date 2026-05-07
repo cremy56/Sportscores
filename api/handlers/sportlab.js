@@ -766,3 +766,76 @@ export async function handleGetSportLabToernooiSpelers(req, res, decodedToken) {
         return res.status(500).json({ error: 'Fout bij ophalen spelers' });
     }
 }
+// ─── 12. TOERNOOI STARTEN & SCHEMA BEREKENEN ─────────────────────────────────
+export async function handleStartToernooi(req, res, decodedToken) {
+    try {
+        const { schoolId, sessieId, teams, type } = req.body;
+        
+        // Beveiliging
+        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
+        const verifiedSchoolId = callerSnap.data()?.school_id;
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        // ─── ALGORITME 1: DE POULE (Round-Robin) ───
+        let wedstrijden = [];
+        if (type === 'poule') {
+            // Kopieer teams zodat we ermee kunnen schuiven
+            let t = [...teams];
+            
+            // Als er een oneven aantal teams is, voegen we een "Rust" (Bye) team toe
+            if (t.length % 2 !== 0) {
+                t.push({ id: 'bye', naam: 'Rust', spelers: [] });
+            }
+
+            const rondes = t.length - 1;
+            const matchenPerRonde = t.length / 2;
+            let matchId = 1;
+
+            // Wiskundig 'Polygon' algoritme voor perfecte rotatie
+            for (let ronde = 0; ronde < rondes; ronde++) {
+                for (let i = 0; i < matchenPerRonde; i++) {
+                    const team1 = t[i];
+                    const team2 = t[t.length - 1 - i];
+                    
+                    // Alleen echte wedstrijden opslaan (geen wedstrijden tegen 'Rust')
+                    if (team1.id !== 'bye' && team2.id !== 'bye') {
+                        wedstrijden.push({
+                            id: `match_${matchId++}`,
+                            ronde: ronde + 1,
+                            team1: { id: team1.id, naam: team1.naam },
+                            team2: { id: team2.id, naam: team2.naam },
+                            score1: null,
+                            score2: null,
+                            winst_voor: null, // 'team1', 'team2', of 'gelijk'
+                            gespeeld: false
+                        });
+                    }
+                }
+                // Roteer de teams (team 0 blijft staan, de rest schuift 1 plekje door)
+                t.splice(1, 0, t.pop());
+            }
+        } 
+        else if (type === 'knockout' || type === 'king') {
+            // Deze bouwen we later in! Voor nu zetten we gewoon een lege structuur klaar.
+            wedstrijden = []; 
+        }
+
+        // Sla het toernooi op in een gloednieuwe collectie
+        const toernooiRef = await db.collection('sport_lab_toernooien').add({
+            school_id: verifiedSchoolId,
+            sessie_id: sessieId,
+            aangemaakt_door: decodedToken.uid,
+            type: type,
+            status: 'actief',
+            teams: teams,
+            wedstrijden: wedstrijden,
+            aangemaakt_op: new Date()
+        });
+
+        return res.status(200).json({ success: true, toernooi_id: toernooiRef.id, wedstrijden });
+
+    } catch (error) {
+        console.error('❌ handleStartToernooi:', error);
+        return res.status(500).json({ error: 'Fout bij berekenen toernooischema' });
+    }
+}

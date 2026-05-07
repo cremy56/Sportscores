@@ -578,12 +578,26 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                         {/* ── TOERNOOI BEHEER (Onder de deelnames geplaatst) ── */}
                         <div className="my-6 border-t border-slate-200 pt-6">
                             {(heeftToernooileider || toonToernooiBuilder) ? (
-                                <ToernooiBuilder 
+                               <ToernooiBuilder 
                                     mode="database" 
                                     sessie={sessie} 
                                     profile={profile}
                                     rolData={ROLLEN.find(r => r.id === 'toernooileider')} 
-                                    onStart={(data) => console.log("Toernooi wordt verzonden...", data)} 
+                                    onStart={async (toernooiData) => {
+                                        try {
+                                            const toastId = toast.loading('Schema berekenen...');
+                                            await apiPost('start_toernooi', {
+                                                schoolId: profile.school_id,
+                                                sessieId: sessie.id,
+                                                teams: toernooiData.teams,
+                                                type: toernooiData.type
+                                            }, profile._token);
+                                            toast.success('Toernooi gestart!', { id: toastId });
+                                            // Hier triggeren we later Fase 3 (Het Dashboard tonen)
+                                        } catch(e) {
+                                            toast.error('Fout bij starten: ' + e.message);
+                                        }
+                                    }} 
                                 />
                             ) : (
                                 <button
@@ -1494,13 +1508,25 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                             ) : (
                                 /* LEVEL 2 & 3: Mogen zelf bouwen (Privacy Mode) */
                                 <ToernooiBuilder 
-                                    mode="manual"
-                                    rolData={rolData}
-                                    onStart={(toernooiData) => {
-                                        // Hier bouwen we straks Fase 2: Opslaan in database!
-                                        console.log("Toernooi klaar om te starten!", toernooiData);
-                                        alert("Klaar voor Fase 2: " + toernooiData.type);
-                                    }}
+                                    mode="database" 
+                                    sessie={sessie} 
+                                    profile={profile}
+                                    rolData={ROLLEN.find(r => r.id === 'toernooileider')} 
+                                    onStart={async (toernooiData) => {
+                                        try {
+                                            const toastId = toast.loading('Schema berekenen...');
+                                            await apiPost('start_toernooi', {
+                                                schoolId: profile.school_id,
+                                                sessieId: sessie.id,
+                                                teams: toernooiData.teams,
+                                                type: toernooiData.type
+                                            }, profile._token);
+                                            toast.success('Toernooi gestart!', { id: toastId });
+                                            // Hier triggeren we later Fase 3 (Het Dashboard tonen)
+                                        } catch(e) {
+                                            toast.error('Fout bij starten: ' + e.message);
+                                        }
+                                    }} 
                                 />
                             )}
                         </>
