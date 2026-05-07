@@ -24,6 +24,13 @@ async function apiPost(action, body, token) {
     if (!res.ok) throw new Error(data.error || 'API fout');
     return data;
 }
+// Helper voor privacy: "Jan Peeters" -> "Jan P."
+const formatPrivacyNaam = (naam) => {
+    if (!naam || naam === 'Onbekend') return 'Speler';
+    const delen = naam.trim().split(' ');
+    if (delen.length === 1) return delen[0];
+    return `${delen[0]} ${delen[delen.length - 1].charAt(0)}.`;
+};
 
 // ─── CONSTANTEN ───────────────────────────────────────────────────────────────
 const SPORTEN = [
@@ -521,7 +528,15 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                                 {sessie.klas ? sessie.klas : (sessie.groep_id ? 'Groep' : 'Alle leerlingen')}
                             </span>
                         </div>
-
+                        {/* NIEUW: Toernooi knop voor leerkracht */}
+                        <div className="mb-4">
+                            <ToernooiBuilder 
+                                mode="database" 
+                                deelnames={deelnames} 
+                                rolData={ROLLEN.find(r => r.id === 'toernooileider')} 
+                                onStart={(data) => console.log("Leerkracht start toernooi", data)} 
+                            />
+                        </div>
                         {/* Live Deelnames Overzicht */}
                         <div className="mb-4 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                             <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
@@ -1090,158 +1105,136 @@ function DigitaalKlembord({ rolData, sessie, niveau, content, deelnameId, profil
     );
 }
 // ─── DIGITAAL WEDSTRIJDSECRETARIAAT: TEAM BUILDER (Anoniem & Flexibel) ───
-function ToernooiBuilder({ rolData, onStart }) {
-    const [aantalSpelers, setAantalSpelers] = useState(20);
+function ToernooiBuilder({ deelnames, rolData, mode = 'manual', onStart }) {
+    const [stap, setStap] = useState('selectie'); // selectie, builder
+    const [geselecteerdeIds, setGeselecteerdeIds] = useState([]);
+    const [extraNamen, setExtraNamen] = useState("");
     const [aantalTeams, setAantalTeams] = useState(4);
     const [teams, setTeams] = useState([]);
     const [toernooiType, setToernooiType] = useState('poule');
+    const [selectedPlayer, setSelectedPlayer] = useState(null);
 
-    // Genereer anonieme teams op basis van de 2 sliders
+    // Initialiseer selectie bij database mode
+    useEffect(() => {
+        if (mode === 'database' && deelnames) {
+            setGeselecteerdeIds(deelnames.filter(d => !d.is_vrijgesteld).map(d => d.leerling_uid));
+        }
+    }, [mode, deelnames]);
+
     const genereerTeams = () => {
+        let pool = [];
+        if (mode === 'database') {
+            pool = deelnames
+                .filter(d => geselecteerdeIds.includes(d.leerling_uid))
+                .map(d => ({ id: d.leerling_uid, naam: d.echte_naam }));
+            
+            if (extraNamen.trim()) {
+                extraNamen.split(',').forEach((n, i) => {
+                    if (n.trim()) pool.push({ id: `extra_${i}`, naam: n.trim() });
+                });
+            }
+        } else {
+            // Manual mode (Level 2 leerling): vult later zelf namen in
+            pool = Array.from({ length: 20 }, (_, i) => ({ id: `p_${i}`, naam: `Speler ${i+1}` }));
+        }
+
+        // Shuffle
+        pool.sort(() => Math.random() - 0.5);
+
         const nieuweTeams = Array.from({ length: aantalTeams }, (_, i) => ({
-            id: `team_${i}`,
-            naam: `Team ${String.fromCharCode(65 + i)}`, // Team A, Team B...
+            id: `t_${i}`,
+            naam: `Team ${String.fromCharCode(65 + i)}`,
             spelers: []
         }));
 
-        // Verdeel de spelers eerlijk als een kaartspel (delen)
-        for (let i = 0; i < aantalSpelers; i++) {
-            nieuweTeams[i % aantalTeams].spelers.push({
-                id: `speler_${i}`,
-                naam: `Speler ${i + 1}` // Standaard anonieme naam
-            });
+        pool.forEach((s, i) => nieuweTeams[i % aantalTeams].spelers.push(s));
+        setTeams(nieuweTeams);
+        setStap('builder');
+    };
+
+    const handlePlayerTap = (tIdx, sIdx) => {
+        if (!selectedPlayer) setSelectedPlayer({ tIdx, sIdx });
+        else {
+            const nt = [...teams];
+            const s1 = nt[selectedPlayer.tIdx].spelers[selectedPlayer.sIdx];
+            const s2 = nt[tIdx].spelers[sIdx];
+            nt[selectedPlayer.tIdx].spelers[selectedPlayer.sIdx] = s2;
+            nt[tIdx].spelers[sIdx] = s1;
+            setTeams(nt);
+            setSelectedPlayer(null);
         }
-
-        setTeams(nieuweTeams);
-    };
-
-    // Teamnaam aanpassen
-    const pasTeamNaamAan = (teamIndex, nieuweNaam) => {
-        const nieuweTeams = [...teams];
-        nieuweTeams[teamIndex].naam = nieuweNaam;
-        setTeams(nieuweTeams);
-    };
-
-    // Spelernaam aanpassen (handmatig intypen)
-    const pasSpelerNaamAan = (teamIndex, spelerIndex, nieuweNaam) => {
-        const nieuweTeams = [...teams];
-        nieuweTeams[teamIndex].spelers[spelerIndex].naam = nieuweNaam;
-        setTeams(nieuweTeams);
     };
 
     return (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-4 animate-fade-in shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                <div className="flex items-center gap-2">
-                    <span className="text-xl">🏆</span>
-                    <h3 className="font-bold text-slate-800 text-sm">Toernooi Setup</h3>
+        <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm animate-fade-in">
+            <div className={`p-4 text-white font-bold flex justify-between bg-gradient-to-r ${rolData.kleur}`}>
+                <span>🏆 Toernooi Manager</span>
+                <span className="text-xs bg-white/20 px-2 py-1 rounded">{mode === 'database' ? 'Admin Mode' : 'Privacy Mode'}</span>
+            </div>
+
+            {stap === 'selectie' && mode === 'database' && (
+                <div className="p-5 space-y-4">
+                    <p className="text-sm font-bold text-slate-700">Wie doet er mee?</p>
+                    <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
+                        {deelnames.map(d => (
+                            <label key={d.leerling_uid} className={`flex items-center gap-2 p-2 rounded-lg border text-xs transition-colors ${geselecteerdeIds.includes(d.leerling_uid) ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
+                                <input type="checkbox" checked={geselecteerdeIds.includes(d.leerling_uid)} onChange={() => {
+                                    setGeselecteerdeIds(prev => prev.includes(d.leerling_uid) ? prev.filter(id => id !== d.leerling_uid) : [...prev, d.leerling_uid]);
+                                }} />
+                                <span className="truncate">{d.echte_naam}</span>
+                            </label>
+                        ))}
+                    </div>
+                    <input type="text" placeholder="Extra namen? (scheiden met komma)" className="w-full text-sm p-3 border rounded-xl" value={extraNamen} onChange={e => setExtraNamen(e.target.value)} />
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-500">Teams: {aantalTeams}</span>
+                        <input type="range" min="2" max="8" value={aantalTeams} onChange={e => setAantalTeams(parseInt(e.target.value))} className="w-1/2 accent-emerald-500" />
+                    </div>
+                    <button onClick={genereerTeams} className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl">Genereer Teams</button>
                 </div>
-            </div>
+            )}
 
-            <div className="p-5">
-                {teams.length === 0 ? (
-                    <div className="space-y-6">
-                        <p className="text-sm text-slate-600 leading-relaxed">
-                            Kies het aantal spelers en teams. Je kunt straks de teamnamen en spelersnamen nog handmatig aanpassen.
-                        </p>
-                        
-                        {/* SLIDER 1: AANTAL SPELERS */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Aantal Spelers</label>
-                            <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <input 
-                                    type="range" min="4" max="40" value={aantalSpelers} 
-                                    onChange={(e) => setAantalSpelers(parseInt(e.target.value))}
-                                    className="flex-1 accent-emerald-500"
-                                />
-                                <span className="font-black text-xl text-slate-800 w-8 text-center">{aantalSpelers}</span>
-                            </div>
-                        </div>
-
-                        {/* SLIDER 2: AANTAL TEAMS */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Aantal Teams</label>
-                            <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <input 
-                                    type="range" min="2" max="10" value={aantalTeams} 
-                                    onChange={(e) => setAantalTeams(parseInt(e.target.value))}
-                                    className="flex-1 accent-emerald-500"
-                                />
-                                <span className="font-black text-xl text-slate-800 w-8 text-center">{aantalTeams}</span>
-                            </div>
-                        </div>
-
-                        <button 
-                            onClick={genereerTeams} 
-                            className={`w-full py-3.5 rounded-xl text-white font-bold transition-transform active:scale-95 shadow-md bg-gradient-to-r ${rolData.kleur}`}
-                        >
-                            Teams Genereren
-                        </button>
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-xl text-sm font-medium">
-                            💡 Tip: Tik op "Speler 1" om een echte naam in te typen, of deel de hesjes uit op nummer.
-                        </div>
-
-                        {/* De Teams Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {teams.map((team, tIndex) => (
-                                <div key={team.id} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                                    <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex items-center gap-2">
-                                        <input 
-                                            type="text" 
-                                            value={team.naam}
-                                            onChange={(e) => pasTeamNaamAan(tIndex, e.target.value)}
-                                            className="font-bold text-slate-800 text-sm bg-transparent focus:bg-white focus:ring-2 focus:ring-emerald-400 rounded px-1 outline-none w-full"
-                                        />
-                                        <span className="text-xs text-slate-400">✏️</span>
-                                    </div>
-                                    <div className="p-2 space-y-1">
-                                        {team.spelers.map((speler, sIndex) => (
-                                            <div key={speler.id} className="flex items-center bg-white border border-slate-100 rounded-lg focus-within:border-emerald-400 focus-within:ring-1 focus-within:ring-emerald-400 transition-all overflow-hidden">
-                                                <div className="w-1.5 h-full bg-slate-200 self-stretch"></div>
-                                                <input
-                                                    type="text"
-                                                    value={speler.naam}
-                                                    onChange={(e) => pasSpelerNaamAan(tIndex, sIndex, e.target.value)}
-                                                    className="px-3 py-2 text-sm text-slate-600 w-full outline-none bg-transparent"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
+            {stap === 'builder' && (
+                <div className="p-4 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {teams.map((t, tIdx) => (
+                            <div key={t.id} className="border rounded-xl bg-slate-50 overflow-hidden">
+                                <input className="w-full bg-slate-200 p-2 text-xs font-black uppercase text-center" value={t.naam} onChange={e => {
+                                    const nt = [...teams]; nt[tIdx].naam = e.target.value; setTeams(nt);
+                                }} />
+                                <div className="p-2 space-y-1">
+                                    {t.spelers.map((s, sIdx) => (
+                                        <div key={s.id} onClick={() => handlePlayerTap(tIdx, sIdx)} className={`p-2 rounded bg-white text-xs border shadow-sm ${selectedPlayer?.tIdx === tIdx && selectedPlayer?.sIdx === sIdx ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200' : 'border-transparent'}`}>
+                                            {mode === 'database' ? s.naam : (
+                                                <input className="w-full outline-none" value={s.naam} onChange={e => {
+                                                    const nt = [...teams]; nt[tIdx].spelers[sIdx].naam = e.target.value; setTeams(nt);
+                                                }} />
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* Schema Keuze & Start */}
-                        <div className="pt-4 border-t border-slate-100">
-                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Kies Toernooivorm</label>
-                            <select 
-                                value={toernooiType} 
-                                onChange={(e) => setToernooiType(e.target.value)}
-                                className="w-full border border-slate-300 rounded-xl p-3 mb-4 text-sm font-medium text-slate-800 bg-white focus:ring-2 focus:ring-emerald-500"
-                            >
-                                <option value="poule">Poule (Iedereen speelt tegen elkaar)</option>
-                                <option value="knockout">Knock-out (Met verliezersronde)</option>
-                                <option value="king">Koning van het Veld (Doorschuiven)</option>
-                            </select>
-
-                            <div className="flex gap-3">
-                                <button onClick={() => setTeams([])} className="px-4 py-3 text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
-                                    Aanpassen
-                                </button>
-                                <button 
-                                    onClick={() => onStart({ teams, type: toernooiType })} 
-                                    className={`flex-1 py-3 rounded-xl text-white font-bold transition-transform active:scale-95 shadow-md bg-gradient-to-r ${rolData.kleur}`}
-                                >
-                                    Toernooi Aanmaken
-                                </button>
                             </div>
-                        </div>
+                        ))}
                     </div>
-                )}
-            </div>
+                    <select className="w-full p-3 border rounded-xl text-sm" value={toernooiType} onChange={e => setToernooiType(e.target.value)}>
+                        <option value="poule">Poule (Klassiek)</option>
+                        <option value="knockout">Knock-out (Bracket)</option>
+                        <option value="king">Koning van het Veld</option>
+                    </select>
+                    <button onClick={() => onStart({ teams, type: toernooiType })} className={`w-full py-4 text-white font-black rounded-xl bg-gradient-to-r ${rolData.kleur}`}>Start Toernooi</button>
+                </div>
+            )}
+            
+            {/* Manual mode start scherm (voor leerling) */}
+            {stap === 'selectie' && mode === 'manual' && (
+                <div className="p-5 space-y-4 text-center">
+                    <p className="text-sm text-slate-500">Stel je toernooi handmatig in.</p>
+                    <div className="flex flex-col gap-4">
+                        <input type="number" placeholder="Aantal spelers" className="p-3 border rounded-xl" onChange={e => setAantalTeams(Math.ceil(parseInt(e.target.value)/4))} />
+                        <button onClick={genereerTeams} className="w-full py-4 bg-slate-800 text-white font-bold rounded-xl shadow-lg">Start Bouwen</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -1381,16 +1374,18 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                     {rol === 'arbiter' && (
                         <Scorebord rolData={rolData} sessieId={sessie.id} />
                     )}
-{/* ── DIGITAAL WEDSTRIJDSECRETARIAAT (Voor de Toernooileider) ── */}
+                    {/* ── DIGITAAL WEDSTRIJDSECRETARIAAT ── */}
                     {rol === 'toernooileider' && (
-                        <ToernooiBuilder 
-                            rolData={rolData}
-                            onStart={(toernooiData) => {
-                                // Hier bouwen we straks Fase 2: Opslaan in database!
-                                console.log("Toernooi klaar om te starten!", toernooiData);
-                                alert("Klaar voor Fase 2: " + toernooiData.type);
-                            }}
-                        />
+                        <>
+                            {niveau === 1 ? (
+                                <div className="bg-white p-8 rounded-2xl border text-center">
+                                    <span className="text-4xl block mb-4">⏳</span>
+                                    <p className="text-sm text-slate-500">De leerkracht zet het toernooi klaar. Even geduld...</p>
+                                </div>
+                            ) : (
+                                <ToernooiBuilder mode="manual" rolData={rolData} onStart={(d) => console.log(d)} />
+                            )}
+                        </>
                     )}
 
                     {/* ── TAKEN MET CHECKBOXES + VOORTGANGSBALK (Niet voor de coach) ── */}
