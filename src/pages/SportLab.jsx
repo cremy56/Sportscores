@@ -1089,63 +1089,43 @@ function DigitaalKlembord({ rolData, sessie, niveau, content, deelnameId, profil
         </div>
     );
 }
-// ─── DIGITAAL WEDSTRIJDSECRETARIAAT: TEAM BUILDER (Fase 1) ────────────────────
-function ToernooiBuilder({ deelnames, rolData, onStart }) {
+// ─── DIGITAAL WEDSTRIJDSECRETARIAAT: TEAM BUILDER (Anoniem & Flexibel) ───
+function ToernooiBuilder({ rolData, onStart }) {
+    const [aantalSpelers, setAantalSpelers] = useState(20);
     const [aantalTeams, setAantalTeams] = useState(4);
     const [teams, setTeams] = useState([]);
     const [toernooiType, setToernooiType] = useState('poule');
-    const [selectedPlayer, setSelectedPlayer] = useState(null); // Voor Tap-to-Swap
 
-    // Genereer random teams
+    // Genereer anonieme teams op basis van de 2 sliders
     const genereerTeams = () => {
-        // Enkel leerlingen pakken (geen vrijgestelde/alternatieve rollen in het toernooi)
-        const actieveSpelers = deelnames.filter(d => !d.is_vrijgesteld);
-        
-        // Shuffle array (Fisher-Yates)
-        let shuffled = [...actieveSpelers];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-
-        // Verdeel over X teams
         const nieuweTeams = Array.from({ length: aantalTeams }, (_, i) => ({
             id: `team_${i}`,
-            naam: `Team ${String.fromCharCode(65 + i)}`, // Team A, Team B, etc.
+            naam: `Team ${String.fromCharCode(65 + i)}`, // Team A, Team B...
             spelers: []
         }));
 
-        shuffled.forEach((speler, index) => {
-            nieuweTeams[index % aantalTeams].spelers.push(speler);
-        });
+        // Verdeel de spelers eerlijk als een kaartspel (delen)
+        for (let i = 0; i < aantalSpelers; i++) {
+            nieuweTeams[i % aantalTeams].spelers.push({
+                id: `speler_${i}`,
+                naam: `Speler ${i + 1}` // Standaard anonieme naam
+            });
+        }
 
         setTeams(nieuweTeams);
-        setSelectedPlayer(null);
-    };
-
-    // Tap-to-Swap logica
-    const handlePlayerTap = (teamIndex, spelerIndex) => {
-        if (!selectedPlayer) {
-            // Selecteer eerste speler
-            setSelectedPlayer({ teamIndex, spelerIndex });
-        } else {
-            // Wissel de twee spelers
-            const nieuweTeams = [...teams];
-            const speler1 = nieuweTeams[selectedPlayer.teamIndex].spelers[selectedPlayer.spelerIndex];
-            const speler2 = nieuweTeams[teamIndex].spelers[spelerIndex];
-
-            nieuweTeams[selectedPlayer.teamIndex].spelers[selectedPlayer.spelerIndex] = speler2;
-            nieuweTeams[teamIndex].spelers[spelerIndex] = speler1;
-
-            setTeams(nieuweTeams);
-            setSelectedPlayer(null); // Reset selectie na wissel
-        }
     };
 
     // Teamnaam aanpassen
     const pasTeamNaamAan = (teamIndex, nieuweNaam) => {
         const nieuweTeams = [...teams];
         nieuweTeams[teamIndex].naam = nieuweNaam;
+        setTeams(nieuweTeams);
+    };
+
+    // Spelernaam aanpassen (handmatig intypen)
+    const pasSpelerNaamAan = (teamIndex, spelerIndex, nieuweNaam) => {
+        const nieuweTeams = [...teams];
+        nieuweTeams[teamIndex].spelers[spelerIndex].naam = nieuweNaam;
         setTeams(nieuweTeams);
     };
 
@@ -1156,28 +1136,41 @@ function ToernooiBuilder({ deelnames, rolData, onStart }) {
                     <span className="text-xl">🏆</span>
                     <h3 className="font-bold text-slate-800 text-sm">Toernooi Setup</h3>
                 </div>
-                <span className="text-xs font-bold text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200">
-                    {deelnames.filter(d => !d.is_vrijgesteld).length} Spelers
-                </span>
             </div>
 
             <div className="p-5">
                 {teams.length === 0 ? (
-                    <div className="space-y-4">
-                        <p className="text-sm text-slate-600">
-                            Verdeel de klas in willekeurige teams. Je kunt daarna nog spelers handmatig wisselen.
+                    <div className="space-y-6">
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            Kies het aantal spelers en teams. Je kunt straks de teamnamen en spelersnamen nog handmatig aanpassen.
                         </p>
+                        
+                        {/* SLIDER 1: AANTAL SPELERS */}
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Aantal teams</label>
-                            <div className="flex items-center gap-4">
+                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Aantal Spelers</label>
+                            <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <input 
-                                    type="range" min="2" max="8" value={aantalTeams} 
+                                    type="range" min="4" max="40" value={aantalSpelers} 
+                                    onChange={(e) => setAantalSpelers(parseInt(e.target.value))}
+                                    className="flex-1 accent-emerald-500"
+                                />
+                                <span className="font-black text-xl text-slate-800 w-8 text-center">{aantalSpelers}</span>
+                            </div>
+                        </div>
+
+                        {/* SLIDER 2: AANTAL TEAMS */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Aantal Teams</label>
+                            <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <input 
+                                    type="range" min="2" max="10" value={aantalTeams} 
                                     onChange={(e) => setAantalTeams(parseInt(e.target.value))}
                                     className="flex-1 accent-emerald-500"
                                 />
                                 <span className="font-black text-xl text-slate-800 w-8 text-center">{aantalTeams}</span>
                             </div>
                         </div>
+
                         <button 
                             onClick={genereerTeams} 
                             className={`w-full py-3.5 rounded-xl text-white font-bold transition-transform active:scale-95 shadow-md bg-gradient-to-r ${rolData.kleur}`}
@@ -1187,9 +1180,8 @@ function ToernooiBuilder({ deelnames, rolData, onStart }) {
                     </div>
                 ) : (
                     <div className="space-y-6">
-                        {/* Tap-to-Swap Instructie */}
-                        <div className={`p-3 rounded-xl border text-sm font-medium ${selectedPlayer ? 'bg-amber-50 border-amber-200 text-amber-800 animate-pulse' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
-                            {selectedPlayer ? "Tik nu op een andere speler om te wisselen..." : "💡 Tip: Tik op een speler om hem/haar te wisselen van team."}
+                        <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-xl text-sm font-medium">
+                            💡 Tip: Tik op "Speler 1" om een echte naam in te typen, of deel de hesjes uit op nummer.
                         </div>
 
                         {/* De Teams Grid */}
@@ -1206,18 +1198,17 @@ function ToernooiBuilder({ deelnames, rolData, onStart }) {
                                         <span className="text-xs text-slate-400">✏️</span>
                                     </div>
                                     <div className="p-2 space-y-1">
-                                        {team.spelers.map((speler, sIndex) => {
-                                            const isSelected = selectedPlayer?.teamIndex === tIndex && selectedPlayer?.spelerIndex === sIndex;
-                                            return (
-                                                <div 
-                                                    key={speler.id} 
-                                                    onClick={() => handlePlayerTap(tIndex, sIndex)}
-                                                    className={`px-3 py-2 rounded-lg text-sm cursor-pointer transition-all border ${isSelected ? 'bg-amber-100 border-amber-400 font-bold shadow-inner' : 'bg-white border-transparent hover:border-slate-300'}`}
-                                                >
-                                                    {speler.echte_naam}
-                                                </div>
-                                            );
-                                        })}
+                                        {team.spelers.map((speler, sIndex) => (
+                                            <div key={speler.id} className="flex items-center bg-white border border-slate-100 rounded-lg focus-within:border-emerald-400 focus-within:ring-1 focus-within:ring-emerald-400 transition-all overflow-hidden">
+                                                <div className="w-1.5 h-full bg-slate-200 self-stretch"></div>
+                                                <input
+                                                    type="text"
+                                                    value={speler.naam}
+                                                    onChange={(e) => pasSpelerNaamAan(tIndex, sIndex, e.target.value)}
+                                                    className="px-3 py-2 text-sm text-slate-600 w-full outline-none bg-transparent"
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             ))}
@@ -1238,7 +1229,7 @@ function ToernooiBuilder({ deelnames, rolData, onStart }) {
 
                             <div className="flex gap-3">
                                 <button onClick={() => setTeams([])} className="px-4 py-3 text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
-                                    Reset
+                                    Aanpassen
                                 </button>
                                 <button 
                                     onClick={() => onStart({ teams, type: toernooiType })} 
@@ -1390,11 +1381,9 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                     {rol === 'arbiter' && (
                         <Scorebord rolData={rolData} sessieId={sessie.id} />
                     )}
-
-                    {/* ── DIGITAAL WEDSTRIJDSECRETARIAAT (Voor de Toernooileider) ── */}
+{/* ── DIGITAAL WEDSTRIJDSECRETARIAAT (Voor de Toernooileider) ── */}
                     {rol === 'toernooileider' && (
                         <ToernooiBuilder 
-                            deelnames={sessie.deelnames || []} 
                             rolData={rolData}
                             onStart={(toernooiData) => {
                                 // Hier bouwen we straks Fase 2: Opslaan in database!
