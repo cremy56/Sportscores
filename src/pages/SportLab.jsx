@@ -388,7 +388,7 @@ function BeoordelingRij({ d, sessie, profile, onOpgeslagen }) {
 }
 
 // ─── LEERKRACHT: ACTIEVE SESSIE BEHEER ────────────────────────────────────────
-function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
+function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh }) {
     const [loading, setLoading] = useState(false);
     const [duur, setDuur] = useState(0);
     const [toonAfbreekBevestiging, setToonAfbreekBevestiging] = useState(false);
@@ -597,11 +597,11 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten }) {
                                                 type: toernooiData.type
                                             }, profile._token);
                                             toast.success('Toernooi gestart!', { id: toastId });
-                                            // Hier triggeren we later Fase 3 (Het Dashboard tonen)
+                                            if (onRefresh) onRefresh(); // <--- ZORGT VOOR ONMIDDELLIJK BEELD!
                                         } catch(e) {
                                             toast.error('Fout bij starten: ' + e.message);
                                         }
-                                    }} 
+                                    }}
                                 />
                             ) : (
                                 <button
@@ -1156,6 +1156,7 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
     const [teams, setTeams] = useState([]);
     const [toernooiType, setToernooiType] = useState('poule');
     const [selectedPlayer, setSelectedPlayer] = useState(null);
+    const [isStarting, setIsStarting] = useState(false);
 
    // Haal de klaslijst op via de soepele SportLab route
     useEffect(() => {
@@ -1335,8 +1336,20 @@ function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onStart })
                         
                         <div className="flex gap-3 mt-4">
                             <button onClick={() => setStap('selectie')} className="px-4 py-3 text-sm font-bold text-slate-500 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-colors shadow-sm">Terug</button>
-                            {/* VERNIEUWDE START KNOP (Groen) */}
-                            <button onClick={() => onStart({ teams, type: toernooiType })} className={`flex-1 py-3 text-white font-black rounded-xl shadow-md transition-transform active:scale-95 ${mode === 'database' ? 'bg-emerald-500 hover:bg-emerald-600' : `bg-gradient-to-r ${rolData.kleur}`}`}>Start Toernooi</button>
+                            {/* VERNIEUWDE START KNOP (Met beveiliging) */}
+                            <button 
+                                onClick={async () => {
+                                    setIsStarting(true);
+                                    await onStart({ teams, type: toernooiType });
+                                    // We hoeven setIsStarting(false) niet per se te doen, want het component verdwijnt hierna.
+                                    // Maar voor de veiligheid bij een error doen we het toch:
+                                    setIsStarting(false); 
+                                }} 
+                                disabled={isStarting}
+                                className={`flex-1 py-3 text-white font-black rounded-xl shadow-md transition-transform active:scale-95 ${isStarting ? 'opacity-50 cursor-wait' : ''} ${mode === 'database' ? 'bg-emerald-500 hover:bg-emerald-600' : `bg-gradient-to-r ${rolData.kleur}`}`}
+                            >
+                                {isStarting ? 'Schema Berekenen...' : 'Start Toernooi'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1394,7 +1407,7 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht }) {
 }
 
 // ─── LEERLING: ACTIEVE ROL VIEW ───────────────────────────────────────────────
-function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteerd, onTerug }) {
+function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteerd, onTerug, onRefresh }) {
     const rolData = ROLLEN.find(r => r.id === rol) || ROLLEN[0];
     const [fase, setFase] = useState(
         sessie.status === 'evaluatie' ? 'reflectie' : 'actief'
@@ -1565,6 +1578,7 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                                                 type: toernooiData.type
                                             }, profile._token);
                                             toast.success('Toernooi gestart!', { id: toastId });
+                                            if (onRefresh) onRefresh(); // <--- ZORGT VOOR ONMIDDELLIJK BEELD!
                                         } catch(e) {
                                             toast.error('Fout bij starten: ' + e.message);
                                         }
@@ -1963,6 +1977,7 @@ export default function SportLab() {
                                     sessie={leerkrachtSessie}
                                     profile={profile}
                                     onSessieGesloten={handleSessieGesloten}
+                                    onRefresh={fetchSessie} 
                                 />
                             ) : (
                                 <SessieStartForm
@@ -1987,6 +2002,7 @@ export default function SportLab() {
                                     profile={profile}
                                     onGereflecteerd={handleGereflecteerd}
                                     onTerug={handleTerugNaarOverzicht}
+                                    onRefresh={fetchSessie}
                                 />
                             ) : (
                                 <RolKeuze
