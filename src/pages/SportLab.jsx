@@ -1557,19 +1557,34 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
 
                     return (
                         <div className="space-y-6">
-                            {toernooi.type === 'king' && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center shadow-sm mb-4">
-                                    <h4 className="font-bold text-blue-900 mb-2 flex items-center justify-center gap-2">
-                                        <span>👑</span> Koning van het Veld
+                            {/* Dynamische knop voor Koning van het Veld & Knock-out */}
+                            {(toernooi.type === 'king' || toernooi.type === 'knockout') && (
+                                <div className={`border rounded-xl p-4 text-center shadow-sm mb-4 ${toernooi.type === 'king' ? 'bg-blue-50 border-blue-200' : 'bg-purple-50 border-purple-200'}`}>
+                                    <h4 className={`font-bold mb-2 flex items-center justify-center gap-2 ${toernooi.type === 'king' ? 'text-blue-900' : 'text-purple-900'}`}>
+                                        <span>{toernooi.type === 'king' ? '👑' : '🥊'}</span> 
+                                        {toernooi.type === 'king' ? 'Koning van het Veld' : 'Knock-out (Winnaars & Verliezers)'}
                                     </h4>
-                                    <p className="text-sm text-blue-700 mb-4">Vul alle scores in om de teams door te schuiven naar het volgende veld.</p>
+                                    <p className={`text-sm mb-4 ${toernooi.type === 'king' ? 'text-blue-700' : 'text-purple-700'}`}>
+                                        {toernooi.type === 'king' 
+                                            ? 'Vul alle scores in om de teams door te schuiven naar het volgende veld.' 
+                                            : 'Vul alle scores in om de volgende ronde (winnaars tegen winnaars) te berekenen.'}
+                                    </p>
                                     
                                     <button 
                                         onClick={triggerVolgendeRonde}
                                         disabled={!allesGespeeld || loadingMatch === 'next_round'}
-                                        className={`w-full py-3.5 font-black text-sm rounded-xl transition-all shadow-md ${!allesGespeeld ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95'}`}
+                                        className={`w-full py-3.5 font-black text-sm rounded-xl transition-all shadow-md active:scale-95 ${
+                                            !allesGespeeld 
+                                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                                                : (toernooi.type === 'king' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white')
+                                        }`}
                                     >
-                                        {loadingMatch === 'next_round' ? 'Aan het doorschuiven...' : !allesGespeeld ? 'Wachten op alle scores...' : `Genereer Ronde ${huidigeRonde + 1} (Doorschuiven!)`}
+                                        {loadingMatch === 'next_round' 
+                                            ? 'Aan het berekenen...' 
+                                            : !allesGespeeld 
+                                                ? 'Wachten op alle scores...' 
+                                                : `Genereer Ronde ${huidigeRonde + 1} (${toernooi.type === 'king' ? 'Doorschuiven!' : 'Nieuwe Matchen!'})`
+                                        }
                                     </button>
                                 </div>
                             )}

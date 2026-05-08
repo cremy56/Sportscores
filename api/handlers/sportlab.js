@@ -1062,7 +1062,54 @@ export async function handleVolgendeRonde(req, res, decodedToken) {
                 }
             }
         } else if (toernooi.type === 'knockout') {
-            return res.status(400).json({ error: 'Knock-out schema bouwen we later!' });
+            // ─── KNOCK-OUT (Met verliezersronde) ───
+            let winnaars = [];
+            let verliezers = [];
+
+            // Bepaal de winnaars en verliezers van de huidige ronde
+            huidigeMatchen.forEach(m => {
+                let win = m.winst_voor === 'team1' ? m.team1 : m.team2;
+                let ver = m.winst_voor === 'team1' ? m.team2 : m.team1;
+                if (m.winst_voor === 'gelijk') { win = m.team1; ver = m.team2; } // Bij gelijkspel krijgt team1 (uitdager) het voordeel
+                winnaars.push(win);
+                verliezers.push(ver);
+            });
+
+            // Haal de virtuele 'bye' (Rust) teams eruit, want we schudden alles opnieuw
+            winnaars = winnaars.filter(t => t.id !== 'bye');
+            verliezers = verliezers.filter(t => t.id !== 'bye');
+
+            // Maak een nieuwe poule: Winnaars bovenaan, verliezers onderaan
+            let pool = [...winnaars, ...verliezers];
+
+            // Als we nu (zonder de bye) een oneven aantal teams hebben, 
+            // krijgt de allerlaatste speler in de lijst (de 'slechtste' verliezer) één ronde rust.
+            if (pool.length % 2 !== 0) {
+                pool.push({ id: 'bye', naam: 'Rust', spelers: [] });
+            }
+
+            // Koppel ze per twee aan elkaar (1vs2, 3vs4, etc.)
+            let v = 1;
+            for (let i = 0; i < pool.length; i += 2) {
+                const t1 = pool[i];
+                const t2 = pool[i+1];
+                const isBye = t1.id === 'bye' || t2.id === 'bye';
+                let autoWinst = null;
+                if (isBye) autoWinst = t1.id === 'bye' ? 'team2' : 'team1';
+
+                nieuweWedstrijden.push({
+                    id: `match_r${huidigeRondeNummer + 1}_v${v}`,
+                    ronde: huidigeRondeNummer + 1,
+                    veld: v, // we gebruiken 'veld' hier puur als volgnummer
+                    team1: t1,
+                    team2: t2,
+                    score1: isBye ? 0 : null,
+                    score2: isBye ? 0 : null,
+                    winst_voor: autoWinst,
+                    gespeeld: isBye
+                });
+                v++;
+            }
         }
 
         // Sla de nieuwe ronde op in de database
