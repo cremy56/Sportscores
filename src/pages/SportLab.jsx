@@ -2146,8 +2146,7 @@ export default function SportLab() {
     }, [gekozenRol]);
 
     const handleSessieGestart = () => fetchSessie();
-    const handleSessieGestart = () => fetchSessie();
-    
+  
     // FIX: Als we 'null' doorkrijgen, wissen we direct het scherm!
     const handleSessieGesloten = (forceerLeeg) => { 
         if (forceerLeeg === null) {
