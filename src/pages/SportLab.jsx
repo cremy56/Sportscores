@@ -428,7 +428,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
 
     const alleReflectiesBinnen = deelnames.length > 0 && deelnames.every(d => d.voltooid);
 
-    const veranderStatus = async (definitief, naarDocentEvaluatie = false) => {
+   const veranderStatus = async (definitief, naarDocentEvaluatie = false) => {
         setLoading(true);
         try {
             await apiPost('sluit_sportlab_sessie', {
@@ -441,16 +441,22 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
             if (definitief) {
                 toast.success('Sessie definitief gesloten.');
                 setToonAfbreekBevestiging(false);
+                
+                // FIX: Verwijder de sessie onmiddellijk uit het geheugen!
+                // Laat dit NIET over aan onSessieGesloten() -> fetchSessie()
+                // want die gaat de sessie toch niet meer vinden (omdat hij gesloten is).
+                onSessieGesloten(null); 
+                return; // Stop direct de uitvoering van deze functie
             } else if (naarDocentEvaluatie) {
                 toast.success('Jouw evaluatiefase is gestart!');
             } else {
                 toast.success('Evaluatievenster voor leerlingen geopend.');
             }
-            onSessieGesloten();
+            onSessieGesloten(); // Dit triggert fetchSessie() voor de andere statussen
         } catch (e) {
             toast.error(e.message);
         } finally {
-            setLoading(false);
+            if(!definitief) setLoading(false); // Zet loading enkel false als we niet gesloten zijn
         }
     };
 
