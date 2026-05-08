@@ -1379,10 +1379,11 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
     if (!toernooi || !toernooi.wedstrijden) return null;
 
     const [loadingMatch, setLoadingMatch] = useState(null);
+    const [inputScores, setInputScores] = useState({}); // Lokaal geheugen voor de invulvakjes
 
-    // 1. Klassement Berekenen
+    // 1. Klassement Berekenen (Inclusief Doelpunten Voor en Tegen)
     const klassement = toernooi.teams
-        .map(t => ({ id: t.id, naam: t.naam, p: 0, w: 0, g: 0, v: 0 }))
+        .map(t => ({ id: t.id, naam: t.naam, p: 0, w: 0, g: 0, v: 0, dv: 0, dt: 0 }))
         .filter(t => t.id !== 'bye'); // Verberg het virtuele 'Rust' team
     
     toernooi.wedstrijden.forEach(m => {
@@ -1391,22 +1392,39 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
         const t2 = klassement.find(t => t.id === m.team2.id);
         if (!t1 || !t2) return;
 
+        // Tel de doelpunten op
+        const s1 = m.score1 || 0;
+        const s2 = m.score2 || 0;
+        t1.dv += s1; t1.dt += s2;
+        t2.dv += s2; t2.dt += s1;
+
+        // Tel de wedstrijdpunten op
         if (m.winst_voor === 'team1') { t1.p += 3; t1.w += 1; t2.v += 1; }
         else if (m.winst_voor === 'team2') { t2.p += 3; t2.w += 1; t1.v += 1; }
         else if (m.winst_voor === 'gelijk') { t1.p += 1; t2.p += 1; t1.g += 1; t2.g += 1; }
     });
 
-    // Sorteer op punten. Bij gelijke punten telt aantal overwinningen.
-    klassement.sort((a, b) => b.p - a.p || (b.w - a.w)); 
+    // Sorteer op: 1. Punten -> 2. Doelsaldo (dv-dt) -> 3. Doelpunten Voor
+    klassement.sort((a, b) => b.p - a.p || (b.dv - b.dt) - (a.dv - a.dt) || b.dv - a.dv); 
 
     // 2. Score opslaan API (Voor Toernooileider)
-    const handleScore = async (matchId, winstVoor) => {
+    const handleScoreOpslaan = async (matchId) => {
+        const s1 = inputScores[`${matchId}_1`];
+        const s2 = inputScores[`${matchId}_2`];
+
+        if (s1 === undefined || s1 === '' || s2 === undefined || s2 === '') {
+            toast.error('Vul beide scores in!');
+            return;
+        }
+
         setLoadingMatch(matchId);
         try {
             await apiPost('update_match_score', {
                 schoolId: profile.school_id,
                 toernooiId: toernooi.id,
-                matchId, winstVoor
+                matchId, 
+                score1: s1, 
+                score2: s2
             }, profile._token);
             if(onRefresh) onRefresh();
         } catch(e) {
@@ -1416,7 +1434,31 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
         }
     };
 
-    // 3. Reset/Stop toernooi API (Voor Leerkracht)
+    // Reset een specifieke wedstrijd
+    const handleResetMatch = async (matchId) => {
+        setLoadingMatch(matchId);
+        try {
+            await apiPost('update_match_score', {
+                schoolId: profile.school_id,
+                toernooiId: toernooi.id,
+                matchId, score1: null, score2: null
+            }, profile._token);
+            
+            // Maak de invulvakjes weer leeg
+            const newInputs = {...inputScores};
+            delete newInputs[`${matchId}_1`];
+            delete newInputs[`${matchId}_2`];
+            setInputScores(newInputs);
+            
+            if(onRefresh) onRefresh();
+        } catch(e) {
+            toast.error(e.message);
+        } finally {
+            setLoadingMatch(null);
+        }
+    };
+
+    // 3. Wis volledig toernooi (Voor Leerkracht)
     const handleStop = async () => {
         if(!window.confirm('Weet je zeker dat je dit schema wilt wissen?')) return;
         try {
@@ -1437,30 +1479,37 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                     <span className="flex items-center gap-2"><span>🏆</span> Live Klassement</span>
                     <span className="text-xs bg-white/20 px-2 py-1 rounded border border-white/30">Poule</span>
                 </div>
-                <div className="p-0">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-50 border-b border-slate-100 text-xs text-slate-500 uppercase">
+                <div className="p-0 overflow-x-auto">
+                    <table className="w-full text-sm text-left whitespace-nowrap">
+                        <thead className="bg-slate-50 border-b border-slate-100 text-[10px] text-slate-500 uppercase tracking-wider">
                             <tr>
                                 <th className="px-4 py-2 font-bold">Team</th>
                                 <th className="px-2 py-2 text-center font-bold" title="Gewonnen">W</th>
                                 <th className="px-2 py-2 text-center font-bold" title="Gelijk">G</th>
                                 <th className="px-2 py-2 text-center font-bold" title="Verloren">V</th>
-                                <th className="px-4 py-2 text-right font-black text-slate-800">PTN</th>
+                                <th className="px-2 py-2 text-center font-bold text-blue-500" title="Doelsaldo">DS</th>
+                                <th className="px-4 py-2 text-right font-black text-slate-800 text-xs">PTN</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                            {klassement.map((team, idx) => (
-                                <tr key={team.id} className={idx === 0 && team.p > 0 ? "bg-amber-50/50" : ""}>
-                                    <td className="px-4 py-3 font-bold text-slate-700 flex items-center gap-2">
-                                        {idx === 0 && team.p > 0 && <span>🥇</span>}
-                                        {team.naam}
-                                    </td>
-                                    <td className="px-2 py-3 text-center text-emerald-600 font-medium">{team.w}</td>
-                                    <td className="px-2 py-3 text-center text-slate-400 font-medium">{team.g}</td>
-                                    <td className="px-2 py-3 text-center text-red-400 font-medium">{team.v}</td>
-                                    <td className="px-4 py-3 text-right font-black text-lg text-slate-800">{team.p}</td>
-                                </tr>
-                            ))}
+                            {klassement.map((team, idx) => {
+                                const ds = team.dv - team.dt;
+                                return (
+                                    <tr key={team.id} className={idx === 0 && team.p > 0 ? "bg-amber-50/50" : ""}>
+                                        <td className="px-4 py-3 font-bold text-slate-700 flex items-center gap-2">
+                                            {idx === 0 && team.p > 0 && <span>🥇</span>}
+                                            {team.naam}
+                                        </td>
+                                        <td className="px-2 py-3 text-center text-emerald-600 font-medium">{team.w}</td>
+                                        <td className="px-2 py-3 text-center text-slate-400 font-medium">{team.g}</td>
+                                        <td className="px-2 py-3 text-center text-red-400 font-medium">{team.v}</td>
+                                        <td className={`px-2 py-3 text-center font-bold ${ds > 0 ? 'text-blue-600' : ds < 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                                            {ds > 0 ? `+${ds}` : ds}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-black text-lg text-slate-800">{team.p}</td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -1471,36 +1520,62 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                 <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Wedstrijdschema</h4>
                 <div className="space-y-3">
                     {toernooi.wedstrijden.map((match) => (
-                        <div key={match.id} className={`bg-white border rounded-xl overflow-hidden shadow-sm transition-colors ${match.gespeeld ? 'border-slate-200 opacity-60 grayscale-[30%]' : 'border-slate-300'}`}>
+                        <div key={match.id} className={`bg-white border rounded-xl overflow-hidden shadow-sm transition-colors ${match.gespeeld ? 'border-slate-200 bg-slate-50' : 'border-slate-300'}`}>
                             
-                            {/* Bovenste helft: De Teams */}
-                            <div className="p-3 flex items-center justify-between bg-slate-50 border-b border-slate-100">
-                                <div className={`flex-1 text-right pr-3 font-bold text-sm ${match.winst_voor === 'team1' ? 'text-emerald-600' : 'text-slate-700'}`}>
+                            {/* Bovenste helft: De Teams & De Uitslag */}
+                            <div className={`p-4 flex items-center justify-between border-b border-slate-100 ${match.gespeeld ? 'opacity-70' : ''}`}>
+                                <div className={`flex-1 text-right pr-3 font-bold text-sm ${match.winst_voor === 'team1' ? 'text-emerald-600 text-base' : 'text-slate-700'}`}>
                                     {match.team1.naam}
                                 </div>
-                                <div className="px-2 py-1 bg-white border border-slate-200 rounded text-[10px] font-black text-slate-400 shadow-sm">
-                                    Ronde {match.ronde}
+                                
+                                <div className="px-3">
+                                    {match.gespeeld ? (
+                                        <div className="bg-slate-800 text-white font-black text-lg px-3 py-1 rounded-lg shadow-inner tabular-nums tracking-widest">
+                                            {match.score1} - {match.score2}
+                                        </div>
+                                    ) : (
+                                        <div className="px-2 py-1 bg-white border border-slate-200 rounded text-[10px] font-black text-slate-400 shadow-sm uppercase">
+                                            Ronde {match.ronde}
+                                        </div>
+                                    )}
                                 </div>
-                                <div className={`flex-1 text-left pl-3 font-bold text-sm ${match.winst_voor === 'team2' ? 'text-emerald-600' : 'text-slate-700'}`}>
+
+                                <div className={`flex-1 text-left pl-3 font-bold text-sm ${match.winst_voor === 'team2' ? 'text-emerald-600 text-base' : 'text-slate-700'}`}>
                                     {match.team2.naam}
                                 </div>
                             </div>
 
-                            {/* Onderste helft: Knoppen voor Toernooileider */}
+                            {/* Onderste helft: Invulvakjes voor Toernooileider */}
                             {!isLeerkracht && (
-                                <div className="p-2 bg-white flex gap-2 justify-center">
+                                <div className="p-3 flex justify-center bg-slate-50/50">
                                     {loadingMatch === match.id ? (
                                         <div className="py-2 text-xs text-slate-400 animate-pulse font-bold">Opslaan...</div>
                                     ) : match.gespeeld ? (
-                                        <button onClick={() => handleScore(match.id, null)} className="w-full py-2 text-xs font-bold text-slate-400 hover:text-slate-600 bg-slate-50 rounded-lg transition-colors">
-                                            ↻ Oeps, pas score aan
+                                        <button onClick={() => handleResetMatch(match.id)} className="py-1 px-4 text-xs font-bold text-slate-400 hover:text-slate-600 bg-white border border-slate-200 rounded-lg transition-colors shadow-sm">
+                                            ↻ Oeps, pas uitslag aan
                                         </button>
                                     ) : (
-                                        <>
-                                            <button onClick={() => handleScore(match.id, 'team1')} className="flex-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors">Winst L</button>
-                                            <button onClick={() => handleScore(match.id, 'gelijk')} className="flex-1 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors">Gelijk</button>
-                                            <button onClick={() => handleScore(match.id, 'team2')} className="flex-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors">Winst R</button>
-                                        </>
+                                        <div className="flex items-center gap-3">
+                                            <input 
+                                                type="number" min="0" placeholder="0"
+                                                value={inputScores[`${match.id}_1`] ?? ''}
+                                                onChange={e => setInputScores({...inputScores, [`${match.id}_1`]: e.target.value})}
+                                                className="w-16 text-center font-black text-lg p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                            />
+                                            <span className="font-black text-slate-300">-</span>
+                                            <input 
+                                                type="number" min="0" placeholder="0"
+                                                value={inputScores[`${match.id}_2`] ?? ''}
+                                                onChange={e => setInputScores({...inputScores, [`${match.id}_2`]: e.target.value})}
+                                                className="w-16 text-center font-black text-lg p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                            />
+                                            <button 
+                                                onClick={() => handleScoreOpslaan(match.id)} 
+                                                className="ml-2 py-2.5 px-4 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-transform active:scale-95 shadow-sm"
+                                            >
+                                                Opslaan
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             )}
@@ -1509,7 +1584,6 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                 </div>
             </div>
             
-            {/* RESET KNOP (Enkel voor de leerkracht!) */}
             {isLeerkracht && (
                 <button onClick={handleStop} className="w-full py-3 mt-4 text-xs font-bold text-red-500 bg-white border-2 border-red-100 hover:bg-red-50 hover:border-red-200 rounded-xl transition-colors shadow-sm">
                     Foutje? Wis Toernooi en start opnieuw

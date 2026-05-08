@@ -870,7 +870,7 @@ export async function handleStartToernooi(req, res, decodedToken) {
 // ─── 13. TOERNOOI SCORES UPDATEN ─────────────────────────────────────────────
 export async function handleUpdateMatchScore(req, res, decodedToken) {
     try {
-        const { schoolId, toernooiId, matchId, winstVoor } = req.body;
+        const { schoolId, toernooiId, matchId, score1, score2 } = req.body;
         
         const verifiedSchoolId = await getSchoolId(decodedToken.uid);
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
@@ -879,11 +879,29 @@ export async function handleUpdateMatchScore(req, res, decodedToken) {
         const toernooiSnap = await toernooiRef.get();
         if (!toernooiSnap.exists) return res.status(404).json({ error: 'Toernooi niet gevonden.' });
 
-        // Omdat wedstrijden in een array zitten, passen we de array in het geheugen aan
+        // Als er geen score is doorgegeven (reset), maken we alles leeg
+        let winstVoor = null;
+        let s1 = null;
+        let s2 = null;
+
+        if (score1 !== null && score2 !== null) {
+            s1 = Number(score1);
+            s2 = Number(score2);
+            if (s1 > s2) winstVoor = 'team1';
+            else if (s1 < s2) winstVoor = 'team2';
+            else winstVoor = 'gelijk';
+        }
+
         const toernooi = toernooiSnap.data();
         const nieuweWedstrijden = toernooi.wedstrijden.map(m => {
             if (m.id === matchId) {
-                return { ...m, winst_voor: winstVoor, gespeeld: winstVoor !== null };
+                return { 
+                    ...m, 
+                    score1: s1, 
+                    score2: s2, 
+                    winst_voor: winstVoor, 
+                    gespeeld: winstVoor !== null 
+                };
             }
             return m;
         });
