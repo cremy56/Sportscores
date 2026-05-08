@@ -2146,7 +2146,17 @@ export default function SportLab() {
     }, [gekozenRol]);
 
     const handleSessieGestart = () => fetchSessie();
-    const handleSessieGesloten = () => fetchSessie();
+    const handleSessieGestart = () => fetchSessie();
+    
+    // FIX: Als we 'null' doorkrijgen, wissen we direct het scherm!
+    const handleSessieGesloten = (forceerLeeg) => { 
+        if (forceerLeeg === null) {
+            setLeerkrachtSessie(null);
+        } else {
+            fetchSessie(); 
+        }
+    };
+    
     const handleRolGekozen = (rol) => { setGekozenRol(rol); fetchSessie(); };
     
     const handleTerugNaarOverzicht = () => { 
