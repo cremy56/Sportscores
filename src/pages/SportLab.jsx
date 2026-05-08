@@ -1396,16 +1396,15 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
     if (!toernooi || !toernooi.wedstrijden) return null;
 
     const [loadingMatch, setLoadingMatch] = useState(null);
-    const [inputScores, setInputScores] = useState({}); // Lokaal geheugen voor de invulvakjes
+    const [inputScores, setInputScores] = useState({});
     
-    // NIEUW: State voor de custom modal
     const [toonStopBevestiging, setToonStopBevestiging] = useState(false);
     const [isStopping, setIsStopping] = useState(false);
 
-    // 1. Klassement Berekenen (Inclusief Doelpunten Voor en Tegen)
+    // 1. Klassement Berekenen
     const klassement = toernooi.teams
         .map(t => ({ id: t.id, naam: t.naam, p: 0, w: 0, g: 0, v: 0, dv: 0, dt: 0 }))
-        .filter(t => t.id !== 'bye'); // Verberg het virtuele 'Rust' team
+        .filter(t => t.id !== 'bye');
     
     toernooi.wedstrijden.forEach(m => {
         if (!m.gespeeld) return;
@@ -1413,22 +1412,18 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
         const t2 = klassement.find(t => t.id === m.team2.id);
         if (!t1 || !t2) return;
 
-        // Tel de doelpunten op
         const s1 = m.score1 || 0;
         const s2 = m.score2 || 0;
         t1.dv += s1; t1.dt += s2;
         t2.dv += s2; t2.dt += s1;
 
-        // Tel de wedstrijdpunten op
         if (m.winst_voor === 'team1') { t1.p += 3; t1.w += 1; t2.v += 1; }
         else if (m.winst_voor === 'team2') { t2.p += 3; t2.w += 1; t1.v += 1; }
         else if (m.winst_voor === 'gelijk') { t1.p += 1; t2.p += 1; t1.g += 1; t2.g += 1; }
     });
 
-    // Sorteer op: 1. Punten -> 2. Doelsaldo (dv-dt) -> 3. Doelpunten Voor
     klassement.sort((a, b) => b.p - a.p || (b.dv - b.dt) - (a.dv - a.dt) || b.dv - a.dv); 
 
-    // 2. Score opslaan API (Voor Toernooileider)
     const handleScoreOpslaan = async (matchId) => {
         const s1 = inputScores[`${matchId}_1`];
         const s2 = inputScores[`${matchId}_2`];
@@ -1477,7 +1472,6 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
         }
     };
 
-    // 3. Wis volledig toernooi (Voor Leerkracht) - Nu met custom modal functie
     const bevestigStop = async () => {
         setIsStopping(true);
         try {
@@ -1557,7 +1551,7 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
 
                     return (
                         <div className="space-y-6">
-                            {/* Dynamische knop voor Koning van het Veld & Knock-out */}
+                            
                             {(toernooi.type === 'king' || toernooi.type === 'knockout') && (
                                 <div className={`border rounded-xl p-4 text-center shadow-sm mb-4 ${toernooi.type === 'king' ? 'bg-blue-50 border-blue-200' : 'bg-purple-50 border-purple-200'}`}>
                                     <h4 className={`font-bold mb-2 flex items-center justify-center gap-2 ${toernooi.type === 'king' ? 'text-blue-900' : 'text-purple-900'}`}>
@@ -1621,7 +1615,8 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                                                         </div>
                                                     </div>
 
-                                                    {!isLeerkracht && match.ronde === huidigeRonde && (
+                                                    {/* FIX: Verberg invulvakjes en Oeps-knop als iemand tegen 'Rust' (bye) speelt! */}
+                                                    {!isLeerkracht && match.ronde === huidigeRonde && match.team1.id !== 'bye' && match.team2.id !== 'bye' && (
                                                         <div className="p-3 flex justify-center bg-slate-50/50">
                                                             {loadingMatch === match.id ? (
                                                                 <div className="py-2 text-xs text-slate-400 animate-pulse font-bold">Opslaan...</div>
@@ -1650,7 +1645,6 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                 })()}
             </div>
             
-            {/* RESET KNOP (Opent nu de nieuwe modal) */}
             {isLeerkracht && (
                 <button onClick={() => setToonStopBevestiging(true)} className="w-full py-3 mt-4 text-xs font-bold text-red-500 bg-white border-2 border-red-100 hover:bg-red-50 hover:border-red-200 rounded-xl transition-colors shadow-sm">
                     Foutje? Wis Toernooi en start opnieuw
