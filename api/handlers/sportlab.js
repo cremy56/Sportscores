@@ -258,7 +258,7 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
 
         const snap = await db.collection('sport_lab_sessions')
             .where('leerkracht_id', '==', decodedToken.uid)
-            .limit(20)
+            .where('status', 'in', ['actief', 'evaluatie', 'docent_evaluatie'])
             .get();
 
         const ROL_UI = {

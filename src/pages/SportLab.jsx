@@ -213,13 +213,15 @@ function SessieStartForm({ profile, onSessieGestart }) {
                 doelId
             }, profile._token);
             toast.success(`Sport Lab sessie gestart voor ${sport}!`);
-            onSessieGestart(data.sessie_id);
+            
+            // Wacht nu écht tot de pagina ververst is voordat we de loading-state stoppen
+            await onSessieGestart(data.sessie_id); 
+            
         } catch (e) {
             toast.error(e.message);
         } finally {
             setLoading(false);
         }
-    };
 
     return (
         <div className="flex justify-center">
