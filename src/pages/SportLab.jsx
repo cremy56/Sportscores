@@ -1397,6 +1397,10 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
 
     const [loadingMatch, setLoadingMatch] = useState(null);
     const [inputScores, setInputScores] = useState({}); // Lokaal geheugen voor de invulvakjes
+    
+    // NIEUW: State voor de custom modal
+    const [toonStopBevestiging, setToonStopBevestiging] = useState(false);
+    const [isStopping, setIsStopping] = useState(false);
 
     // 1. Klassement Berekenen (Inclusief Doelpunten Voor en Tegen)
     const klassement = toernooi.teams
@@ -1451,7 +1455,6 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
         }
     };
 
-    // Reset een specifieke wedstrijd
     const handleResetMatch = async (matchId) => {
         setLoadingMatch(matchId);
         try {
@@ -1461,7 +1464,6 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                 matchId, score1: null, score2: null
             }, profile._token);
             
-            // Maak de invulvakjes weer leeg
             const newInputs = {...inputScores};
             delete newInputs[`${matchId}_1`];
             delete newInputs[`${matchId}_2`];
@@ -1475,15 +1477,18 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
         }
     };
 
-    // 3. Wis volledig toernooi (Voor Leerkracht)
-    const handleStop = async () => {
-        if(!window.confirm('Weet je zeker dat je dit schema wilt wissen?')) return;
+    // 3. Wis volledig toernooi (Voor Leerkracht) - Nu met custom modal functie
+    const bevestigStop = async () => {
+        setIsStopping(true);
         try {
             await apiPost('stop_toernooi', { schoolId: profile.school_id, toernooiId: toernooi.id }, profile._token);
             toast.success('Toernooi gereset!');
+            setToonStopBevestiging(false);
             if(onRefresh) onRefresh();
         } catch(e) {
             toast.error(e.message);
+        } finally {
+            setIsStopping(false);
         }
     };
 
@@ -1494,8 +1499,6 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
             <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                 <div className={`p-3 font-bold flex justify-between items-center text-white ${isLeerkracht ? 'bg-slate-800' : `bg-gradient-to-r ${rolData?.kleur}`}`}>
                     <span className="flex items-center gap-2"><span>🏆</span> Live Klassement</span>
-                    
-                    {/* FIX 1: Dynamisch Toernooi Label */}
                     <span className="text-xs bg-white/20 px-2 py-1 rounded border border-white/30">
                         {toernooi.type === 'king' ? 'Koning v/h Veld' : toernooi.type === 'knockout' ? 'Knock-out' : 'Poule'}
                     </span>
@@ -1505,10 +1508,10 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                         <thead className="bg-slate-50 border-b border-slate-100 text-[10px] text-slate-500 uppercase tracking-wider">
                             <tr>
                                 <th className="px-4 py-2 font-bold">Team</th>
-                                <th className="px-2 py-2 text-center font-bold" title="Gewonnen">W</th>
-                                <th className="px-2 py-2 text-center font-bold" title="Gelijk">G</th>
-                                <th className="px-2 py-2 text-center font-bold" title="Verloren">V</th>
-                                <th className="px-2 py-2 text-center font-bold text-blue-500" title="Doelsaldo">DS</th>
+                                <th className="px-2 py-2 text-center font-bold">W</th>
+                                <th className="px-2 py-2 text-center font-bold">G</th>
+                                <th className="px-2 py-2 text-center font-bold">V</th>
+                                <th className="px-2 py-2 text-center font-bold text-blue-500">DS</th>
                                 <th className="px-4 py-2 text-right font-black text-slate-800 text-xs">PTN</th>
                             </tr>
                         </thead>
@@ -1554,7 +1557,6 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
 
                     return (
                         <div className="space-y-6">
-                            {/* Dynamische knop voor Koning van het Veld */}
                             {toernooi.type === 'king' && (
                                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center shadow-sm mb-4">
                                     <h4 className="font-bold text-blue-900 mb-2 flex items-center justify-center gap-2">
@@ -1562,7 +1564,6 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                                     </h4>
                                     <p className="text-sm text-blue-700 mb-4">Vul alle scores in om de teams door te schuiven naar het volgende veld.</p>
                                     
-                                    {/* FIX 2: De knop is nu ook zichtbaar voor jou als leerkracht! */}
                                     <button 
                                         onClick={triggerVolgendeRonde}
                                         disabled={!allesGespeeld || loadingMatch === 'next_round'}
@@ -1573,7 +1574,6 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                                 </div>
                             )}
 
-                            {/* Toon de matchen, nieuwste ronde bovenaan */}
                             {[...Array(huidigeRonde)].map((_, i) => {
                                 const rondeNummer = huidigeRonde - i;
                                 const matchen = toernooi.wedstrijden.filter(m => m.ronde === rondeNummer);
@@ -1606,7 +1606,6 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                                                         </div>
                                                     </div>
 
-                                                    {/* Invulvakjes (enkel tonen als het de HUIDIGE ronde is) */}
                                                     {!isLeerkracht && match.ronde === huidigeRonde && (
                                                         <div className="p-3 flex justify-center bg-slate-50/50">
                                                             {loadingMatch === match.id ? (
@@ -1636,10 +1635,44 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                 })()}
             </div>
             
+            {/* RESET KNOP (Opent nu de nieuwe modal) */}
             {isLeerkracht && (
-                <button onClick={handleStop} className="w-full py-3 mt-4 text-xs font-bold text-red-500 bg-white border-2 border-red-100 hover:bg-red-50 hover:border-red-200 rounded-xl transition-colors shadow-sm">
+                <button onClick={() => setToonStopBevestiging(true)} className="w-full py-3 mt-4 text-xs font-bold text-red-500 bg-white border-2 border-red-100 hover:bg-red-50 hover:border-red-200 rounded-xl transition-colors shadow-sm">
                     Foutje? Wis Toernooi en start opnieuw
                 </button>
+            )}
+
+            {/* ── ECHTE POP-UP MODAL VOOR TOERNOOI WISSEN ── */}
+            {toonStopBevestiging && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-auto transform scale-100">
+                        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4 mx-auto border-4 border-white shadow-sm">
+                            <span className="text-3xl">⚠️</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-800 text-center mb-2">Toernooi wissen?</h3>
+                        <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed">
+                            Weet je zeker dat je dit schema wilt wissen? Alle ingevulde wedstrijden van dit toernooi gaan definitief verloren.
+                        </p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setToonStopBevestiging(false)} 
+                                disabled={isStopping}
+                                className="flex-1 py-3 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-50"
+                            >
+                                Annuleren
+                            </button>
+                            <button 
+                                onClick={bevestigStop} 
+                                disabled={isStopping} 
+                                className="flex-1 py-3 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-sm transition-colors flex justify-center items-center"
+                            >
+                                {isStopping ? (
+                                    <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></div>
+                                ) : 'Ja, wissen'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
