@@ -222,6 +222,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
         } finally {
             setLoading(false);
         }
+    };
 
     return (
         <div className="flex justify-center">
