@@ -2162,9 +2162,11 @@ export default function SportLab() {
     const niveaus = profile?.sportlab_niveaus || {};
 
     useEffect(() => {
-        setGekozenRol(null);
-        setEigenDeelname(null);
-    }, []);
+        if (!sessie) {
+            setGekozenRol(null);
+            setEigenDeelname(null);
+        }
+    }, [sessie?.id]);
 
     const fetchSessie = useCallback(async () => {
         if (!profile?._token || !profile?.school_id) return;
