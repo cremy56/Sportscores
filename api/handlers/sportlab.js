@@ -847,9 +847,40 @@ export async function handleStartToernooi(req, res, decodedToken) {
                 t.splice(1, 0, t.pop());
             }
         } 
-        else if (type === 'knockout' || type === 'king') {
-            // Deze bouwen we later in! Voor nu zetten we gewoon een lege structuur klaar.
-            wedstrijden = []; 
+        else if (type === 'king' || type === 'knockout') {
+            // ─── ALGORITME 2 & 3: KONING VAN HET VELD / KNOCK-OUT (Ronde 1) ───
+            // We berekenen enkel Ronde 1. De volgende rondes worden later dynamisch gegenereerd.
+            
+            let t = [...teams].sort(() => Math.random() - 0.5); // Willekeurige start-loting
+            
+            // Bij een oneven aantal teams krijgt 1 team 'Rust'
+            if (t.length % 2 !== 0) {
+                t.push({ id: 'bye', naam: 'Rust', spelers: [] });
+            }
+
+            let matchId = 1;
+            for (let i = 0; i < t.length; i += 2) {
+                const veldNummer = (i / 2) + 1; // Veld 1 is het 'Koning' veld
+                
+                // Als iemand tegen 'Rust' loot, hebben ze automatisch gewonnen
+                const isBye = t[i].id === 'bye' || t[i+1].id === 'bye';
+                let automatischeWinst = null;
+                if (isBye) {
+                    automatischeWinst = t[i].id === 'bye' ? 'team2' : 'team1';
+                }
+
+                wedstrijden.push({
+                    id: `match_r1_v${veldNummer}`,
+                    ronde: 1,
+                    veld: veldNummer,
+                    team1: { id: t[i].id, naam: t[i].naam },
+                    team2: { id: t[i+1].id, naam: t[i+1].naam },
+                    score1: isBye ? 0 : null,
+                    score2: isBye ? 0 : null,
+                    winst_voor: automatischeWinst,
+                    gespeeld: isBye
+                });
+            }
         }
 
         // Sla het toernooi op in een gloednieuwe collectie
@@ -939,5 +970,109 @@ export async function handleStopToernooi(req, res, decodedToken) {
     } catch (error) {
         console.error('❌ handleStopToernooi:', error);
         return res.status(500).json({ error: 'Fout bij stoppen toernooi' });
+    }
+}
+// ─── 16. VOLGENDE RONDE BEREKENEN (Koning van het veld) ──────────────────────
+export async function handleVolgendeRonde(req, res, decodedToken) {
+    try {
+        const { schoolId, toernooiId } = req.body;
+        
+        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
+        const verifiedSchoolId = callerSnap.data()?.school_id;
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const toernooiRef = db.collection('sport_lab_toernooien').doc(toernooiId);
+        const snap = await toernooiRef.get();
+        if (!snap.exists) return res.status(404).json({ error: 'Toernooi niet gevonden.' });
+
+        const toernooi = snap.data();
+        
+        // Zoek de huidige (hoogste) ronde
+        const huidigeRondeNummer = Math.max(...toernooi.wedstrijden.map(m => m.ronde));
+        const huidigeMatchen = toernooi.wedstrijden.filter(m => m.ronde === huidigeRondeNummer);
+
+        // Check of de Toernooileider alles heeft ingevuld
+        if (huidigeMatchen.some(m => !m.gespeeld)) {
+            return res.status(400).json({ error: 'Nog niet alle wedstrijden van deze ronde zijn ingevuld!' });
+        }
+
+        let nieuweWedstrijden = [];
+
+        if (toernooi.type === 'king') {
+            let velden = {}; 
+            let maxVeld = 1;
+            
+            // 1. Bepaal winnaar en verliezer per veld
+            huidigeMatchen.forEach(m => {
+                const v = m.veld;
+                if (v > maxVeld) maxVeld = v;
+                
+                let winnaar = m.winst_voor === 'team1' ? m.team1 : m.team2;
+                let verliezer = m.winst_voor === 'team1' ? m.team2 : m.team1;
+                
+                // Bij gelijkspel: Team 1 (de uitdager) wint het voordeel van de twijfel
+                if (m.winst_voor === 'gelijk') { winnaar = m.team1; verliezer = m.team2; }
+                
+                velden[v] = { winnaar, verliezer };
+            });
+
+            // 2. Bepaal de nieuwe posities (Doorschuiven!)
+            let nieuwePosities = {}; 
+            for (let i = 1; i <= maxVeld; i++) nieuwePosities[i] = [];
+
+            for (let v = 1; v <= maxVeld; v++) {
+                const win = velden[v].winnaar;
+                const ver = velden[v].verliezer;
+
+                if (v === 1) {
+                    // Koningsveld: Winnaar blijft, verliezer zakt
+                    nieuwePosities[1].push(win);
+                    if (maxVeld > 1) nieuwePosities[2].push(ver);
+                    else nieuwePosities[1].push(ver); 
+                } else if (v === maxVeld) {
+                    // Degradatieveld: Winnaar stijgt, verliezer blijft
+                    nieuwePosities[v - 1].push(win);
+                    nieuwePosities[v].push(ver);
+                } else {
+                    // Middenveld: Winnaar stijgt, verliezer zakt
+                    nieuwePosities[v - 1].push(win);
+                    nieuwePosities[v + 1].push(ver);
+                }
+            }
+
+            // 3. Maak de nieuwe wedstrijden aan
+            for (let v = 1; v <= maxVeld; v++) {
+                const teamsOpVeld = nieuwePosities[v];
+                if (teamsOpVeld.length === 2) {
+                    const isBye = teamsOpVeld[0].id === 'bye' || teamsOpVeld[1].id === 'bye';
+                    let autoWinst = null;
+                    if (isBye) autoWinst = teamsOpVeld[0].id === 'bye' ? 'team2' : 'team1';
+
+                    nieuweWedstrijden.push({
+                        id: `match_r${huidigeRondeNummer + 1}_v${v}`,
+                        ronde: huidigeRondeNummer + 1,
+                        veld: v,
+                        team1: teamsOpVeld[0],
+                        team2: teamsOpVeld[1],
+                        score1: isBye ? 0 : null,
+                        score2: isBye ? 0 : null,
+                        winst_voor: autoWinst,
+                        gespeeld: isBye
+                    });
+                }
+            }
+        } else if (toernooi.type === 'knockout') {
+            return res.status(400).json({ error: 'Knock-out schema bouwen we later!' });
+        }
+
+        // Sla de nieuwe ronde op in de database
+        const geupdateWedstrijden = [...toernooi.wedstrijden, ...nieuweWedstrijden];
+        await toernooiRef.update({ wedstrijden: geupdateWedstrijden, bijgewerkt_op: new Date() });
+
+        return res.status(200).json({ success: true });
+
+    } catch (error) {
+        console.error('❌ handleVolgendeRonde:', error);
+        return res.status(500).json({ error: 'Fout bij doorschuiven' });
     }
 }

@@ -1532,73 +1532,105 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                 </div>
             </div>
 
-            {/* WEDSTRIJDSCHEMA */}
+            {/* WEDSTRIJDSCHEMA (Nu met Doorschuif-knop en per Ronde gegroepeerd) */}
             <div>
-                <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Wedstrijdschema</h4>
-                <div className="space-y-3">
-                    {toernooi.wedstrijden.map((match) => (
-                        <div key={match.id} className={`bg-white border rounded-xl overflow-hidden shadow-sm transition-colors ${match.gespeeld ? 'border-slate-200 bg-slate-50' : 'border-slate-300'}`}>
-                            
-                            {/* Bovenste helft: De Teams & De Uitslag */}
-                            <div className={`p-4 flex items-center justify-between border-b border-slate-100 ${match.gespeeld ? 'opacity-70' : ''}`}>
-                                <div className={`flex-1 text-right pr-3 font-bold text-sm ${match.winst_voor === 'team1' ? 'text-emerald-600 text-base' : 'text-slate-700'}`}>
-                                    {match.team1.naam}
-                                </div>
-                                
-                                <div className="px-3">
-                                    {match.gespeeld ? (
-                                        <div className="bg-slate-800 text-white font-black text-lg px-3 py-1 rounded-lg shadow-inner tabular-nums tracking-widest">
-                                            {match.score1} - {match.score2}
-                                        </div>
-                                    ) : (
-                                        <div className="px-2 py-1 bg-white border border-slate-200 rounded text-[10px] font-black text-slate-400 shadow-sm uppercase">
-                                            Ronde {match.ronde}
-                                        </div>
-                                    )}
-                                </div>
+                {(() => {
+                    const huidigeRonde = Math.max(...toernooi.wedstrijden.map(m => m.ronde));
+                    const matchenHuidigeRonde = toernooi.wedstrijden.filter(m => m.ronde === huidigeRonde);
+                    const allesGespeeld = matchenHuidigeRonde.every(m => m.gespeeld);
 
-                                <div className={`flex-1 text-left pl-3 font-bold text-sm ${match.winst_voor === 'team2' ? 'text-emerald-600 text-base' : 'text-slate-700'}`}>
-                                    {match.team2.naam}
-                                </div>
-                            </div>
+                    const triggerVolgendeRonde = async () => {
+                        setLoadingMatch('next_round');
+                        try {
+                            await apiPost('volgende_ronde', { schoolId: profile.school_id, toernooiId: toernooi.id }, profile._token);
+                            if(onRefresh) onRefresh();
+                        } catch(e) { toast.error(e.message); } 
+                        finally { setLoadingMatch(null); }
+                    };
 
-                            {/* Onderste helft: Invulvakjes voor Toernooileider */}
-                            {!isLeerkracht && (
-                                <div className="p-3 flex justify-center bg-slate-50/50">
-                                    {loadingMatch === match.id ? (
-                                        <div className="py-2 text-xs text-slate-400 animate-pulse font-bold">Opslaan...</div>
-                                    ) : match.gespeeld ? (
-                                        <button onClick={() => handleResetMatch(match.id)} className="py-1 px-4 text-xs font-bold text-slate-400 hover:text-slate-600 bg-white border border-slate-200 rounded-lg transition-colors shadow-sm">
-                                            ↻ Oeps, pas uitslag aan
+                    return (
+                        <div className="space-y-6">
+                            {/* Dynamische knop voor Koning van het Veld */}
+                            {toernooi.type === 'king' && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center shadow-sm mb-4">
+                                    <h4 className="font-bold text-blue-900 mb-2 flex items-center justify-center gap-2">
+                                        <span>👑</span> Koning van het Veld
+                                    </h4>
+                                    <p className="text-sm text-blue-700 mb-4">Vul alle scores in om de teams door te schuiven naar het volgende veld.</p>
+                                    
+                                    {!isLeerkracht && (
+                                        <button 
+                                            onClick={triggerVolgendeRonde}
+                                            disabled={!allesGespeeld || loadingMatch === 'next_round'}
+                                            className={`w-full py-3.5 font-black text-sm rounded-xl transition-all shadow-md ${!allesGespeeld ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95'}`}
+                                        >
+                                            {loadingMatch === 'next_round' ? 'Aan het doorschuiven...' : !allesGespeeld ? 'Wachten op alle scores...' : `Genereer Ronde ${huidigeRonde + 1} (Doorschuiven!)`}
                                         </button>
-                                    ) : (
-                                        <div className="flex items-center gap-3">
-                                            <input 
-                                                type="number" min="0" placeholder="0"
-                                                value={inputScores[`${match.id}_1`] ?? ''}
-                                                onChange={e => setInputScores({...inputScores, [`${match.id}_1`]: e.target.value})}
-                                                className="w-16 text-center font-black text-lg p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                                            />
-                                            <span className="font-black text-slate-300">-</span>
-                                            <input 
-                                                type="number" min="0" placeholder="0"
-                                                value={inputScores[`${match.id}_2`] ?? ''}
-                                                onChange={e => setInputScores({...inputScores, [`${match.id}_2`]: e.target.value})}
-                                                className="w-16 text-center font-black text-lg p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                                            />
-                                            <button 
-                                                onClick={() => handleScoreOpslaan(match.id)} 
-                                                className="ml-2 py-2.5 px-4 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-transform active:scale-95 shadow-sm"
-                                            >
-                                                Opslaan
-                                            </button>
-                                        </div>
                                     )}
                                 </div>
                             )}
+
+                            {/* Toon de matchen, nieuwste ronde bovenaan */}
+                            {[...Array(huidigeRonde)].map((_, i) => {
+                                const rondeNummer = huidigeRonde - i;
+                                const matchen = toernooi.wedstrijden.filter(m => m.ronde === rondeNummer);
+                                
+                                return (
+                                    <div key={`ronde_${rondeNummer}`}>
+                                        <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Ronde {rondeNummer}</h4>
+                                        <div className="space-y-3">
+                                            {matchen.map((match) => (
+                                                <div key={match.id} className={`bg-white border rounded-xl overflow-hidden shadow-sm transition-colors ${match.gespeeld ? 'border-slate-200 bg-slate-50' : 'border-slate-300'}`}>
+                                                    <div className={`p-4 flex items-center justify-between border-b border-slate-100 ${match.gespeeld ? 'opacity-70' : ''}`}>
+                                                        <div className={`flex-1 text-right pr-3 font-bold text-sm ${match.winst_voor === 'team1' ? 'text-emerald-600 text-base' : 'text-slate-700'}`}>
+                                                            {match.team1.naam}
+                                                        </div>
+                                                        
+                                                        <div className="px-3">
+                                                            {match.gespeeld ? (
+                                                                <div className="bg-slate-800 text-white font-black text-lg px-3 py-1 rounded-lg shadow-inner tabular-nums tracking-widest">
+                                                                    {match.score1} - {match.score2}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="px-2 py-1 bg-white border border-slate-200 rounded text-[10px] font-black text-slate-400 shadow-sm uppercase">
+                                                                    {toernooi.type === 'king' ? `Veld ${match.veld}` : `VS`}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className={`flex-1 text-left pl-3 font-bold text-sm ${match.winst_voor === 'team2' ? 'text-emerald-600 text-base' : 'text-slate-700'}`}>
+                                                            {match.team2.naam}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Invulvakjes (enkel tonen als het de HUIDIGE ronde is, oude rondes zijn gelockt!) */}
+                                                    {!isLeerkracht && match.ronde === huidigeRonde && (
+                                                        <div className="p-3 flex justify-center bg-slate-50/50">
+                                                            {loadingMatch === match.id ? (
+                                                                <div className="py-2 text-xs text-slate-400 animate-pulse font-bold">Opslaan...</div>
+                                                            ) : match.gespeeld ? (
+                                                                <button onClick={() => handleResetMatch(match.id)} className="py-1 px-4 text-xs font-bold text-slate-400 hover:text-slate-600 bg-white border border-slate-200 rounded-lg transition-colors shadow-sm">
+                                                                    ↻ Oeps, pas uitslag aan
+                                                                </button>
+                                                            ) : (
+                                                                <div className="flex items-center gap-3">
+                                                                    <input type="number" min="0" value={inputScores[`${match.id}_1`] ?? ''} onChange={e => setInputScores({...inputScores, [`${match.id}_1`]: e.target.value})} className="w-16 text-center font-black text-lg p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                                                    <span className="font-black text-slate-300">-</span>
+                                                                    <input type="number" min="0" value={inputScores[`${match.id}_2`] ?? ''} onChange={e => setInputScores({...inputScores, [`${match.id}_2`]: e.target.value})} className="w-16 text-center font-black text-lg p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                                                    <button onClick={() => handleScoreOpslaan(match.id)} className="ml-2 py-2.5 px-4 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-transform active:scale-95 shadow-sm">Opslaan</button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
-                    ))}
-                </div>
+                    );
+                })()}
             </div>
             
             {isLeerkracht && (
