@@ -92,6 +92,7 @@ export async function handleStartSportLabSessie(req, res, decodedToken) {
             groep_id: doelType === 'groep' ? doelId : null,
             status: 'actief',
             start_tijd: Timestamp.now(),
+            vervalt_op: Timestamp.fromDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)),
             gesloten_op: null,
             is_test_sessie: callerRol === 'super-administrator', // Bypass voor schooluren
         });
@@ -437,6 +438,7 @@ export async function handleJoinSportLabSessie(req, res, decodedToken) {
                 leerling_hash: userData?.toegestane_gebruikers_id || null,
                 rol: ROL_DB[rol],
                 niveau: userData?.sportlab_niveaus?.[ROL_DB[rol]] || 1,
+                vervalt_op: Timestamp.fromDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)), 
                 zelfreflectie: null,
                 xp_earned: 0,
                 voltooid: false,
@@ -661,6 +663,7 @@ export async function handleSaveSportLabScore(req, res, decodedToken) {
                 score: Number(score),
                 max_score: Number(maxScore),
                 level_up_toegekend: levelUp || false,
+                vervalt_op: Timestamp.fromDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)),
                 bijgewerkt_op: Timestamp.now()
             });
         } else {
@@ -675,6 +678,7 @@ export async function handleSaveSportLabScore(req, res, decodedToken) {
                 score: Number(score),
                 max_score: Number(maxScore),
                 level_up_toegekend: levelUp || false,
+                vervalt_op: Timestamp.fromDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)),
                 datum: Timestamp.now()
             });
         }
@@ -857,6 +861,7 @@ export async function handleStartToernooi(req, res, decodedToken) {
             status: 'actief',
             teams: teams,
             wedstrijden: wedstrijden,
+            vervalt_op: Timestamp.fromDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)), // <--- TOEVOEGEN
             aangemaakt_op: new Date()
         });
 
