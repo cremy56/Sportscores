@@ -1494,7 +1494,11 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
             <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                 <div className={`p-3 font-bold flex justify-between items-center text-white ${isLeerkracht ? 'bg-slate-800' : `bg-gradient-to-r ${rolData?.kleur}`}`}>
                     <span className="flex items-center gap-2"><span>🏆</span> Live Klassement</span>
-                    <span className="text-xs bg-white/20 px-2 py-1 rounded border border-white/30">Poule</span>
+                    
+                    {/* FIX 1: Dynamisch Toernooi Label */}
+                    <span className="text-xs bg-white/20 px-2 py-1 rounded border border-white/30">
+                        {toernooi.type === 'king' ? 'Koning v/h Veld' : toernooi.type === 'knockout' ? 'Knock-out' : 'Poule'}
+                    </span>
                 </div>
                 <div className="p-0 overflow-x-auto">
                     <table className="w-full text-sm text-left whitespace-nowrap">
@@ -1532,7 +1536,7 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                 </div>
             </div>
 
-            {/* WEDSTRIJDSCHEMA (Nu met Doorschuif-knop en per Ronde gegroepeerd) */}
+            {/* WEDSTRIJDSCHEMA */}
             <div>
                 {(() => {
                     const huidigeRonde = Math.max(...toernooi.wedstrijden.map(m => m.ronde));
@@ -1558,15 +1562,14 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                                     </h4>
                                     <p className="text-sm text-blue-700 mb-4">Vul alle scores in om de teams door te schuiven naar het volgende veld.</p>
                                     
-                                    {!isLeerkracht && (
-                                        <button 
-                                            onClick={triggerVolgendeRonde}
-                                            disabled={!allesGespeeld || loadingMatch === 'next_round'}
-                                            className={`w-full py-3.5 font-black text-sm rounded-xl transition-all shadow-md ${!allesGespeeld ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95'}`}
-                                        >
-                                            {loadingMatch === 'next_round' ? 'Aan het doorschuiven...' : !allesGespeeld ? 'Wachten op alle scores...' : `Genereer Ronde ${huidigeRonde + 1} (Doorschuiven!)`}
-                                        </button>
-                                    )}
+                                    {/* FIX 2: De knop is nu ook zichtbaar voor jou als leerkracht! */}
+                                    <button 
+                                        onClick={triggerVolgendeRonde}
+                                        disabled={!allesGespeeld || loadingMatch === 'next_round'}
+                                        className={`w-full py-3.5 font-black text-sm rounded-xl transition-all shadow-md ${!allesGespeeld ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95'}`}
+                                    >
+                                        {loadingMatch === 'next_round' ? 'Aan het doorschuiven...' : !allesGespeeld ? 'Wachten op alle scores...' : `Genereer Ronde ${huidigeRonde + 1} (Doorschuiven!)`}
+                                    </button>
                                 </div>
                             )}
 
@@ -1603,7 +1606,7 @@ function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh
                                                         </div>
                                                     </div>
 
-                                                    {/* Invulvakjes (enkel tonen als het de HUIDIGE ronde is, oude rondes zijn gelockt!) */}
+                                                    {/* Invulvakjes (enkel tonen als het de HUIDIGE ronde is) */}
                                                     {!isLeerkracht && match.ronde === huidigeRonde && (
                                                         <div className="p-3 flex justify-center bg-slate-50/50">
                                                             {loadingMatch === match.id ? (
