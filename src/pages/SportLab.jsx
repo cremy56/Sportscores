@@ -21,7 +21,15 @@ async function apiPost(action, body, token) {
         body: JSON.stringify({ action, ...body })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'API fout');
+    if (!res.ok) {
+        const errMsg = data.error || 'API fout';
+        // Als het token vervallen is (bv. na slaapstand laptop), forceer een reload
+        if (errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('geauthenticeerd')) {
+            window.location.reload();
+            return new Promise(() => {}); // Pauzeer code executie terwijl pagina herlaadt
+        }
+        throw new Error(errMsg);
+    }
     return data;
 }
 // Helper voor privacy: "Jan Peeters" -> "Jan P."
@@ -2087,7 +2095,17 @@ export default function SportLab() {
             if (['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol)) {
                 const data = await apiPost('get_sportlab_sessies', { schoolId: profile.school_id }, profile._token);
                 const actief = (data.sessies || [])
-                    .filter(s => ['actief', 'evaluatie', 'docent_evaluatie'].includes(s.status))
+                    .filter(s => {
+                        if (!['actief', 'evaluatie', 'docent_evaluatie'].includes(s.status)) return false;
+                        
+                        // SLIMME FIX: Negeer achtergelaten sessies ouder dan 12 uur 
+                        // (behalve degene waar je nog punten voor moet geven, die blijven staan)
+                        const startTijd = new Date(s.start_tijd).getTime();
+                        const isVerlaten = (Date.now() - startTijd) > (12 * 60 * 60 * 1000);
+                        if (isVerlaten && s.status !== 'docent_evaluatie') return false;
+                        
+                        return true;
+                    })
                     .sort((a, b) => new Date(b.start_tijd) - new Date(a.start_tijd))[0] || null;
                 setLeerkrachtSessie(actief || null);
             } else {
