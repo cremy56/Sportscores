@@ -746,6 +746,9 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                         </tbody>
                     </table>
                 </div>
+                <p className="text-[10px] text-slate-400 text-right mt-1 px-1">
+                    W = Gewonnen · G = Gelijk · V = Verloren · DS = Doelsaldo · PTN = Punten
+                </p>
             </div>
 
             {/* WEDSTRIJDSCHEMA */}
@@ -767,39 +770,35 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                     return (
                         <div className="space-y-6">
                             
-                            {(toernooi.type === 'king' || toernooi.type === 'knockout') && (
-                                <div className={`border rounded-xl p-4 text-center shadow-sm mb-4 ${toernooi.type === 'king' ? 'bg-blue-50 border-blue-200' : 'bg-purple-50 border-purple-200'}`}>
-                                    <h4 className={`font-bold mb-2 flex items-center justify-center gap-2 ${toernooi.type === 'king' ? 'text-blue-900' : 'text-purple-900'}`}>
-                                        <span>{toernooi.type === 'king' ? '👑' : '🥊'}</span> 
-                                        {toernooi.type === 'king' ? 'Koning van het Veld' : 'Knock-out (Winnaars & Verliezers)'}
-                                    </h4>
-                                    <p className={`text-sm mb-4 ${toernooi.type === 'king' ? 'text-blue-700' : 'text-purple-700'}`}>
-                                        {toernooi.type === 'king' 
-                                            ? 'Vul alle scores in om de teams door te schuiven naar het volgende veld.' 
-                                            : 'Vul alle scores in om de volgende ronde (winnaars tegen winnaars) te berekenen.'}
-                                    </p>
-                                    
-                                    <button 
-                                        onClick={triggerVolgendeRonde}
-                                        disabled={!allesGespeeld || loadingMatch === 'next_round'}
-                                        className={`w-full py-3.5 font-black text-sm rounded-xl transition-all shadow-md active:scale-95 ${
-                                            !allesGespeeld 
-                                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                                                : (toernooi.type === 'king' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white')
-                                        }`}
-                                    >
-                                        {loadingMatch === 'next_round' 
-                                            ? 'Aan het berekenen...' 
-                                            : !allesGespeeld 
-                                                ? 'Wachten op alle scores...' 
-                                                : `Genereer Ronde ${huidigeRonde + 1} (${toernooi.type === 'king' ? 'Doorschuiven!' : 'Nieuwe Matchen!'})`
-                                        }
-                                    </button>
-                                </div>
-                            )}
+                            {/* Volgende Ronde knop — voor alle toernooitypes */}
+                            {allesGespeeld && (() => {
+                                const config = {
+                                    poule:    { bg: 'bg-emerald-50', border: 'border-emerald-200', tekst: 'text-emerald-900', btn: 'bg-emerald-600 hover:bg-emerald-700', emoji: '🏆', label: 'Alle wedstrijden gespeeld!' },
+                                    king:     { bg: 'bg-blue-50',    border: 'border-blue-200',    tekst: 'text-blue-900',    btn: 'bg-blue-600 hover:bg-blue-700',       emoji: '👑', label: 'Alle scores ingevuld — schuif teams door!' },
+                                    knockout: { bg: 'bg-purple-50',  border: 'border-purple-200',  tekst: 'text-purple-900',  btn: 'bg-purple-600 hover:bg-purple-700',   emoji: '🥊', label: 'Alle scores ingevuld — berek volgende ronde!' },
+                                }[toernooi.type] || { bg: 'bg-emerald-50', border: 'border-emerald-200', tekst: 'text-emerald-900', btn: 'bg-emerald-600 hover:bg-emerald-700', emoji: '✅', label: 'Klaar voor volgende ronde!' };
+
+                                return (
+                                    <div className={`border ${config.border} ${config.bg} rounded-xl p-4 text-center shadow-sm mb-2`}>
+                                        <p className={`text-sm font-semibold mb-3 ${config.tekst}`}>
+                                            {config.emoji} {config.label}
+                                        </p>
+                                        <button
+                                            onClick={triggerVolgendeRonde}
+                                            disabled={loadingMatch === 'next_round'}
+                                            className={`w-full py-3.5 font-black text-sm rounded-xl transition-all shadow-md active:scale-95 text-white ${config.btn} disabled:opacity-60`}
+                                        >
+                                            {loadingMatch === 'next_round'
+                                                ? 'Aan het berekenen...'
+                                                : `▶ Volgende Ronde`}
+                                        </button>
+                                    </div>
+                                );
+                            })()}
 
                             {[...Array(huidigeRonde)].map((_, i) => {
-                                const rondeNummer = huidigeRonde - i;
+                                // Huidige ronde bovenaan, oudste onderaan
+                                const rondeNummer = i + 1;
                                 const matchen = toernooi.wedstrijden.filter(m => m.ronde === rondeNummer);
                                 
                                 return (
@@ -840,11 +839,28 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                                                                     ↻ Oeps, pas uitslag aan
                                                                 </button>
                                                             ) : (
-                                                                <div className="flex items-center gap-3">
-                                                                    <input type="number" min="0" value={inputScores[`${match.id}_1`] ?? ''} onChange={e => setInputScores({...inputScores, [`${match.id}_1`]: e.target.value})} className="w-16 text-center font-black text-lg p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
-                                                                    <span className="font-black text-slate-300">-</span>
-                                                                    <input type="number" min="0" value={inputScores[`${match.id}_2`] ?? ''} onChange={e => setInputScores({...inputScores, [`${match.id}_2`]: e.target.value})} className="w-16 text-center font-black text-lg p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
-                                                                    <button onClick={() => handleScoreOpslaan(match.id)} className="ml-2 py-2.5 px-4 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-transform active:scale-95 shadow-sm">Opslaan</button>
+                                                                <div className="w-full space-y-3">
+                                                                    {/* Team 1 score */}
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <span className="text-xs font-bold text-slate-600 w-16 truncate">{match.team1.naam}</span>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <button onClick={() => setInputScores(s => ({...s, [`${match.id}_1`]: Math.max(0, (parseInt(s[`${match.id}_1`]) || 0) - 1)}))} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 font-black text-lg flex items-center justify-center active:scale-90 transition-transform">−</button>
+                                                                            <span className="w-10 text-center font-black text-xl tabular-nums">{inputScores[`${match.id}_1`] ?? 0}</span>
+                                                                            <button onClick={() => setInputScores(s => ({...s, [`${match.id}_1`]: (parseInt(s[`${match.id}_1`]) || 0) + 1}))} className="w-9 h-9 rounded-full bg-emerald-100 hover:bg-emerald-200 font-black text-lg flex items-center justify-center active:scale-90 transition-transform">+</button>
+                                                                        </div>
+                                                                    </div>
+                                                                    {/* Team 2 score */}
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <span className="text-xs font-bold text-slate-600 w-16 truncate">{match.team2.naam}</span>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <button onClick={() => setInputScores(s => ({...s, [`${match.id}_2`]: Math.max(0, (parseInt(s[`${match.id}_2`]) || 0) - 1)}))} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 font-black text-lg flex items-center justify-center active:scale-90 transition-transform">−</button>
+                                                                            <span className="w-10 text-center font-black text-xl tabular-nums">{inputScores[`${match.id}_2`] ?? 0}</span>
+                                                                            <button onClick={() => setInputScores(s => ({...s, [`${match.id}_2`]: (parseInt(s[`${match.id}_2`]) || 0) + 1}))} className="w-9 h-9 rounded-full bg-emerald-100 hover:bg-emerald-200 font-black text-lg flex items-center justify-center active:scale-90 transition-transform">+</button>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button onClick={() => handleScoreOpslaan(match.id)} className="w-full py-2.5 text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl transition-transform active:scale-95 shadow-sm">
+                                                                        Opslaan
+                                                                    </button>
                                                                 </div>
                                                             )}
                                                         </div>
