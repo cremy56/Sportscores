@@ -268,37 +268,71 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
             alternatief: 'Body Fixer',
         };
 
-        const masterKey = await getMasterKey(); // Haal de encryptie-sleutel op
+        // ── Masterkey éénmalig ophalen (niet per deelname) ────────────────────
+        const masterKey = await getMasterKey();
 
         const sessies = await Promise.all(snap.docs.map(async (d) => {
             const sessieData = { id: d.id, ...d.data() };
 
+            // ── Stap 1: Alle deelnames voor deze sessie in 1 query ────────────
             const deelnamesSnap = await db.collection('sport_lab_deelnames')
                 .where('sessie_id', '==', d.id)
                 .get();
 
-            const deelnames = await Promise.all(deelnamesSnap.docs.map(async (dd) => {
-                const data = dd.data();
-                const userSnap = await db.collection('users').doc(data.leerling_firebase_uid).get();
-                const nickname = userSnap.exists ? (userSnap.data().nickname || 'Leerling') : 'Leerling';
-                
-                // NIEUW: Echte naam ontsleutelen
+            if (deelnamesSnap.empty) {
+                // Geen deelnames — sla de batch reads over
+                const toernooiSnapEmpty = await db.collection('sport_lab_toernooien')
+                    .where('sessie_id', '==', d.id).where('status', '==', 'actief').limit(1).get();
+                return {
+                    id: sessieData.id, sport: sessieData.sport,
+                    klas: sessieData.klas || null, groep_id: sessieData.groep_id || null,
+                    status: sessieData.status,
+                    start_tijd: sessieData.start_tijd?.toDate?.()?.toISOString() || null,
+                    gesloten_op: sessieData.gesloten_op?.toDate?.()?.toISOString() || null,
+                    deelnames: [], vrijgestelde_leerlingen: [],
+                    toernooi: toernooiSnapEmpty.empty ? null : { id: toernooiSnapEmpty.docs[0].id, ...toernooiSnapEmpty.docs[0].data() }
+                };
+            }
+
+            const deelnameData = deelnamesSnap.docs.map(dd => ({ id: dd.id, ...dd.data() }));
+            const leerlingUids = deelnameData.map(d => d.leerling_firebase_uid).filter(Boolean);
+            const leerlingHashes = deelnameData.map(d => d.leerling_hash).filter(Boolean);
+
+            // ── Stap 2: Batch read users (1 call voor alle leerlingen) ─────────
+            const userRefs = leerlingUids.map(uid => db.collection('users').doc(uid));
+            const userDocs = userRefs.length > 0 ? await db.getAll(...userRefs) : [];
+            const userMap = new Map(userDocs.map(d => [d.id, d.exists ? d.data() : null]));
+
+            // ── Stap 3: Batch read toegestane_gebruikers (1 call voor alle hashes) ──
+            const tgRefs = leerlingHashes.map(h => db.collection('toegestane_gebruikers').doc(h));
+            const tgDocs = tgRefs.length > 0 ? await db.getAll(...tgRefs) : [];
+            const tgMap = new Map(tgDocs.map(d => [d.id, d.exists ? d.data() : null]));
+
+            // ── Stap 4: Alle scores voor deze sessie in 1 query ───────────────
+            const scoresSnap = await db.collection('sport_lab_scores')
+                .where('sessie_id', '==', d.id)
+                .get();
+            const scoreMap = new Map(
+                scoresSnap.docs.map(sd => [sd.data().leerling_id, sd.data()])
+            );
+
+            // ── Stap 5: Combineer alles in memory (geen extra DB calls) ───────
+            const deelnames = deelnameData.map(data => {
+                const userData = userMap.get(data.leerling_firebase_uid);
+                const nickname = userData?.nickname || 'Leerling';
+
                 let echteNaam = 'Onbekend';
                 if (data.leerling_hash) {
-                    const tgSnap = await db.collection('toegestane_gebruikers').doc(data.leerling_hash).get();
-                    if (tgSnap.exists && tgSnap.data().encrypted_name) {
-                        echteNaam = decryptName(tgSnap.data().encrypted_name, masterKey);
+                    const tgData = tgMap.get(data.leerling_hash);
+                    if (tgData?.encrypted_name) {
+                        echteNaam = decryptName(tgData.encrypted_name, masterKey);
                     }
                 }
 
-                // Check of er al een score op 10 is gegeven
-                const scoreSnap = await db.collection('sport_lab_scores')
-                    .where('sessie_id', '==', d.id)
-                    .where('leerling_id', '==', data.leerling_firebase_uid)
-                    .limit(1).get();
+                const beoordeling = scoreMap.get(data.leerling_firebase_uid) || null;
 
                 return {
-                    id: dd.id,
+                    id: data.id,
                     leerling_uid: data.leerling_firebase_uid,
                     niveau: data.niveau || 1,
                     nickname,
@@ -307,12 +341,13 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                     rol_naam: ROL_UI[data.rol] || data.rol,
                     voltooid: data.voltooid || false,
                     is_vrijgesteld: data.rol === 'alternatief',
-                    beoordeeld: !scoreSnap.empty,
-                    beoordeling: !scoreSnap.empty ? scoreSnap.docs[0].data() : null,
-                    observaties_aantal: data.observaties_aantal || 0
+                    beoordeeld: !!beoordeling,
+                    beoordeling,
+                    observaties_aantal: data.observaties_aantal || 0,
                 };
-            }));
+            });
 
+            // ── Stap 6: Vrijgestelde leerlingen (enkel als klas gekend) ───────
             let vrijgesteldeLeerlingen = [];
             if (sessieData.klas && ['actief', 'evaluatie', 'docent_evaluatie'].includes(sessieData.status)) {
                 const nu = new Date();
@@ -334,7 +369,7 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                     }));
             }
 
-            // --- NIEUW: Zoek ook voor de leerkracht of er een actief toernooi is ---
+            // ── Stap 7: Actief toernooi ───────────────────────────────────────
             const toernooiSnap = await db.collection('sport_lab_toernooien')
                 .where('sessie_id', '==', d.id)
                 .where('status', '==', 'actief')
@@ -345,7 +380,6 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                 id: toernooiSnap.docs[0].id,
                 ...toernooiSnap.docs[0].data()
             };
-            // ----------------------------------------------------------------------
 
             return {
                 id: sessieData.id,
@@ -357,7 +391,7 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                 gesloten_op: sessieData.gesloten_op?.toDate?.()?.toISOString() || null,
                 deelnames,
                 vrijgestelde_leerlingen: vrijgesteldeLeerlingen,
-                toernooi: actiefToernooi // <--- FIX: Geef toernooi mee aan de leerkracht!
+                toernooi: actiefToernooi,
             };
         }));
 
