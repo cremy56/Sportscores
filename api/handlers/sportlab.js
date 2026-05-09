@@ -25,7 +25,7 @@ const ROL_DB = {
 function isSessieActief(sessieData) {
     if (!sessieData) return false;
     if (sessieData.status === 'gesloten') return false;
-    // Automatisch verlopen na 3 uur
+    // Automatisch verlopen na 2 uur
     const start = sessieData.start_tijd?.toDate?.();
     if (!start) return false;
     const tweeUur = 2 * 60 * 60 * 1000;
@@ -268,71 +268,37 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
             alternatief: 'Body Fixer',
         };
 
-        // ── Masterkey éénmalig ophalen (niet per deelname) ────────────────────
-        const masterKey = await getMasterKey();
+        const masterKey = await getMasterKey(); // Haal de encryptie-sleutel op
 
         const sessies = await Promise.all(snap.docs.map(async (d) => {
             const sessieData = { id: d.id, ...d.data() };
 
-            // ── Stap 1: Alle deelnames voor deze sessie in 1 query ────────────
             const deelnamesSnap = await db.collection('sport_lab_deelnames')
                 .where('sessie_id', '==', d.id)
                 .get();
 
-            if (deelnamesSnap.empty) {
-                // Geen deelnames — sla de batch reads over
-                const toernooiSnapEmpty = await db.collection('sport_lab_toernooien')
-                    .where('sessie_id', '==', d.id).where('status', '==', 'actief').limit(1).get();
-                return {
-                    id: sessieData.id, sport: sessieData.sport,
-                    klas: sessieData.klas || null, groep_id: sessieData.groep_id || null,
-                    status: sessieData.status,
-                    start_tijd: sessieData.start_tijd?.toDate?.()?.toISOString() || null,
-                    gesloten_op: sessieData.gesloten_op?.toDate?.()?.toISOString() || null,
-                    deelnames: [], vrijgestelde_leerlingen: [],
-                    toernooi: toernooiSnapEmpty.empty ? null : { id: toernooiSnapEmpty.docs[0].id, ...toernooiSnapEmpty.docs[0].data() }
-                };
-            }
-
-            const deelnameData = deelnamesSnap.docs.map(dd => ({ id: dd.id, ...dd.data() }));
-            const leerlingUids = deelnameData.map(d => d.leerling_firebase_uid).filter(Boolean);
-            const leerlingHashes = deelnameData.map(d => d.leerling_hash).filter(Boolean);
-
-            // ── Stap 2: Batch read users (1 call voor alle leerlingen) ─────────
-            const userRefs = leerlingUids.map(uid => db.collection('users').doc(uid));
-            const userDocs = userRefs.length > 0 ? await db.getAll(...userRefs) : [];
-            const userMap = new Map(userDocs.map(d => [d.id, d.exists ? d.data() : null]));
-
-            // ── Stap 3: Batch read toegestane_gebruikers (1 call voor alle hashes) ──
-            const tgRefs = leerlingHashes.map(h => db.collection('toegestane_gebruikers').doc(h));
-            const tgDocs = tgRefs.length > 0 ? await db.getAll(...tgRefs) : [];
-            const tgMap = new Map(tgDocs.map(d => [d.id, d.exists ? d.data() : null]));
-
-            // ── Stap 4: Alle scores voor deze sessie in 1 query ───────────────
-            const scoresSnap = await db.collection('sport_lab_scores')
-                .where('sessie_id', '==', d.id)
-                .get();
-            const scoreMap = new Map(
-                scoresSnap.docs.map(sd => [sd.data().leerling_id, sd.data()])
-            );
-
-            // ── Stap 5: Combineer alles in memory (geen extra DB calls) ───────
-            const deelnames = deelnameData.map(data => {
-                const userData = userMap.get(data.leerling_firebase_uid);
-                const nickname = userData?.nickname || 'Leerling';
-
+            const deelnames = await Promise.all(deelnamesSnap.docs.map(async (dd) => {
+                const data = dd.data();
+                const userSnap = await db.collection('users').doc(data.leerling_firebase_uid).get();
+                const nickname = userSnap.exists ? (userSnap.data().nickname || 'Leerling') : 'Leerling';
+                
+                // NIEUW: Echte naam ontsleutelen
                 let echteNaam = 'Onbekend';
                 if (data.leerling_hash) {
-                    const tgData = tgMap.get(data.leerling_hash);
-                    if (tgData?.encrypted_name) {
-                        echteNaam = decryptName(tgData.encrypted_name, masterKey);
+                    const tgSnap = await db.collection('toegestane_gebruikers').doc(data.leerling_hash).get();
+                    if (tgSnap.exists && tgSnap.data().encrypted_name) {
+                        echteNaam = decryptName(tgSnap.data().encrypted_name, masterKey);
                     }
                 }
 
-                const beoordeling = scoreMap.get(data.leerling_firebase_uid) || null;
+                // Check of er al een score op 10 is gegeven
+                const scoreSnap = await db.collection('sport_lab_scores')
+                    .where('sessie_id', '==', d.id)
+                    .where('leerling_id', '==', data.leerling_firebase_uid)
+                    .limit(1).get();
 
                 return {
-                    id: data.id,
+                    id: dd.id,
                     leerling_uid: data.leerling_firebase_uid,
                     niveau: data.niveau || 1,
                     nickname,
@@ -341,13 +307,12 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                     rol_naam: ROL_UI[data.rol] || data.rol,
                     voltooid: data.voltooid || false,
                     is_vrijgesteld: data.rol === 'alternatief',
-                    beoordeeld: !!beoordeling,
-                    beoordeling,
-                    observaties_aantal: data.observaties_aantal || 0,
+                    beoordeeld: !scoreSnap.empty,
+                    beoordeling: !scoreSnap.empty ? scoreSnap.docs[0].data() : null,
+                    observaties_aantal: data.observaties_aantal || 0
                 };
-            });
+            }));
 
-            // ── Stap 6: Vrijgestelde leerlingen (enkel als klas gekend) ───────
             let vrijgesteldeLeerlingen = [];
             if (sessieData.klas && ['actief', 'evaluatie', 'docent_evaluatie'].includes(sessieData.status)) {
                 const nu = new Date();
@@ -369,7 +334,7 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                     }));
             }
 
-            // ── Stap 7: Actief toernooi ───────────────────────────────────────
+            // --- NIEUW: Zoek ook voor de leerkracht of er een actief toernooi is ---
             const toernooiSnap = await db.collection('sport_lab_toernooien')
                 .where('sessie_id', '==', d.id)
                 .where('status', '==', 'actief')
@@ -380,6 +345,7 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                 id: toernooiSnap.docs[0].id,
                 ...toernooiSnap.docs[0].data()
             };
+            // ----------------------------------------------------------------------
 
             return {
                 id: sessieData.id,
@@ -391,7 +357,7 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                 gesloten_op: sessieData.gesloten_op?.toDate?.()?.toISOString() || null,
                 deelnames,
                 vrijgestelde_leerlingen: vrijgesteldeLeerlingen,
-                toernooi: actiefToernooi,
+                toernooi: actiefToernooi // <--- FIX: Geef toernooi mee aan de leerkracht!
             };
         }));
 
@@ -838,9 +804,10 @@ export async function handleStartToernooi(req, res, decodedToken) {
         const { schoolId, sessieId, teams, type } = req.body;
         
         // Beveiliging
-        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
-        const verifiedSchoolId = callerSnap.data()?.school_id;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
 
         // ─── ALGORITME 1: DE POULE (Round-Robin) ───
         let wedstrijden = [];
@@ -1011,9 +978,10 @@ export async function handleVolgendeRonde(req, res, decodedToken) {
     try {
         const { schoolId, toernooiId } = req.body;
         
-        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
-        const verifiedSchoolId = callerSnap.data()?.school_id;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
 
         const toernooiRef = db.collection('sport_lab_toernooien').doc(toernooiId);
         const snap = await toernooiRef.get();
