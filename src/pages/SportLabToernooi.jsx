@@ -754,7 +754,15 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
             {/* WEDSTRIJDSCHEMA */}
             <div>
                 {(() => {
-                    const huidigeRonde = Math.max(...toernooi.wedstrijden.map(m => m.ronde));
+                    // Poule: alle rondes bestaan al → laagste ONgespeelde ronde is de actieve ronde
+                    // King/knockout: rondes worden één voor één gegenereerd → hoogste ronde is actief
+                    const maxRonde = Math.max(...toernooi.wedstrijden.map(m => m.ronde));
+                    const ongespeeldeRondes = toernooi.wedstrijden
+                        .filter(m => !m.gespeeld)
+                        .map(m => m.ronde);
+                    const huidigeRonde = toernooi.type === 'poule' && ongespeeldeRondes.length > 0
+                        ? Math.min(...ongespeeldeRondes)
+                        : maxRonde;
                     const matchenHuidigeRonde = toernooi.wedstrijden.filter(m => m.ronde === huidigeRonde);
                     const allesGespeeld = matchenHuidigeRonde.every(m => m.gespeeld);
 
@@ -796,9 +804,13 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                                 );
                             })()}
 
-                            {[...Array(huidigeRonde)].map((_, i) => {
-                                // Huidige ronde bovenaan, oudste onderaan
-                                const rondeNummer = i + 1;
+                            {(() => {
+                                // Volgorde: huidig eerst, dan vorige aflopend, dan toekomstige oplopend
+                                const gespeeldeRondes = [...Array(huidigeRonde - 1)].map((_, i) => huidigeRonde - 1 - i);
+                                const toekomstigeRondes = [...Array(maxRonde - huidigeRonde)].map((_, i) => huidigeRonde + 1 + i);
+                                const rondeVolgorde = [huidigeRonde, ...gespeeldeRondes, ...toekomstigeRondes];
+                                return rondeVolgorde;
+                            })().map((rondeNummer) => {
                                 const matchen = toernooi.wedstrijden.filter(m => m.ronde === rondeNummer);
                                 
                                 return (
