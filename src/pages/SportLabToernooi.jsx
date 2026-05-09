@@ -643,8 +643,11 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
         const s1 = inputScores[`${matchId}_1`];
         const s2 = inputScores[`${matchId}_2`];
 
-        if (s1 === undefined || s1 === '' || s2 === undefined || s2 === '') {
-            toast.error('Vul beide scores in!');
+        // undefined = nog niet aangeraakt = 0 (score 0 is geldig)
+        const score1 = s1 !== undefined && s1 !== '' ? parseInt(s1) : 0;
+        const score2 = s2 !== undefined && s2 !== '' ? parseInt(s2) : 0;
+        if (isNaN(score1) || isNaN(score2)) {
+            toast.error('Ongeldige score ingegeven.');
             return;
         }
 
@@ -653,9 +656,9 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
             await apiPost('update_match_score', {
                 schoolId: profile.school_id,
                 toernooiId: toernooi.id,
-                matchId, 
-                score1: s1, 
-                score2: s2
+                matchId,
+                score1: score1,
+                score2: score2,
             }, profile._token);
             if(onRefresh) onRefresh();
         } catch(e) {
@@ -693,6 +696,7 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
             await apiPost('stop_toernooi', { schoolId: profile.school_id, toernooiId: toernooi.id }, profile._token);
             toast.success('Toernooi gereset!');
             setToonStopBevestiging(false);
+            setInputScores({}); // Reset alle ingevoerde scores
             if(onRefresh) onRefresh();
         } catch(e) {
             toast.error(e.message);
@@ -778,19 +782,40 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                     return (
                         <div className="space-y-6">
                             
-                            {/* Volgende Ronde knop — voor alle toernooitypes */}
+                            {/* Volgende Ronde knop of Eindstand */}
                             {allesGespeeld && (() => {
+                                const isLaatsteRonde = huidigeRonde >= maxRonde;
+                                
+                                // Poule afgerond: toon eindstand met winnaar
+                                if (toernooi.type === 'poule' && isLaatsteRonde) {
+                                    // Bereken winnaar op basis van klassement (meeste punten, dan beste doelsaldo)
+                                    const gesorteerd = [...(toernooi.klassement || [])].sort((a, b) => {
+                                        if (b.p !== a.p) return b.p - a.p;
+                                        const dsA = (a.ds || 0); const dsB = (b.ds || 0);
+                                        return dsB - dsA;
+                                    });
+                                    const winnaar = gesorteerd[0];
+                                    return (
+                                        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 text-center shadow-sm">
+                                            <div className="text-4xl mb-2">🏆</div>
+                                            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Poule afgerond</p>
+                                            <p className="text-xl font-black text-amber-900 mb-1">{winnaar?.naam || 'Onbekend'}</p>
+                                            <p className="text-sm text-amber-700">{winnaar?.p || 0} punten · {winnaar?.w || 0} gewonnen</p>
+                                        </div>
+                                    );
+                                }
+
+                                // King/knockout of poule tussenstop: toon volgende ronde knop
                                 const config = {
-                                    poule:    { bg: 'bg-emerald-50', border: 'border-emerald-200', tekst: 'text-emerald-900', btn: 'bg-emerald-600 hover:bg-emerald-700', emoji: '🏆', label: 'Alle wedstrijden gespeeld!' },
-                                    king:     { bg: 'bg-blue-50',    border: 'border-blue-200',    tekst: 'text-blue-900',    btn: 'bg-blue-600 hover:bg-blue-700',       emoji: '👑', label: 'Alle scores ingevuld — schuif teams door!' },
-                                    knockout: { bg: 'bg-purple-50',  border: 'border-purple-200',  tekst: 'text-purple-900',  btn: 'bg-purple-600 hover:bg-purple-700',   emoji: '🥊', label: 'Alle scores ingevuld — berek volgende ronde!' },
-                                }[toernooi.type] || { bg: 'bg-emerald-50', border: 'border-emerald-200', tekst: 'text-emerald-900', btn: 'bg-emerald-600 hover:bg-emerald-700', emoji: '✅', label: 'Klaar voor volgende ronde!' };
+                                    poule:    { bg: 'bg-emerald-50', border: 'border-emerald-200', tekst: 'text-emerald-900', btn: 'bg-emerald-600 hover:bg-emerald-700' },
+                                    king:     { bg: 'bg-blue-50',    border: 'border-blue-200',    tekst: 'text-blue-900',    btn: 'bg-blue-600 hover:bg-blue-700' },
+                                    knockout: { bg: 'bg-purple-50',  border: 'border-purple-200',  tekst: 'text-purple-900',  btn: 'bg-purple-600 hover:bg-purple-700' },
+                                }[toernooi.type] || { bg: 'bg-emerald-50', border: 'border-emerald-200', tekst: 'text-emerald-900', btn: 'bg-emerald-600 hover:bg-emerald-700' };
+
+                                const emoji = toernooi.type === 'king' ? '👑' : toernooi.type === 'knockout' ? '🥊' : '▶';
 
                                 return (
                                     <div className={`border ${config.border} ${config.bg} rounded-xl p-4 text-center shadow-sm mb-2`}>
-                                        <p className={`text-sm font-semibold mb-3 ${config.tekst}`}>
-                                            {config.emoji} {config.label}
-                                        </p>
                                         <button
                                             onClick={triggerVolgendeRonde}
                                             disabled={loadingMatch === 'next_round'}
@@ -798,7 +823,7 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                                         >
                                             {loadingMatch === 'next_round'
                                                 ? 'Aan het berekenen...'
-                                                : `▶ Volgende Ronde`}
+                                                : `${emoji} Volgende Ronde`}
                                         </button>
                                     </div>
                                 );
