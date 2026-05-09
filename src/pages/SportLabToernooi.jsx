@@ -788,19 +788,15 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                                 
                                 // Poule afgerond: toon eindstand met winnaar
                                 if (toernooi.type === 'poule' && isLaatsteRonde) {
-                                    // Bereken winnaar op basis van klassement (meeste punten, dan beste doelsaldo)
-                                    const gesorteerd = [...(toernooi.klassement || [])].sort((a, b) => {
-                                        if (b.p !== a.p) return b.p - a.p;
-                                        const dsA = (a.ds || 0); const dsB = (b.ds || 0);
-                                        return dsB - dsA;
-                                    });
+                                    // klassement is lokaal berekend uit toernooi.wedstrijden (regel ~620)
+                                    const gesorteerd = [...klassement]; // al gesorteerd op punten/doelsaldo
                                     const winnaar = gesorteerd[0];
                                     return (
                                         <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 text-center shadow-sm">
                                             <div className="text-4xl mb-2">🏆</div>
                                             <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Poule afgerond</p>
                                             <p className="text-xl font-black text-amber-900 mb-1">{winnaar?.naam || 'Onbekend'}</p>
-                                            <p className="text-sm text-amber-700">{winnaar?.p || 0} punten · {winnaar?.w || 0} gewonnen</p>
+                                            <p className="text-sm text-amber-700">{winnaar?.p || 0} punten · {winnaar?.w || 0} gewonnen · {winnaar?.g || 0} gelijk</p>
                                         </div>
                                     );
                                 }
