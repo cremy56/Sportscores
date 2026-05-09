@@ -1,6 +1,8 @@
 // src/pages/SportLab.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { db } from '../firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 import {
     ChevronRightIcon,
@@ -443,7 +445,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                 setToonAfbreekBevestiging(false);
                 
                 // FIX: Verwijder de sessie onmiddellijk uit het geheugen!
-                // Laat dit NIET over aan onSessieGesloten() -> fetchSessie()
+                // Laat dit NIET over aan onSessieGesloten() -> fetchLeerkrachtSessie()
                 // want die gaat de sessie toch niet meer vinden (omdat hij gesloten is).
                 onSessieGesloten(null); 
                 return; // Stop direct de uitvoering van deze functie
@@ -452,7 +454,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
             } else {
                 toast.success('Evaluatievenster voor leerlingen geopend.');
             }
-            onSessieGesloten(); // Dit triggert fetchSessie() voor de andere statussen
+            onSessieGesloten(); // Dit triggert fetchLeerkrachtSessie() voor de andere statussen
         } catch (e) {
             toast.error(e.message);
         } finally {
@@ -2170,6 +2172,7 @@ export default function SportLab() {
 
     const niveaus = profile?.sportlab_niveaus || {};
 
+    // Reset rol bij sessiewijziging
     useEffect(() => {
         if (!sessie) {
             setGekozenRol(null);
@@ -2177,42 +2180,127 @@ export default function SportLab() {
         }
     }, [sessie?.id]);
 
-    const fetchSessie = useCallback(async () => {
-        if (!profile?._token || !profile?.school_id) return;
-        try {
-            if (['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol)) {
-                const data = await apiPost('get_sportlab_sessies', { schoolId: profile.school_id }, profile._token);
-                const actief = (data.sessies || [])
-                    .filter(s => {
-                        if (!['actief', 'evaluatie', 'docent_evaluatie'].includes(s.status)) return false;
-                        
-                        // SLIMME FIX: Negeer achtergelaten sessies ouder dan 12 uur 
-                        // (behalve degene waar je nog punten voor moet geven, die blijven staan)
-                        const startTijd = new Date(s.start_tijd).getTime();
-                        const isVerlaten = (Date.now() - startTijd) > (12 * 60 * 60 * 1000);
-                        if (isVerlaten && s.status !== 'docent_evaluatie') return false;
-                        
-                        return true;
-                    })
-                    .sort((a, b) => new Date(b.start_tijd) - new Date(a.start_tijd))[0] || null;
-                setLeerkrachtSessie(actief || null);
+    // ── LEERLING: Firestore onSnapshot (gratis bij geen wijzigingen) ───────────
+    useEffect(() => {
+        if (!isLeerling || !profile?.school_id) return;
+
+        const leerlingKlas = profile.klas || null;
+
+        // Luister naar actieve sessies voor deze school
+        const sessieQuery = query(
+            collection(db, 'sport_lab_sessions'),
+            where('school_id', '==', profile.school_id),
+            where('status', 'in', ['actief', 'evaluatie'])
+        );
+
+        const unsubSessie = onSnapshot(sessieQuery, (snapshot) => {
+            // Filter in code: sessie zonder klas = voor iedereen, met klas = enkel die klas
+            const matchend = snapshot.docs.find(d => {
+                const data = d.data();
+                if (!data.klas) return true;
+                return data.klas === leerlingKlas;
+            });
+
+            if (matchend) {
+                const data = matchend.data();
+                setSessie({
+                    id: matchend.id,
+                    sport: data.sport,
+                    klas: data.klas,
+                    status: data.status,
+                    start_tijd: data.start_tijd?.toDate?.()?.toISOString() || null,
+                    evaluatie_start: data.evaluatie_start?.toDate?.()?.toISOString() || null,
+                    toernooi: data.toernooi || null,
+                });
             } else {
-                const data = await apiPost('get_actieve_sportlab_sessie', { schoolId: profile.school_id }, profile._token);
-                setSessie(data.sessie || null);
-                setEigenDeelname(data.eigen_deelname || null);
+                setSessie(null);
             }
+            setLoading(false);
+        }, (error) => {
+            console.error('Sessie listener fout:', error);
+            setLoading(false);
+        });
+
+        return () => unsubSessie();
+    }, [isLeerling, profile?.school_id, profile?.klas]);
+
+    // ── LEERLING: Eigen deelname volgen via onSnapshot ────────────────────────
+    useEffect(() => {
+        if (!isLeerling || !sessie?.id || !profile?.uid) {
+            setEigenDeelname(null);
+            return;
+        }
+
+        const deelnameQuery = query(
+            collection(db, 'sport_lab_deelnames'),
+            where('sessie_id', '==', sessie.id),
+            where('leerling_firebase_uid', '==', profile.uid)
+        );
+
+        const unsubDeelname = onSnapshot(deelnameQuery, (snapshot) => {
+            setEigenDeelname(snapshot.empty ? null : {
+                id: snapshot.docs[0].id,
+                ...snapshot.docs[0].data()
+            });
+        });
+
+        return () => unsubDeelname();
+    }, [isLeerling, sessie?.id, profile?.uid]);
+
+    // ── LEERKRACHT: REST poll met visibility-check (30s) ──────────────────────
+    const intervalRef = useRef(null);
+
+    const fetchLeerkrachtSessie = useCallback(async () => {
+        if (!isTeacher || !profile?._token || !profile?.school_id) return;
+        try {
+            const data = await apiPost('get_sportlab_sessies', { schoolId: profile.school_id }, profile._token);
+            const actief = (data.sessies || [])
+                .filter(s => {
+                    if (!['actief', 'evaluatie', 'docent_evaluatie'].includes(s.status)) return false;
+                    const startTijd = new Date(s.start_tijd).getTime();
+                    const isVerlaten = (Date.now() - startTijd) > (12 * 60 * 60 * 1000);
+                    if (isVerlaten && s.status !== 'docent_evaluatie') return false;
+                    return true;
+                })
+                .sort((a, b) => new Date(b.start_tijd) - new Date(a.start_tijd))[0] || null;
+            setLeerkrachtSessie(actief || null);
         } catch (e) {
-            console.error('Fout bij laden sessie:', e);
+            console.error('Fout bij laden sessie leerkracht:', e);
         } finally {
             setLoading(false);
         }
-    }, [profile]);
+    }, [isTeacher, profile]);
 
     useEffect(() => {
-        fetchSessie();
-        const interval = setInterval(fetchSessie, 15000);
-        return () => clearInterval(interval);
-    }, [fetchSessie]);
+        if (!isTeacher) return;
+
+        fetchLeerkrachtSessie();
+
+        // Start polling op 30s (was 15s)
+        const startPolling = () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            intervalRef.current = setInterval(fetchLeerkrachtSessie, 30000);
+        };
+
+        // Stop polling als tab niet actief is — herstart als tab terugkomt
+        const handleVisibility = () => {
+            if (document.hidden) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            } else {
+                fetchLeerkrachtSessie(); // Meteen refreshen bij terugkeren
+                startPolling();
+            }
+        };
+
+        startPolling();
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        return () => {
+            clearInterval(intervalRef.current);
+            document.removeEventListener('visibilitychange', handleVisibility);
+        };
+    }, [isTeacher, fetchLeerkrachtSessie]);
 
     // NIEUW: Onderschep de hardware 'terug'-knop op de smartphone
     useEffect(() => {
@@ -2224,18 +2312,18 @@ export default function SportLab() {
         }
     }, [gekozenRol]);
 
-    const handleSessieGestart = () => fetchSessie();
-  
-    // FIX: Als we 'null' doorkrijgen, wissen we direct het scherm!
-    const handleSessieGesloten = (forceerLeeg) => { 
+    const handleSessieGestart = () => fetchLeerkrachtSessie();
+
+    const handleSessieGesloten = (forceerLeeg) => {
         if (forceerLeeg === null) {
             setLeerkrachtSessie(null);
         } else {
-            fetchSessie(); 
+            fetchLeerkrachtSessie();
         }
     };
-    
-    const handleRolGekozen = (rol) => { setGekozenRol(rol); fetchSessie(); };
+
+    // Leerling: enkel gekozenRol updaten — deelname komt via onSnapshot
+    const handleRolGekozen = (rol) => setGekozenRol(rol);
     
     const handleTerugNaarOverzicht = () => { 
         setGekozenRol(null); 
@@ -2245,7 +2333,8 @@ export default function SportLab() {
         }
     };
     
-    const handleGereflecteerd = () => fetchSessie();
+    // Leerling: reflectie ingediend — deelname update komt via onSnapshot
+    const handleGereflecteerd = () => {};
 
     if (loading) return (
         <div className="fixed inset-0 bg-slate-50 flex items-center justify-center">
@@ -2281,7 +2370,7 @@ export default function SportLab() {
                                     sessie={leerkrachtSessie}
                                     profile={profile}
                                     onSessieGesloten={handleSessieGesloten}
-                                    onRefresh={fetchSessie} 
+                                    onRefresh={fetchLeerkrachtSessie} 
                                 />
                             ) : (
                                 <SessieStartForm
@@ -2306,7 +2395,7 @@ export default function SportLab() {
                                     profile={profile}
                                     onGereflecteerd={handleGereflecteerd}
                                     onTerug={handleTerugNaarOverzicht}
-                                    onRefresh={fetchSessie}
+                                    onRefresh={fetchLeerkrachtSessie}
                                 />
                             ) : (
                                 <RolKeuze
