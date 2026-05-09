@@ -7,8 +7,13 @@ const getDb = () => admin.firestore();
 
 // =============================================
 // CRON: Verlopen sessies sluiten (elke 30 min)
-// Sessies ouder dan 2 uur worden automatisch
-// op "gesloten" gezet in Firestore.
+//
+// Firestore TTL (op vervalt_op) verwijdert documenten automatisch.
+// Deze functie doet enkel de STATUS-update naar 'gesloten'.
+//
+// Sluitregels per status:
+//   actief/evaluatie   → na 2 uur
+//   docent_evaluatie   → na 24 uur
 // =============================================
 exports.sluitVerlopenSessies = onSchedule(
     {
@@ -17,11 +22,13 @@ exports.sluitVerlopenSessies = onSchedule(
     },
     async (event) => {
         const db = getDb();
-        const tweeUurGeleden = new Date(Date.now() - 2 * 60 * 60 * 1000);
+        const nu = Date.now();
+        const tweeUurGeleden          = new Date(nu - 2  * 60 * 60 * 1000);
+        const vierentwintigUurGeleden  = new Date(nu - 24 * 60 * 60 * 1000);
 
         try {
             const snap = await db.collection('sport_lab_sessions')
-                .where('status', 'in', ['actief', 'evaluatie'])
+                .where('status', 'in', ['actief', 'evaluatie', 'docent_evaluatie'])
                 .get();
 
             if (snap.empty) return;
@@ -30,8 +37,15 @@ exports.sluitVerlopenSessies = onSchedule(
             let gesloten = 0;
 
             snap.docs.forEach(d => {
-                const startTijd = d.data().start_tijd?.toDate?.();
-                if (startTijd && startTijd < tweeUurGeleden) {
+                const data = d.data();
+                const startTijd = data.start_tijd?.toDate?.();
+                if (!startTijd) return;
+
+                const drempel = data.status === 'docent_evaluatie'
+                    ? vierentwintigUurGeleden
+                    : tweeUurGeleden;
+
+                if (startTijd < drempel) {
                     batch.update(d.ref, {
                         status: 'gesloten',
                         gesloten_op: Timestamp.now(),
@@ -42,7 +56,7 @@ exports.sluitVerlopenSessies = onSchedule(
 
             if (gesloten > 0) {
                 await batch.commit();
-                console.log(`✅ ${gesloten} verlopen sessie(s) gesloten.`);
+                console.log(`✅ ${gesloten} verlopen sessie(s) automatisch gesloten.`);
             }
 
         } catch (error) {
@@ -52,69 +66,12 @@ exports.sluitVerlopenSessies = onSchedule(
     }
 );
 
-// =============================================
-// CRON: Oude sessies + deelnames verwijderen
-// Elke nacht om 02:00:
-//   - Sessies ouder dan 7 dagen → verwijderen
-//   - Bijhorende deelnames → verwijderen
-// =============================================
-exports.verwijderOudeSporLabData = onSchedule(
-    {
-        schedule: '0 2 * * *',
-        timeZone: 'Europe/Brussels',
-    },
-    async (event) => {
-        const db = getDb();
-        const zevenDagenGeleden = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-        try {
-            const sessiesSnap = await db.collection('sport_lab_sessions')
-                .where('status', '==', 'gesloten')
-                .get();
-
-            if (sessiesSnap.empty) {
-                console.log('Geen oude sessies gevonden.');
-                return;
-            }
-
-            let verwijderdeSessies = 0;
-            let verwijderdeDeelnames = 0;
-
-            for (const sessieDoc of sessiesSnap.docs) {
-                const geslotenOp = sessieDoc.data().gesloten_op?.toDate?.();
-                if (!geslotenOp || geslotenOp > zevenDagenGeleden) continue;
-
-                // Verwijder deelnames van deze sessie
-                const deelnamesSnap = await db.collection('sport_lab_deelnames')
-                    .where('sessie_id', '==', sessieDoc.id)
-                    .get();
-
-                const batch = db.batch();
-                deelnamesSnap.docs.forEach(d => {
-                    batch.delete(d.ref);
-                    verwijderdeDeelnames++;
-                });
-
-                batch.delete(sessieDoc.ref);
-                verwijderdeSessies++;
-
-                await batch.commit();
-            }
-
-            console.log(`✅ ${verwijderdeSessies} sessie(s) en ${verwijderdeDeelnames} deelname(s) verwijderd.`);
-
-            // Audit log
-            await db.collection('audit_logs').add({
-                actor_uid: 'cron',
-                action: 'sportlab_cleanup',
-                verwijderde_sessies: verwijderdeSessies,
-                verwijderde_deelnames: verwijderdeDeelnames,
-                timestamp: Timestamp.now(),
-            });
-
-        } catch (error) {
-            console.error('❌ verwijderOudeSportLabData:', error);
-            throw error;
-        }
-    }
-);
+// verwijderOudeSportLabData is verwijderd.
+// Firestore TTL (vervalt_op) verwijdert alle Sport Lab documenten
+// automatisch, gratis en betrouwbaarder dan een Cloud Function.
+//
+// TTL policies actief op:
+//   sport_lab_sessions     → vervalt_op
+//   sport_lab_deelnames    → vervalt_op
+//   sport_lab_scores       → vervalt_op
+//   sport_lab_toernooien   → vervalt_op
