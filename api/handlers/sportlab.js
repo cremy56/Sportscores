@@ -1125,3 +1125,32 @@ export async function handleVolgendeRonde(req, res, decodedToken) {
         return res.status(500).json({ error: 'Fout bij doorschuiven' });
     }
 }
+// ─── GET BLESSURE CONTENT ─────────────────────────────────────────────────────
+// Haalt content op uit sport_lab_blessures collectie voor Body Fixer rol.
+// Zonder blessureKey → lijst van alle blessures (voor keuzescherm).
+// Met blessureKey   → volledige content van die blessure incl. oefeningen.
+export async function handleGetBlessureContent(req, res, decodedToken) {
+    try {
+        const { blessureKey } = req.body;
+
+        if (blessureKey) {
+            const snap = await db.collection('sport_lab_blessures').doc(blessureKey).get();
+            if (!snap.exists) return res.status(404).json({ error: 'Blessure niet gevonden.' });
+            return res.status(200).json({ success: true, blessure: { id: snap.id, ...snap.data() } });
+        }
+
+        // Alle blessures ophalen — enkel naam/emoji/kleur voor de keuzelijst
+        const snap = await db.collection('sport_lab_blessures').get();
+        const blessures = snap.docs.map(d => ({
+            id: d.id,
+            naam: d.data().naam,
+            emoji: d.data().emoji,
+            kleur: d.data().kleur,
+        }));
+        return res.status(200).json({ success: true, blessures });
+
+    } catch (error) {
+        console.error('❌ handleGetBlessureContent:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen blessure content' });
+    }
+}

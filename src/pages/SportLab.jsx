@@ -14,6 +14,7 @@ import {
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
 import { Scorebord, DigitaalKlembord, ToernooiBuilder, ToernooiDashboard } from './SportLabToernooi';
+import { BodyFixerView } from './SportLabBodyFixer';
 
 // ─── API HELPER ───────────────────────────────────────────────────────────────
 async function apiPost(action, body, token) {

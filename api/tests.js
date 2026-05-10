@@ -46,7 +46,8 @@ import {
     handleValideerLevelUp, handleGetSportLabContent,
     handleSaveSportLabScore, handleSportlabObservatieKlaar,
     handleGetSportLabToernooiSpelers, handleStartToernooi,
-    handleUpdateMatchScore, handleStopToernooi,handleVolgendeRonde
+    handleUpdateMatchScore, handleStopToernooi, handleVolgendeRonde,
+    handleGetBlessureContent
 } from './handlers/sportlab.js';
 
 // ─── HOOFD HANDLER ────────────────────────────────────────────────────────────
@@ -148,6 +149,7 @@ export default async function handler(req, res) {
             case 'update_match_score': return await handleUpdateMatchScore(req, res, decodedToken);
             case 'stop_toernooi': return await handleStopToernooi(req, res, decodedToken);
             case 'volgende_ronde': return await handleVolgendeRonde(req, res, decodedToken);
+            case 'get_blessure_content':         return await handleGetBlessureContent(req, res, decodedToken);
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
         }
