@@ -2,7 +2,6 @@
 const admin = require('firebase-admin');
 admin.initializeApp();
 
-
 // Export alle functions
 module.exports = {
   ...require('./src/sport-functions'),

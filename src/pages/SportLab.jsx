@@ -809,8 +809,32 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, eigenDeelname, onRo
 
 // ─── DIGITAAL SCOREBORD (Speciaal voor de Arbiter) ────────────────────────────
 // ─── LEERLING: ACTIEVE ROL VIEW ───────────────────────────────────────────────
+// ─── LEERLING: ACTIEVE ROL VIEW ───────────────────────────────────────────────
 function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteerd, onTerug, onRefresh }) {
     const rolData = ROLLEN.find(r => r.id === rol) || ROLLEN[0];
+
+    // ─── FIX: BODY FIXER KRIJGT ZIJN EIGEN SPECIALE SCHERM ───
+    if (rol === 'alternatief') {
+        return (
+            <div className="max-w-2xl mx-auto">
+                <button
+                    onClick={onTerug}
+                    className="inline-flex items-center text-slate-500 hover:text-slate-800 mb-5 group text-sm"
+                >
+                    <ChevronRightIcon className="w-4 h-4 mr-1 rotate-180 transition-transform group-hover:-translate-x-1" />
+                    Terug naar overzicht
+                </button>
+                <BodyFixerView
+                    sessie={sessie}
+                    deelname={deelname}
+                    profile={profile}
+                    onGereflecteerd={onGereflecteerd}
+                />
+            </div>
+        );
+    }
+
+    // ─── STANDAARD LOGICA VOOR DE ANDERE ROLLEN (Coach, Arbiter, Toernooileider) ───
     const [fase, setFase] = useState(
         sessie.status === 'evaluatie' ? 'reflectie' : 'actief'
     );
@@ -834,9 +858,6 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
 
     // Spelregel flashcard index
     const [regelIndex, setRegelIndex] = useState(0);
-
-    // Beslissing scenario index
-    const [beslissingIndex, setBeslissingIndex] = useState(0);
 
     // Dynamische content laden
     useEffect(() => {
@@ -884,17 +905,10 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
         return rolContent?.[rol]?.[niveauKey]?.uitleg || null;
     };
     
-    const getBeslissingen = () => {
-        const niveauKey = `level${niveau}`;
-        return rolContent?.[rol]?.[niveauKey]?.beslissingen || [];
-    };
-
     const taken = getTaken();
     const aantalAfgevinkt = Object.values(afgevinkt).filter(Boolean).length;
     const voortgang = taken.length > 0 ? Math.round((aantalAfgevinkt / taken.length) * 100) : 0;
-
     const spelregels = getSpelregels();
-    const beslissingen = getBeslissingen();
 
     return (
         <div className="max-w-2xl mx-auto">
@@ -947,7 +961,6 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                     {rol === 'toernooileider' && (
                         <>
                             {sessie.toernooi ? (
-                                /* Als er een toernooi is: toon dashboard voor alle niveaus */
                                 <ToernooiDashboard 
                                 toernooi={sessie.toernooi} 
                                 rolData={rolData} 
@@ -956,7 +969,6 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                                 onRefresh={onRefresh}      
                             />
                             ) : niveau === 1 ? (
-                                /* LEVEL 1: Wacht op de leerkracht */
                                 <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm mb-4">
                                     <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <span className="text-3xl">⏳</span>
@@ -968,7 +980,6 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                                     </p>
                                 </div>
                             ) : (
-                                /* LEVEL 2 & 3: Mogen zelf bouwen (Privacy Mode) */
                                 <ToernooiBuilder 
                                     mode="manual"
                                     rolData={rolData}
@@ -982,7 +993,7 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                                                 type: toernooiData.type
                                             }, profile._token);
                                             toast.success('Toernooi gestart!', { id: toastId });
-                                            if (onRefresh) onRefresh(); // <--- ZORGT VOOR ONMIDDELLIJK BEELD!
+                                            if (onRefresh) onRefresh(); 
                                         } catch(e) {
                                             toast.error('Fout bij starten: ' + e.message);
                                         }
@@ -1100,7 +1111,6 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
         </div>
     );
 }
-
 // ─── ZELFREFLECTIE FORMULIER ──────────────────────────────────────────────────
 function ZelfreflectieForm({ rol, rolData, deelnameId, sessie, profile, onIngediend }) {
     const [inzet, setInzet] = useState(0);
