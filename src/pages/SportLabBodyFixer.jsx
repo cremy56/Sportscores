@@ -30,26 +30,38 @@ async function apiPost(action, body, token) {
     return data;
 }
 
-// ─── MATRIX: blessureduur + sporturen → niveau ────────────────────────────────
-function berekenNiveau(wekenFase, sportUren) {
-    if (wekenFase === 1) return 'niveau_1';
-    if (wekenFase === 2) return sportUren === 3 ? 'niveau_2' : sportUren === 2 ? 'niveau_2' : 'niveau_1';
-    if (wekenFase === 3) return sportUren === 3 ? 'niveau_3' : 'niveau_2';
-    return 'niveau_1';
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+// Klas → leeftijdsgroep (Belgisch secundair onderwijs)
+// 1e-2e jaar (~12-14j) → leeftijd_12_14
+// 3e jaar en hoger (~14-18j) → leeftijd_15_18
+function klasNaarLeeftijd(klas) {
+    if (!klas) return 'leeftijd_15_18'; // fallback
+    const jaar = parseInt(klas.charAt(0));
+    return !isNaN(jaar) && jaar <= 2 ? 'leeftijd_12_14' : 'leeftijd_15_18';
 }
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
+// geregistreerd_op → aantal weken geblesseerd
 function berekenWekenGeblesseerd(geregistreerdOp) {
     if (!geregistreerdOp) return null;
     const start = geregistreerdOp?.toDate ? geregistreerdOp.toDate() : new Date(geregistreerdOp);
-    const weken = Math.floor((Date.now() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
-    return weken;
+    return Math.floor((Date.now() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
 }
 
+// Weken → fase (1/2/3)
 function wekenNaarFase(weken) {
+    if (weken === null) return 1; // onbekend → voorzichtig beginnen
     if (weken <= 2) return 1;
     if (weken <= 5) return 2;
     return 3;
+}
+
+// Fase + sporturen → oefenniveau
+function berekenNiveau(fase, sportUren) {
+    if (fase === 1) return 'niveau_1';
+    if (fase === 2) return sportUren >= 2 ? 'niveau_2' : 'niveau_1';
+    if (fase === 3) return sportUren === 3 ? 'niveau_3' : 'niveau_2';
+    return 'niveau_1';
 }
 
 const FASE_LABELS = {
@@ -77,11 +89,6 @@ const ZONE_LABELS = {
     mobiliteit:   'Mobiliteit 🧘',
     armen:        'Armen & Handen 🤲',
 };
-
-const LEEFTIJDEN = [
-    { id: 'leeftijd_12_14', label: '12 – 14 jaar', detail: 'Voorzichtiger programma' },
-    { id: 'leeftijd_15_18', label: '15 – 18 jaar', detail: 'Progressiever programma' },
-];
 
 // ─── OEFENING KAART ───────────────────────────────────────────────────────────
 function OefeningKaart({ oefening, afgevinkt, onToggle }) {
@@ -273,11 +280,14 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
     const [oefenLib, setOefenLib] = useState(null);
     const [loadingData, setLoadingData] = useState(true);
 
+    // Auto-detect leeftijd en blessureduur — geen vragen aan de leerling
+    const gekozenLeeftijd = klasNaarLeeftijd(profile?.klas);
+    const autoWeken = berekenWekenGeblesseerd(profile?.geregistreerd_op);
+    const autoFase = wekenNaarFase(autoWeken);
+
     // Leerling keuzes
     const [gekozenBlessure, setGekozenBlessure] = useState(null);
     const [blessureDoc, setBlessureDoc] = useState(null);
-    const [gekozenLeeftijd, setGekozenLeeftijd] = useState(null);
-    const [gekozenFase, setGekozenFase] = useState(null);        // 1/2/3
     const [gekozenSportUren, setGekozenSportUren] = useState(null); // 1/2/3
     const [actieveZone, setActieveZone] = useState(null);
 
@@ -297,14 +307,6 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
             toast('Evaluatievenster geopend!', { icon: '⏱️' });
         }
     }, [sessie.status]);
-
-    // Auto-detect blessureduur via geregistreerd_op
-    const autoFase = (() => {
-        const weken = berekenWekenGeblesseerd(profile?.geregistreerd_op);
-        return weken !== null ? wekenNaarFase(weken) : null;
-    })();
-
-    const autoWeken = berekenWekenGeblesseerd(profile?.geregistreerd_op);
 
     // Laad data bij mount
     useEffect(() => {
@@ -334,7 +336,7 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
     const toggle = (key) => setAfgevinkt(prev => ({ ...prev, [key]: !prev[key] }));
 
     // Niveau berekening
-    const niveau = gekozenFase && gekozenSportUren ? berekenNiveau(gekozenFase, gekozenSportUren) : null;
+    const niveau = gekozenSportUren ? berekenNiveau(autoFase, gekozenSportUren) : null;
 
     // Actieve oefeningen
     const activeOefeningen = (() => {
@@ -344,7 +346,7 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
         return (gekozenLeeftijd === 'leeftijd_12_14' ? zoneData.leeftijd_12_14 : zoneData.leeftijd_15_18) || [];
     })();
 
-    const alleIngesteld = gekozenBlessure && gekozenLeeftijd && gekozenFase && gekozenSportUren;
+    const alleIngesteld = gekozenBlessure && gekozenSportUren;
 
     if (deelname?.voltooid) return (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
@@ -380,14 +382,27 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
                         </div>
                     )}
                 </div>
-                {/* Niveau badge als alles ingesteld */}
-                {niveau && (
-                    <div className="mt-3 bg-white/20 rounded-xl px-3 py-1.5 inline-block">
+                {/* Info badges */}
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {/* Blessureduur — auto berekend, transparant getoond */}
+                    <div className="bg-white/20 rounded-xl px-3 py-1.5">
                         <span className="text-white text-xs font-semibold">
-                            📊 {NIVEAU_LABELS[niveau]}
+                            📅 {autoWeken === null ? 'Duur onbekend' : autoWeken <= 2 ? `${autoWeken || '<1'} week${autoWeken !== 1 ? 'en' : ''}` : autoWeken <= 5 ? `${autoWeken} weken` : `${autoWeken}+ weken`}
                         </span>
                     </div>
-                )}
+                    {/* Leeftijdsgroep — afgeleid van klas */}
+                    <div className="bg-white/20 rounded-xl px-3 py-1.5">
+                        <span className="text-white text-xs font-semibold">
+                            {gekozenLeeftijd === 'leeftijd_12_14' ? '👦 12-14 jaar' : '🧑 15-18 jaar'}
+                        </span>
+                    </div>
+                    {/* Oefenniveau */}
+                    {niveau && (
+                        <div className="bg-white/20 rounded-xl px-3 py-1.5">
+                            <span className="text-white text-xs font-semibold">📊 {NIVEAU_LABELS[niveau]}</span>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* ── DISCLAIMER ─────────────────────────────────────────────── */}
@@ -418,28 +433,8 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
                 </div>
             </InstellingBlok>
 
-            {/* ── INSTELLING 2: LEEFTIJD ─────────────────────────────────── */}
+            {/* ── INSTELLING 2: SPORTUREN ────────────────────────────────── */}
             {gekozenBlessure && (
-                <InstellingBlok nr={2} label="Mijn leeftijd"
-                    waarde={LEEFTIJDEN.find(l => l.id === gekozenLeeftijd)?.label}>
-                    <div className="p-4 space-y-2">
-                        {LEEFTIJDEN.map(l => (
-                            <button key={l.id} onClick={() => setGekozenLeeftijd(l.id)}
-                                className={`w-full p-4 rounded-xl border-2 text-left transition-all active:scale-[0.98] ${
-                                    gekozenLeeftijd === l.id
-                                        ? 'border-purple-400 bg-purple-50'
-                                        : 'border-slate-100 bg-slate-50 hover:border-purple-200'
-                                }`}>
-                                <p className="font-semibold text-slate-800 text-sm">{l.label}</p>
-                                <p className="text-xs text-slate-500 mt-0.5">{l.detail}</p>
-                            </button>
-                        ))}
-                    </div>
-                </InstellingBlok>
-            )}
-
-            {/* ── INSTELLING 3: BLESSUREDUUR ─────────────────────────────── */}
-            {gekozenLeeftijd && (
                 <InstellingBlok nr={3} label="Hoe lang al geblesseerd?"
                     waarde={gekozenFase ? FASE_LABELS[gekozenFase].label : null}>
                     <div className="p-4 space-y-2">
@@ -487,10 +482,6 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
                 </InstellingBlok>
             )}
 
-            {/* ── INSTELLING 4: SPORTUREN ────────────────────────────────── */}
-            {gekozenFase && (
-                <InstellingBlok nr={4} label="Hoeveel sport je per week?"
-                    waarde={SPORT_UREN.find(s => s.id === gekozenSportUren)?.label}>
                     <div className="p-4 space-y-2">
                         <p className="text-xs text-slate-500 px-1 mb-2">
                             Dit bepaalt hoe intensief de oefeningen zijn voor de zones die jij wél kunt trainen.
@@ -525,7 +516,6 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
                         )}
                     </div>
                 </InstellingBlok>
-            )}
 
             {/* ── OEFENINGEN ─────────────────────────────────────────────── */}
             {alleIngesteld && blessureDoc && (

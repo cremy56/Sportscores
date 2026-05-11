@@ -374,6 +374,21 @@ const BLESSURES = {
         opmerking_verboden: 'Oefeningen waarbij je op je handen steunt of de pols belast vermijd je. Vraag je kinesist welke oefeningen voor pols en hand toegestaan zijn.',
     },
 
+
+    andere: {
+        naam: 'Andere blessure',
+        emoji: '🩹',
+        kleur: 'slate',
+        info: {
+            wat_is_het: 'Jouw blessure staat niet in de lijst. Raadpleeg je kinesist of arts voor specifiek advies over welke zones je kunt belasten.',
+            herkennen: 'Elk lichaamsdeel kan geblesseerd raken. Pijn, zwelling, beperkte beweging en krachtverlies zijn algemene signalen.',
+            vermijden: 'Vermijd alles wat pijn veroorzaakt. Twijfel je of een oefening mag? Sla ze over en vraag je kinesist.',
+            wanneer_arts: 'Bij aanhoudende pijn, zwelling, gevoelloosheid, of als je niet weet wat de blessure is.',
+        },
+        toegestane_zones: ['bovenlichaam', 'core'],
+        verboden_zones: ['onderlichaam', 'armen'],
+        opmerking_verboden: 'We gaan voorzichtig te werk omdat we je blessure niet kennen. Kies enkel oefeningen die volledig pijnvrij zijn. Vraag je kinesist welke zones jij specifiek kunt belasten.',
+    },
     lies_heup: {
         naam: 'Lies- of heupblessure',
         emoji: '⚡',
