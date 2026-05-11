@@ -1,10 +1,28 @@
 // scripts/seed-sportlab-blessures.js
-// Vult de sport_lab_blessures collectie in Firestore.
-// Content voor de Body Fixer rol in Sport Lab.
-// Gebaseerd op wetenschappelijke bronnen over sportblessures bij 12-18-jarigen.
+// ─────────────────────────────────────────────────────────────────────────────
+// Body Fixer — Algemene fitnessoefeningen voor niet-geblesseerde zones
 //
-// ⚠️  DISCLAIMER: Deze content vervangt NOOIT medisch advies.
-//     De leerling raadpleegt altijd een arts of kinesist.
+// ⚠️  BELANGRIJK: Deze content geeft GEEN medisch advies en bevat
+//     GEEN revalidatieoefeningen voor de geblesseerde zone.
+//     De app toont uitsluitend algemene fitnessoefeningen voor
+//     lichaamsdelen die de leerling WEL kan belasten.
+//
+//     Revalidatieoefeningen komen uitsluitend van de kinesist/arts
+//     van de leerling. De leerling voert die in via het
+//     "Kine-oefeningen" scherm.
+//
+// STRUCTUUR:
+//   Per blessure:
+//     - toegestane_zones: welke zones mag de leerling belasten
+//     - verboden_zones: welke zones moet de leerling sparen
+//     - info: algemene uitleg over de blessure (educatief, niet medisch)
+//     - oefeningen per zone, verdeeld in 3 intensiteitsniveaus:
+//         niveau_1: licht (week 1-2 na blessure — algemene fitheid bewaren)
+//         niveau_2: matig (week 3-5 — kracht opbouwen in gezonde zones)
+//         niveau_3: intensief (week 6+ — prestatie in gezonde zones)
+//
+//   De niveauverdeling gaat over de intensiteit van oefeningen
+//   voor de GEZONDE zones, niet over het herstel van de blessure.
 //
 // Gebruik:
 //   node scripts/seed-sportlab-blessures.js
@@ -17,146 +35,238 @@ const serviceAccount = JSON.parse(readFileSync('./serviceAccountKey.json', 'utf8
 initializeApp({ credential: cert(serviceAccount) });
 const db = getFirestore();
 
-// ─── OEFENINGEN PER TRAININGSZONE ────────────────────────────────────────────
-// Zones: bovenlichaam, core, onderlichaam, armen, mobiliteit
-// Alle oefeningen zijn uitvoerbaar in een sporthal zonder materiaal.
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const oe = (naam, duur, uitleg, tip = null) => ({ naam, duur, uitleg, tip });
 
-const OEFENINGEN = {
+// ─── OEFENBIBLIOTHEEK PER ZONE EN NIVEAU ──────────────────────────────────────
+// Niveau 1: licht — voor wie pas geblesseerd is of weinig uitgerust is
+// Niveau 2: matig — normale trainingsintensiteit voor de gezonde zones
+// Niveau 3: intensief — hogere uitdaging voor de gezonde zones
+// Leeftijd 12-14j: lagere intensiteit dan 15-18j (groeischijven elders kwetsbaar)
 
-    bovenlichaam: [
-        {
-            naam: 'Muurpush-up',
-            duur: '3 × 12 herhalingen',
-            uitleg: 'Sta op armlengte van de muur. Leg je handpalmen plat op de muur op schouderhoogte. Buig je armen gecontroleerd totdat je neus de muur bijna raakt, duw daarna terug. Houd je rug recht.',
-            tip: 'Hoe verder je van de muur staat, hoe zwaarder. Begin dicht bij de muur.',
-        },
-        {
-            naam: 'Kniepush-up',
-            duur: '3 × 10 herhalingen',
-            uitleg: 'Begin op handen en knieën. Handen op schouderbreedte, knieën op de grond. Laat je borst zakken naar de vloer en duw terug omhoog. Houd je romp gespannen.',
-            tip: 'Zorg dat je heupen niet zakken. Je lijf vormt een rechte lijn van knie tot schouder.',
-        },
-        {
-            naam: 'Arm circles',
-            duur: '2 × 30 seconden per richting',
-            uitleg: 'Strek je armen zijwaarts op schouderhoogte. Maak kleine cirkels naar voren gedurende 30 seconden. Wissel daarna van richting. Vergroot de cirkels geleidelijk.',
-            tip: 'Goed voor mobiliteit én doorbloeding van schouder en bovenrug.',
-        },
-        {
-            naam: 'Schouder shrugs',
-            duur: '3 × 15 herhalingen',
-            uitleg: 'Sta rechtop. Haal je schouders zo hoog mogelijk op richting de oren. Houd 2 seconden vast en laat dan gecontroleerd zakken. Ontspan volledig onderaan.',
-            tip: 'Traag en gecontroleerd is effectiever dan snel. Geen rugblessure? Dan mag je ook cirkelen.',
-        },
-        {
-            naam: 'Superman (rug extensie)',
-            duur: '3 × 10 herhalingen',
-            uitleg: 'Ga op je buik liggen. Strek armen voor je uit. Til tegelijkertijd je armen, borst en benen een paar centimeter van de grond. Houd 2 seconden vast en laat zakken.',
-            tip: 'Niet te hoog. Focus op aanspanning van rug- en bilspieren, niet op hoogte.',
-        },
-    ],
+const ZONES = {
 
-    core: [
-        {
-            naam: 'Plank op knieën',
-            duur: '3 × 20 seconden',
-            uitleg: 'Steun op onderarmen en knieën. Houd je rug recht — geen holle of bolle rug. Span je buikspieren aan en adem rustig door. Kijk naar de grond.',
-            tip: 'Verhoog de tijd stap voor stap. Drie seconden langer per training is al vooruitgang.',
+    bovenlichaam: {
+        label: 'Bovenlichaam',
+        emoji: '💪',
+        niveau_1: {
+            omschrijving: 'Lichte activering — beweging bewaren',
+            leeftijd_12_14: [
+                oe('Muurpush-up', '2 × 10 herh.', 'Sta op armlengte van de muur, handpalmen op schouderhoogte. Buig gecontroleerd en duw terug. Rug recht.', 'Hoe verder van de muur, hoe zwaarder. Begin dicht bij.'),
+                oe('Arm circles', '2 × 20 sec per richting', 'Armen zijwaarts gestrekt. Maak kleine cirkels naar voren, daarna naar achteren.', 'Goed voor doorbloeding en mobiliteit.'),
+                oe('Schouderrol', '2 × 15 herh.', 'Rol schouders naar voren in een cirkel, daarna achterwaarts. Traag en gecontroleerd.', null),
+            ],
+            leeftijd_15_18: [
+                oe('Muurpush-up', '3 × 12 herh.', 'Handen op muur schouderhoogte. Buig armen, neus naar muur, duw terug.', null),
+                oe('Arm circles', '2 × 30 sec per richting', 'Armen zijwaarts. Cirkels klein naar groot.', null),
+                oe('Y-W-T oefening (staand)', '2 × 10 herh.', 'Armen in Y-positie (schuin omhoog), houd 3 sec. Dan W (handen naast hoofd), dan T (horizontaal). Wissel.', 'Activeert schouderblad-spieren en houding.'),
+            ],
         },
-        {
-            naam: 'Dead bug',
-            duur: '3 × 8 herhalingen per zijde',
-            uitleg: 'Ga op je rug liggen. Til armen recht omhoog en benen gebogen in de lucht (90°). Strek langzaam je rechterarm achterover terwijl je linkerbeen uitstrekt, zonder de grond te raken. Keer terug en wissel.',
-            tip: 'Druk je onderrug actief in de grond. Als dit te moeilijk is, beweeg enkel de armen.',
+        niveau_2: {
+            omschrijving: 'Normale trainingsintensiteit voor bovenlichaam',
+            leeftijd_12_14: [
+                oe('Kniepush-up', '3 × 10 herh.', 'Op handen en knieën. Borst naar grond, duw terug. Romp gespannen.', 'Heupen niet laten zakken — rechte lijn van knie tot schouder.'),
+                oe('Superman', '3 × 10 herh.', 'Buiklig, armen gestrekt voor je. Til armen, borst en benen tegelijk op. Houd 2 sec.', 'Focus op aanspanning rug en bilspieren.'),
+                oe('Tricep dips (stoel)', '2 × 10 herh.', 'Handen op stoel naast heupen. Schuif lichaam voor de stoel en laat zakken door armen te buigen. Duw terug.', 'Ellebogen naar achter, niet zijwaarts.'),
+            ],
+            leeftijd_15_18: [
+                oe('Kniepush-up', '3 × 15 herh.', 'Op handen en knieën. Borst naar grond. Duw terug.', null),
+                oe('Superman (met pauze)', '3 × 12 herh.', 'Buiklig. Armen + benen opheffen. Houd 3 sec. Laat zakken.', null),
+                oe('Tricep dips (stoel)', '3 × 12 herh.', 'Dips op stoel. Gecontroleerd omlaag.', null),
+                oe('Scapular push-up', '3 × 12 herh.', 'In plankpositie (of kniepush-up). Duw schouderbladen van mekaar zonder armen te buigen. Houd 2 sec.', 'Versterkt schouderblad-stabiliteit.'),
+            ],
         },
-        {
-            naam: 'Glute bridge',
-            duur: '3 × 15 herhalingen',
-            uitleg: 'Ga op je rug liggen, knieën gebogen, voeten plat op de grond. Duw je heupen omhoog totdat je lichaam een rechte lijn vormt van schouder tot knie. Houd 2 seconden vast en laat zakken.',
-            tip: 'Knijp je bilspieren aan bovenaan. Dit versterkt ook je onderrug.',
+        niveau_3: {
+            omschrijving: 'Hogere uitdaging voor bovenlichaam',
+            leeftijd_12_14: [
+                oe('Kniepush-up (traag)', '3 × 12 herh.', '3 sec omlaag, 1 sec pauze, 2 sec omhoog. Traag tempo = hogere belasting.', 'Minder herhalingen zijn voldoende bij traag tempo.'),
+                oe('Superman + twist', '3 × 8 herh. per kant', 'Buiklig. Hef op. Draai bovenlichaam licht naar links en rechts. Houd elke kant 2 sec.', null),
+                oe('Wall handstand hold (tegen muur)', '2 × 15 sec', 'Handen op grond, benen omhoog naar muur. Houd positie. ENKEL als schouder en pols volledig vrij zijn.', 'Enkel uitvoeren als geen blessure aan schouder of pols.'),
+            ],
+            leeftijd_15_18: [
+                oe('Volledige push-up', '4 × 12 herh.', 'Op handen en voeten. Borst naar grond. Duw terug. Rug recht.', null),
+                oe('Pike push-up', '3 × 10 herh.', 'In omgekeerde V-positie. Buig armen zodat hoofd naar grond gaat. Duw terug.', 'Belast voornamelijk schouders.'),
+                oe('Superman met weerstand', '4 × 10 herh.', 'Buiklig. Armen + benen opheffen. Houd 4 sec. Maximale aanspanning.', null),
+            ],
         },
-        {
-            naam: 'Zittende rompdraaien',
-            duur: '3 × 12 herhalingen per kant',
-            uitleg: 'Ga rechtop zitten op een stoel of de grond. Kruis je armen voor je borst. Draai je bovenlichaam langzaam naar rechts en keer terug naar het midden, daarna naar links. Beweeg vanuit de buik, niet van de nek.',
-            tip: 'Langzame gecontroleerde beweging. Voelt u pijn in de rug? Stop dan.',
-        },
-        {
-            naam: 'Crunches',
-            duur: '3 × 15 herhalingen',
-            uitleg: 'Ga op je rug liggen, knieën gebogen. Leg je handen achter je hoofd. Curl je bovenlichaam omhoog totdat je schouderbladen van de grond zijn. Zet geen kracht met je handen op je nek.',
-            tip: 'Half omhoog is voldoende — je hoeft je ellebogen niet aan je knieën te raken.',
-        },
-    ],
+    },
 
-    onderlichaam: [
-        {
-            naam: 'Bodyweight squat',
-            duur: '3 × 15 herhalingen',
-            uitleg: 'Sta voetbreedteapart. Buig je knieën en laat je heupen zakken alsof je op een stoel gaat zitten. Houd je hielen op de grond en je knieën boven je voeten. Strek terug omhoog.',
-            tip: 'Passen niet bij knieblessures! Bij twijfel: gebruik een stoel als geleider.',
+    core: {
+        label: 'Core / Romp',
+        emoji: '🔥',
+        niveau_1: {
+            omschrijving: 'Lichte core-activering',
+            leeftijd_12_14: [
+                oe('Glute bridge', '2 × 12 herh.', 'Ruglig, knieën gebogen. Duw heupen omhoog. Houd 2 sec. Laat zakken.', 'Knijp bilspieren aan bovenaan.'),
+                oe('Pelvic tilt', '2 × 15 herh.', 'Ruglig, knieën gebogen. Druk onderrug actief in de grond. Houd 5 sec. Ontspan.', 'Lichte maar effectieve core-activering.'),
+                oe('Zittende core (stoel)', '2 × 10 herh.', 'Zit op stoel. Trek knieën afwisselend omhoog naar borst. Rug recht.', null),
+            ],
+            leeftijd_15_18: [
+                oe('Glute bridge', '3 × 15 herh.', 'Ruglig. Hef heupen. Bilspieren aan. Houd 2 sec.', null),
+                oe('Dead bug (armen)', '2 × 8 herh. per kant', 'Ruglig, benen in de lucht. Strek één arm achterover. Terug. Wissel. Benen bewegen niet.', 'Introductie dead bug — enkel armbewegingen.'),
+                oe('Crunches', '3 × 15 herh.', 'Ruglig, knieën gebogen. Handen voor borst. Curl omhoog tot schouderbladen van grond zijn.', null),
+            ],
         },
-        {
-            naam: 'Uitvalspas (lunge)',
-            duur: '3 × 10 per been',
-            uitleg: 'Stap één voet ver naar voren. Laat je achterste knie zakken richting de grond (niet erop). Stap terug. Wissel van been. Houd je romp recht.',
-            tip: 'Zijwaartse lunge is lichter voor de knieën als reguliere lunge pijn geeft.',
+        niveau_2: {
+            omschrijving: 'Normale core-training',
+            leeftijd_12_14: [
+                oe('Plank op knieën', '3 × 25 sec', 'Onderarmen en knieën. Rug recht. Buikspieren aanspannen.', 'Verhoog wekelijks met 5 sec.'),
+                oe('Dead bug (volledig)', '3 × 8 herh. per kant', 'Ruglig. Armen omhoog, benen 90°. Strek arm + tegenovergesteld been. Onderrug in grond.', null),
+                oe('Glute bridge (lang houden)', '3 × 3 × 10 sec', 'Hef heupen. Houd 10 sec. Bilspieren aanknijpen. Drie keer met korte pauze.', null),
+            ],
+            leeftijd_15_18: [
+                oe('Plank (volledig)', '3 × 30 sec', 'Op onderarmen en voeten. Rug recht. Heupen niet zakken.', 'Verhoog wekelijks met 10 sec.'),
+                oe('Dead bug (volledig)', '3 × 10 herh. per kant', 'Ruglig. Armen + tegenovergesteld been. Langzaam en gecontroleerd.', null),
+                oe('Side plank', '3 × 20 sec per kant', 'Zijlig op onderarm. Hef heupen. Rechte lijn hoofd-voeten.', null),
+                oe('Mountain climber (traag)', '3 × 20 herh.', 'In plankpositie. Trek knieën afwisselend naar borst. Traag tempo.', null),
+            ],
         },
-        {
-            naam: 'Kuitverheffingen',
-            duur: '3 × 20 herhalingen',
-            uitleg: 'Sta rechtop, handen aan de muur voor balans. Kom op je tenen omhoog, houd 1 seconde vast en laat gecontroleerd zakken. Voeten samen of op schouderbreedte.',
-            tip: 'Ook uitvoerbaar op één been voor meer uitdaging. Niet doen bij enkelblessures.',
+        niveau_3: {
+            omschrijving: 'Intensieve core-training',
+            leeftijd_12_14: [
+                oe('Plank (volledig)', '3 × 30 sec', 'Op onderarmen en voeten.', null),
+                oe('Side plank op knieën', '2 × 20 sec per kant', 'Zijlig op onderarm en gebogen knie. Hef heupen.', null),
+                oe('Bicycle crunches', '3 × 20 herh.', 'Ruglig. Breng elleboog naar tegenovergestelde knie. Wisselend.', null),
+            ],
+            leeftijd_15_18: [
+                oe('Plank + schoudertap', '3 × 20 taps', 'In plankpositie. Tik afwisselend tegenovergestelde schouder aan. Heupen stabiel.', null),
+                oe('Side plank (lang)', '3 × 30 sec per kant', null, null),
+                oe('Hollow body hold', '3 × 20 sec', 'Ruglig. Armen naast hoofd gestrekt. Til armen + benen van grond. Rug plat. Houd.', 'Geavanceerde core-activering.'),
+                oe('Dragon flag (introductie)', '3 × 5 herh.', 'Ruglig, houd iets vast boven hoofd. Hef benen + romp langzaam op. Laat gecontroleerd zakken.', 'Enkel uitvoeren als plank 60 sec volledig stabiel gaat.'),
+            ],
         },
-        {
-            naam: 'Balans op één been',
-            duur: '3 × 30 seconden per been',
-            uitleg: 'Sta op één been. Hou je andere voet naast je knie. Probeer stabiel te blijven. Focus op een vast punt voor je. Verhoog de moeilijkheid door je ogen te sluiten.',
-            tip: 'Verbetert stabiliteit en voorkomt toekomstige enkelblessures. Niet doen bij actieve enkelpijn.',
-        },
-        {
-            naam: 'Stap-up op bankje',
-            duur: '3 × 12 per been',
-            uitleg: 'Zet één voet op een bankje of verhoging. Duw jezelf omhoog zodat je rechtop staat op het bankje. Stap gecontroleerd terug. Wissels van been.',
-            tip: 'Begin met een lage verhoging. Goed voor kracht en balans samen.',
-        },
-    ],
+    },
 
-    mobiliteit: [
-        {
-            naam: 'Quadriceps stretch (staand)',
-            duur: '3 × 30 seconden per been',
-            uitleg: 'Sta op één been (gebruik een muur voor steun). Buig je andere knie en breng je hak naar je bil. Houd je enkel vast. Voel de rek aan de voorkant van je bovenbeen.',
-            tip: 'Zacht rekken — geen pijn. Niet doen bij actieve Osgood-Schlatter klachten.',
+    onderlichaam: {
+        label: 'Onderlichaam',
+        emoji: '🦵',
+        niveau_1: {
+            omschrijving: 'Lichte onderlichaamsactivering',
+            leeftijd_12_14: [
+                oe('Mini squat (30°)', '2 × 12 herh.', 'Lichte kniebuiging tot 30°. Voeten schouderbreedte. Rug recht.', 'Lichte belasting — houd het comfortabel.'),
+                oe('Kuitverheffingen (staand)', '2 × 15 herh.', 'Handen aan muur. Op tippentoe. Houd 1 sec. Laat zakken.', null),
+                oe('Zijwaartse stap', '2 × 10 per kant', 'Kleine zijwaartse stappen op vlakke ondergrond. Voeten altijd op schouderbreedte.', null),
+            ],
+            leeftijd_15_18: [
+                oe('Squat (licht, hoog)', '3 × 12 herh.', 'Voeten schouderbreedte. Zak licht door knieën (45°). Rug recht.', null),
+                oe('Kuitverheffingen', '3 × 20 herh.', 'Op tippentoe. Houd 2 sec. Traag zakken.', null),
+                oe('Balans op één been', '3 × 20 sec per been', 'Op één been. Focus op een punt. Stabiel blijven.', null),
+            ],
         },
-        {
-            naam: 'Hamstring stretch (liggend)',
-            duur: '3 × 30 seconden per been',
-            uitleg: 'Ga op je rug liggen. Til één been omhoog en houd het met beide handen vast. Strek je been zo recht mogelijk. Voel de rek aan de achterzijde van je bovenbeen.',
-            tip: 'Het been hoeft niet volledig gestrekt te zijn. Rek tot je spanning voelt, geen pijn.',
+        niveau_2: {
+            omschrijving: 'Normale onderlichaamsstraining',
+            leeftijd_12_14: [
+                oe('Squat (normaal, 90°)', '3 × 12 herh.', 'Voeten schouderbreedte. Zak tot 90°. Rug recht. Hielen op grond.', null),
+                oe('Uitvalspas (lunge)', '3 × 8 herh. per been', 'Stap naar voren. Achterste knie richting grond. Terug. Wissel.', 'Handen op heupen.'),
+                oe('Stap-up laag bankje', '3 × 10 herh. per been', 'Laag bankje (15-20cm). Stap op. Strek been. Stap af.', null),
+            ],
+            leeftijd_15_18: [
+                oe('Squat (vol bereik)', '4 × 15 herh.', 'Voeten schouderbreedte. Volledig naar beneden. Rug recht.', null),
+                oe('Uitvalspas (lunge)', '3 × 12 herh. per been', 'Diep naar beneden. Rug recht.', null),
+                oe('Stap-up (hoger bankje)', '3 × 12 herh. per been', 'Bankje 30-40cm. Stap op. Strek been volledig. Stap gecontroleerd af.', null),
+                oe('Glute bridge (één been)', '3 × 12 herh. per been', 'Ruglig. Hef heupen. Strek één been. Houd 2 sec.', null),
+            ],
         },
-        {
-            naam: 'Kuitspier stretch',
-            duur: '3 × 30 seconden per been',
-            uitleg: 'Sta voor de muur. Zet één voet achteraan. Houd de achterste knie gestrekt en druk de hak naar de grond. Leun licht naar voren. Voel de rek in je kuit.',
-            tip: 'Essentieel bij de ziekte van Sever (hielpijn). Voer dit elke dag uit.',
+        niveau_3: {
+            omschrijving: 'Intensieve onderlichaamsstraining',
+            leeftijd_12_14: [
+                oe('Jump squat (licht)', '3 × 8 herh.', 'Squat en spring licht omhoog. Land zacht op beide voeten.', 'Enkel als beide voeten en knieën volledig vrij zijn van blessure.'),
+                oe('Uitvalspas wandeling', '3 × 10 per been', 'Lunge-passen door de zaal — afwisselend vooruit.', null),
+                oe('Kuitverheffing (één been)', '3 × 12 herh. per been', 'Op één been. Handen aan muur. Op tippentoe. Traag zakken.', null),
+            ],
+            leeftijd_15_18: [
+                oe('Bulgarian split squat', '4 × 10 herh. per been', 'Voorste voet op grond, achterste voet op bankje. Zak diep. Rug recht.', 'Hoge functionele belasting.'),
+                oe('Jump squat', '4 × 8 herh.', 'Explosieve sprong vanuit squat. Land zacht met gebogen knieën.', 'Enkel als geen blessure aan knie, enkel of voet.'),
+                oe('Pistol squat (beginners)', '3 × 5 herh. per been', 'Sta op één been. Strek ander been voor je. Zak licht door standbeen.', 'Gebruik muur als steun. Uitdaging voor balans en kracht.'),
+            ],
         },
-        {
-            naam: 'Heupbuiger stretch',
-            duur: '3 × 30 seconden per been',
-            uitleg: 'Zak in een halve knielstand (één knie op de grond, andere voet voor je). Duw je heupen licht naar voren. Voel de rek aan de voorzijde van je heup en bovenbeen.',
-            tip: 'Houd je romp rechtop. Niet te ver naar voren duwen.',
+    },
+
+    mobiliteit: {
+        label: 'Mobiliteit & Stretching',
+        emoji: '🧘',
+        niveau_1: {
+            omschrijving: 'Basismobiliteit — elke dag nuttig',
+            leeftijd_12_14: [
+                oe('Cat-Cow', '3 × 10 herh.', 'Op handen en knieën. Maak holle rug (hoofd omhoog) en ronde rug (hoofd omlaag). Traag en vloeiend.', 'Wervelkolommobiliteit — veilig voor iedereen.'),
+                oe('Heupbuiger stretch', '3 × 30 sec per kant', 'Halve knielstand. Duw heupen licht naar voren. Rek aan voorkant heup en bovenbeen.', null),
+                oe('Schouder cross-body stretch', '3 × 30 sec per arm', 'Trek arm voor borst en houd vast met andere arm. Voel rek in schouder.', null),
+            ],
+            leeftijd_15_18: [
+                oe('Cat-Cow', '3 × 15 herh.', null, null),
+                oe('Heupbuiger stretch (diep)', '3 × 45 sec per kant', 'Halve knielstand diep. Duw heup naar voren. Arm van achterste been omhoog strekken.', null),
+                oe('Thoracale rotatie (zijlig)', '3 × 10 herh. per kant', 'Zijlig, knieën gebogen 90°. Bovenste arm draaien naar achter. Schouder naar grond. Terug.', 'Middenrugmobiliteit — ondersteunt houding en kracht.'),
+            ],
         },
-        {
-            naam: 'Schoudermobiliteit (handdoek)',
-            duur: '2 × 10 heen en terug',
-            uitleg: 'Houd een handdoek of elastiek met gestrekte armen voor je. Breng de handdoek langzaam over je hoofd naar achter, handen wijd uiteen. Zo ver als comfortabel gaat. Terug naar voren.',
-            tip: 'Handen verder uit elkaar maakt het makkelijker. Niet doen bij acute schouderpijn.',
+        niveau_2: {
+            omschrijving: 'Gerichte mobiliteit per zone',
+            leeftijd_12_14: [
+                oe('Quadriceps stretch (staand)', '3 × 30 sec per been', 'Sta op één been. Trek hak naar bil. Houd enkels vast. Muur voor steun.', 'Niet doen als knie geblesseerd is.'),
+                oe('Hamstring stretch (ruglig)', '3 × 30 sec per been', 'Ruglig. Til been omhoog. Houd met handen. Strek knie zo recht als comfortabel.', 'Niet doen bij actieve hamstringblessure.'),
+                oe('Heup 90-90 stretch', '3 × 45 sec per kant', 'Zit op grond. Beide knieën 90° gebogen, één voor en één naast je. Rechtop zitten. Wissel.', 'Heupflexibiliteit vanuit alle richtingen.'),
+            ],
+            leeftijd_15_18: [
+                oe('Quadriceps stretch (liggend)', '3 × 45 sec per been', 'Buiklig. Trek hak naar bil. Houd enkels vast.', null),
+                oe('Hamstring stretch (staand)', '3 × 45 sec per been', 'Sta. Strek één been voor je op verhoging. Leun licht voorover. Rug recht.', null),
+                oe('Couch stretch (heupbuiger)', '3 × 45 sec per kant', 'Knie op grond, voet tegen muur omhoog. Romp recht. Diepe heupbuiger rek.', 'Een van de effectiefste heuprekken.'),
+            ],
         },
-    ],
+        niveau_3: {
+            omschrijving: 'Verdiepte mobiliteit en beweeglijkheid',
+            leeftijd_12_14: [
+                oe('Brede squat (sumo) + stretch', '3 × 45 sec', 'Brede voetstand, voeten uitgedraaid. Zak in gehurkte positie. Houd vast. Duw knieën naar buiten.', 'Diep lies- en heuprekkend.'),
+                oe('Ruggever (backbend) aan muur', '3 × 20 sec', 'Sta voor muur. Handen hoog op muur. Buig licht achterover.', 'Lichte thoracale extensie.'),
+            ],
+            leeftijd_15_18: [
+                oe('Brede squat + laterale stretch', '3 × 60 sec', 'Brede squat. Duw knieën uit. Neig dan naar één kant voor laterale rek.', null),
+                oe('Pigeon pose', '3 × 60 sec per kant', 'Op de mat. Voorste been gebogen voor je. Achterste been gestrekt achter je. Leun voorover.', 'Diepe heup- en piriformis stretch.'),
+                oe('Thoracale extensie op foam roller', '3 × 60 sec', 'Foam roller horizontaal onder middenrug. Laat ruggengraat over foam roller buigen. Armen voor hoofd.', null),
+            ],
+        },
+    },
+
+    armen: {
+        label: 'Armen & Handen',
+        emoji: '🤲',
+        niveau_1: {
+            omschrijving: 'Lichte armactivering',
+            leeftijd_12_14: [
+                oe('Bicep curl (zonder gewicht)', '2 × 15 herh.', 'Armen langs het lichaam. Buig ellebogen en breng handen naar schouders. Langzaam terug.', 'Geen gewicht — beweging bewaren.'),
+                oe('Arm circles (alle richtingen)', '2 × 20 sec per richting', 'Klein, groot, naar voren, naar achter.', null),
+            ],
+            leeftijd_15_18: [
+                oe('Bicep curl (licht)', '3 × 15 herh.', 'Kleine weerstand (waterfles, tas). Buig ellebogen. Traag omlaag.', null),
+                oe('Tricep overhead stretch', '3 × 30 sec per arm', 'Til arm omhoog. Buig elleboog zodat hand achter hoofd hangt. Duw elleboog met andere hand naar achter.', 'Rek én lichte activering van tricep.'),
+            ],
+        },
+        niveau_2: {
+            omschrijving: 'Normale armtraining',
+            leeftijd_12_14: [
+                oe('Tricep dips (stoel)', '3 × 10 herh.', 'Op stoel. Handen naast heupen. Laat zakken door armen te buigen. Duw terug.', null),
+                oe('Isometrische bicep curl (muur)', '3 × 20 sec', 'Druk onderarm omhoog tegen muur. Maximale spanning. Houd 20 sec.', null),
+            ],
+            leeftijd_15_18: [
+                oe('Tricep dips (intensief)', '3 × 15 herh.', null, null),
+                oe('Diamond push-up (kniepositie)', '3 × 10 herh.', 'Handen in diamantvorm onder borst. Kniepush-up positie. Borst naar handen.', 'Belast voornamelijk triceps.'),
+            ],
+        },
+        niveau_3: {
+            omschrijving: 'Intensieve armtraining',
+            leeftijd_12_14: [
+                oe('Tricep dips (uitgedaagd)', '3 × 12 herh.', 'Benen gestrekt — moeilijker dan gebogen knieën.', null),
+            ],
+            leeftijd_15_18: [
+                oe('Diamond push-up (vol)', '4 × 12 herh.', 'Handen in diamantvorm. Volledige push-up positie.', null),
+                oe('Pike push-up', '3 × 10 herh.', 'Omgekeerde V. Buig armen. Hoofd naar grond. Duw terug.', 'Voornamelijk schouders en triceps.'),
+            ],
+        },
+    },
 };
 
-// ─── BLESSURE ZONES EN CONTENT ────────────────────────────────────────────────
+// ─── BLESSURE ZONES ───────────────────────────────────────────────────────────
+// Definieert welke zones WEL en NIET mogen worden getraind per blessuretype.
+// GEEN revalidatieoefeningen — uitsluitend info over de blessure en zone-toewijzing.
+
 const BLESSURES = {
 
     enkel: {
@@ -164,18 +274,14 @@ const BLESSURES = {
         emoji: '🦶',
         kleur: 'amber',
         info: {
-            wat_is_het: 'Een enkelblessure ontstaat meestal door "verzwikken" — de voet draait naar binnen of buiten bij een sprong of verkeerde landing. De banden (ligamenten) rondom de enkel rekken uit of scheuren. Dit is de meest voorkomende sportblessure bij jongeren.',
-            herkennen: 'Je voelt onmiddellijke pijn aan de buitenkant van de enkel. Er treedt zwelling op, soms een blauwe plek. Lopen is pijnlijk, staan op de geblesseerde voet doet pijn.',
-            vermijden: 'Lopen, springen, rennen, snel van richting veranderen. Belast de enkel niet in de acute fase (eerste 48 uur). Gebruik het RICE-principe: Rust, IJs, Compressie, Elevatie.',
-            wanneer_arts: 'Als je niet kunt steunen op de voet, als er direct na het verzwikken een "knak" was, als de pijn na 48 uur niet afneemt, of als er veel zwelling is.',
-            herstel: 'Lichte enkelblessures herstellen in 1-3 weken. Stevige banden nemen 4-6 weken. Kinesist begeleiding versnelt het herstel significant.',
+            wat_is_het: 'Een enkelblessure ontstaat wanneer de banden rond de enkel uitrekken of scheuren door zwikken bij een sprong of verkeerde landing. Dit is de meest voorkomende sportblessure bij jongeren.',
+            herkennen: 'Pijn aan de buiten- of binnenkant van de enkel, zwelling, mogelijk een blauwe plek, pijn bij steunen op de voet.',
+            vermijden: 'Belast de enkel niet bij pijn. Gebruik het PEACE-principe: bescherm de enkel, houd hem omhoog, vermijd belasting.',
+            wanneer_arts: 'Als je niet kunt steunen op de voet, als er een luid "knak"-geluid was, als de zwelling extreem is, of als de pijn na 72u niet afneemt.',
         },
-        toegestane_zones: ['bovenlichaam', 'core'],
-        verboden_oefeningen: ['lopen', 'springen', 'kuitverheffingen', 'balans op één been', 'squat', 'lunge'],
-        oefeningen: {
-            bovenlichaam: [OEFENINGEN.bovenlichaam[0], OEFENINGEN.bovenlichaam[1], OEFENINGEN.bovenlichaam[2], OEFENINGEN.bovenlichaam[4]],
-            core: [OEFENINGEN.core[0], OEFENINGEN.core[1], OEFENINGEN.core[2], OEFENINGEN.core[3]],
-        },
+        toegestane_zones: ['bovenlichaam', 'core', 'armen'],
+        verboden_zones: ['onderlichaam'],
+        opmerking_verboden: 'Oefeningen waarbij je op de voet staat of springt vermijd je. Vraag je kinesist wanneer je mag beginnen met kuitverheffingen en wandelen.',
     },
 
     knie: {
@@ -183,19 +289,14 @@ const BLESSURES = {
         emoji: '🦵',
         kleur: 'orange',
         info: {
-            wat_is_het: 'Knieklachten komen veel voor bij groeiende jongeren. Osgood-Schlatter is een typische groeiblessure waarbij de aanhechting van de kniepees op het scheenbeen geïrriteerd raakt. Dit komt voor bij 12-16-jarige sporters die een groeispurt doormaken. De botten groeien sneller dan de spieren, waardoor de pees te hard trekt.',
-            herkennen: 'Pijn net onder de knieschijf, op een "knobbeltje" op het scheenbeen. Pijn neemt toe bij springen, rennen en traplopen. Na sport erger, na rust beter. Soms zwelling op het scheenbeen.',
-            vermijden: 'Springen, diep knielen, rennen (tijdelijk), squatten met pijnklachten. Forceer nooit door de pijn heen. De groeischijf is kwetsbaar.',
-            wanneer_arts: 'Als de pijn meer dan 2 weken aanhoudt, als er een zichtbare zwelling is, als lopen pijnlijk is, of als één knie duidelijk groter lijkt dan de andere.',
-            herstel: 'Osgood-Schlatter gaat vanzelf over wanneer de groeispurt voorbij is (gemiddeld 12-24 maanden). Goede begeleiding en aanpassing van training verminderen de klachten sterk.',
+            wat_is_het: 'Osgood-Schlatter is een groeigerelateerde overbelastingsblessure waarbij de aanhechting van de kniepees op het scheenbeen geïrriteerd raakt tijdens een groeispurt. Treft 1 op 10 actieve adolescenten.',
+            herkennen: 'Pijn net onder de knieschijf op een "knobbeltje". Verergert bij springen, hurken, traplopen. Na rust beter.',
+            vermijden: 'Springen, diep knielen, squatten met pijn. Forceer nooit door de pijn heen — de groeischijf is kwetsbaar.',
+            wanneer_arts: 'Bij pijn in rust of \'s nachts, bij extreme zwelling, of als klachten na 6 weken niet verbeteren.',
         },
-        toegestane_zones: ['bovenlichaam', 'core', 'mobiliteit'],
-        verboden_oefeningen: ['squat', 'lunge', 'springen', 'lopen', 'knielen', 'kuitverheffingen'],
-        oefeningen: {
-            bovenlichaam: [OEFENINGEN.bovenlichaam[0], OEFENINGEN.bovenlichaam[1], OEFENINGEN.bovenlichaam[2], OEFENINGEN.bovenlichaam[4]],
-            core: [OEFENINGEN.core[0], OEFENINGEN.core[2], OEFENINGEN.core[3], OEFENINGEN.core[4]],
-            mobiliteit: [OEFENINGEN.mobiliteit[1], OEFENINGEN.mobiliteit[2], OEFENINGEN.mobiliteit[3]],
-        },
+        toegestane_zones: ['bovenlichaam', 'core', 'mobiliteit', 'armen'],
+        verboden_zones: ['onderlichaam'],
+        opmerking_verboden: 'Oefeningen waarbij je door de knieën buigt vermijd je zolang er pijn is. Vraag je kinesist welke oefeningen voor je knie specifiek zijn toegestaan.',
     },
 
     hamstring: {
@@ -203,18 +304,14 @@ const BLESSURES = {
         emoji: '🏃',
         kleur: 'red',
         info: {
-            wat_is_het: 'De hamstring is de grote spiergroep aan de achterzijde van het bovenbeen. Een hamstringblessure ontstaat vaak tijdens een sprint of een explosieve beweging waarbij de spier overbelast wordt. Er zijn drie gradaties: lichte verrekking (1), kleine scheur (2), volledig scheuren (3).',
-            herkennen: 'Plotselinge, scherpe pijn aan de achterzijde van het bovenbeen tijdens een sprint of explosieve beweging. Soms een "snap" of "knak"-gevoel. Pijn bij strekken van het been, gevoeligheid bij aanraken.',
-            vermijden: 'Sprinten, springen, hoge kniebuigingen, explosive bewegingen. Pas de eerste 48 uur: rust, ijs, compressie. Rek de hamstring niet actief uit in de acute fase.',
-            wanneer_arts: 'Als je niet normaal kunt lopen, als er een grote zwelling of blauwe plek is, als er een "knak" werd gehoord, of als de pijn na 3 dagen niet vermindert.',
-            herstel: 'Graad 1: 1-2 weken. Graad 2: 4-8 weken. Graad 3: 3-6 maanden. Revalidatie bij een kinesist is sterk aanbevolen om herval te voorkomen.',
+            wat_is_het: 'De hamstring is de grote spiergroep aan de achterzijde van het bovenbeen. Een blessure ontstaat vaak tijdens een sprint of explosieve beweging. Herval is frequent zonder goede begeleiding.',
+            herkennen: 'Plotse scherpe pijn achter het bovenbeen bij sprint of schop. Soms een "snap"-gevoel. Gevoeligheid bij aanraken.',
+            vermijden: 'Sprinten, springen, explosieve bewegingen. Actief rekken van de hamstring in de eerste 48u.',
+            wanneer_arts: 'Bij totale scheur, als normaal stappen pijnlijk is, bij grote zwelling, of als de pijn na 3 dagen niet vermindert.',
         },
-        toegestane_zones: ['bovenlichaam', 'core'],
-        verboden_oefeningen: ['sprinten', 'springen', 'lunge', 'hamstring-rek in acute fase'],
-        oefeningen: {
-            bovenlichaam: [OEFENINGEN.bovenlichaam[0], OEFENINGEN.bovenlichaam[1], OEFENINGEN.bovenlichaam[2], OEFENINGEN.bovenlichaam[3]],
-            core: [OEFENINGEN.core[0], OEFENINGEN.core[3], OEFENINGEN.core[4]],
-        },
+        toegestane_zones: ['bovenlichaam', 'core', 'armen'],
+        verboden_zones: ['onderlichaam'],
+        opmerking_verboden: 'Oefeningen voor het bovenbeen en lopen vermijd je. Vraag je kinesist wanneer je de hamstring terug mag belasten en welke oefeningen hij aanbeveelt.',
     },
 
     sever: {
@@ -222,19 +319,14 @@ const BLESSURES = {
         emoji: '👟',
         kleur: 'yellow',
         info: {
-            wat_is_het: 'De ziekte van Sever is een groeigerelateerde aandoening waarbij de groeischijf in de hiel geïrriteerd raakt door de trekkracht van de achillespees. Het komt voor bij actieve jongeren van 8-15 jaar, typisch tijdens groeispurten. De kuitspier groeit trager dan het bot.',
-            herkennen: 'Pijn aan de achterkant en onderkant van de hiel, tijdens of na het sporten. Pijn bij knijpen van de hiel van beide kanten. Na rust minder pijn, bij belasting erger. Soms een lichte zwelling.',
-            vermijden: 'Springen, intensief rennen op harde ondergrond, lopen op blote voeten. Draag schoenen met goede demping. Vermijd plotselinge intensiteitsverhoging.',
-            wanneer_arts: 'Bij aanhoudende pijn na 2 weken rust, bij sterk hinken, of als de pijn ook in de nacht aanwezig is. Controleer ook het schoeisel — versleten zolen verergeren de klachten.',
-            herstel: 'Sever gaat over zodra de groeispurt voorbij is. Met goede begeleiding en rekken van de kuitspieren kunnen klachten sterk verminderen. Gemiddeld herstel: 2-8 weken bij aanpassing van activiteiten.',
+            wat_is_het: 'De ziekte van Sever is een irritatie van de groeischijf aan de achterkant van de hiel, veroorzaakt door trekkracht van de achillespees. Komt voor bij 8-15-jarigen in een groeispurt.',
+            herkennen: 'Pijn aan de achterkant en onderkant van de hiel tijdens en na sport. Na rust beter, bij belasting erger.',
+            vermijden: 'Springen, intensief lopen op harde ondergrond, blootsvoets lopen. Draag schoenen met goede hieldempingen.',
+            wanneer_arts: 'Bij pijn die ook \'s nachts aanwezig is, bij sterk hinken, of als klachten na 4 weken niet verbeteren.',
         },
-        toegestane_zones: ['bovenlichaam', 'core', 'mobiliteit'],
-        verboden_oefeningen: ['springen', 'intensief lopen', 'lopen op blote voeten'],
-        oefeningen: {
-            bovenlichaam: [OEFENINGEN.bovenlichaam[0], OEFENINGEN.bovenlichaam[1], OEFENINGEN.bovenlichaam[3], OEFENINGEN.bovenlichaam[4]],
-            core: [OEFENINGEN.core[0], OEFENINGEN.core[1], OEFENINGEN.core[2]],
-            mobiliteit: [OEFENINGEN.mobiliteit[2], OEFENINGEN.mobiliteit[3]],
-        },
+        toegestane_zones: ['bovenlichaam', 'core', 'mobiliteit', 'armen'],
+        verboden_zones: ['onderlichaam'],
+        opmerking_verboden: 'Oefeningen waarbij je springt of intensief loopt vermijd je. Vraag je kinesist welke oefeningen voor je hiel zijn toegestaan.',
     },
 
     schouder: {
@@ -242,18 +334,14 @@ const BLESSURES = {
         emoji: '💪',
         kleur: 'blue',
         info: {
-            wat_is_het: 'Schouderblessures bij jongeren ontstaan vaak door herhaalde bovenhandse bewegingen (gooien, slaan bij volleybal/handbal/zwemmen) of door een val op de uitgestrekte arm. De schouder is een complex gewricht met veel spieren, pezen en banden die allemaal geblesseerd kunnen raken.',
-            herkennen: 'Pijn bij bewegen van de arm, met name omhoog of achterwaarts. Krachtverlies bij gooien of slaan. Soms klikken of knappen in de schouder. Pijn bij slapen op de geblesseerde schouder.',
-            vermijden: 'Gooien, stoten, het gewicht van je lichaam op de arm steunen, armen boven het hoofd brengen met pijn. Geen push-ups of plank bij schouderklachten.',
-            wanneer_arts: 'Als de arm niet normaal bewogen kan worden, als er een zichtbare vervorming is (schouder uit kom), bij aanhoudende pijn na 1 week, of bij krachtverlies in de arm.',
-            herstel: 'Afhankelijk van het type blessure. Lichte overbelasting: 1-3 weken. Peesblessure: 4-8 weken. Schouder uit kom: 6-12 weken. Revalidatie bij kinesist is noodzakelijk.',
+            wat_is_het: 'Schouderblessures bij jongeren ontstaan door herhaalde bovenhandse bewegingen (gooien, slaan) of een val op de uitgestrekte arm. De schouder is een complex gewricht met veel structuren.',
+            herkennen: 'Pijn bij arm omhoogbrengen of achterwaarts bewegen. Krachtverlies bij gooien. Klikken in de schouder.',
+            vermijden: 'Gooien, stoten, steunen op arm, arm boven hoofd bij pijn.',
+            wanneer_arts: 'Als de arm niet normaal bewogen kan worden, bij zichtbare vervorming, bij krachtverlies, of bij pijn na 1 week.',
         },
         toegestane_zones: ['onderlichaam', 'core'],
-        verboden_oefeningen: ['push-ups', 'plank', 'gooien', 'arm overhead', 'gewicht op arm steunen'],
-        oefeningen: {
-            onderlichaam: [OEFENINGEN.onderlichaam[0], OEFENINGEN.onderlichaam[1], OEFENINGEN.onderlichaam[2], OEFENINGEN.onderlichaam[3], OEFENINGEN.onderlichaam[4]],
-            core: [OEFENINGEN.core[2], OEFENINGEN.core[3], OEFENINGEN.core[4]],
-        },
+        verboden_zones: ['bovenlichaam', 'armen'],
+        opmerking_verboden: 'Oefeningen waarbij je op je arm steunt of je arm actief beweegt vermijd je. Vraag je kinesist welke schouderoefeningen hij aanbeveelt.',
     },
 
     rug: {
@@ -261,18 +349,14 @@ const BLESSURES = {
         emoji: '🔙',
         kleur: 'green',
         info: {
-            wat_is_het: 'Rugklachten bij jongeren worden steeds vaker gezien, mede door zittend gedrag en eenzijdige belasting tijdens sporten. Acute rugpijn ontstaat vaak door een verkeerde beweging of overbelasting. Chronische rugpijn kan te maken hebben met houdingsproblemen of spieronevenwicht.',
-            herkennen: 'Pijn in de onderrug, soms uitstralend naar de bil of het been. Moeite met opstaan na lang zitten. Pijn bij voorover buigen of tillen. Soms spierspanning langs de wervelkolom.',
-            vermijden: 'Zwaar tillen, voorover buigen met gestrekte knieën, draaibewegingen met belasting, springen. Vermijd lang zitten in een slechte houding. Geen situps met rechte voeten.',
-            wanneer_arts: 'Bij uitstraling naar het been (ischiaszenuw), bij gevoelloosheid of tintelingen in been of voet, bij problemen met plassen of stoelgang, bij pijn na een val of klap op de rug.',
-            herstel: 'Acute rugpijn gaat meestal binnen 2-4 weken over met rust en lichte activiteit. Bewegen (licht) versnelt het herstel — volledig in bed blijven is NIET aangeraden. Kinesist begeleiding bij aanhoudende klachten.',
+            wat_is_het: 'Rugklachten bij jongeren zijn steeds vaker aanwezig door zittend gedrag en eenzijdige sportbelasting. Acute rugpijn ontstaat door een verkeerde beweging of overbelasting.',
+            herkennen: 'Pijn in de onderrug, soms uitstralend naar de bil. Moeite met opstaan na lang zitten. Stijf gevoel.',
+            vermijden: 'Zwaar tillen, voorover buigen met gestrekte knieën, zware draaibewegingen. Bedrust wordt NIET aangeraden — licht bewegen is beter.',
+            wanneer_arts: 'Bij uitstraling tot onder de knie, bij gevoelloosheid of tintelingen, bij problemen met plassen, of bij pijn na een val.',
         },
-        toegestane_zones: ['bovenlichaam_licht', 'mobiliteit'],
-        verboden_oefeningen: ['voorover buigen', 'situps', 'zwaar tillen', 'draaibewegingen met belasting', 'springen'],
-        oefeningen: {
-            bovenlichaam_licht: [OEFENINGEN.bovenlichaam[0], OEFENINGEN.bovenlichaam[2], OEFENINGEN.bovenlichaam[3]],
-            mobiliteit: [OEFENINGEN.mobiliteit[3], OEFENINGEN.mobiliteit[4]],
-        },
+        toegestane_zones: ['mobiliteit'],
+        verboden_zones: ['bovenlichaam', 'onderlichaam', 'core', 'armen'],
+        opmerking_verboden: 'Bij rugpijn is voorzichtigheid geboden. Vraag je kinesist of arts welke oefeningen voor jou specifiek veilig zijn. Mobiliteit en licht bewegen zijn meestal wel toegestaan.',
     },
 
     pols_hand: {
@@ -280,18 +364,14 @@ const BLESSURES = {
         emoji: '✋',
         kleur: 'purple',
         info: {
-            wat_is_het: 'Polsblessures bij sporters ontstaan vaak door een val op de uitgestrekte hand of door herhaalde belasting (gym, turnbewegingen). De pols heeft veel kleine botjes en gewrichtjes die allemaal geblesseerd kunnen raken.',
-            herkennen: 'Pijn bij bewegen van de pols, grijpen of draaibewegingen. Zwelling boven of rond de pols. Verminderde kracht bij knijpen. Soms pijn bij steunen op de hand.',
-            vermijden: 'Steunen op de hand, push-ups, vangen, gooien, gewichten vasthouden. Bescherm de pols met een bandage of brace bij lichte klachten.',
-            wanneer_arts: 'Bij mogelijke botbreuk (sterke zwelling, misvormde pols, val op uitgestrekte hand), bij aanhoudende pijn, of als de vingers niet normaal kunnen bewegen.',
-            herstel: 'Lichte verstuiking: 1-2 weken. Peesletsel: 3-6 weken. Botbreuk: 6-8 weken in gips. Polsblessures worden soms onderschat — neem ze serieus.',
+            wat_is_het: 'Polsblessures ontstaan door een val op de uitgestrekte hand of herhaalde belasting. De pols heeft 8 kleine botjes en veel gewrichten die kwetsbaar zijn. Polsblessures worden vaak onderschat.',
+            herkennen: 'Pijn bij polsbeweging, grijpen of draaien. Zwelling boven de pols. Verminderde knijpkracht.',
+            vermijden: 'Steunen op hand, push-ups, gewichten vasthouden, gooien, vangen.',
+            wanneer_arts: 'Bij mogelijke botbreuk (sterke zwelling), bij aanhoudende pijn na 48u, of als vingers niet normaal bewegen.',
         },
         toegestane_zones: ['onderlichaam', 'core'],
-        verboden_oefeningen: ['steunen op handen', 'push-ups', 'plank', 'gewichten vasthouden', 'gooien', 'vangen'],
-        oefeningen: {
-            onderlichaam: [OEFENINGEN.onderlichaam[0], OEFENINGEN.onderlichaam[1], OEFENINGEN.onderlichaam[2], OEFENINGEN.onderlichaam[3]],
-            core: [OEFENINGEN.core[1], OEFENINGEN.core[2], OEFENINGEN.core[3]],
-        },
+        verboden_zones: ['bovenlichaam', 'armen'],
+        opmerking_verboden: 'Oefeningen waarbij je op je handen steunt of de pols belast vermijd je. Vraag je kinesist welke oefeningen voor pols en hand toegestaan zijn.',
     },
 
     lies_heup: {
@@ -299,52 +379,49 @@ const BLESSURES = {
         emoji: '⚡',
         kleur: 'pink',
         info: {
-            wat_is_het: 'Liesblessures zijn typisch voor sporten met veel richtingsveranderingen (voetbal, hockey, handbal). De adductoren (binnenzijde van het bovenbeen) worden overbelast. Heupklachten bij jongeren kunnen ook groeigerelateerd zijn (bursitis, impingement).',
-            herkennen: 'Pijn aan de binnenzijde van het bovenbeen (lies) of rond de heup. Pijn bij zijwaarts optillen van het been of bij samen drukken van de knieën. Verergert bij sprinten, springen en richtingsveranderingen.',
-            vermijden: 'Sprinten, richtingsveranderingen, zijwaartse sprong, brede uithaalspas (lunge). Geen liesspierstretches in de acute fase.',
-            wanneer_arts: 'Bij aanhoudende pijn langer dan 2 weken, bij pijn in rust of in de nacht, bij klachten in beide liezen tegelijk, of bij een snap-gevoel met pijn in de heup.',
-            herstel: 'Lichte liesblessure: 2-4 weken. Ernstigere blessure: 6-12 weken. Volledig herstel is belangrijk voor langdurige sportdeelname. Herval is frequent als te vroeg hervat.',
+            wat_is_het: 'Liesblessures zijn typisch bij sporten met veel richtingsveranderingen. De adductoren (binnenzijde bovenbeen) worden overbelast. Herval is frequent zonder goede begeleiding.',
+            herkennen: 'Pijn aan de binnenzijde van het bovenbeen bij zijwaarts optillen been of bij knijpen knieën samen.',
+            vermijden: 'Sprinten, zijwaartse sprongen, brede uitvalspas. Geen adductorenstretches in de eerste dagen.',
+            wanneer_arts: 'Bij pijn langer dan 2 weken, bij pijn in rust of \'s nachts, of bij een snap-gevoel in de heup.',
         },
-        toegestane_zones: ['bovenlichaam', 'core'],
-        verboden_oefeningen: ['sprinten', 'zijwaartse sprongen', 'lunge', 'brede squat', 'richtingsveranderingen'],
-        oefeningen: {
-            bovenlichaam: [OEFENINGEN.bovenlichaam[0], OEFENINGEN.bovenlichaam[1], OEFENINGEN.bovenlichaam[2], OEFENINGEN.bovenlichaam[3]],
-            core: [OEFENINGEN.core[0], OEFENINGEN.core[1], OEFENINGEN.core[3], OEFENINGEN.core[4]],
-        },
+        toegestane_zones: ['bovenlichaam', 'core', 'armen'],
+        verboden_zones: ['onderlichaam'],
+        opmerking_verboden: 'Oefeningen waarbij je de binnenzijde van het bovenbeen belast vermijd je. Vraag je kinesist wanneer je de lies en heup terug mag belasten.',
     },
 };
 
 // ─── SEEDING FUNCTIE ──────────────────────────────────────────────────────────
-async function seedSportLabBlessures() {
-    console.log('🩺 Start seeding sport_lab_blessures...\n');
+async function seed() {
+    console.log('🌱 Start seeding sport_lab_blessures...\n');
+    console.log('📋 Aanpak: GEEN medisch advies — enkel fitnessoefeningen voor gezonde zones\n');
 
-    const blessures = Object.keys(BLESSURES);
-    let succes = 0;
-    let fouten = 0;
+    // Sla oefenbibliotheek op als apart document (wordt door de app geladen per zone)
+    try {
+        await db.collection('sport_lab_blessures').doc('_oefeningen').set({ zones: ZONES });
+        console.log('✅ Oefenbibliotheek gesaved (_oefeningen)');
+    } catch (e) {
+        console.error('❌ Oefenbibliotheek:', e.message);
+    }
 
-    for (const key of blessures) {
+    // Sla blessure-definities op
+    let succes = 0, fouten = 0;
+    for (const [key, data] of Object.entries(BLESSURES)) {
         try {
-            await db.collection('sport_lab_blessures').doc(key).set(
-                BLESSURES[key],
-                { merge: true }
-            );
-            console.log(`✅ ${BLESSURES[key].naam}`);
+            await db.collection('sport_lab_blessures').doc(key).set(data);
+            console.log(`✅ ${data.naam}`);
+            console.log(`   Toegestane zones: ${data.toegestane_zones.join(', ')}`);
+            console.log(`   Verboden zones:   ${data.verboden_zones.join(', ')}`);
             succes++;
-        } catch (error) {
-            console.error(`❌ ${key}: ${error.message}`);
+        } catch (e) {
+            console.error(`❌ ${key}: ${e.message}`);
             fouten++;
         }
     }
 
-    console.log(`\n📊 Klaar: ${succes} blessures geseed, ${fouten} fouten.`);
-    console.log('📁 Collectie: sport_lab_blessures');
-    console.log('📝 Blessures: enkel, knie/Osgood, hamstring, Sever, schouder, rug, pols, lies/heup');
-    console.log('\n⚠️  Content is informatief — raadpleeg altijd een arts of kinesist.');
-
+    console.log(`\n📊 Klaar: ${succes} blessures + oefenbibliotheek geseed, ${fouten} fouten.`);
+    console.log('\n⚠️  DISCLAIMER: Educatief. Geen medisch advies.');
+    console.log('   Revalidatieoefeningen komen uitsluitend van de kinesist van de leerling.');
     process.exit(0);
 }
 
-seedSportLabBlessures().catch(err => {
-    console.error('Kritieke fout:', err);
-    process.exit(1);
-});
+seed().catch(err => { console.error('Kritieke fout:', err); process.exit(1); });

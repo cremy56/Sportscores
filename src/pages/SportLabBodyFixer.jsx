@@ -1,9 +1,22 @@
 // src/pages/SportLabBodyFixer.jsx
-// Body Fixer rol — voor vrijgestelde leerlingen in Sport Lab
-// Leerling kiest blessurezone → app toont toegestane oefeningen + blessure-info
+// Body Fixer — aangepaste training voor vrijgestelde leerlingen
+//
+// Oefeningen zijn UITSLUITEND voor niet-geblesseerde zones.
+// Geen medisch advies — revalidatie komt van de kinesist.
+//
+// Niveau bepaald door:
+//   - Blessureduur (auto-detect via geregistreerd_op, overrideable)
+//   - Sporturen per week (leerling kiest)
+//
+// Matrix:
+//   Week 1-2 × elke sportintensiteit  → niveau_1
+//   Week 3-5 × weinig sport           → niveau_1
+//   Week 3-5 × matig/veel sport       → niveau_2
+//   Week 6+  × weinig/matig sport     → niveau_2
+//   Week 6+  × veel sport             → niveau_3
+
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { CheckCircleIcon } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
 async function apiPost(action, body, token) {
@@ -17,96 +30,77 @@ async function apiPost(action, body, token) {
     return data;
 }
 
-// ─── ZONE LABELS ──────────────────────────────────────────────────────────────
-const ZONE_LABELS = {
-    bovenlichaam: 'Bovenlichaam 💪',
-    bovenlichaam_licht: 'Bovenlichaam (licht) 💪',
-    core: 'Core / Buikspieren 🔥',
-    onderlichaam: 'Onderlichaam 🦵',
-    mobiliteit: 'Mobiliteit & Stretching 🧘',
-    armen: 'Armen 🤲',
-};
-
-// ─── BLESSURE KEUZE ───────────────────────────────────────────────────────────
-function BlessureKeuze({ profile, onBlessureGekozen }) {
-    const [blessures, setBlessures] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchBlessures = async () => {
-            try {
-                const data = await apiPost('get_blessure_content', {}, profile._token);
-                setBlessures(data.blessures || []);
-            } catch (e) {
-                console.error('Blessures laden mislukt:', e);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchBlessures();
-    }, []);
-
-    if (loading) return (
-        <div className="flex items-center justify-center py-12 text-slate-400 text-sm">
-            Oefeningen laden...
-        </div>
-    );
-
-    return (
-        <div>
-            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-6">
-                <p className="text-sm font-semibold text-purple-800 mb-1">🩺 Body Fixer</p>
-                <p className="text-sm text-purple-700">
-                    Selecteer waar je blessure zit. De app toont welke oefeningen je veilig
-                    kunt uitvoeren en geeft informatie over jouw blessure.
-                </p>
-                <p className="text-xs text-purple-500 mt-2">
-                    ⚠️ Deze oefeningen vervangen geen medisch advies. Raadpleeg altijd je arts of kinesist.
-                </p>
-            </div>
-
-            <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3">
-                Waar zit jouw blessure?
-            </h3>
-
-            <div className="grid grid-cols-2 gap-3">
-                {blessures.map(b => (
-                    <button
-                        key={b.id}
-                        onClick={() => onBlessureGekozen(b.id)}
-                        className="bg-white border-2 border-slate-200 hover:border-purple-300 hover:bg-purple-50 rounded-2xl p-4 text-left transition-all active:scale-95"
-                    >
-                        <div className="text-2xl mb-1">{b.emoji}</div>
-                        <p className="text-xs font-semibold text-slate-800 leading-snug">{b.naam}</p>
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
+// ─── MATRIX: blessureduur + sporturen → niveau ────────────────────────────────
+function berekenNiveau(wekenFase, sportUren) {
+    if (wekenFase === 1) return 'niveau_1';
+    if (wekenFase === 2) return sportUren === 3 ? 'niveau_2' : sportUren === 2 ? 'niveau_2' : 'niveau_1';
+    if (wekenFase === 3) return sportUren === 3 ? 'niveau_3' : 'niveau_2';
+    return 'niveau_1';
 }
 
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function berekenWekenGeblesseerd(geregistreerdOp) {
+    if (!geregistreerdOp) return null;
+    const start = geregistreerdOp?.toDate ? geregistreerdOp.toDate() : new Date(geregistreerdOp);
+    const weken = Math.floor((Date.now() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    return weken;
+}
+
+function wekenNaarFase(weken) {
+    if (weken <= 2) return 1;
+    if (weken <= 5) return 2;
+    return 3;
+}
+
+const FASE_LABELS = {
+    1: { label: 'Week 1-2', omschrijving: 'Pas geblesseerd', kleur: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-400' },
+    2: { label: 'Week 3-5', omschrijving: 'In herstel',      kleur: 'text-blue-700',  bg: 'bg-blue-50',  border: 'border-blue-200',  dot: 'bg-blue-400' },
+    3: { label: 'Week 6+',  omschrijving: 'Langdurig',       kleur: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-400' },
+};
+
+const SPORT_UREN = [
+    { id: 1, label: 'Weinig sport',    detail: 'Minder dan 3u per week',   emoji: '🚶' },
+    { id: 2, label: 'Gemiddeld sport', detail: '3 tot 6u per week',         emoji: '🏃' },
+    { id: 3, label: 'Veel sport',      detail: 'Meer dan 6u per week',      emoji: '⚡' },
+];
+
+const NIVEAU_LABELS = {
+    niveau_1: 'Lichte oefeningen',
+    niveau_2: 'Matige intensiteit',
+    niveau_3: 'Intensieve training',
+};
+
+const ZONE_LABELS = {
+    bovenlichaam: 'Bovenlichaam 💪',
+    core:         'Core / Romp 🔥',
+    onderlichaam: 'Onderlichaam 🦵',
+    mobiliteit:   'Mobiliteit 🧘',
+    armen:        'Armen & Handen 🤲',
+};
+
+const LEEFTIJDEN = [
+    { id: 'leeftijd_12_14', label: '12 – 14 jaar', detail: 'Voorzichtiger programma' },
+    { id: 'leeftijd_15_18', label: '15 – 18 jaar', detail: 'Progressiever programma' },
+];
+
 // ─── OEFENING KAART ───────────────────────────────────────────────────────────
-function OefeningKaart({ oefening, index, afgevinkt, onToggle }) {
+function OefeningKaart({ oefening, afgevinkt, onToggle }) {
     return (
-        <button
-            onClick={() => onToggle(index)}
-            className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
-                afgevinkt
-                    ? 'bg-purple-50 border-purple-300'
-                    : 'bg-white border-slate-100 hover:border-purple-200'
-            }`}
-        >
+        <button onClick={onToggle}
+            className={`w-full text-left p-4 rounded-xl border-2 transition-all active:scale-[0.98] ${
+                afgevinkt ? 'bg-purple-50 border-purple-300' : 'bg-white border-slate-100 hover:border-purple-200'
+            }`}>
             <div className="flex items-start gap-3">
                 <div className={`w-6 h-6 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
                     afgevinkt ? 'border-purple-500 bg-purple-500' : 'border-slate-300'
                 }`}>
                     {afgevinkt && <CheckCircleSolid className="w-4 h-4 text-white" />}
                 </div>
-                <div className="flex-1">
-                    <p className={`font-semibold text-sm ${afgevinkt ? 'text-purple-800 line-through opacity-60' : 'text-slate-800'}`}>
+                <div className="flex-1 min-w-0">
+                    <p className={`font-semibold text-sm ${afgevinkt ? 'line-through opacity-50 text-slate-500' : 'text-slate-800'}`}>
                         {oefening.naam}
                     </p>
-                    <p className="text-xs text-slate-500 mt-0.5">{oefening.duur}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{oefening.duur}</p>
                     {!afgevinkt && (
                         <>
                             <p className="text-xs text-slate-600 mt-2 leading-relaxed">{oefening.uitleg}</p>
@@ -121,44 +115,83 @@ function OefeningKaart({ oefening, index, afgevinkt, onToggle }) {
     );
 }
 
-// ─── BLESSURE INFO SECTIE ─────────────────────────────────────────────────────
+// ─── KINE OEFENINGEN ─────────────────────────────────────────────────────────
+function KineOefeningen({ oefeningen, afgevinkt, onToggle, onVoegToe, onVerwijder, nieuweTekst, setNieuweTekst }) {
+    return (
+        <div className="bg-white border-2 border-teal-200 rounded-2xl overflow-hidden">
+            <div className="bg-teal-50 px-5 py-4">
+                <p className="font-bold text-teal-800 text-sm">🩺 Oefeningen van mijn kinesist</p>
+                <p className="text-xs text-teal-600 mt-0.5">
+                    Voeg hier de oefeningen in die jouw kinesist of arts heeft voorgeschreven. Vink ze af als je ze hebt gedaan.
+                </p>
+            </div>
+            <div className="p-4 space-y-2">
+                {oefeningen.length === 0 && (
+                    <p className="text-xs text-slate-400 text-center py-2 italic">
+                        Nog geen oefeningen toegevoegd.
+                    </p>
+                )}
+                {oefeningen.map((oe, i) => (
+                    <div key={i} className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${
+                        afgevinkt[`kine_${i}`] ? 'bg-teal-50 border-teal-200' : 'bg-slate-50 border-slate-100'
+                    }`}>
+                        <button onClick={() => onToggle(`kine_${i}`)}
+                            className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+                                afgevinkt[`kine_${i}`] ? 'border-teal-500 bg-teal-500' : 'border-slate-300'
+                            }`}>
+                            {afgevinkt[`kine_${i}`] && <CheckCircleSolid className="w-4 h-4 text-white" />}
+                        </button>
+                        <p className={`flex-1 text-sm ${afgevinkt[`kine_${i}`] ? 'line-through opacity-50 text-slate-400' : 'text-slate-700'}`}>
+                            {oe}
+                        </p>
+                        <button onClick={() => onVerwijder(i)} className="text-slate-300 hover:text-red-400 text-xl leading-none px-1">×</button>
+                    </div>
+                ))}
+                <div className="flex gap-2 pt-1">
+                    <input type="text" value={nieuweTekst} onChange={e => setNieuweTekst(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && onVoegToe()}
+                        placeholder="bv. Kuitstretch 3 × 30 sec"
+                        className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-teal-400" />
+                    <button onClick={onVoegToe} disabled={!nieuweTekst.trim()}
+                        className="px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:opacity-30 text-white text-sm font-bold rounded-xl transition-colors">
+                        +
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── BLESSURE INFO ─────────────────────────────────────────────────────────
 function BlessureInfo({ info, naam }) {
     const [open, setOpen] = useState(false);
-
     const items = [
-        { label: 'Wat is het?', inhoud: info.wat_is_het, icon: '📖' },
-        { label: 'Hoe herken je het?', inhoud: info.herkennen, icon: '🔍' },
-        { label: 'Wat moet je vermijden?', inhoud: info.vermijden, icon: '⛔' },
-        { label: 'Herstel', inhoud: info.herstel, icon: '⏱️' },
-        { label: 'Wanneer naar de dokter?', inhoud: info.wanneer_arts, icon: '🏥' },
+        { label: 'Wat is het?',             tekst: info.wat_is_het,  icon: '📖' },
+        { label: 'Hoe herken je het?',      tekst: info.herkennen,   icon: '🔍' },
+        { label: 'Wat moet je vermijden?',  tekst: info.vermijden,   icon: '⛔' },
+        { label: 'Wanneer naar de dokter?', tekst: info.wanneer_arts, icon: '🏥' },
     ];
-
     return (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-            <button
-                onClick={() => setOpen(!open)}
-                className="w-full px-5 py-4 flex items-center justify-between text-left"
-            >
+            <button onClick={() => setOpen(!open)}
+                className="w-full px-5 py-4 flex items-center justify-between text-left">
                 <div className="flex items-center gap-2">
-                    <span className="text-lg">📋</span>
+                    <span>📋</span>
                     <span className="font-semibold text-slate-800 text-sm">Info: {naam}</span>
                 </div>
-                <span className={`text-slate-400 transition-transform text-lg ${open ? 'rotate-180' : ''}`}>
-                    ▾
-                </span>
+                <span className={`text-slate-400 text-lg transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>▾</span>
             </button>
-
             {open && (
                 <div className="px-5 pb-5 space-y-4">
-                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                        ⚠️ Deze informatie is educatief. Raadpleeg altijd een arts of kinesist voor jouw persoonlijke situatie.
-                    </p>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                        <p className="text-xs text-amber-700">
+                            ⚠️ Algemene informatie — geen medisch advies. Raadpleeg altijd je arts of kinesist.
+                        </p>
+                    </div>
                     {items.map(item => (
                         <div key={item.label}>
-                            <p className="text-xs font-bold text-slate-700 mb-1">
-                                {item.icon} {item.label}
-                            </p>
-                            <p className="text-sm text-slate-600 leading-relaxed">{item.inhoud}</p>
+                            <p className="text-xs font-bold text-slate-700 mb-1">{item.icon} {item.label}</p>
+                            <p className="text-sm text-slate-600 leading-relaxed">{item.tekst}</p>
                         </div>
                     ))}
                 </div>
@@ -167,193 +200,25 @@ function BlessureInfo({ info, naam }) {
     );
 }
 
-// ─── HOOFD COMPONENT ──────────────────────────────────────────────────────────
-export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd }) {
-    const [gekozenBlessure, setGekozenBlessure] = useState(null);
-    const [blessureData, setBlessureData] = useState(null);
-    const [loadingBlessure, setLoadingBlessure] = useState(false);
-    const [afgevinkt, setAfgevinkt] = useState({});
-    const [actieveZone, setActieveZone] = useState(null);
-    const [faseReflectie, setFaseReflectie] = useState(
-        sessie.status === 'evaluatie' || deelname?.voltooid === true
-    );
-
-    // Auto-switch naar reflectie
-    useEffect(() => {
-        if (sessie.status === 'evaluatie' && !faseReflectie) {
-            setFaseReflectie(true);
-            toast('Evaluatievenster geopend — vul je reflectie in!', { icon: '⏱️' });
-        }
-    }, [sessie.status]);
-
-    const handleBlessureGekozen = async (key) => {
-        setGekozenBlessure(key);
-        setLoadingBlessure(true);
-        try {
-            const data = await apiPost('get_blessure_content', { blessureKey: key }, profile._token);
-            setBlessureData(data.blessure);
-            // Zet eerste toegestane zone als actief
-            const zones = data.blessure.toegestane_zones || [];
-            if (zones.length > 0) setActieveZone(zones[0]);
-        } catch (e) {
-            toast.error('Content laden mislukt.');
-        } finally {
-            setLoadingBlessure(false);
-        }
-    };
-
-    const toggleOefening = (zoneKey, index) => {
-        const sleutel = `${zoneKey}_${index}`;
-        setAfgevinkt(prev => ({ ...prev, [sleutel]: !prev[sleutel] }));
-    };
-
-    const aantalAfgevinkt = Object.values(afgevinkt).filter(Boolean).length;
-
-    // Deelname ingediend
-    if (deelname?.voltooid) {
-        return (
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
-                <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
-                <p className="font-bold text-green-800 text-lg">Goed gedaan, Body Fixer!</p>
-                <p className="text-sm text-green-600 mt-1">Je reflectie is ingediend.</p>
-            </div>
-        );
-    }
-
-    // Reflectiefase
-    if (faseReflectie && deelname?.id) {
-        return <BodyFixerReflectie
-            deelname={deelname}
-            aantalAfgevinkt={aantalAfgevinkt}
-            profile={profile}
-            sessie={sessie}
-            onIngediend={onGereflecteerd}
-        />;
-    }
-
-    return (
-        <div className="space-y-4">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-purple-400 to-violet-500 rounded-2xl p-5 text-white">
-                <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">
-                    {sessie.sport} — Body Fixer
-                </p>
-                <h2 className="text-xl font-bold">Aangepaste Training</h2>
-                <p className="text-white/80 text-sm mt-1">
-                    Train de zones die jij WEL kunt belasten.
-                </p>
-                {aantalAfgevinkt > 0 && (
-                    <div className="mt-3 bg-white/20 rounded-xl px-3 py-1.5 inline-block">
-                        <span className="text-white text-xs font-semibold">
-                            ✓ {aantalAfgevinkt} oefening{aantalAfgevinkt !== 1 ? 'en' : ''} gedaan
-                        </span>
-                    </div>
-                )}
-            </div>
-
-            {/* Stap 1: Blessure kiezen */}
-            {!gekozenBlessure && (
-                <BlessureKeuze
-                    profile={profile}
-                    onBlessureGekozen={handleBlessureGekozen}
-                />
-            )}
-
-            {/* Stap 2: Oefeningen + Info */}
-            {gekozenBlessure && loadingBlessure && (
-                <div className="text-center py-8 text-slate-400 text-sm">Oefeningen laden...</div>
-            )}
-
-            {gekozenBlessure && blessureData && !loadingBlessure && (
-                <>
-                    {/* Terug naar blessure selectie */}
-                    <button
-                        onClick={() => { setGekozenBlessure(null); setBlessureData(null); setAfgevinkt({}); }}
-                        className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1"
-                    >
-                        ← Andere blessure kiezen
-                    </button>
-
-                    {/* Verboden melding */}
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                        <p className="text-xs font-semibold text-red-800 mb-1">⛔ Vermijd vandaag:</p>
-                        <p className="text-xs text-red-700">
-                            {(blessureData.verboden_oefeningen || []).join(' · ')}
-                        </p>
-                    </div>
-
-                    {/* Zone tabs */}
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                        {(blessureData.toegestane_zones || []).map(zone => (
-                            <button
-                                key={zone}
-                                onClick={() => setActieveZone(zone)}
-                                className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                                    actieveZone === zone
-                                        ? 'bg-purple-500 text-white'
-                                        : 'bg-white border border-slate-200 text-slate-600 hover:border-purple-300'
-                                }`}
-                            >
-                                {ZONE_LABELS[zone] || zone}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Oefeningen voor actieve zone */}
-                    {actieveZone && blessureData.oefeningen?.[actieveZone] && (
-                        <div className="space-y-3">
-                            <h3 className="text-sm font-semibold text-slate-700">
-                                {ZONE_LABELS[actieveZone]} — Jouw oefeningen
-                            </h3>
-                            {blessureData.oefeningen[actieveZone].map((oef, i) => (
-                                <OefeningKaart
-                                    key={i}
-                                    oefening={oef}
-                                    index={i}
-                                    afgevinkt={!!afgevinkt[`${actieveZone}_${i}`]}
-                                    onToggle={() => toggleOefening(actieveZone, i)}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Blessure info */}
-                    {blessureData.info && (
-                        <BlessureInfo
-                            info={blessureData.info}
-                            naam={blessureData.naam}
-                        />
-                    )}
-                </>
-            )}
-        </div>
-    );
-}
-
-// ─── BODY FIXER REFLECTIE ─────────────────────────────────────────────────────
-function BodyFixerReflectie({ deelname, aantalAfgevinkt, profile, sessie, onIngediend }) {
+// ─── ZELFREFLECTIE ─────────────────────────────────────────────────────────
+function BodyFixerReflectie({ deelname, aantalAfgevinkt, profile, onIngediend }) {
     const [inzet, setInzet] = useState(0);
     const [leerwaarde, setLeerwaarde] = useState(0);
-    const [oefeningenAfgevinkt] = useState(aantalAfgevinkt > 0);
     const [loading, setLoading] = useState(false);
 
-    const isVolledig = inzet > 0 && leerwaarde > 0;
-
     const handleIndienen = async () => {
-        if (!isVolledig) { toast.error('Vul alle sterren in.'); return; }
+        if (!inzet || !leerwaarde) { toast.error('Vul alle sterren in.'); return; }
         setLoading(true);
         try {
             const data = await apiPost('submit_zelfreflectie', {
                 schoolId: profile.school_id,
                 deelnameId: deelname.id,
                 zelfreflectie: {
-                    inzet,
-                    samenwerking: inzet, // Body Fixer werkt solo — zelfde waarde
-                    leerwaarde,
-                    oefeningen_afgevinkt: oefeningenAfgevinkt,
+                    inzet, samenwerking: inzet, leerwaarde,
+                    oefeningen_afgevinkt: aantalAfgevinkt > 0,
                 }
             }, profile._token);
-            toast.success(`+${data.xp_earned} XP verdiend!`);
+            toast.success(`+${data.xp_earned || 20} XP verdiend!`);
             onIngediend();
         } catch (e) {
             toast.error(e.message);
@@ -365,48 +230,424 @@ function BodyFixerReflectie({ deelname, aantalAfgevinkt, profile, sessie, onInge
     return (
         <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5">
             <h3 className="font-bold text-purple-800 mb-4">Zelfreflectie — Body Fixer</h3>
-
-            {oefeningenAfgevinkt && (
+            {aantalAfgevinkt > 0 && (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4 flex items-center gap-2">
                     <CheckCircleSolid className="w-5 h-5 text-emerald-500 flex-shrink-0" />
                     <p className="text-sm text-emerald-700 font-medium">
-                        Oefeningen gedaan — +25 XP bonus!
+                        {aantalAfgevinkt} oefening{aantalAfgevinkt !== 1 ? 'en' : ''} gedaan — goed bezig!
                     </p>
                 </div>
             )}
-
             <div className="space-y-5">
-                <SterrenRating label="Mijn inzet tijdens de aangepaste training" waarde={inzet} onChange={setInzet} />
-                <SterrenRating label="Wat ik heb bijgeleerd over mijn blessure/lichaam" waarde={leerwaarde} onChange={setLeerwaarde} />
+                <Sterren label="Mijn inzet tijdens de aangepaste training" waarde={inzet} onChange={setInzet} />
+                <Sterren label="Wat ik heb bijgeleerd" waarde={leerwaarde} onChange={setLeerwaarde} />
             </div>
-
-            <button
-                onClick={handleIndienen}
-                disabled={!isVolledig || loading}
-                className="mt-5 w-full bg-purple-500 hover:bg-purple-600 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition-colors"
-            >
-                {loading ? 'Indienen...' : `Indienen (+20${oefeningenAfgevinkt ? '+25' : ''} XP)`}
+            <button onClick={handleIndienen} disabled={!inzet || !leerwaarde || loading}
+                className="mt-5 w-full bg-purple-500 hover:bg-purple-600 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition-colors">
+                {loading ? 'Indienen...' : 'Indienen (+20 XP)'}
             </button>
         </div>
     );
 }
 
-// ─── STERREN RATING (hergebruikt) ─────────────────────────────────────────────
-function SterrenRating({ label, waarde, onChange }) {
+function Sterren({ label, waarde, onChange }) {
     return (
         <div>
             <p className="text-sm font-medium text-slate-700 mb-2">{label}</p>
             <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map(ster => (
-                    <button
-                        key={ster}
-                        onClick={() => onChange(ster)}
-                        className="transition-transform hover:scale-110"
-                    >
-                        <span className={`text-3xl ${ster <= waarde ? '⭐' : '☆'}`} />
+                {[1,2,3,4,5].map(s => (
+                    <button key={s} onClick={() => onChange(s)} className="transition-transform hover:scale-110 active:scale-95">
+                        <span className="text-3xl">{s <= waarde ? '⭐' : '☆'}</span>
                     </button>
                 ))}
             </div>
+        </div>
+    );
+}
+
+// ─── HOOFD COMPONENT ──────────────────────────────────────────────────────────
+export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTerug }) {
+
+    // Laad blessures + oefenlib
+    const [blessures, setBlessures] = useState([]);
+    const [oefenLib, setOefenLib] = useState(null);
+    const [loadingData, setLoadingData] = useState(true);
+
+    // Leerling keuzes
+    const [gekozenBlessure, setGekozenBlessure] = useState(null);
+    const [blessureDoc, setBlessureDoc] = useState(null);
+    const [gekozenLeeftijd, setGekozenLeeftijd] = useState(null);
+    const [gekozenFase, setGekozenFase] = useState(null);        // 1/2/3
+    const [gekozenSportUren, setGekozenSportUren] = useState(null); // 1/2/3
+    const [actieveZone, setActieveZone] = useState(null);
+
+    // Oefeningen afvinken
+    const [afgevinkt, setAfgevinkt] = useState({});
+
+    // Kine oefeningen
+    const [kineOefeningen, setKineOefeningen] = useState([]);
+    const [nieuweTekst, setNieuweTekst] = useState('');
+
+    // Reflectie
+    const [reflectie, setReflectie] = useState(sessie.status === 'evaluatie');
+
+    useEffect(() => {
+        if (sessie.status === 'evaluatie' && !reflectie) {
+            setReflectie(true);
+            toast('Evaluatievenster geopend!', { icon: '⏱️' });
+        }
+    }, [sessie.status]);
+
+    // Auto-detect blessureduur via geregistreerd_op
+    const autoFase = (() => {
+        const weken = berekenWekenGeblesseerd(profile?.geregistreerd_op);
+        return weken !== null ? wekenNaarFase(weken) : null;
+    })();
+
+    const autoWeken = berekenWekenGeblesseerd(profile?.geregistreerd_op);
+
+    // Laad data bij mount
+    useEffect(() => {
+        apiPost('get_blessure_content', {}, profile._token)
+            .then(d => setBlessures(d.blessures?.filter(b => b.id !== '_oefeningen') || []))
+            .catch(() => {})
+            .finally(() => setLoadingData(false));
+
+        apiPost('get_blessure_content', { blessureKey: '_oefeningen' }, profile._token)
+            .then(d => setOefenLib(d.blessure?.zones || null))
+            .catch(() => {});
+    }, []);
+
+    // Laad volledig blessure-document bij selectie
+    useEffect(() => {
+        if (!gekozenBlessure) return;
+        apiPost('get_blessure_content', { blessureKey: gekozenBlessure }, profile._token)
+            .then(d => {
+                setBlessureDoc(d.blessure);
+                const zones = d.blessure?.toegestane_zones || [];
+                if (zones.length > 0) setActieveZone(zones[0]);
+            })
+            .catch(() => {});
+    }, [gekozenBlessure]);
+
+    const aantalAfgevinkt = Object.values(afgevinkt).filter(Boolean).length;
+    const toggle = (key) => setAfgevinkt(prev => ({ ...prev, [key]: !prev[key] }));
+
+    // Niveau berekening
+    const niveau = gekozenFase && gekozenSportUren ? berekenNiveau(gekozenFase, gekozenSportUren) : null;
+
+    // Actieve oefeningen
+    const activeOefeningen = (() => {
+        if (!actieveZone || !niveau || !oefenLib || !gekozenLeeftijd) return [];
+        const zoneData = oefenLib[actieveZone]?.[niveau];
+        if (!zoneData) return [];
+        return (gekozenLeeftijd === 'leeftijd_12_14' ? zoneData.leeftijd_12_14 : zoneData.leeftijd_15_18) || [];
+    })();
+
+    const alleIngesteld = gekozenBlessure && gekozenLeeftijd && gekozenFase && gekozenSportUren;
+
+    if (deelname?.voltooid) return (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
+            <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
+            <p className="font-bold text-green-800 text-lg">Goed gedaan, Body Fixer!</p>
+            <p className="text-sm text-green-600 mt-1">Je reflectie is ingediend.</p>
+        </div>
+    );
+
+    if (reflectie && deelname?.id) return (
+        <BodyFixerReflectie deelname={deelname} aantalAfgevinkt={aantalAfgevinkt}
+            profile={profile} onIngediend={onGereflecteerd} />
+    );
+
+    if (loadingData) return <div className="text-center py-12 text-slate-400 text-sm">Laden...</div>;
+
+    return (
+        <div className="space-y-4">
+
+            {/* ── HEADER ─────────────────────────────────────────────────── */}
+            <div className="bg-gradient-to-r from-purple-400 to-violet-500 rounded-2xl p-5 text-white">
+                <div className="flex items-start justify-between">
+                    <div>
+                        <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">
+                            {sessie.sport} — Body Fixer
+                        </p>
+                        <h2 className="text-xl font-bold">Aangepaste Training</h2>
+                        <p className="text-white/80 text-sm mt-1">Train de zones die jij wél kunt belasten.</p>
+                    </div>
+                    {aantalAfgevinkt > 0 && (
+                        <div className="bg-white/20 rounded-xl px-3 py-1.5 flex-shrink-0">
+                            <span className="text-white text-xs font-semibold">✓ {aantalAfgevinkt}</span>
+                        </div>
+                    )}
+                </div>
+                {/* Niveau badge als alles ingesteld */}
+                {niveau && (
+                    <div className="mt-3 bg-white/20 rounded-xl px-3 py-1.5 inline-block">
+                        <span className="text-white text-xs font-semibold">
+                            📊 {NIVEAU_LABELS[niveau]}
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            {/* ── DISCLAIMER ─────────────────────────────────────────────── */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                <span className="flex-shrink-0 mt-0.5">⚠️</span>
+                <p className="text-xs text-amber-800">
+                    <strong>Geen medisch advies.</strong> Oefeningen zijn voor zones die je WEL kunt belasten.
+                    Oefeningen van je kinesist voeg je in via het groene blok onderaan.
+                </p>
+            </div>
+
+            {/* ── INSTELLING 1: BLESSURE ─────────────────────────────────── */}
+            <InstellingBlok nr={1} label="Mijn blessure"
+                waarde={blessures.find(b => b.id === gekozenBlessure)?.naam}
+                emoji={blessures.find(b => b.id === gekozenBlessure)?.emoji}>
+                <div className="grid grid-cols-2 gap-2 p-4">
+                    {blessures.map(b => (
+                        <button key={b.id} onClick={() => setGekozenBlessure(b.id)}
+                            className={`p-3 rounded-xl border-2 text-left transition-all active:scale-95 ${
+                                gekozenBlessure === b.id
+                                    ? 'border-purple-400 bg-purple-50'
+                                    : 'border-slate-100 bg-slate-50 hover:border-purple-200'
+                            }`}>
+                            <div className="text-xl mb-1">{b.emoji}</div>
+                            <p className="text-xs font-semibold text-slate-800 leading-snug">{b.naam}</p>
+                        </button>
+                    ))}
+                </div>
+            </InstellingBlok>
+
+            {/* ── INSTELLING 2: LEEFTIJD ─────────────────────────────────── */}
+            {gekozenBlessure && (
+                <InstellingBlok nr={2} label="Mijn leeftijd"
+                    waarde={LEEFTIJDEN.find(l => l.id === gekozenLeeftijd)?.label}>
+                    <div className="p-4 space-y-2">
+                        {LEEFTIJDEN.map(l => (
+                            <button key={l.id} onClick={() => setGekozenLeeftijd(l.id)}
+                                className={`w-full p-4 rounded-xl border-2 text-left transition-all active:scale-[0.98] ${
+                                    gekozenLeeftijd === l.id
+                                        ? 'border-purple-400 bg-purple-50'
+                                        : 'border-slate-100 bg-slate-50 hover:border-purple-200'
+                                }`}>
+                                <p className="font-semibold text-slate-800 text-sm">{l.label}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">{l.detail}</p>
+                            </button>
+                        ))}
+                    </div>
+                </InstellingBlok>
+            )}
+
+            {/* ── INSTELLING 3: BLESSUREDUUR ─────────────────────────────── */}
+            {gekozenLeeftijd && (
+                <InstellingBlok nr={3} label="Hoe lang al geblesseerd?"
+                    waarde={gekozenFase ? FASE_LABELS[gekozenFase].label : null}>
+                    <div className="p-4 space-y-2">
+
+                        {/* Auto-suggestie */}
+                        {autoFase && (
+                            <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-3 flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-semibold text-purple-800">
+                                        📅 Suggestie op basis van je vrijstelling
+                                    </p>
+                                    <p className="text-xs text-purple-600 mt-0.5">
+                                        {autoWeken === 0 ? 'Minder dan 1 week' : `~${autoWeken} week${autoWeken !== 1 ? 'en' : ''}`}
+                                        {' '}→ {FASE_LABELS[autoFase].label}
+                                    </p>
+                                </div>
+                                <button onClick={() => setGekozenFase(autoFase)}
+                                    className="text-xs bg-purple-500 text-white px-3 py-1.5 rounded-lg font-semibold">
+                                    Gebruik
+                                </button>
+                            </div>
+                        )}
+
+                        <p className="text-xs text-slate-500 px-1">Of kies zelf:</p>
+                        {[1, 2, 3].map(fase => {
+                            const f = FASE_LABELS[fase];
+                            return (
+                                <button key={fase} onClick={() => setGekozenFase(fase)}
+                                    className={`w-full p-4 rounded-xl border-2 text-left transition-all active:scale-[0.98] ${
+                                        gekozenFase === fase
+                                            ? 'border-purple-400 bg-purple-50'
+                                            : `${f.bg} ${f.border} hover:opacity-90`
+                                    }`}>
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${f.dot}`} />
+                                        <p className={`font-bold text-sm ${f.kleur}`}>
+                                            {f.label} — {f.omschrijving}
+                                        </p>
+                                        {autoFase === fase && <span className="text-xs text-slate-400 ml-auto">← suggestie</span>}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </InstellingBlok>
+            )}
+
+            {/* ── INSTELLING 4: SPORTUREN ────────────────────────────────── */}
+            {gekozenFase && (
+                <InstellingBlok nr={4} label="Hoeveel sport je per week?"
+                    waarde={SPORT_UREN.find(s => s.id === gekozenSportUren)?.label}>
+                    <div className="p-4 space-y-2">
+                        <p className="text-xs text-slate-500 px-1 mb-2">
+                            Dit bepaalt hoe intensief de oefeningen zijn voor de zones die jij wél kunt trainen.
+                        </p>
+                        {SPORT_UREN.map(s => (
+                            <button key={s.id} onClick={() => setGekozenSportUren(s.id)}
+                                className={`w-full p-4 rounded-xl border-2 text-left transition-all active:scale-[0.98] ${
+                                    gekozenSportUren === s.id
+                                        ? 'border-purple-400 bg-purple-50'
+                                        : 'border-slate-100 bg-slate-50 hover:border-purple-200'
+                                }`}>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xl">{s.emoji}</span>
+                                    <div>
+                                        <p className="font-semibold text-slate-800 text-sm">{s.label}</p>
+                                        <p className="text-xs text-slate-500">{s.detail}</p>
+                                    </div>
+                                    {gekozenSportUren === s.id && (
+                                        <CheckCircleSolid className="w-5 h-5 text-purple-500 ml-auto" />
+                                    )}
+                                </div>
+                            </button>
+                        ))}
+
+                        {/* Niveau preview */}
+                        {gekozenFase && gekozenSportUren && (
+                            <div className="mt-3 bg-purple-50 border border-purple-200 rounded-xl p-3">
+                                <p className="text-xs font-semibold text-purple-800">
+                                    📊 Jouw oefenniveau: {NIVEAU_LABELS[berekenNiveau(gekozenFase, gekozenSportUren)]}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </InstellingBlok>
+            )}
+
+            {/* ── OEFENINGEN ─────────────────────────────────────────────── */}
+            {alleIngesteld && blessureDoc && (
+                <div className="space-y-4">
+
+                    {/* Verboden melding */}
+                    {blessureDoc.opmerking_verboden && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                            <p className="text-xs font-bold text-red-800 mb-1">⛔ Vermijd vandaag:</p>
+                            <p className="text-xs text-red-700">{blessureDoc.opmerking_verboden}</p>
+                        </div>
+                    )}
+
+                    {/* Zone tabs */}
+                    <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                            Kies een zone:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {(blessureDoc.toegestane_zones || []).map(zone => {
+                                const zoneOef = oefenLib?.[zone]?.[niveau];
+                                const zoneList = zoneOef
+                                    ? (gekozenLeeftijd === 'leeftijd_12_14' ? zoneOef.leeftijd_12_14 : zoneOef.leeftijd_15_18) || []
+                                    : [];
+                                const gedaan = zoneList.filter((_, i) => afgevinkt[`${zone}_${i}`]).length;
+                                return (
+                                    <button key={zone} onClick={() => setActieveZone(zone)}
+                                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                                            actieveZone === zone
+                                                ? 'bg-purple-500 text-white'
+                                                : 'bg-white border border-slate-200 text-slate-600 hover:border-purple-300'
+                                        }`}>
+                                        {ZONE_LABELS[zone] || zone}
+                                        {gedaan > 0 && (
+                                            <span className={`text-xs rounded-full px-1.5 py-0.5 font-bold ${
+                                                actieveZone === zone ? 'bg-white/20' : 'bg-purple-100 text-purple-700'
+                                            }`}>{gedaan}/{zoneList.length}</span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Oefeningen actieve zone */}
+                    {actieveZone && (
+                        <div className="space-y-3">
+                            {activeOefeningen.length > 0 ? (
+                                <>
+                                    {oefenLib?.[actieveZone]?.[niveau]?.omschrijving && (
+                                        <p className="text-xs text-slate-500 italic px-1">
+                                            {oefenLib[actieveZone][niveau].omschrijving}
+                                        </p>
+                                    )}
+                                    {activeOefeningen.map((oef, i) => (
+                                        <OefeningKaart key={i} oefening={oef}
+                                            afgevinkt={!!afgevinkt[`${actieveZone}_${i}`]}
+                                            onToggle={() => toggle(`${actieveZone}_${i}`)} />
+                                    ))}
+                                </>
+                            ) : (
+                                <div className="bg-slate-50 rounded-xl p-4 text-center">
+                                    <p className="text-xs text-slate-400">Geen oefeningen voor deze combinatie.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Blessure info */}
+                    {blessureDoc.info && <BlessureInfo info={blessureDoc.info} naam={blessureDoc.naam} />}
+                </div>
+            )}
+
+            {/* ── KINE OEFENINGEN ────────────────────────────────────────── */}
+            <KineOefeningen
+                oefeningen={kineOefeningen}
+                afgevinkt={afgevinkt}
+                onToggle={toggle}
+                onVoegToe={() => {
+                    if (!nieuweTekst.trim()) return;
+                    setKineOefeningen(prev => [...prev, nieuweTekst.trim()]);
+                    setNieuweTekst('');
+                }}
+                onVerwijder={i => {
+                    setKineOefeningen(prev => prev.filter((_, idx) => idx !== i));
+                    setAfgevinkt(prev => { const n = {...prev}; delete n[`kine_${i}`]; return n; });
+                }}
+                nieuweTekst={nieuweTekst}
+                setNieuweTekst={setNieuweTekst}
+            />
+
+        </div>
+    );
+}
+
+// ─── INSTELLING BLOK (accordion) ─────────────────────────────────────────────
+function InstellingBlok({ nr, label, waarde, emoji, children }) {
+    const [open, setOpen] = useState(!waarde); // open als nog niet ingesteld
+
+    // Auto-sluiten als waarde wordt ingesteld
+    useEffect(() => { if (waarde) setOpen(false); }, [waarde]);
+
+    return (
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+            <button onClick={() => setOpen(!open)}
+                className="w-full px-5 py-4 flex items-center gap-3 text-left">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    waarde ? 'bg-purple-500 text-white' : 'bg-slate-100 text-slate-500'
+                }`}>
+                    {waarde ? '✓' : nr}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-800 text-sm">{label}</p>
+                    {waarde && (
+                        <p className="text-xs text-purple-600 truncate">
+                            {emoji && `${emoji} `}{waarde}
+                        </p>
+                    )}
+                </div>
+                <span className={`text-slate-400 text-lg transition-transform duration-200 flex-shrink-0 ${open ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {open && children}
         </div>
     );
 }
