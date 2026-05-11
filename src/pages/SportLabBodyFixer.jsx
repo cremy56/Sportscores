@@ -64,12 +64,6 @@ function berekenNiveau(fase, sportUren) {
     return 'niveau_1';
 }
 
-const FASE_LABELS = {
-    1: { label: 'Week 1-2', omschrijving: 'Pas geblesseerd', kleur: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-400' },
-    2: { label: 'Week 3-5', omschrijving: 'In herstel',      kleur: 'text-blue-700',  bg: 'bg-blue-50',  border: 'border-blue-200',  dot: 'bg-blue-400' },
-    3: { label: 'Week 6+',  omschrijving: 'Langdurig',       kleur: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-400' },
-};
-
 const SPORT_UREN = [
     { id: 1, label: 'Weinig sport',    detail: 'Minder dan 3u per week',   emoji: '🚶' },
     { id: 2, label: 'Gemiddeld sport', detail: '3 tot 6u per week',         emoji: '🏃' },
@@ -288,7 +282,7 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
     // Leerling keuzes
     const [gekozenBlessure, setGekozenBlessure] = useState(null);
     const [blessureDoc, setBlessureDoc] = useState(null);
-    const [gekozenSportUren, setGekozenSportUren] = useState(null); // 1/2/3
+    const [gekozenSportUren, setGekozenSportUren] = useState(null);
     const [actieveZone, setActieveZone] = useState(null);
 
     // Oefeningen afvinken
@@ -414,7 +408,7 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
                 </p>
             </div>
 
-            {/* ── INSTELLING 1: BLESSURE ─────────────────────────────────── */}
+            {/* ── INSTELLING 1: BLESSURE ─────────────────────────────── */}
             <InstellingBlok nr={1} label="Mijn blessure"
                 waarde={blessures.find(b => b.id === gekozenBlessure)?.naam}
                 emoji={blessures.find(b => b.id === gekozenBlessure)?.emoji}>
@@ -435,53 +429,8 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
 
             {/* ── INSTELLING 2: SPORTUREN ────────────────────────────────── */}
             {gekozenBlessure && (
-                <InstellingBlok nr={3} label="Hoe lang al geblesseerd?"
-                    waarde={gekozenFase ? FASE_LABELS[gekozenFase].label : null}>
-                    <div className="p-4 space-y-2">
-
-                        {/* Auto-suggestie */}
-                        {autoFase && (
-                            <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-3 flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs font-semibold text-purple-800">
-                                        📅 Suggestie op basis van je vrijstelling
-                                    </p>
-                                    <p className="text-xs text-purple-600 mt-0.5">
-                                        {autoWeken === 0 ? 'Minder dan 1 week' : `~${autoWeken} week${autoWeken !== 1 ? 'en' : ''}`}
-                                        {' '}→ {FASE_LABELS[autoFase].label}
-                                    </p>
-                                </div>
-                                <button onClick={() => setGekozenFase(autoFase)}
-                                    className="text-xs bg-purple-500 text-white px-3 py-1.5 rounded-lg font-semibold">
-                                    Gebruik
-                                </button>
-                            </div>
-                        )}
-
-                        <p className="text-xs text-slate-500 px-1">Of kies zelf:</p>
-                        {[1, 2, 3].map(fase => {
-                            const f = FASE_LABELS[fase];
-                            return (
-                                <button key={fase} onClick={() => setGekozenFase(fase)}
-                                    className={`w-full p-4 rounded-xl border-2 text-left transition-all active:scale-[0.98] ${
-                                        gekozenFase === fase
-                                            ? 'border-purple-400 bg-purple-50'
-                                            : `${f.bg} ${f.border} hover:opacity-90`
-                                    }`}>
-                                    <div className="flex items-center gap-2 mb-0.5">
-                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${f.dot}`} />
-                                        <p className={`font-bold text-sm ${f.kleur}`}>
-                                            {f.label} — {f.omschrijving}
-                                        </p>
-                                        {autoFase === fase && <span className="text-xs text-slate-400 ml-auto">← suggestie</span>}
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </InstellingBlok>
-            )}
-
+                <InstellingBlok nr={2} label="Hoeveel sport per week?"
+                    waarde={SPORT_UREN.find(s => s.id === gekozenSportUren)?.label}>
                     <div className="p-4 space-y-2">
                         <p className="text-xs text-slate-500 px-1 mb-2">
                             Dit bepaalt hoe intensief de oefeningen zijn voor de zones die jij wél kunt trainen.
@@ -505,17 +454,17 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
                                 </div>
                             </button>
                         ))}
-
-                        {/* Niveau preview */}
-                        {gekozenFase && gekozenSportUren && (
-                            <div className="mt-3 bg-purple-50 border border-purple-200 rounded-xl p-3">
+                        {niveau && (
+                            <div className="mt-2 bg-purple-50 border border-purple-200 rounded-xl p-3">
                                 <p className="text-xs font-semibold text-purple-800">
-                                    📊 Jouw oefenniveau: {NIVEAU_LABELS[berekenNiveau(gekozenFase, gekozenSportUren)]}
+                                    📊 Jouw oefenniveau: {NIVEAU_LABELS[niveau]}
                                 </p>
                             </div>
                         )}
                     </div>
                 </InstellingBlok>
+            )}
+
 
             {/* ── OEFENINGEN ─────────────────────────────────────────────── */}
             {alleIngesteld && blessureDoc && (
