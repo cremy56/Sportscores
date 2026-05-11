@@ -42,9 +42,18 @@ function klasNaarLeeftijd(klas) {
 }
 
 // geregistreerd_op → aantal weken geblesseerd
+// Ondersteunt: ISO string, Firestore Timestamp, {_seconds} object, Date
 function berekenWekenGeblesseerd(geregistreerdOp) {
     if (!geregistreerdOp) return null;
-    const start = geregistreerdOp?.toDate ? geregistreerdOp.toDate() : new Date(geregistreerdOp);
+    let start;
+    if (geregistreerdOp?.toDate) {
+        start = geregistreerdOp.toDate();                         // Firestore Timestamp
+    } else if (geregistreerdOp?._seconds) {
+        start = new Date(geregistreerdOp._seconds * 1000);        // geserialiseerde Timestamp
+    } else {
+        start = new Date(geregistreerdOp);                        // ISO string of Date
+    }
+    if (isNaN(start.getTime())) return null;
     return Math.floor((Date.now() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
 }
 

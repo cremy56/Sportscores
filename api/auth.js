@@ -95,10 +95,24 @@ export default async function handler(req, res) {
 
         if (docSnap.exists) {
             await profileRef.update({ last_login: new Date() });
+            const rawData = docSnap.data();
+
+            // Firestore Timestamps serialiseren niet correct naar JSON.
+            // Zet alle datum-velden om naar ISO string.
+            const toISO = (v) => v?.toDate ? v.toDate().toISOString() : (v instanceof Date ? v.toISOString() : v);
+
+            const userProfile = {
+                ...rawData,
+                created_at:              toISO(rawData.created_at),
+                last_login:              toISO(rawData.last_login),
+                geregistreerd_op:        toISO(rawData.geregistreerd_op)        || null,
+                vrijstelling_einddatum:  toISO(rawData.vrijstelling_einddatum)  || null,
+            };
+
             return res.status(200).json({
                 success: true,
                 status: 'profile_exists',
-                userProfile: docSnap.data()
+                userProfile,
             });
         }
 
