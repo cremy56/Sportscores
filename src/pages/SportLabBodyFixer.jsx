@@ -285,7 +285,7 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
 
     // Auto-detect leeftijd en blessureduur — geen vragen aan de leerling
     const gekozenLeeftijd = klasNaarLeeftijd(profile?.klas);
-    const autoWeken = berekenWekenGeblesseerd(profile?.geregistreerd_op);
+    const autoWeken = berekenWekenGeblesseerd(profile?.vrijstelling_geregistreerd_op);
     const autoFase = wekenNaarFase(autoWeken);
 
     // Leerling keuzes

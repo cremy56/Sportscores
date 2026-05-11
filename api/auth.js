@@ -105,7 +105,7 @@ export default async function handler(req, res) {
                 ...rawData,
                 created_at:              toISO(rawData.created_at),
                 last_login:              toISO(rawData.last_login),
-                geregistreerd_op:        toISO(rawData.geregistreerd_op)        || null,
+                vrijstelling_geregistreerd_op: toISO(rawData.vrijstelling_geregistreerd_op) || null,
                 vrijstelling_einddatum:  toISO(rawData.vrijstelling_einddatum)  || null,
             };
 
