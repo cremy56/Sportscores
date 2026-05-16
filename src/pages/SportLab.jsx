@@ -233,7 +233,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 max-w-xl w-full">
                 <div className="mb-6">
                     <h2 className="font-bold text-slate-900 text-lg">Nieuwe Sport Lab Sessie</h2>
-                    <p className="text-sm text-slate-500 mt-1">Leerlingen kunnen daarna joinen via de app</p>
+                    <p className="text-sm text-slate-500 mt-1">Leerlingen kunnen daarna joinen via de website</p>
                 </div>
 
                 <div className="space-y-4">
@@ -568,7 +568,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                             
                             {deelnames.length === 0 ? (
                                 <div className="px-4 py-6 text-sm text-center text-slate-400 italic">
-                                    Nog geen rollen gekozen.<br/>Leerlingen kunnen nu joinen via de app.
+                                    Nog geen rollen gekozen.<br/>Leerlingen kunnen nu joinen via de website.
                                 </div>
                             ) : (
                                 <ul className="divide-y divide-slate-50">
@@ -1242,7 +1242,7 @@ function getTakenVoorRol(rol, niveau, sport) {
     const taken = {
         arbiter: {
             1: [`Leer de basisregels van ${sport}`, 'Houd de score bij', 'Geef aan bij welk team de volgende beurten is'],
-            2: ['Houd de tijd bij met de timer', 'Fluit bij duidelijke overtredingen', 'Noteer beslissingen in de app'],
+            2: ['Houd de tijd bij met de timer', 'Fluit bij duidelijke overtredingen', 'Noteer beslissingen op de website'],
             3: ['Beheer complexe situaties', 'Communiceer beslissingen naar spelers', 'Houd wedstrijdverloop bij'],
         },
         coach: {
@@ -1401,7 +1401,7 @@ export default function SportLab() {
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">SportLab</h1>
                         <p className="text-slate-500 text-sm">
                             {isTeacher 
-                                ? 'Start een sessie en laat leerlingen hun rol kiezen via de app.' 
+                                ? 'Start een sessie en laat leerlingen hun rol kiezen via de website.' 
                                 : (isLeerling && !gekozenRol) 
                                     ? 'Kies je rol voor de les en verdien XP door actief bij te dragen.' 
                                     : 'Jouw actieve SportLab missie.'

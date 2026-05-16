@@ -182,7 +182,7 @@ export default function PrivacyModal({ isOpen, onClose }) {
                         <p>Uitoefenen via <a href="mailto:privacy@sportscores.be" className="text-blue-600 hover:underline">privacy@sportscores.be</a> — wij antwoorden binnen 30 dagen.</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
                             <RightCard icon="👁️" title="Inzage (Art. 15)" desc="Opvragen welke gegevens wij verwerken." />
-                            <RightCard icon="✏️" title="Rectificatie (Art. 16)" desc="Onjuiste gegevens laten corrigeren. Nickname zelf wijzigen in de app." />
+                            <RightCard icon="✏️" title="Rectificatie (Art. 16)" desc="Onjuiste gegevens laten corrigeren. Nickname zelf wijzigen op de website." />
                             <RightCard icon="🗑️" title="Verwijdering (Art. 17)" desc="Gegevens laten verwijderen. Top 5 scores blijven anoniem bewaard." />
                             <RightCard icon="⏸️" title="Beperking (Art. 18)" desc="Verwerking tijdelijk laten beperken." />
                             <RightCard icon="📦" title="Overdraagbaarheid (Art. 20)" desc="Gegevens opvragen in leesbaar formaat (JSON/CSV)." />
