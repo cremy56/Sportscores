@@ -194,6 +194,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
 
     const handleStart = async () => {
         if (!sport) { toast.error('Kies een sport.'); return; }
+        if (!doelgroep) { toast.error('Kies een klas of groep.'); return; }
         setLoading(true);
         
         let doelType = null;
@@ -254,11 +255,15 @@ function SessieStartForm({ profile, onSessieGestart }) {
                     {/* KLAS OF GROEP SELECTIE */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Klas of groep <span className="text-gray-400 font-normal">(optioneel — leeg = iedereen)</span>
+                            Klas of groep <span className="text-red-500">*</span>
                         </label>
                         {loadingKlassen ? (
                             <div className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-400 text-sm">
                                 Klassen en groepen laden...
+                            </div>
+                        ) : klassenEnGroepen.klassen.length === 0 && klassenEnGroepen.groepen.length === 0 ? (
+                            <div className="w-full px-4 py-3 border border-amber-200 bg-amber-50 rounded-xl text-amber-700 text-sm">
+                                Geen klassen of groepen gevonden. Vraag een administrator om klassen te koppelen.
                             </div>
                         ) : (
                             <select
@@ -266,8 +271,8 @@ function SessieStartForm({ profile, onSessieGestart }) {
                                 onChange={e => setDoelgroep(e.target.value)}
                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 text-gray-800"
                             >
-                                <option value="">— Alle leerlingen —</option>
-                                
+                                <option value="">— Kies een klas of groep —</option>
+
                                 {klassenEnGroepen.klassen.length > 0 && (
                                     <optgroup label="Klassen">
                                         {klassenEnGroepen.klassen.map(k => (
@@ -275,7 +280,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
                                         ))}
                                     </optgroup>
                                 )}
-                                
+
                                 {klassenEnGroepen.groepen.length > 0 && (
                                     <optgroup label="Mijn groepen">
                                         {klassenEnGroepen.groepen.map(g => (
@@ -306,7 +311,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
                     {/* START KNOP */}
                     <button
                         onClick={handleStart}
-                        disabled={loading || !sport}
+                        disabled={loading || !sport || !doelgroep}
                         className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2"
                     >
                         <PlayIcon className="w-5 h-5" />
