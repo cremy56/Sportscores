@@ -15,6 +15,7 @@ import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
 import { Scorebord, DigitaalKlembord, ToernooiBuilder, ToernooiDashboard } from './SportLabToernooi';
 import { BodyFixerView } from './SportLabBodyFixer';
+import { WaarnemerView } from './SportLabWaarnemer';
 
 // ─── API HELPER ───────────────────────────────────────────────────────────────
 async function apiPost(action, body, token) {
@@ -119,6 +120,23 @@ const ROLLEN = [
         ],
         vrijgesteldOnly: true, // Enkel voor vrijgestelde leerlingen
     },
+    {
+    id: 'waarnemer',
+    naam: 'De Waarnemer',
+    subtitel: 'Tijdregistratie & Metingen',
+    emoji: '🔭',
+    kleur: 'from-teal-400 to-cyan-500',
+    bg: 'bg-teal-50',
+    border: 'border-teal-200',
+    tekst: 'text-teal-800',
+    beschrijving: 'Meet tijden en afstanden, registreer rondes en dien de resultaten in bij de leerkracht.',
+    niveaus: [
+        'Level 1 — Tijdregistratie: chrono en rondes bijhouden bij loops en sprints',
+        'Level 2 — Meting & Registratie: afstanden noteren bij verspringen, werpen en meer',
+        'Level 3 — Volledig waarnemer: tijden, metingen én rangschikking presenteren',
+    ],
+    vrijgesteldOnly: false,
+},
 ];
 
 // ─── NIVEAU BADGE ─────────────────────────────────────────────────────────────
@@ -814,11 +832,20 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, eigenDeelname, onRo
 
 // ─── DIGITAAL SCOREBORD (Speciaal voor de Arbiter) ────────────────────────────
 // ─── LEERLING: ACTIEVE ROL VIEW ───────────────────────────────────────────────
-// ─── LEERLING: ACTIEVE ROL VIEW ───────────────────────────────────────────────
+
 function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteerd, onTerug, onRefresh }) {
     const rolData = ROLLEN.find(r => r.id === rol) || ROLLEN[0];
 
-    // ─── FIX: BODY FIXER KRIJGT ZIJN EIGEN SPECIALE SCHERM ───
+    if (rol === 'waarnemer') {
+        return (
+            <WaarnemerView
+                sessie={sessie}
+                profile={profile}
+                onTerug={onTerug}
+            />
+        );
+    }
+
     if (rol === 'alternatief') {
         return (
             <div className="max-w-2xl mx-auto">
