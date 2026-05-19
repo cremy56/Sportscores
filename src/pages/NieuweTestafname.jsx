@@ -488,7 +488,7 @@ export default function NieuweTestafname() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="md:col-span-1">
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Datum</label>
-                                <input type="date" value={datum} onChange={e => setDatum(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl shadow-sm" />
+                                <input type="date" value={datum} onChange={e => setDatum(e.target.value)} className="w-full h-[46px] px-3 border border-gray-200 rounded-xl shadow-sm" />
                             </div>
                             <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div>
@@ -496,7 +496,7 @@ export default function NieuweTestafname() {
                                     <select
                                         value={selectedGroep?.id || ''}
                                         onChange={(e) => setSelectedGroep(groepen.find(g => g.id === e.target.value) || null)}
-                                        className="w-full p-3 border border-gray-200 rounded-xl shadow-sm"
+                                        className="w-full h-[46px] px-3 border border-gray-200 rounded-xl shadow-sm"
                                     >
                                         <option value="">-- Selecteer groep --</option>
                                         {groepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}
@@ -508,7 +508,7 @@ export default function NieuweTestafname() {
                                         value={selectedTest?.id || ''}
                                         onChange={(e) => setSelectedTest(testen.find(t => t.id === e.target.value) || null)}
                                         disabled={!selectedGroep}
-                                        className="w-full p-3 border border-gray-200 rounded-xl shadow-sm disabled:bg-gray-50"
+                                        className="w-full h-[46px] px-3 border border-gray-200 rounded-xl shadow-sm disabled:bg-gray-50"
                                     >
                                         <option value="">-- Selecteer test --</option>
                                         {testen.map(t => <option key={t.id} value={t.id}>{t.naam} ({t.eenheid})</option>)}
