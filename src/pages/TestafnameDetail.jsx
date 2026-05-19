@@ -21,8 +21,6 @@ import {
 import { parseTimeInputToSeconds, formatScoreWithUnit, getPointColorClass } from '../utils/formatters.js';
 import ConfirmModal from '../components/ConfirmModal';
 import { useOutletContext } from 'react-router-dom';
-import WaarnemerPanel from '../components/WaarnemerPanel';
-
 // --- API HELPER ---
 async function apiPost(action, body, token) {
     const response = await fetch('/api/tests', {
@@ -151,7 +149,6 @@ export default function TestafnameDetail() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, scoreId: null, leerlingNaam: '' });
     const [currentDate, setCurrentDate] = useState(datum);
-    const [showWaarnemer, setShowWaarnemer] = useState(false);
 
     const stats = useMemo(() => {
         const leerlingenMetScore = details.leerlingen.filter(l => l.score !== null);
@@ -594,7 +591,7 @@ export default function TestafnameDetail() {
                             <h3 className="text-xl font-semibold text-gray-900 mb-2">Testafname Beheer</h3>
                             <p className="text-sm text-gray-600">Beheer deze testafname en de bijbehorende scores</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-5">
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4">
                             <button onClick={exportToCSV} disabled={details.leerlingen.length === 0} className="flex flex-col items-center justify-center px-3 py-4 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors font-medium disabled:opacity-50">
                                 <DocumentArrowDownIcon className="h-6 w-6 mb-1" /><span className="text-sm text-center">Exporteer CSV</span>
                             </button>
@@ -606,10 +603,6 @@ export default function TestafnameDetail() {
                             </button>
                             <button onClick={() => setShowDeleteConfirm(true)} className="flex flex-col items-center justify-center px-3 py-4 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium">
                                 <ExclamationTriangleIcon className="h-6 w-6 mb-1" /><span className="text-sm text-center">Verwijder Testafname</span>
-                            </button>
-                            <button onClick={() => setShowWaarnemer(true)} className="flex flex-col items-center justify-center px-3 py-4 bg-teal-100 text-teal-700 rounded-lg hover:bg-teal-200 transition-colors font-medium">
-                                <span className="text-2xl mb-1">🔭</span>
-                                <span className="text-sm text-center">Waarnemer Tool</span>
                             </button>
                         </div>
                     </div>
@@ -644,21 +637,5 @@ export default function TestafnameDetail() {
                     Weet je zeker dat je de score van <strong>{deleteModalState.leerlingNaam}</strong> permanent wilt verwijderen?
                 </ConfirmModal>
             </div>
-            {showWaarnemer && (
-                    <WaarnemerPanel
-                        leerlingen={details.leerlingen}
-                        testInfo={details}
-                        groepId={groepId}
-                        testId={testId}
-                        datum={currentDate}
-                        profile={profile}
-                        onClose={() => setShowWaarnemer(false)}
-                        onScoresOpgeslagen={() => {
-                            setShowWaarnemer(false);
-                            fetchDetails();
-                        }}
-                    />
-                )}
-        </div>
     );
 }
