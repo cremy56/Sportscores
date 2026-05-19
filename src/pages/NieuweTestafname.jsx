@@ -442,16 +442,32 @@ export default function NieuweTestafname() {
                 </Dialog>
             </Transition.Root>
 
-            <div className="max-w-4xl mx-auto px-4 pt-20 pb-12 lg:px-8 lg:pt-24">
-                <div className="mb-8">
-                    <Link to="/Sporttesten" className="inline-flex items-center text-gray-600 hover:text-purple-700 group mb-4">
+            <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">
+
+                {/* Mobile Header */}
+                <div className="lg:hidden mb-8">
+                    <Link to="/Sporttesten" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 group mb-3">
                         <ArrowLeftIcon className="h-4 w-4 mr-2 transition-transform group-hover:-translate-x-1" />
                         Terug naar sporttesten
                     </Link>
-                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Nieuwe Testafname</h1>
+                    <h1 className="text-2xl font-bold text-gray-800">Nieuwe Testafname</h1>
                 </div>
 
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 lg:p-8">
+                {/* Desktop Header */}
+                <div className="hidden lg:block mb-8">
+                    <Link to="/Sporttesten" className="inline-flex items-center text-sm text-gray-600 hover:text-purple-700 group mb-3">
+                        <ArrowLeftIcon className="h-4 w-4 mr-2 transition-transform group-hover:-translate-x-1" />
+                        Terug naar sporttesten
+                    </Link>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-800">Nieuwe Testafname</h1>
+                            <p className="text-gray-600 mt-1">Voer scores in voor een groep en een test</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-6 lg:p-8">
                     {/* Toggle filters knop (mobiel) */}
                     <div className="flex justify-between items-center mb-4 md:hidden">
                         <h2 className="text-lg font-semibold text-gray-700">Selectie</h2>
