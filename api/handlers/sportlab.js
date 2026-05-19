@@ -1125,6 +1125,163 @@ export async function handleVolgendeRonde(req, res, decodedToken) {
         return res.status(500).json({ error: 'Fout bij doorschuiven' });
     }
 }
+// ─── WAARNEMER: SUBMIT METINGEN (leerling) ────────────────────────────────────
+export async function handleSubmitWaarnemerMetingen(req, res, decodedToken) {
+    try {
+        const { schoolId, sessieId, sportType, modus, eenheid, configuratie, metingen } = req.body;
+
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        if (!sessieId || !sportType || !Array.isArray(metingen) || metingen.length === 0) {
+            return res.status(400).json({ error: 'Verplichte velden ontbreken.' });
+        }
+        if (metingen.length > 50) {
+            return res.status(400).json({ error: 'Maximaal 50 leerlingen per meting.' });
+        }
+
+        const sessieSnap = await db.collection('sport_lab_sessions').doc(sessieId).get();
+        if (!sessieSnap.exists) return res.status(404).json({ error: 'Sessie niet gevonden.' });
+        const sessieData = sessieSnap.data();
+        if (sessieData.school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const bestaand = await db.collection('sport_lab_waarnemer_metingen')
+            .where('sessie_id', '==', sessieId)
+            .where('ingediend_door', '==', decodedToken.uid)
+            .where('status', '==', 'ingediend')
+            .limit(1)
+            .get();
+        if (!bestaand.empty) {
+            return res.status(409).json({ error: 'Je hebt al een meting ingediend voor deze sessie.' });
+        }
+
+        const opgeschoond = metingen.map(m => ({
+            naam:        String(m.naam || '').substring(0, 50),
+            rondetijden: Array.isArray(m.rondetijden) ? m.rondetijden.map(Number) : [],
+            eindtijd:    typeof m.eindtijd === 'number' ? m.eindtijd : null,
+            pogingen:    Array.isArray(m.pogingen) ? m.pogingen.map(p => (p !== null ? Number(p) : null)) : null,
+            beste:       typeof m.beste === 'number' ? m.beste : null,
+            waarde:      typeof m.waarde === 'number' ? m.waarde : null,
+            gefinisht:   typeof m.gefinisht === 'boolean' ? m.gefinisht : false,
+        }));
+
+        const TTL_14D = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+        const docRef = await db.collection('sport_lab_waarnemer_metingen').add({
+            sessie_id:      sessieId,
+            school_id:      verifiedSchoolId,
+            leerkracht_id:  sessieData.leerkracht_id,
+            ingediend_door: decodedToken.uid,
+            ingediend_op:   Timestamp.now(),
+            vervalt_op:     Timestamp.fromDate(TTL_14D),
+            sport_type:     sportType,
+            modus:          modus || null,
+            eenheid:        eenheid || null,
+            configuratie:   configuratie || {},
+            metingen:       opgeschoond,
+            status:         'ingediend',
+        });
+
+        return res.status(200).json({ success: true, meting_id: docRef.id });
+
+    } catch (error) {
+        console.error('❌ handleSubmitWaarnemerMetingen:', error);
+        return res.status(500).json({ error: 'Fout bij indienen metingen' });
+    }
+}
+
+// ─── WAARNEMER: GET METINGEN (leerkracht) ─────────────────────────────────────
+// Geeft ALLE ongekoppelde inzendingen terug als array — meerdere waarnemers ondersteund.
+export async function handleGetWaarnemerMetingen(req, res, decodedToken) {
+    try {
+        const { schoolId, sessieId } = req.body;
+
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
+        if (!['leerkracht', 'administrator', 'super-administrator'].includes(callerSnap.data()?.rol)) {
+            return res.status(403).json({ error: 'Geen toegang.' });
+        }
+
+        let query;
+        if (sessieId) {
+            query = db.collection('sport_lab_waarnemer_metingen')
+                .where('sessie_id', '==', sessieId)
+                .where('status', '==', 'ingediend')
+                .orderBy('ingediend_op', 'asc');
+        } else {
+            query = db.collection('sport_lab_waarnemer_metingen')
+                .where('leerkracht_id', '==', decodedToken.uid)
+                .where('school_id', '==', verifiedSchoolId)
+                .where('status', '==', 'ingediend')
+                .orderBy('ingediend_op', 'asc');
+        }
+
+        const snap = await query.get();
+        if (snap.empty) return res.status(200).json({ success: true, inzendingen: [] });
+
+        const waarnemerUids = [...new Set(snap.docs.map(d => d.data().ingediend_door))];
+        const userSnaps     = await db.getAll(...waarnemerUids.map(uid => db.collection('users').doc(uid)));
+        const nicknameMap   = Object.fromEntries(userSnaps.map(s => [s.id, s.data()?.nickname || 'Waarnemer']));
+
+        const inzendingen = snap.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id:           doc.id,
+                waarnemer:    nicknameMap[data.ingediend_door] || 'Waarnemer',
+                sport_type:   data.sport_type,
+                modus:        data.modus,
+                eenheid:      data.eenheid,
+                configuratie: data.configuratie,
+                metingen:     data.metingen,
+                ingediend_op: data.ingediend_op?.toDate?.()?.toISOString() || null,
+            };
+        });
+
+        return res.status(200).json({ success: true, inzendingen });
+
+    } catch (error) {
+        console.error('❌ handleGetWaarnemerMetingen:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen metingen' });
+    }
+}
+
+// ─── WAARNEMER: MARKEER GEKOPPELD + XP (leerkracht) ──────────────────────────
+// Idempotent — dubbele XP-toekenning geblokkeerd via status check.
+export async function handleMarkeerWaarnemerGekoppeld(req, res, decodedToken) {
+    try {
+        const { schoolId, metingId } = req.body;
+
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const ref  = db.collection('sport_lab_waarnemer_metingen').doc(metingId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'Meting niet gevonden.' });
+
+        const docData = snap.data();
+        if (docData.leerkracht_id !== decodedToken.uid) return res.status(403).json({ error: 'Geen toegang.' });
+        if (docData.status === 'gekoppeld') return res.status(200).json({ success: true, already_processed: true });
+
+        const batch = db.batch();
+        batch.update(ref, { status: 'gekoppeld', gekoppeld_op: Timestamp.now() });
+
+        if (docData.ingediend_door) {
+            batch.update(db.collection('users').doc(docData.ingediend_door), {
+                xp: FieldValue.increment(XP.ZELFREFLECTIE),
+            });
+        }
+
+        await batch.commit();
+        return res.status(200).json({ success: true, xp_toegekend: XP.ZELFREFLECTIE });
+
+    } catch (error) {
+        console.error('❌ handleMarkeerWaarnemerGekoppeld:', error);
+        return res.status(500).json({ error: 'Fout bij markeren' });
+    }
+}
+
 // ─── GET BLESSURE CONTENT ─────────────────────────────────────────────────────
 // Haalt content op uit sport_lab_blessures collectie voor Body Fixer rol.
 // Zonder blessureKey → lijst van alle blessures (voor keuzescherm).
