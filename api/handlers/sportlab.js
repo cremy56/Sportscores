@@ -15,10 +15,11 @@ const XP = {
 // ─── ROL NAMEN (UI → DB mapping) ──────────────────────────────────────────────
 // Neutrale naam in DB — geen inferentie mogelijk over blessure-status (GDPR)
 const ROL_DB = {
-    arbiter:      'arbiter',
-    coach:        'coach',
+    arbiter:        'arbiter',
+    coach:          'coach',
     toernooileider: 'toernooileider',
-    alternatief:  'alternatief',   // UI toont "Blessurebewuste Sporter"
+    alternatief:    'alternatief',   // UI toont "Body Fixer"
+    waarnemer:      'waarnemer',     // UI toont "De Waarnemer"
 };
 
 // ─── HELPER: is sessie actief? ─────────────────────────────────────────────────
