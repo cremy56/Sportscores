@@ -637,5 +637,6 @@ export default function TestafnameDetail() {
                     Weet je zeker dat je de score van <strong>{deleteModalState.leerlingNaam}</strong> permanent wilt verwijderen?
                 </ConfirmModal>
             </div>
+        </div>
     );
 }
