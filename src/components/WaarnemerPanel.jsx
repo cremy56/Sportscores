@@ -458,6 +458,299 @@ function EigenTellingTab({ leerlingen, detectie, groepId, testId, datum, profile
     );
 }
 
+// ─── EIGEN HOOGSPRING (progressief scoreformulier) ────────────────────────────
+//
+// Werking:
+//   - Leerkracht stelt beginhoogte + stapgrootte in
+//   - Systeem genereert hoogtes automatisch
+//   - Per hoogte, per leerling: ✓ (geslaagd) / ✗ (mislukt) / — (overgeslagen)
+//   - Na 3 opeenvolgende mislukkingen (ongeacht hoogte) → automatisch uitgeschakeld
+//   - Eindscore = laatste geslaagde hoogte in meter
+//   - Leerling mag een hoogte overslaan (impasse) → telt niet als mislukking
+//
+function EigenHoogspringTab({ leerlingen, groepId, testId, datum, profile, onScoresOpgeslagen }) {
+    // ── Setup state ──────────────────────────────────────────────────────────
+    const [fase, setFase]             = useState('setup'); // 'setup' | 'actief' | 'opgeslagen'
+    const [beginHoogte, setBeginHoogte] = useState(100);  // cm
+    const [stapGrootte, setStapGrootte] = useState(5);    // cm
+    const [saving, setSaving]         = useState(false);
+
+    // ── Scorestate per leerling per hoogte ───────────────────────────────────
+    // scores[leerlingId][hoogteCm] = 'geslaagd' | 'mislukt' | 'overgeslagen' | null
+    const [scores, setScores]         = useState({});
+    const [hoogtes, setHoogtes]       = useState([]);     // gesorteerde array van cm-waarden
+    const [uitgeschakeld, setUitgeschakeld] = useState({}); // { leerlingId: true }
+
+    // ── Initialiseer bij start ───────────────────────────────────────────────
+    const handleStart = () => {
+        const initHoogtes = [];
+        for (let h = beginHoogte; h <= beginHoogte + stapGrootte * 20; h += stapGrootte) {
+            initHoogtes.push(h);
+        }
+        setHoogtes(initHoogtes);
+        const initScores = {};
+        leerlingen.filter(l => !l.score).forEach(l => { initScores[l.id] = {}; });
+        setScores(initScores);
+        setUitgeschakeld({});
+        setFase('actief');
+    };
+
+    // ── Hoogte toevoegen ─────────────────────────────────────────────────────
+    const voegHoogteToe = () => {
+        const volgende = (hoogtes[hoogtes.length - 1] || beginHoogte) + stapGrootte;
+        setHoogtes(prev => [...prev, volgende]);
+    };
+
+    // ── Score registreren ────────────────────────────────────────────────────
+    const setScore = (leerlingId, hoogte, waarde) => {
+        if (uitgeschakeld[leerlingId]) return;
+
+        setScores(prev => {
+            const nieuw = {
+                ...prev,
+                [leerlingId]: { ...prev[leerlingId], [hoogte]: waarde },
+            };
+
+            // Controleer uitschakeling: 3 opeenvolgende mislukkingen over alle hoogtes
+            const alleHoogtes = hoogtes.slice().sort((a, b) => a - b);
+            let opeenvolgend = 0;
+            let maxOpeenvolgend = 0;
+            for (const h of alleHoogtes) {
+                const s = nieuw[leerlingId]?.[h];
+                if (s === 'mislukt') {
+                    opeenvolgend++;
+                    maxOpeenvolgend = Math.max(maxOpeenvolgend, opeenvolgend);
+                } else if (s === 'geslaagd' || s === 'overgeslagen') {
+                    opeenvolgend = 0;
+                } // null = nog niet geprobeerd → stop tellen
+                else break;
+            }
+
+            if (maxOpeenvolgend >= 3) {
+                setUitgeschakeld(u => ({ ...u, [leerlingId]: true }));
+            }
+            return nieuw;
+        });
+    };
+
+    // ── Beste hoogte per leerling ────────────────────────────────────────────
+    const besteHoogte = (leerlingId) => {
+        const ls = scores[leerlingId] || {};
+        const geslaagd = Object.entries(ls)
+            .filter(([, v]) => v === 'geslaagd')
+            .map(([h]) => Number(h));
+        return geslaagd.length ? Math.max(...geslaagd) : null;
+    };
+
+    // ── Scores opslaan ───────────────────────────────────────────────────────
+    const handleOpslaan = async () => {
+        const metScore = leerlingen
+            .filter(l => !l.score)
+            .map(l => ({ ...l, beste: besteHoogte(l.id) }))
+            .filter(l => l.beste !== null);
+
+        if (!metScore.length) { toast.error('Nog geen leerling heeft een hoogte gehaald'); return; }
+
+        setSaving(true);
+        const t = toast.loading(`${metScore.length} score(s) opslaan...`);
+        let ok = 0;
+        for (const l of metScore) {
+            try {
+                // Score in meter (1m = 100cm)
+                await apiSaveScore(profile, groepId, testId, datum, l.id, l.klas, l.geslacht, l.beste / 100);
+                ok++;
+            } catch { /* doorgaan */ }
+        }
+        toast.dismiss(t);
+        toast.success(`${ok} score(s) opgeslagen!`);
+        setSaving(false);
+        setFase('opgeslagen');
+        if (onScoresOpgeslagen) onScoresOpgeslagen();
+    };
+
+    // ── Render: setup ────────────────────────────────────────────────────────
+    if (fase === 'setup') return (
+        <div className="space-y-5">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2">
+                <span className="text-xl">⬆️</span>
+                <p className="text-sm font-medium text-amber-800">
+                    Stel de beginhoogte en stapgrootte in. Hoogtes worden automatisch gegenereerd.
+                </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Beginhoogte (cm)</label>
+                    <input type="number" min={50} max={250} step={1} value={beginHoogte}
+                        onChange={e => setBeginHoogte(Number(e.target.value))}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Stapgrootte (cm)</label>
+                    <div className="flex gap-2">
+                        {[3, 5, 10].map(s => (
+                            <button key={s} onClick={() => setStapGrootte(s)}
+                                className={`flex-1 py-3 rounded-xl border-2 font-bold text-lg transition-all ${
+                                    stapGrootte === s
+                                        ? 'border-purple-500 bg-purple-50 text-purple-800'
+                                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                                }`}>
+                                {s}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Eerste 5 hoogtes</p>
+                <div className="flex gap-2 flex-wrap">
+                    {Array.from({ length: 5 }, (_, i) => beginHoogte + i * stapGrootte).map(h => (
+                        <span key={h} className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium text-gray-700">
+                            {h} cm
+                        </span>
+                    ))}
+                    <span className="px-3 py-1 text-sm text-gray-400">...</span>
+                </div>
+            </div>
+
+            <button onClick={handleStart}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 rounded-2xl transition-colors">
+                ⬆️ Start Scoreformulier
+            </button>
+        </div>
+    );
+
+    // ── Render: opgeslagen ───────────────────────────────────────────────────
+    if (fase === 'opgeslagen') return (
+        <div className="text-center py-10">
+            <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
+            <p className="font-semibold text-gray-900 text-lg mb-1">Scores opgeslagen!</p>
+        </div>
+    );
+
+    // ── Render: actief ───────────────────────────────────────────────────────
+    const actieveLeerlingen  = leerlingen.filter(l => !l.score && !uitgeschakeld[l.id]);
+    const uitgeschakeldeLeerlingen = leerlingen.filter(l => !l.score && uitgeschakeld[l.id]);
+
+    return (
+        <div className="space-y-4">
+            {/* Scoreformulier tabel */}
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="bg-gray-50 border-b border-gray-200">
+                                <th className="text-left px-4 py-3 font-semibold text-gray-700 sticky left-0 bg-gray-50 min-w-[120px]">
+                                    Leerling
+                                </th>
+                                {hoogtes.map(h => (
+                                    <th key={h} className="px-3 py-3 font-semibold text-gray-600 text-center min-w-[64px]">
+                                        {h} cm
+                                    </th>
+                                ))}
+                                <th className="px-4 py-3 font-semibold text-teal-700 text-center min-w-[80px]">Beste</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {leerlingen.filter(l => !l.score).map(l => {
+                                const isUit  = uitgeschakeld[l.id];
+                                const beste  = besteHoogte(l.id);
+                                return (
+                                    <tr key={l.id} className={isUit ? 'opacity-50 bg-gray-50' : 'hover:bg-gray-50/50'}>
+                                        <td className="px-4 py-3 font-medium text-gray-900 sticky left-0 bg-white">
+                                            <div className="flex items-center gap-1.5">
+                                                {l.naam}
+                                                {isUit && <span className="text-xs text-red-500 font-normal">(uit)</span>}
+                                            </div>
+                                        </td>
+                                        {hoogtes.map(h => {
+                                            const s = scores[l.id]?.[h] ?? null;
+                                            return (
+                                                <td key={h} className="px-2 py-2 text-center">
+                                                    <div className="flex gap-0.5 justify-center">
+                                                        {/* Geslaagd */}
+                                                        <button
+                                                            onClick={() => setScore(l.id, h, s === 'geslaagd' ? null : 'geslaagd')}
+                                                            disabled={isUit}
+                                                            title="Geslaagd"
+                                                            className={`w-7 h-7 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+                                                                s === 'geslaagd'
+                                                                    ? 'bg-green-500 text-white'
+                                                                    : 'bg-gray-100 text-gray-400 hover:bg-green-100 hover:text-green-600'
+                                                            }`}
+                                                        >✓</button>
+                                                        {/* Mislukt */}
+                                                        <button
+                                                            onClick={() => setScore(l.id, h, s === 'mislukt' ? null : 'mislukt')}
+                                                            disabled={isUit}
+                                                            title="Mislukt"
+                                                            className={`w-7 h-7 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+                                                                s === 'mislukt'
+                                                                    ? 'bg-red-500 text-white'
+                                                                    : 'bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600'
+                                                            }`}
+                                                        >✗</button>
+                                                        {/* Overgeslagen */}
+                                                        <button
+                                                            onClick={() => setScore(l.id, h, s === 'overgeslagen' ? null : 'overgeslagen')}
+                                                            disabled={isUit}
+                                                            title="Overgeslagen (impasse)"
+                                                            className={`w-7 h-7 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+                                                                s === 'overgeslagen'
+                                                                    ? 'bg-amber-400 text-white'
+                                                                    : 'bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-600'
+                                                            }`}
+                                                        >—</button>
+                                                    </div>
+                                                </td>
+                                            );
+                                        })}
+                                        <td className="px-4 py-3 text-center font-bold text-teal-700">
+                                            {beste !== null ? `${beste} cm` : '—'}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Legenda */}
+            <div className="flex gap-3 text-xs text-gray-500 px-1">
+                <span className="flex items-center gap-1"><span className="w-5 h-5 bg-green-500 rounded text-white flex items-center justify-center font-bold">✓</span> Geslaagd</span>
+                <span className="flex items-center gap-1"><span className="w-5 h-5 bg-red-500 rounded text-white flex items-center justify-center font-bold">✗</span> Mislukt</span>
+                <span className="flex items-center gap-1"><span className="w-5 h-5 bg-amber-400 rounded text-white flex items-center justify-center font-bold">—</span> Overgeslagen</span>
+            </div>
+
+            {/* Hoogte toevoegen */}
+            <button onClick={voegHoogteToe}
+                className="w-full py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-sm font-medium text-gray-500 hover:border-purple-400 hover:text-purple-600 transition-colors">
+                + Volgende hoogte toevoegen ({(hoogtes[hoogtes.length - 1] || beginHoogte) + stapGrootte} cm)
+            </button>
+
+            {/* Uitgeschakeld */}
+            {uitgeschakeldeLeerlingen.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                    <p className="text-xs font-semibold text-red-600 mb-1">Uitgeschakeld (3 opeenvolgende mislukkingen)</p>
+                    <p className="text-sm text-red-700">
+                        {uitgeschakeldeLeerlingen.map(l => l.naam).join(', ')}
+                    </p>
+                </div>
+            )}
+
+            {/* Opslaan */}
+            {leerlingen.filter(l => !l.score).some(l => besteHoogte(l.id) !== null) && (
+                <button onClick={handleOpslaan} disabled={saving}
+                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2">
+                    {saving ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> Opslaan...</> : <><CheckCircleSolid className="w-5 h-5" /> Scores opslaan</>}
+                </button>
+            )}
+        </div>
+    );
+}
+
 // ─── EIGEN TOOL WRAPPER (kiest automatisch de juiste tool) ────────────────────
 function EigenToolTab({ leerlingen, test, groepId, testId, datum, profile, onScoresOpgeslagen }) {
     const detectie = detectWaarnemerModus(test);
@@ -465,14 +758,8 @@ function EigenToolTab({ leerlingen, test, groepId, testId, datum, profile, onSco
     if (!detectie.geschikt) return <NietGeschiktView detectie={detectie} />;
 
     if (detectie.modus === 'hoogspring') return (
-        <div className="text-center py-10">
-            <p className="text-5xl mb-3">⬆️</p>
-            <p className="font-semibold text-gray-800 mb-2">Hoogspring scoreformulier</p>
-            <p className="text-sm text-gray-500 max-w-xs mx-auto">
-                Het progressieve hoogspring-scoreformulier (geslaagd/mislukt per hoogte) wordt binnenkort toegevoegd.
-                Gebruik voorlopig de handmatige scoretabel.
-            </p>
-        </div>
+        <EigenHoogspringTab leerlingen={leerlingen}
+            groepId={groepId} testId={testId} datum={datum} profile={profile} onScoresOpgeslagen={onScoresOpgeslagen} />
     );
 
     if (detectie.modus === 'meting') return (
