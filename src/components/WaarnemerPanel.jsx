@@ -34,34 +34,108 @@ function msNaarSeconden(ms) {
     return ms / 1000;
 }
 
+// ─── API HELPER ────────────────────────────────────────────────────────────────
+async function apiSaveScore(profile, groepId, testId, datum, leerlingId, klas, geslacht, score) {
+    await fetch('/api/tests', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'save_score',
+            schoolId: profile.school_id,
+            groepId, testId, datum,
+            leerlingId, klas: klas || null, geslacht: geslacht || null, score,
+        }),
+    });
+}
+
+// ─── AUTO-DETECTIE ────────────────────────────────────────────────────────────
+// Bepaalt welke tool getoond wordt op basis van test.naam, .eenheid, .categorie
+function detectWaarnemerModus(test) {
+    if (!test) return { modus: 'onbekend', geschikt: false, reden: 'Geen test geselecteerd.' };
+
+    const naam      = (test.naam      || test.test_naam || '').toLowerCase();
+    const eenheid   = (test.eenheid   || '').toLowerCase();
+    const categorie = (test.categorie || '').toLowerCase();
+
+    // ❌ Niet geschikt — subjectieve beoordeling
+    if (['sportprestaties', 'lenigheid', 'coördinatie', 'coordinatie'].some(c => categorie.includes(c))) {
+        return { modus: 'niet_geschikt', geschikt: false, icon: '⛔',
+            reden: `${test.categorie}-testen vereisen directe beoordeling door de leerkracht.` };
+    }
+    // ❌ Krachttesten met herhalingen (pull-up, push-up, ...)
+    if (categorie.includes('kracht') && (eenheid.includes('aantal') || eenheid.includes('rep'))) {
+        return { modus: 'niet_geschikt', geschikt: false, icon: '⛔',
+            reden: 'Krachttesten met herhalingen vereisen visuele controle van elke herhaling.' };
+    }
+
+    // ⬆️ Hoogspringen — apart scoreformulier (progressieve hoogtes)
+    if (naam.includes('hoog') && (eenheid.includes('m') || eenheid.includes('cm'))) {
+        return { modus: 'hoogspring', geschikt: true, icon: '⬆️', label: 'Hoogspring scoreformulier' };
+    }
+
+    // ↗️ Afstandsmeting — verspringen, kogelstoten, werpen
+    if (eenheid.includes(' m') || eenheid === 'm' || eenheid.includes('cm') || eenheid.includes('meter')) {
+        return { modus: 'meting', geschikt: true, icon: '↗️', label: 'Afstandsmeting' };
+    }
+
+    // 🏊 Zwemmen — baantjes tellen
+    if (naam.includes('zwem') || naam.includes('baantj')) {
+        return { modus: 'telling', geschikt: true, icon: '🏊', label: 'Baantjes tellen', eenheidLabel: 'baantjes' };
+    }
+
+    // ↔️ Overige telling (shuttle run, touwspringen, ...)
+    if (eenheid.includes('aantal')) {
+        return { modus: 'telling', geschikt: true, icon: '↔️', label: 'Telling', eenheidLabel: eenheid };
+    }
+
+    // 🏃 Duurloop met rondes
+    if (categorie.includes('uithouding') || ['cooper', 'km', 'duurloop'].some(w => naam.includes(w))) {
+        return { modus: 'chrono_rondes', geschikt: true, icon: '🏃', label: 'Rondetijden', defaultRondes: 7 };
+    }
+
+    // ⚡ Sprint / éénmalige tijdmeting
+    if (['sec', 'seconden', 's', 'min'].some(e => eenheid.includes(e)) || categorie.includes('snelheid')) {
+        return { modus: 'chrono_eenmalig', geschikt: true, icon: '⚡', label: 'Eindtijd', defaultRondes: 1 };
+    }
+
+    return { modus: 'onbekend', geschikt: false, icon: '❓',
+        reden: 'Onbekend testtype — de Waarnemer Tool kan dit type test niet automatisch verwerken.' };
+}
+
+// ─── NIET GESCHIKT SCHERM ─────────────────────────────────────────────────────
+function NietGeschiktView({ detectie }) {
+    return (
+        <div className="text-center py-10">
+            <p className="text-5xl mb-4">{detectie.icon || '⛔'}</p>
+            <p className="font-semibold text-gray-800 text-lg mb-2">Waarnemer Tool niet beschikbaar</p>
+            <p className="text-sm text-gray-500 max-w-xs mx-auto">{detectie.reden}</p>
+            <div className="mt-6 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-left max-w-xs mx-auto">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Gebruik in de plaats</p>
+                <p className="text-sm text-gray-700">Voer de scores handmatig in via de scoretabel op deze pagina.</p>
+            </div>
+        </div>
+    );
+}
+
 // ─── EIGEN CHRONO (leerkracht, echte namen) ───────────────────────────────────
-function EigenChronoTab({ leerlingen, testInfo, groepId, testId, datum, profile, onScoresOpgeslagen }) {
-    // leerlingen = [{ id, naam, score_id, klas, geslacht, score, punt }]
+function EigenChronoTab({ leerlingen, detectie, groepId, testId, datum, profile, onScoresOpgeslagen }) {
+    const defaultRondes = detectie?.defaultRondes ?? 1;
+    const [rondes, setRondes]                       = useState(defaultRondes);
+    const [gestart, setGestart]                     = useState(false);
+    const [startTijd, setStartTijd]                 = useState(null);
+    const [elapsed, setElapsed]                     = useState(0);
+    const [gestopt, setGestopt]                     = useState(false);
+    const [chronoLeerlingen, setChronoLeerlingen]   = useState(null);
+    const [opgeslagen, setOpgeslagen]               = useState(false);
+    const [saving, setSaving]                       = useState(false);
+    const intervalRef                               = useRef(null);
 
-    const [rondes, setRondes] = useState(testInfo?.eenheid?.toLowerCase().includes('sec') ? 1 : 7);
-    const [gestart, setGestart] = useState(false);
-    const [startTijd, setStartTijd] = useState(null);
-    const [elapsed, setElapsed] = useState(0);
-    const [gestopt, setGestopt] = useState(false);
-    const [chronoLeerlingen, setChronoLeerlingen] = useState(null); // null = nog niet gestart
-    const [opgeslagen, setOpgeslagen] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const intervalRef = useRef(null);
-
-    // Initialiseer chronoLeerlingen bij start
     const handleStart = () => {
         const now = Date.now();
         setStartTijd(now);
         setGestart(true);
         setChronoLeerlingen(
-            leerlingen
-                .filter(l => !l.score) // Enkel leerlingen zonder score
-                .map(l => ({
-                    ...l,
-                    rondetijden: [],
-                    gefinisht: false,
-                    eindtijd: null,
-                }))
+            leerlingen.filter(l => !l.score).map(l => ({ ...l, rondetijden: [], gefinisht: false, eindtijd: null }))
         );
     };
 
@@ -72,59 +146,33 @@ function EigenChronoTab({ leerlingen, testInfo, groepId, testId, datum, profile,
         return () => clearInterval(intervalRef.current);
     }, [gestart, gestopt, startTijd]);
 
-    const handleStop = () => {
-        clearInterval(intervalRef.current);
-        setGestopt(true);
-    };
+    const handleStop = () => { clearInterval(intervalRef.current); setGestopt(true); };
 
     const registreerRonde = (id) => {
         if (!gestart || gestopt) return;
         const nu = Date.now() - startTijd;
         setChronoLeerlingen(prev => prev.map(l => {
             if (l.id !== id || l.gefinisht) return l;
-            const nieuweRondetijden = [...l.rondetijden, nu];
-            const isKlaar = nieuweRondetijden.length >= rondes;
-            return { ...l, rondetijden: nieuweRondetijden, gefinisht: isKlaar, eindtijd: isKlaar ? nu : null };
+            const rt = [...l.rondetijden, nu];
+            const klaar = rt.length >= rondes;
+            return { ...l, rondetijden: rt, gefinisht: klaar, eindtijd: klaar ? nu : null };
         }));
     };
 
     const handleOpslaan = async () => {
-        if (!chronoLeerlingen) return;
-        const gefinisht = chronoLeerlingen.filter(l => l.gefinisht);
-        if (gefinisht.length === 0) { toast.error('Geen gefinishte leerlingen'); return; }
-
+        const gefinisht = chronoLeerlingen?.filter(l => l.gefinisht) || [];
+        if (!gefinisht.length) { toast.error('Geen gefinishte leerlingen'); return; }
         setSaving(true);
-        const loadingToast = toast.loading(`${gefinisht.length} score(s) opslaan...`);
-        let succes = 0;
-        let fout   = 0;
-
+        const t = toast.loading(`${gefinisht.length} score(s) opslaan...`);
+        let ok = 0;
         for (const l of gefinisht) {
-            const scoreWaarde = msNaarSeconden(l.eindtijd);
             try {
-                await fetch('/api/tests', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action:   'save_score',
-                        schoolId: profile.school_id,
-                        groepId,
-                        testId,
-                        datum,
-                        leerlingId: l.id,
-                        score:      scoreWaarde,
-                        klas:       l.klas || null,
-                        geslacht:   l.geslacht || null,
-                    }),
-                }).then(r => r.json());
-                succes++;
-            } catch {
-                fout++;
-            }
+                await apiSaveScore(profile, groepId, testId, datum, l.id, l.klas, l.geslacht, msNaarSeconden(l.eindtijd));
+                ok++;
+            } catch { /* doorgaan */ }
         }
-
-        toast.dismiss(loadingToast);
-        if (succes > 0) toast.success(`${succes} score(s) opgeslagen!`);
-        if (fout > 0)   toast.error(`${fout} score(s) konden niet worden opgeslagen.`);
+        toast.dismiss(t);
+        toast.success(`${ok} score(s) opgeslagen!`);
         setSaving(false);
         setOpgeslagen(true);
         if (onScoresOpgeslagen) onScoresOpgeslagen();
@@ -133,56 +181,33 @@ function EigenChronoTab({ leerlingen, testInfo, groepId, testId, datum, profile,
     const actief    = chronoLeerlingen?.filter(l => !l.gefinisht) || [];
     const gefinisht = chronoLeerlingen?.filter(l => l.gefinisht).sort((a, b) => a.eindtijd - b.eindtijd) || [];
 
-    if (opgeslagen) {
-        return (
-            <div className="text-center py-10">
-                <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
-                <p className="font-semibold text-gray-900 text-lg mb-1">Scores opgeslagen!</p>
-                <p className="text-sm text-gray-500">De testafname is bijgewerkt.</p>
-            </div>
-        );
-    }
+    if (opgeslagen) return (
+        <div className="text-center py-10">
+            <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
+            <p className="font-semibold text-gray-900 text-lg mb-1">Scores opgeslagen!</p>
+        </div>
+    );
 
     return (
         <div className="space-y-4">
-            {/* Rondes instellen (vóór start) */}
-            {!gestart && (
+            {!gestart && detectie?.modus === 'chrono_rondes' && (
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Aantal rondes (voor lopen)
-                    </label>
-                    <input
-                        type="number"
-                        min={1}
-                        max={99}
-                        value={rondes}
-                        onChange={e => setRondes(Number(e.target.value))}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
-                    />
-                    <p className="text-xs text-gray-400 mt-1 text-center">
-                        Stel 1 in voor éénmalige meting (sprint, ...)
-                    </p>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Aantal rondes</label>
+                    <input type="number" min={1} max={99} value={rondes} onChange={e => setRondes(Number(e.target.value))}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400" />
+                    <p className="text-xs text-gray-400 mt-1 text-center">bv. 3 km op 400 m piste = 7 rondes</p>
                 </div>
             )}
-
-            {/* Chrono display */}
             <div className="bg-slate-900 rounded-2xl p-5 text-center">
-                <div className="text-5xl font-mono font-bold text-white tracking-wider mb-4">
-                    {formatTijd(elapsed)}
-                </div>
+                <div className="text-5xl font-mono font-bold text-white tracking-wider mb-4">{formatTijd(elapsed)}</div>
                 {!gestart ? (
-                    <button
-                        onClick={handleStart}
-                        disabled={leerlingen.filter(l => !l.score).length === 0}
-                        className="bg-green-500 hover:bg-green-400 disabled:opacity-40 text-white font-bold px-10 py-3.5 rounded-2xl text-lg transition-all active:scale-95 flex items-center gap-2 mx-auto"
-                    >
+                    <button onClick={handleStart} disabled={!leerlingen.filter(l => !l.score).length}
+                        className="bg-green-500 hover:bg-green-400 disabled:opacity-40 text-white font-bold px-10 py-3.5 rounded-2xl text-lg flex items-center gap-2 mx-auto active:scale-95">
                         <PlayIcon className="w-6 h-6" /> START
                     </button>
                 ) : !gestopt ? (
-                    <button
-                        onClick={handleStop}
-                        className="bg-red-500 hover:bg-red-400 text-white font-bold px-10 py-3.5 rounded-2xl text-lg transition-all active:scale-95 flex items-center gap-2 mx-auto"
-                    >
+                    <button onClick={handleStop}
+                        className="bg-red-500 hover:bg-red-400 text-white font-bold px-10 py-3.5 rounded-2xl text-lg flex items-center gap-2 mx-auto active:scale-95">
                         <StopIcon className="w-6 h-6" /> Stop chrono
                     </button>
                 ) : (
@@ -190,7 +215,6 @@ function EigenChronoTab({ leerlingen, testInfo, groepId, testId, datum, profile,
                 )}
             </div>
 
-            {/* Actief */}
             {actief.length > 0 && (
                 <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                     <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
@@ -204,18 +228,13 @@ function EigenChronoTab({ leerlingen, testInfo, groepId, testId, datum, profile,
                                 <div key={l.id} className="flex items-center px-4 py-3 gap-3">
                                     <div className="flex-1">
                                         <p className="font-medium text-gray-900">{l.naam}</p>
-                                        <p className="text-xs text-gray-400">Ronde {rondeNr}/{rondes}</p>
+                                        {detectie?.modus === 'chrono_rondes' && (
+                                            <p className="text-xs text-gray-400">Ronde {rondeNr}/{rondes}</p>
+                                        )}
                                     </div>
-                                    <button
-                                        onClick={() => registreerRonde(l.id)}
-                                        disabled={!gestart || gestopt}
-                                        className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-30 ${
-                                            isFinish
-                                                ? 'bg-green-500 hover:bg-green-400 text-white'
-                                                : 'bg-teal-100 hover:bg-teal-200 text-teal-800'
-                                        }`}
-                                    >
-                                        {isFinish ? '🏁 Finish' : `Ronde ${rondeNr} ✓`}
+                                    <button onClick={() => registreerRonde(l.id)} disabled={!gestart || gestopt}
+                                        className={`px-4 py-2 rounded-xl font-semibold text-sm active:scale-95 disabled:opacity-30 ${isFinish ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-teal-100 hover:bg-teal-200 text-teal-800'}`}>
+                                        {isFinish ? '🏁 Finish' : detectie?.modus === 'chrono_rondes' ? `Ronde ${rondeNr} ✓` : '🏁 Finish'}
                                     </button>
                                 </div>
                             );
@@ -224,7 +243,6 @@ function EigenChronoTab({ leerlingen, testInfo, groepId, testId, datum, profile,
                 </div>
             )}
 
-            {/* Gefinisht */}
             {gefinisht.length > 0 && (
                 <div className="bg-white rounded-2xl border border-green-200 overflow-hidden">
                     <div className="px-4 py-2.5 bg-green-50 border-b border-green-100">
@@ -242,20 +260,235 @@ function EigenChronoTab({ leerlingen, testInfo, groepId, testId, datum, profile,
                 </div>
             )}
 
-            {/* Opslaan */}
             {(gestopt || actief.length === 0) && gefinisht.length > 0 && (
-                <button
-                    onClick={handleOpslaan}
-                    disabled={saving}
-                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl transition-colors flex items-center justify-center gap-2"
-                >
-                    {saving
-                        ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> Opslaan...</>
-                        : <><CheckCircleSolid className="w-5 h-5" /> Scores opslaan in testafname</>
-                    }
+                <button onClick={handleOpslaan} disabled={saving}
+                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2">
+                    {saving ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> Opslaan...</> : <><CheckCircleSolid className="w-5 h-5" /> Scores opslaan in testafname</>}
                 </button>
             )}
         </div>
+    );
+}
+
+// ─── EIGEN METING (afstandsmeting: verspringen, kogelstoten, werpen) ──────────
+function EigenMetingTab({ leerlingen, detectie, pogingen = 3, groepId, testId, datum, profile, onScoresOpgeslagen }) {
+    const [metingen, setMetingen] = useState(() =>
+        leerlingen.filter(l => !l.score).map(l => ({
+            ...l,
+            pogingen: Array(pogingen).fill({ waarde: '', ongeldig: false }),
+            beste: null,
+        }))
+    );
+    const [saving, setSaving]   = useState(false);
+    const [opgeslagen, setOpgeslagen] = useState(false);
+
+    const updatePoging = (id, idx, veld, val) => {
+        setMetingen(prev => prev.map(l => {
+            if (l.id !== id) return l;
+            const ps = l.pogingen.map((p, i) => i === idx ? { ...p, [veld]: val } : p);
+            const geldig = ps
+                .filter(p => !p.ongeldig)
+                .map(p => parseFloat(String(p.waarde).replace(',', '.')))
+                .filter(n => !isNaN(n) && n > 0);
+            return { ...l, pogingen: ps, beste: geldig.length ? Math.max(...geldig) : null };
+        }));
+    };
+
+    const handleOpslaan = async () => {
+        const metMetBeste = metingen.filter(l => l.beste !== null);
+        if (!metMetBeste.length) { toast.error('Nog geen geldige metingen'); return; }
+        setSaving(true);
+        const t = toast.loading(`${metMetBeste.length} score(s) opslaan...`);
+        let ok = 0;
+        for (const l of metMetBeste) {
+            try {
+                await apiSaveScore(profile, groepId, testId, datum, l.id, l.klas, l.geslacht, l.beste);
+                ok++;
+            } catch { /* doorgaan */ }
+        }
+        toast.dismiss(t);
+        toast.success(`${ok} score(s) opgeslagen!`);
+        setSaving(false);
+        setOpgeslagen(true);
+        if (onScoresOpgeslagen) onScoresOpgeslagen();
+    };
+
+    if (opgeslagen) return (
+        <div className="text-center py-10">
+            <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
+            <p className="font-semibold text-gray-900 text-lg mb-1">Scores opgeslagen!</p>
+        </div>
+    );
+
+    return (
+        <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2">
+                <span className="text-xl">{detectie.icon}</span>
+                <p className="text-sm font-medium text-amber-800">
+                    {detectie.label} — {pogingen} pogingen per leerling · tik <strong>O</strong> voor ongeldige poging
+                </p>
+            </div>
+
+            {metingen.map(l => (
+                <div key={l.id} className="bg-white rounded-2xl border border-gray-200 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="font-semibold text-gray-900">{l.naam}</span>
+                        {l.beste !== null && (
+                            <span className="text-sm font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-lg">
+                                Beste: {l.beste} m
+                            </span>
+                        )}
+                    </div>
+                    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${pogingen}, 1fr)` }}>
+                        {l.pogingen.map((p, idx) => {
+                            const val = parseFloat(String(p.waarde).replace(',', '.'));
+                            const isBeste = !isNaN(val) && val > 0 && val === l.beste && !p.ongeldig;
+                            return (
+                                <div key={idx}>
+                                    <label className="block text-xs text-gray-500 mb-1 text-center">Poging {idx + 1}</label>
+                                    <div className="flex gap-1">
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={p.ongeldig ? '' : p.waarde}
+                                            disabled={p.ongeldig}
+                                            onChange={e => updatePoging(l.id, idx, 'waarde', e.target.value)}
+                                            placeholder={p.ongeldig ? 'O' : '0.00'}
+                                            className={`flex-1 px-2 py-2.5 border rounded-xl text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 min-w-0 ${
+                                                p.ongeldig
+                                                    ? 'bg-red-50 border-red-300 text-red-400 italic'
+                                                    : isBeste
+                                                        ? 'border-teal-400 bg-teal-50 text-teal-800'
+                                                        : 'border-gray-200'
+                                            }`}
+                                        />
+                                        <button
+                                            onClick={() => updatePoging(l.id, idx, 'ongeldig', !p.ongeldig)}
+                                            title={p.ongeldig ? 'Markeer als geldig' : 'Markeer als ongeldig'}
+                                            className={`px-2 py-1 rounded-lg text-xs font-bold border transition-colors ${
+                                                p.ongeldig
+                                                    ? 'bg-red-100 border-red-300 text-red-600 hover:bg-red-200'
+                                                    : 'bg-gray-100 border-gray-200 text-gray-500 hover:bg-red-50 hover:border-red-300 hover:text-red-500'
+                                            }`}
+                                        >
+                                            O
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ))}
+
+            {metingen.some(l => l.beste !== null) && (
+                <button onClick={handleOpslaan} disabled={saving}
+                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2">
+                    {saving ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> Opslaan...</> : <><CheckCircleSolid className="w-5 h-5" /> Scores opslaan</>}
+                </button>
+            )}
+        </div>
+    );
+}
+
+// ─── EIGEN TELLING (zwemmen, shuttle run, touwspringen, ...) ──────────────────
+function EigenTellingTab({ leerlingen, detectie, groepId, testId, datum, profile, onScoresOpgeslagen }) {
+    const [tellingen, setTellingen]   = useState(() =>
+        leerlingen.filter(l => !l.score).map(l => ({ ...l, waarde: '' }))
+    );
+    const [saving, setSaving]         = useState(false);
+    const [opgeslagen, setOpgeslagen] = useState(false);
+
+    const handleOpslaan = async () => {
+        const ingevuld = tellingen.filter(l => l.waarde.toString().trim() !== '' && !isNaN(Number(l.waarde)));
+        if (!ingevuld.length) { toast.error('Nog geen resultaten ingevuld'); return; }
+        setSaving(true);
+        const t = toast.loading(`${ingevuld.length} score(s) opslaan...`);
+        let ok = 0;
+        for (const l of ingevuld) {
+            try {
+                await apiSaveScore(profile, groepId, testId, datum, l.id, l.klas, l.geslacht, Number(l.waarde));
+                ok++;
+            } catch { /* doorgaan */ }
+        }
+        toast.dismiss(t);
+        toast.success(`${ok} score(s) opgeslagen!`);
+        setSaving(false);
+        setOpgeslagen(true);
+        if (onScoresOpgeslagen) onScoresOpgeslagen();
+    };
+
+    if (opgeslagen) return (
+        <div className="text-center py-10">
+            <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
+            <p className="font-semibold text-gray-900 text-lg mb-1">Scores opgeslagen!</p>
+        </div>
+    );
+
+    return (
+        <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2">
+                <span className="text-xl">{detectie.icon}</span>
+                <p className="text-sm font-medium text-amber-800">
+                    {detectie.label} — noteer het aantal {detectie.eenheidLabel || ''} per leerling
+                </p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                {tellingen.map((l, i) => (
+                    <div key={l.id} className={`flex items-center px-4 py-3.5 gap-4 ${i > 0 ? 'border-t border-gray-100' : ''}`}>
+                        <span className="flex-1 font-medium text-gray-900">{l.naam}</span>
+                        <input
+                            type="number"
+                            inputMode="numeric"
+                            value={l.waarde}
+                            onChange={e => setTellingen(prev => prev.map(t => t.id === l.id ? { ...t, waarde: e.target.value } : t))}
+                            placeholder="0"
+                            className="w-24 px-3 py-2 border border-gray-200 rounded-xl text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
+                        />
+                    </div>
+                ))}
+            </div>
+            {tellingen.some(l => l.waarde.toString().trim() !== '') && (
+                <button onClick={handleOpslaan} disabled={saving}
+                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2">
+                    {saving ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> Opslaan...</> : <><CheckCircleSolid className="w-5 h-5" /> Scores opslaan</>}
+                </button>
+            )}
+        </div>
+    );
+}
+
+// ─── EIGEN TOOL WRAPPER (kiest automatisch de juiste tool) ────────────────────
+function EigenToolTab({ leerlingen, test, groepId, testId, datum, profile, onScoresOpgeslagen }) {
+    const detectie = detectWaarnemerModus(test);
+
+    if (!detectie.geschikt) return <NietGeschiktView detectie={detectie} />;
+
+    if (detectie.modus === 'hoogspring') return (
+        <div className="text-center py-10">
+            <p className="text-5xl mb-3">⬆️</p>
+            <p className="font-semibold text-gray-800 mb-2">Hoogspring scoreformulier</p>
+            <p className="text-sm text-gray-500 max-w-xs mx-auto">
+                Het progressieve hoogspring-scoreformulier (geslaagd/mislukt per hoogte) wordt binnenkort toegevoegd.
+                Gebruik voorlopig de handmatige scoretabel.
+            </p>
+        </div>
+    );
+
+    if (detectie.modus === 'meting') return (
+        <EigenMetingTab leerlingen={leerlingen} detectie={detectie}
+            groepId={groepId} testId={testId} datum={datum} profile={profile} onScoresOpgeslagen={onScoresOpgeslagen} />
+    );
+
+    if (detectie.modus === 'telling') return (
+        <EigenTellingTab leerlingen={leerlingen} detectie={detectie}
+            groepId={groepId} testId={testId} datum={datum} profile={profile} onScoresOpgeslagen={onScoresOpgeslagen} />
+    );
+
+    // chrono_rondes of chrono_eenmalig
+    return (
+        <EigenChronoTab leerlingen={leerlingen} detectie={detectie}
+            groepId={groepId} testId={testId} datum={datum} profile={profile} onScoresOpgeslagen={onScoresOpgeslagen} />
     );
 }
 
@@ -517,9 +750,11 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
 }
 
 // ─── HOOFD COMPONENT ─────────────────────────────────────────────────────────
-// Gebruik: <WaarnemerPanel leerlingen={details.leerlingen} testInfo={details} ... onClose={() => setShowWaarnemer(false)} />
-export default function WaarnemerPanel({ leerlingen, testInfo, groepId, testId, datum, profile, onClose, onScoresOpgeslagen }) {
-    const [tab, setTab] = useState('eigen');
+// Gebruik: <WaarnemerPanel leerlingen={...} test={selectedTest} testInfo={...} ... />
+export default function WaarnemerPanel({ leerlingen, test, testInfo, groepId, testId, datum, profile, onClose, onScoresOpgeslagen }) {
+    const [tab, setTab]     = useState('eigen');
+    const detectie          = detectWaarnemerModus(test);
+    const toolLabel         = detectie.geschikt ? `${detectie.icon} ${detectie.label}` : '⛔ Niet beschikbaar';
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -551,7 +786,7 @@ export default function WaarnemerPanel({ leerlingen, testInfo, groepId, testId, 
                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                     >
-                        Eigen chrono
+                        {toolLabel}
                     </button>
                     <button
                         onClick={() => setTab('koppel')}
@@ -568,9 +803,9 @@ export default function WaarnemerPanel({ leerlingen, testInfo, groepId, testId, 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                     {tab === 'eigen' && (
-                        <EigenChronoTab
+                        <EigenToolTab
                             leerlingen={leerlingen}
-                            testInfo={testInfo}
+                            test={test}
                             groepId={groepId}
                             testId={testId}
                             datum={datum}

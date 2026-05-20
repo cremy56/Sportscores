@@ -648,6 +648,7 @@ export default function NieuweTestafname() {
                         geslacht: l.data.geslacht || null,
                         score:    null,
                     }))}
+                    test={selectedTest}
                     testInfo={{
                         test_naam:  selectedTest.naam,
                         groep_naam: selectedGroep.naam,
