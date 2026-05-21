@@ -164,7 +164,17 @@ function EigenChronoTab({ leerlingen, detectie, groepId, testId, datum, profile,
         return () => clearInterval(intervalRef.current);
     }, [gestart, gestopt, startTijd]);
 
-    const handleStop = () => { clearInterval(intervalRef.current); setGestopt(true); };
+    const handleStop = () => {
+        const nogActief = chronoLeerlingen?.filter(l => !l.gefinisht).length || 0;
+        if (nogActief > 0) {
+            const bevestigd = window.confirm(
+                `${nogActief} leerling${nogActief > 1 ? 'en hebben' : ' heeft'} de ${eenheidLabel.slice(0, -1) || 'test'} nog niet afgemaakt.\n\nBen je zeker dat je de chrono wil stoppen?`
+            );
+            if (!bevestigd) return;
+        }
+        clearInterval(intervalRef.current);
+        setGestopt(true);
+    };
 
     const registreerRonde = (id) => {
         if (!gestart || gestopt) return;
