@@ -49,8 +49,8 @@ async function apiSaveScore(profile, groepId, testId, datum, leerlingId, klas, g
 }
 
 // ─── AUTO-DETECTIE ────────────────────────────────────────────────────────────
-// Bepaalt welke tool getoond wordt op basis van test.naam, .eenheid, .categorie
-function detectWaarnemerModus(test) {
+// Geëxporteerd zodat NieuweTestafname de knop conditioneel kan tonen
+export function detectWaarnemerModus(test) {
     if (!test) return { modus: 'onbekend', geschikt: false, reden: 'Geen test geselecteerd.' };
 
     const naam      = (test.naam      || test.test_naam || '').toLowerCase();
@@ -62,52 +62,50 @@ function detectWaarnemerModus(test) {
         return { modus: 'niet_geschikt', geschikt: false, icon: '⛔',
             reden: `${test.categorie}-testen vereisen directe beoordeling door de leerkracht.` };
     }
-    // ❌ Krachttesten met herhalingen (pull-up, push-up, ...)
+    // ❌ Krachttesten met herhalingen
     if (categorie.includes('kracht') && (eenheid.includes('aantal') || eenheid.includes('rep'))) {
         return { modus: 'niet_geschikt', geschikt: false, icon: '⛔',
             reden: 'Krachttesten met herhalingen vereisen visuele controle van elke herhaling.' };
     }
 
-    // ⬆️ Hoogspringen — apart scoreformulier (progressieve hoogtes)
+    // ⏱️ Cooper test — afteltimer 12 min (vóór generieke duurloop-detectie)
+    if (naam.includes('cooper')) {
+        return { modus: 'cooper', geschikt: true, icon: '⏱️', label: 'Cooper — afteltimer 12 min' };
+    }
+
+    // ⬆️ Hoogspringen
     if (naam.includes('hoog') && (eenheid.includes('m') || eenheid.includes('cm'))) {
         return { modus: 'hoogspring', geschikt: true, icon: '⬆️', label: 'Hoogspring scoreformulier' };
     }
 
-    // ↗️ Afstandsmeting — verspringen, kogelstoten, werpen
+    // ↗️ Afstandsmeting
     if (eenheid.includes(' m') || eenheid === 'm' || eenheid.includes('cm') || eenheid.includes('meter')) {
         return { modus: 'meting', geschikt: true, icon: '↗️', label: 'Afstandsmeting' };
     }
 
-    // 🏊 Zwemmen — herken ook crawl, schoolslag, rugslag, vlinderslag, borst
+    // 🏊 Zwemmen
     const ZWEM_TERMEN = ['zwem', 'baantj', 'crawl', 'schoolslag', 'rugslag', 'vlinderslag', 'borst', 'wisselslag'];
-    const isZwemmen   = ZWEM_TERMEN.some(t => naam.includes(t));
-
-    if (isZwemmen) {
+    if (ZWEM_TERMEN.some(t => naam.includes(t))) {
         const afstandMatch = naam.match(/(\d+)\s*m/);
         const afstand      = afstandMatch ? parseInt(afstandMatch[1]) : null;
         const defaultBanen = afstand ? Math.round(afstand / 25) : 16;
-        return {
-            modus: 'chrono_rondes', geschikt: true, icon: '🏊',
-            label:           'Zwemmen — banen bijhouden',
-            eenheidLabel:    'banen',
-            eenheidSingular: 'Baan',
-            isZwemmen:       true,
-            defaultRondes:   defaultBanen,
-        };
+        return { modus: 'chrono_rondes', geschikt: true, icon: '🏊',
+            label: 'Zwemmen — banen bijhouden', eenheidLabel: 'banen',
+            eenheidSingular: 'Baan', isZwemmen: true, defaultRondes: defaultBanen };
     }
 
-    // ↔️ Overige telling (shuttle run, touwspringen, ...)
+    // ↔️ Telling
     if (eenheid.includes('aantal')) {
         return { modus: 'telling', geschikt: true, icon: '↔️', label: 'Telling', eenheidLabel: eenheid };
     }
 
     // 🏃 Duurloop met rondes
-    if (categorie.includes('uithouding') || ['cooper', 'km', 'duurloop'].some(w => naam.includes(w))) {
+    if (categorie.includes('uithouding') || ['km', 'duurloop'].some(w => naam.includes(w))) {
         return { modus: 'chrono_rondes', geschikt: true, icon: '🏃', label: 'Rondetijden',
             eenheidLabel: 'rondes', eenheidSingular: 'Ronde', defaultRondes: 7 };
     }
 
-    // ⚡ Sprint / éénmalige tijdmeting
+    // ⚡ Sprint
     if (['sec', 'seconden', 's', 'min'].some(e => eenheid.includes(e)) || categorie.includes('snelheid')) {
         return { modus: 'chrono_eenmalig', geschikt: true, icon: '⚡', label: 'Eindtijd',
             eenheidLabel: 'rondes', eenheidSingular: 'Ronde', defaultRondes: 1 };
@@ -818,11 +816,257 @@ function EigenHoogspringTab({ leerlingen, groepId, testId, datum, profile, onSco
     );
 }
 
+// ─── EIGEN COOPER (afteltimer 12 min, ronden + eindmeting) ───────────────────
+const COOPER_DUUR_MS = 12 * 60 * 1000;
+
+function EigenCooperTab({ leerlingen, groepId, testId, datum, profile, onScoresOpgeslagen }) {
+    const [fase, setFase]             = useState('setup');
+    const [pisteAfstand, setPiste]    = useState(400);
+    const [tijdOver, setTijdOver]     = useState(COOPER_DUUR_MS);
+    const [gestart, setGestart]       = useState(false);
+    const [startMs, setStartMs]       = useState(null);
+    const [ronden, setRonden]         = useState({});      // { leerlingId: aantal }
+    const [extraMeters, setExtra]     = useState({});      // { leerlingId: meters }
+    const [saving, setSaving]         = useState(false);
+    const intervalRef                 = useRef(null);
+
+    const actieveLeerlingen = leerlingen.filter(l => !l.score);
+
+    // ── Afteltimer ───────────────────────────────────────────────────────────
+    useEffect(() => {
+        if (!gestart || fase !== 'actief') return;
+        intervalRef.current = setInterval(() => {
+            const verstreken = Date.now() - startMs;
+            const over = Math.max(0, COOPER_DUUR_MS - verstreken);
+            setTijdOver(over);
+            if (over === 0) {
+                clearInterval(intervalRef.current);
+                setFase('eindmeting');
+            }
+        }, 100);
+        return () => clearInterval(intervalRef.current);
+    }, [gestart, fase, startMs]);
+
+    const handleStart = () => {
+        const nu = Date.now();
+        setStartMs(nu);
+        setGestart(true);
+        const initRonden = {};
+        actieveLeerlingen.forEach(l => { initRonden[l.id] = 0; });
+        setRonden(initRonden);
+        setFase('actief');
+    };
+
+    const handleStop = () => {
+        clearInterval(intervalRef.current);
+        setFase('eindmeting');
+    };
+
+    const registreerRonde = (id) => {
+        setRonden(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+    };
+
+    const setExtraSnelkeuze = (id, meters) => {
+        setExtra(prev => ({ ...prev, [id]: meters }));
+    };
+
+    const berekenScore = (id) => (ronden[id] || 0) * pisteAfstand + (extraMeters[id] || 0);
+
+    // ── Afteltimer formattering ───────────────────────────────────────────────
+    const formatAfteltijd = (ms) => {
+        const totalSec = Math.ceil(ms / 1000);
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    };
+
+    const isKritiek = tijdOver <= 60000; // laatste minuut → rood
+
+    const handleOpslaan = async () => {
+        const metScore = actieveLeerlingen.filter(l => berekenScore(l.id) > 0);
+        if (!metScore.length) { toast.error('Nog geen scores ingevoerd'); return; }
+        setSaving(true);
+        const t = toast.loading(`${metScore.length} score(s) opslaan...`);
+        let ok = 0;
+        for (const l of metScore) {
+            try {
+                await apiSaveScore(profile, groepId, testId, datum, l.id, l.klas, l.geslacht, berekenScore(l.id));
+                ok++;
+            } catch { /* doorgaan */ }
+        }
+        toast.dismiss(t);
+        toast.success(`${ok} score(s) opgeslagen!`);
+        setSaving(false);
+        setFase('opgeslagen');
+        if (onScoresOpgeslagen) onScoresOpgeslagen();
+    };
+
+    // ── Render: setup ────────────────────────────────────────────────────────
+    if (fase === 'setup') return (
+        <div className="space-y-5">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2">
+                <span className="text-xl">⏱️</span>
+                <p className="text-sm font-medium text-amber-800">
+                    Cooper test — 12 minuten afteltimer. Klik per leerling bij elke voltooide ronde.
+                </p>
+            </div>
+            <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Pisteafstand</label>
+                <div className="flex gap-2">
+                    {[200, 400].map(m => (
+                        <button key={m} onClick={() => setPiste(m)}
+                            className={`flex-1 py-3 rounded-xl border-2 font-bold text-lg transition-all ${
+                                pisteAfstand === m ? 'border-purple-500 bg-purple-50 text-purple-800' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                            }`}>{m} m</button>
+                    ))}
+                    <div className="flex-1 relative">
+                        <input type="number" min={100} max={1000} placeholder="Andere"
+                            onChange={e => setPiste(Number(e.target.value))}
+                            className={`w-full py-3 px-3 rounded-xl border-2 font-bold text-lg text-center transition-all focus:outline-none ${
+                                ![200, 400].includes(pisteAfstand) ? 'border-purple-500 bg-purple-50 text-purple-800' : 'border-gray-200'
+                            }`} />
+                    </div>
+                </div>
+            </div>
+            <button onClick={handleStart}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 rounded-2xl transition-colors text-lg flex items-center justify-center gap-2">
+                ⏱️ Start Cooper Test
+            </button>
+        </div>
+    );
+
+    // ── Render: opgeslagen ───────────────────────────────────────────────────
+    if (fase === 'opgeslagen') return (
+        <div className="text-center py-10">
+            <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
+            <p className="font-semibold text-gray-900 text-lg mb-1">Scores opgeslagen!</p>
+        </div>
+    );
+
+    // ── Render: actief ───────────────────────────────────────────────────────
+    if (fase === 'actief') return (
+        <div className="space-y-4">
+            {/* Afteltimer */}
+            <div className={`rounded-2xl p-5 text-center transition-colors ${isKritiek ? 'bg-red-900 animate-pulse' : 'bg-slate-900'}`}>
+                <p className="text-xs font-semibold uppercase tracking-widest mb-1 text-slate-400">
+                    {isKritiek ? '⚠️ Laatste minuut!' : 'Resterende tijd'}
+                </p>
+                <div className={`text-6xl font-mono font-bold tracking-wider mb-4 ${isKritiek ? 'text-red-300' : 'text-white'}`}>
+                    {formatAfteltijd(tijdOver)}
+                </div>
+                <button onClick={handleStop}
+                    className="bg-red-500 hover:bg-red-400 text-white font-bold px-8 py-3 rounded-2xl text-sm flex items-center gap-2 mx-auto">
+                    <StopIcon className="w-5 h-5" /> Stop vroeger
+                </button>
+            </div>
+
+            {/* Leerlingen */}
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-600">🏃 Ronden bijhouden</p>
+                </div>
+                <div className="divide-y divide-gray-100">
+                    {actieveLeerlingen.map((l, idx) => {
+                        const aantalRonden = ronden[l.id] || 0;
+                        const meters = aantalRonden * pisteAfstand;
+                        return (
+                            <div key={l.id} className="flex items-center px-3 py-3 gap-3">
+                                <span className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold text-sm flex items-center justify-center flex-shrink-0">
+                                    {idx + 1}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-gray-900 truncate">{l.naam}</p>
+                                    <p className="text-xs text-gray-400">{aantalRonden} ronde{aantalRonden !== 1 ? 'n' : ''} = {meters} m</p>
+                                </div>
+                                <button onClick={() => registreerRonde(l.id)}
+                                    className="flex-shrink-0 px-4 py-2.5 bg-teal-100 hover:bg-teal-200 text-teal-800 rounded-xl font-semibold text-sm active:scale-95 transition-all">
+                                    Ronde ✓
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+
+    // ── Render: eindmeting ───────────────────────────────────────────────────
+    if (fase === 'eindmeting') return (
+        <div className="space-y-4">
+            <div className="bg-green-50 border border-green-300 rounded-xl px-4 py-3 text-center">
+                <p className="font-bold text-green-800 text-lg">⏱️ Tijd om! — Noteer de eindpositie</p>
+                <p className="text-sm text-green-700 mt-0.5">Hoeveel meter heeft elke leerling extra afgelegd na de laatste volledige ronde?</p>
+            </div>
+
+            <div className="space-y-3">
+                {actieveLeerlingen.map((l, idx) => {
+                    const aantalRonden = ronden[l.id] || 0;
+                    const extra = extraMeters[l.id] ?? null;
+                    const totaal = berekenScore(l.id);
+                    return (
+                        <div key={l.id} className="bg-white rounded-2xl border border-gray-200 p-4">
+                            <div className="flex items-center gap-3 mb-3">
+                                <span className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold text-sm flex items-center justify-center flex-shrink-0">
+                                    {idx + 1}
+                                </span>
+                                <div className="flex-1">
+                                    <p className="font-semibold text-gray-900">{l.naam}</p>
+                                    <p className="text-xs text-gray-500">{aantalRonden} ronden × {pisteAfstand}m = {aantalRonden * pisteAfstand} m</p>
+                                </div>
+                                {extra !== null && (
+                                    <span className="font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-lg text-sm">
+                                        Totaal: {totaal} m
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Snelkeuze extra meters */}
+                            <p className="text-xs font-medium text-gray-500 mb-2">Extra meters na laatste ronde:</p>
+                            <div className="grid grid-cols-5 gap-1.5 mb-2">
+                                {[0, 50, 100, 150, 200, 250, 300, 350, 380, pisteAfstand - 1].map(m => (
+                                    <button key={m} onClick={() => setExtraSnelkeuze(l.id, m)}
+                                        className={`py-2 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+                                            extra === m
+                                                ? 'bg-teal-500 text-white'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'
+                                        }`}>
+                                        {m}m
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Handmatige invoer */}
+                            <input type="number" min={0} max={pisteAfstand - 1}
+                                value={extra ?? ''}
+                                onChange={e => setExtraSnelkeuze(l.id, Number(e.target.value))}
+                                placeholder={`0 – ${pisteAfstand - 1} m`}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-center text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500"
+                            />
+                        </div>
+                    );
+                })}
+            </div>
+
+            <button onClick={handleOpslaan} disabled={saving}
+                className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2">
+                {saving ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> Opslaan...</> : <><CheckCircleSolid className="w-5 h-5" /> Scores opslaan</>}
+            </button>
+        </div>
+    );
+
+    return null;
+}
+
 // ─── EIGEN TOOL WRAPPER (kiest automatisch de juiste tool) ────────────────────
 function EigenToolTab({ leerlingen, test, groepId, testId, datum, profile, onScoresOpgeslagen }) {
     const detectie = detectWaarnemerModus(test);
 
     if (!detectie.geschikt) return <NietGeschiktView detectie={detectie} />;
+
+    if (detectie.modus === 'cooper') return (
+        <EigenCooperTab leerlingen={leerlingen}
+            groepId={groepId} testId={testId} datum={datum} profile={profile} onScoresOpgeslagen={onScoresOpgeslagen} />
+    );
 
     if (detectie.modus === 'hoogspring') return (
         <EigenHoogspringTab leerlingen={leerlingen}

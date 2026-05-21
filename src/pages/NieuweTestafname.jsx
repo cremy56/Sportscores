@@ -11,7 +11,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { parseTimeInputToSeconds } from '../utils/formatters.js';
 import { GENDER_MAPPING } from '../utils/firebaseUtils.js';
 import { getLeeftijdFromKlas } from '../utils/klasUtils.js';
-import WaarnemerPanel from '../components/WaarnemerPanel';
+import WaarnemerPanel, { detectWaarnemerModus } from '../components/WaarnemerPanel';
 
 // --- API HELPER ---
 async function apiPost(action, body, token) {
@@ -617,14 +617,16 @@ export default function NieuweTestafname() {
                             )}
 
                             <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8">
-                                <button
-                                    onClick={() => setShowWaarnemer(true)}
-                                    disabled={!selectedGroep || !selectedTest}
-                                    className="w-full sm:w-auto flex items-center justify-center gap-2 bg-teal-100 text-teal-700 hover:bg-teal-200 disabled:opacity-50 px-6 py-3 rounded-xl font-medium transition-colors"
-                                >
-                                    <span>🔭</span>
-                                    Waarnemer Tool
-                                </button>
+                                {selectedTest && detectWaarnemerModus(selectedTest).geschikt && (
+                                    <button
+                                        onClick={() => setShowWaarnemer(true)}
+                                        disabled={!selectedGroep}
+                                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-teal-100 text-teal-700 hover:bg-teal-200 disabled:opacity-50 px-6 py-3 rounded-xl font-medium transition-colors"
+                                    >
+                                        <span>🔭</span>
+                                        Waarnemer Tool
+                                    </button>
+                                )}
                                 <button
                                     onClick={handleSaveScores}
                                     disabled={isSaving || validScoresCount === 0}
