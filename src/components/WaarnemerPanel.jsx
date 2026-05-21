@@ -78,9 +78,21 @@ function detectWaarnemerModus(test) {
         return { modus: 'meting', geschikt: true, icon: '↗️', label: 'Afstandsmeting' };
     }
 
-    // 🏊 Zwemmen — baantjes tellen
-    if (naam.includes('zwem') || naam.includes('baantj')) {
-        return { modus: 'telling', geschikt: true, icon: '🏊', label: 'Baantjes tellen', eenheidLabel: 'baantjes' };
+    // 🏊 Zwemmen — herken ook crawl, schoolslag, rugslag, vlinderslag, borst
+    const ZWEM_TERMEN = ['zwem', 'baantj', 'crawl', 'schoolslag', 'rugslag', 'vlinderslag', 'borst', 'wisselslag'];
+    const isZwemmen   = ZWEM_TERMEN.some(t => naam.includes(t));
+
+    if (isZwemmen) {
+        // Bereken standaard aantal banen op basis van afstand in naam (25m bad)
+        const afstandMatch = naam.match(/(\d+)\s*m/);
+        const afstand      = afstandMatch ? parseInt(afstandMatch[1]) : null;
+        const defaultBanen = afstand ? Math.round(afstand / 25) : 16;
+        return {
+            modus: 'chrono_rondes', geschikt: true, icon: '🏊',
+            label: 'Zwemmen — banen bijhouden',
+            eenheidLabel: 'banen',
+            defaultRondes: defaultBanen,
+        };
     }
 
     // ↔️ Overige telling (shuttle run, touwspringen, ...)
@@ -120,6 +132,7 @@ function NietGeschiktView({ detectie }) {
 // ─── EIGEN CHRONO (leerkracht, echte namen) ───────────────────────────────────
 function EigenChronoTab({ leerlingen, detectie, groepId, testId, datum, profile, onScoresOpgeslagen }) {
     const defaultRondes = detectie?.defaultRondes ?? 1;
+    const eenheidLabel  = detectie?.eenheidLabel  || 'rondes';
     const [rondes, setRondes]                       = useState(defaultRondes);
     const [gestart, setGestart]                     = useState(false);
     const [startTijd, setStartTijd]                 = useState(null);
@@ -192,10 +205,14 @@ function EigenChronoTab({ leerlingen, detectie, groepId, testId, datum, profile,
         <div className="space-y-4">
             {!gestart && detectie?.modus === 'chrono_rondes' && (
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Aantal rondes</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Aantal {eenheidLabel} per leerling
+                    </label>
                     <input type="number" min={1} max={99} value={rondes} onChange={e => setRondes(Number(e.target.value))}
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400" />
-                    <p className="text-xs text-gray-400 mt-1 text-center">bv. 3 km op 400 m piste = 7 rondes</p>
+                    <p className="text-xs text-gray-400 mt-1 text-center">
+                        bv. 800m in 25m bad = {Math.round(800/25)} {eenheidLabel}
+                    </p>
                 </div>
             )}
             <div className="bg-slate-900 rounded-2xl p-5 text-center">
@@ -229,12 +246,16 @@ function EigenChronoTab({ leerlingen, detectie, groepId, testId, datum, profile,
                                     <div className="flex-1">
                                         <p className="font-medium text-gray-900">{l.naam}</p>
                                         {detectie?.modus === 'chrono_rondes' && (
-                                            <p className="text-xs text-gray-400">Ronde {rondeNr}/{rondes}</p>
+                                            <p className="text-xs text-gray-400">
+                                                {eenheidLabel.charAt(0).toUpperCase() + eenheidLabel.slice(1)} {rondeNr}/{rondes}
+                                            </p>
                                         )}
                                     </div>
                                     <button onClick={() => registreerRonde(l.id)} disabled={!gestart || gestopt}
                                         className={`px-4 py-2 rounded-xl font-semibold text-sm active:scale-95 disabled:opacity-30 ${isFinish ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-teal-100 hover:bg-teal-200 text-teal-800'}`}>
-                                        {isFinish ? '🏁 Finish' : detectie?.modus === 'chrono_rondes' ? `Ronde ${rondeNr} ✓` : '🏁 Finish'}
+                                        {isFinish ? '🏁 Finish' : detectie?.modus === 'chrono_rondes'
+                                            ? `${eenheidLabel.charAt(0).toUpperCase() + eenheidLabel.slice(1, -1)} ${rondeNr} ✓`
+                                            : '🏁 Finish'}
                                     </button>
                                 </div>
                             );
