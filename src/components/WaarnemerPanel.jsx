@@ -83,15 +83,16 @@ function detectWaarnemerModus(test) {
     const isZwemmen   = ZWEM_TERMEN.some(t => naam.includes(t));
 
     if (isZwemmen) {
-        // Bereken standaard aantal banen op basis van afstand in naam (25m bad)
         const afstandMatch = naam.match(/(\d+)\s*m/);
         const afstand      = afstandMatch ? parseInt(afstandMatch[1]) : null;
         const defaultBanen = afstand ? Math.round(afstand / 25) : 16;
         return {
             modus: 'chrono_rondes', geschikt: true, icon: '🏊',
-            label: 'Zwemmen — banen bijhouden',
-            eenheidLabel: 'banen',
-            defaultRondes: defaultBanen,
+            label:           'Zwemmen — banen bijhouden',
+            eenheidLabel:    'banen',
+            eenheidSingular: 'Baan',
+            isZwemmen:       true,
+            defaultRondes:   defaultBanen,
         };
     }
 
@@ -102,12 +103,14 @@ function detectWaarnemerModus(test) {
 
     // 🏃 Duurloop met rondes
     if (categorie.includes('uithouding') || ['cooper', 'km', 'duurloop'].some(w => naam.includes(w))) {
-        return { modus: 'chrono_rondes', geschikt: true, icon: '🏃', label: 'Rondetijden', defaultRondes: 7 };
+        return { modus: 'chrono_rondes', geschikt: true, icon: '🏃', label: 'Rondetijden',
+            eenheidLabel: 'rondes', eenheidSingular: 'Ronde', defaultRondes: 7 };
     }
 
     // ⚡ Sprint / éénmalige tijdmeting
     if (['sec', 'seconden', 's', 'min'].some(e => eenheid.includes(e)) || categorie.includes('snelheid')) {
-        return { modus: 'chrono_eenmalig', geschikt: true, icon: '⚡', label: 'Eindtijd', defaultRondes: 1 };
+        return { modus: 'chrono_eenmalig', geschikt: true, icon: '⚡', label: 'Eindtijd',
+            eenheidLabel: 'rondes', eenheidSingular: 'Ronde', defaultRondes: 1 };
     }
 
     return { modus: 'onbekend', geschikt: false, icon: '❓',
@@ -131,9 +134,11 @@ function NietGeschiktView({ detectie }) {
 
 // ─── EIGEN CHRONO (leerkracht, echte namen) ───────────────────────────────────
 function EigenChronoTab({ leerlingen, detectie, groepId, testId, datum, profile, onScoresOpgeslagen }) {
-    const defaultRondes = detectie?.defaultRondes ?? 1;
-    const eenheidLabel  = detectie?.eenheidLabel  || 'rondes';
+    const defaultRondes  = detectie?.defaultRondes ?? 1;
+    const eenheidLabel   = detectie?.eenheidLabel   || 'rondes';
+    const eenheidSingulier = detectie?.eenheidSingular || 'Ronde';
     const [rondes, setRondes]                       = useState(defaultRondes);
+    const [perTwee, setPerTwee]                     = useState(false); // zwemmen: tellen per 2 banen
     const [gestart, setGestart]                     = useState(false);
     const [startTijd, setStartTijd]                 = useState(null);
     const [elapsed, setElapsed]                     = useState(0);
@@ -166,7 +171,10 @@ function EigenChronoTab({ leerlingen, detectie, groepId, testId, datum, profile,
         const nu = Date.now() - startTijd;
         setChronoLeerlingen(prev => prev.map(l => {
             if (l.id !== id || l.gefinisht) return l;
-            const rt = [...l.rondetijden, nu];
+            // perTwee: elke klik telt als 2 eenheden
+            const stap = perTwee ? 2 : 1;
+            const rt = [...l.rondetijden];
+            for (let i = 0; i < stap; i++) rt.push(nu);
             const klaar = rt.length >= rondes;
             return { ...l, rondetijden: rt, gefinisht: klaar, eindtijd: klaar ? nu : null };
         }));
@@ -204,15 +212,35 @@ function EigenChronoTab({ leerlingen, detectie, groepId, testId, datum, profile,
     return (
         <div className="space-y-4">
             {!gestart && detectie?.modus === 'chrono_rondes' && (
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Aantal {eenheidLabel} per leerling
-                    </label>
-                    <input type="number" min={1} max={99} value={rondes} onChange={e => setRondes(Number(e.target.value))}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400" />
-                    <p className="text-xs text-gray-400 mt-1 text-center">
-                        bv. 800m in 25m bad = {Math.round(800/25)} {eenheidLabel}
-                    </p>
+                <div className="space-y-3">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Aantal {eenheidLabel} per leerling
+                        </label>
+                        <input type="number" min={1} max={99} value={rondes} onChange={e => setRondes(Number(e.target.value))}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400" />
+                        <p className="text-xs text-gray-400 mt-1 text-center">
+                            {detectie?.isZwemmen
+                                ? `bv. 800m in 25m bad = ${Math.round(800/25)} banen`
+                                : 'bv. 3 km op 400 m piste = 7 rondes'}
+                        </p>
+                    </div>
+                    {detectie?.isZwemmen && (
+                        <button onClick={() => setPerTwee(p => !p)}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors ${
+                                perTwee ? 'border-blue-400 bg-blue-50 text-blue-800' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                            }`}>
+                            <div className="text-left">
+                                <p className="font-medium text-sm">Tellen per 2 banen (per lengte)</p>
+                                <p className="text-xs opacity-70 mt-0.5">
+                                    {perTwee ? 'Elke klik = 2 banen — leerkracht staat aan 1 kant' : 'Elke klik = 1 baan — tellen bij elke passing'}
+                                </p>
+                            </div>
+                            <div className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${perTwee ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                                <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${perTwee ? 'translate-x-4' : 'translate-x-0'}`} />
+                            </div>
+                        </button>
+                    )}
                 </div>
             )}
             <div className="bg-slate-900 rounded-2xl p-5 text-center">
@@ -235,26 +263,34 @@ function EigenChronoTab({ leerlingen, detectie, groepId, testId, datum, profile,
             {actief.length > 0 && (
                 <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                     <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-                        <p className="text-sm font-semibold text-gray-600">🏃 Actief ({actief.length})</p>
+                        <p className="text-sm font-semibold text-gray-600">
+                            {detectie?.icon || '🏃'} Actief ({actief.length})
+                            {perTwee && <span className="ml-2 text-xs font-normal text-blue-600">• elke klik = 2 banen</span>}
+                        </p>
                     </div>
                     <div className="divide-y divide-gray-100">
-                        {actief.map(l => {
+                        {actief.map((l, idx) => {
                             const rondeNr  = l.rondetijden.length + 1;
                             const isFinish = rondeNr === rondes;
+                            const nummer   = (chronoLeerlingen?.indexOf(l) ?? idx) + 1;
                             return (
-                                <div key={l.id} className="flex items-center px-4 py-3 gap-3">
-                                    <div className="flex-1">
-                                        <p className="font-medium text-gray-900">{l.naam}</p>
+                                <div key={l.id} className="flex items-center px-3 py-3 gap-3">
+                                    {/* Nummer badge */}
+                                    <span className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold text-sm flex items-center justify-center flex-shrink-0">
+                                        {nummer}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-gray-900 truncate">{l.naam}</p>
                                         {detectie?.modus === 'chrono_rondes' && (
                                             <p className="text-xs text-gray-400">
-                                                {eenheidLabel.charAt(0).toUpperCase() + eenheidLabel.slice(1)} {rondeNr}/{rondes}
+                                                {eenheidSingulier} {rondeNr}/{rondes}
                                             </p>
                                         )}
                                     </div>
                                     <button onClick={() => registreerRonde(l.id)} disabled={!gestart || gestopt}
-                                        className={`px-4 py-2 rounded-xl font-semibold text-sm active:scale-95 disabled:opacity-30 ${isFinish ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-teal-100 hover:bg-teal-200 text-teal-800'}`}>
+                                        className={`flex-shrink-0 px-4 py-2 rounded-xl font-semibold text-sm active:scale-95 disabled:opacity-30 ${isFinish ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-teal-100 hover:bg-teal-200 text-teal-800'}`}>
                                         {isFinish ? '🏁 Finish' : detectie?.modus === 'chrono_rondes'
-                                            ? `${eenheidLabel.charAt(0).toUpperCase() + eenheidLabel.slice(1, -1)} ${rondeNr} ✓`
+                                            ? `${eenheidSingulier} ${rondeNr} ✓`
                                             : '🏁 Finish'}
                                     </button>
                                 </div>
@@ -804,15 +840,17 @@ function EigenToolTab({ leerlingen, test, groepId, testId, datum, profile, onSco
 // FIX #1: Ondersteunt meerdere waarnemers — toont alle ongekoppelde inzendingen
 // Leerkracht kiest eerst welke waarnemer hij/zij wil verwerken via een selector
 function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgeslagen }) {
-    const [inzendingen, setInzendingen]     = useState([]);     // alle ongekoppelde inzendingen
-    const [actieveIndex, setActieveIndex]   = useState(0);      // welke inzending nu verwerkt wordt
-    const [koppelingen, setKoppelingen]     = useState({});     // naam → leerlingId
-    const [loading, setLoading]             = useState(false);
-    const [saving, setSaving]               = useState(false);
-    const [verwerktIds, setVerwerktIds]     = useState([]);     // al verwerkte inzending-ids
+    const [inzendingen, setInzendingen]  = useState([]);
+    const [actieveIndex, setActieveIndex] = useState(0);
+    const [koppelingen, setKoppelingen]  = useState({});
+    const [loading, setLoading]          = useState(false);
+    const [fout, setFout]                = useState(false);   // stille fout — geen toast
+    const [saving, setSaving]            = useState(false);
+    const [verwerktIds, setVerwerktIds]  = useState([]);
 
     const fetchInzendingen = useCallback(async () => {
         setLoading(true);
+        setFout(false);
         try {
             const res  = await fetch('/api/tests', {
                 method: 'POST',
@@ -826,8 +864,10 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             setInzendingen(data.inzendingen || []);
-        } catch (e) {
-            toast.error('Fout bij laden: ' + e.message);
+        } catch {
+            // Stille fout — geen toast, gewoon lege staat tonen
+            setFout(true);
+            setInzendingen([]);
         } finally {
             setLoading(false);
         }
@@ -932,12 +972,13 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
                 <p className="text-4xl mb-3">🔭</p>
                 <p className="font-medium text-gray-700 mb-1">Geen ingediende metingen</p>
                 <p className="text-sm">
-                    Zodra een leerling-Waarnemer resultaten indient via SportLab, verschijnen ze hier.
+                    {fout
+                        ? 'De Waarnemer Tool is enkel beschikbaar wanneer een leerling-Waarnemer resultaten heeft ingediend via SportLab.'
+                        : 'Zodra een leerling-Waarnemer resultaten indient via SportLab, verschijnen ze hier.'
+                    }
                 </p>
-                <button
-                    onClick={fetchInzendingen}
-                    className="mt-4 flex items-center gap-1.5 text-sm text-purple-600 hover:text-purple-800 mx-auto"
-                >
+                <button onClick={fetchInzendingen}
+                    className="mt-4 flex items-center gap-1.5 text-sm text-purple-600 hover:text-purple-800 mx-auto">
                     <ArrowPathIcon className="w-4 h-4" /> Vernieuwen
                 </button>
             </div>
