@@ -18,6 +18,7 @@ import {
     ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
+import BeeptestTool from './BeeptestTool';
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function formatTijd(ms) {
@@ -67,7 +68,11 @@ export function detectWaarnemerModus(test) {
         return { modus: 'niet_geschikt', geschikt: false, icon: '⛔',
             reden: 'Krachttesten met herhalingen vereisen visuele controle van elke herhaling.' };
     }
-
+    // 🔔 Beeptest / piepjestest / léger test
+    const BEEP_TERMEN = ['beep', 'bleep', 'piepjes', 'piep', 'léger', 'leger', 'shuttle run', 'msft', 'pacer'];
+    if (BEEP_TERMEN.some(t => naam.includes(t))) {
+        return { modus: 'beeptest', geschikt: true, icon: '🔔', label: 'Beeptest — Léger protocol' };
+    }
     // ⏱️ Cooper test — afteltimer 12 min (vóór generieke duurloop-detectie)
     if (naam.includes('cooper')) {
         return { modus: 'cooper', geschikt: true, icon: '⏱️', label: 'Cooper — afteltimer 12 min' };
@@ -1067,7 +1072,9 @@ function EigenToolTab({ leerlingen, test, groepId, testId, datum, profile, onSco
         <EigenCooperTab leerlingen={leerlingen}
             groepId={groepId} testId={testId} datum={datum} profile={profile} onScoresOpgeslagen={onScoresOpgeslagen} />
     );
-
+    if (detectie.modus === 'beeptest') return (
+     <BeeptestTool />
+    );
     if (detectie.modus === 'hoogspring') return (
         <EigenHoogspringTab leerlingen={leerlingen}
             groepId={groepId} testId={testId} datum={datum} profile={profile} onScoresOpgeslagen={onScoresOpgeslagen} />
