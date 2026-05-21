@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import BeeptestTool from './BeeptestTool';
 import {
     PlayIcon,
     StopIcon,
@@ -18,7 +19,6 @@ import {
     ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
-import BeeptestTool from './BeeptestTool';
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function formatTijd(ms) {
@@ -68,14 +68,16 @@ export function detectWaarnemerModus(test) {
         return { modus: 'niet_geschikt', geschikt: false, icon: '⛔',
             reden: 'Krachttesten met herhalingen vereisen visuele controle van elke herhaling.' };
     }
-    // 🔔 Beeptest / piepjestest / léger test
+
+    // ⏱️ Cooper test
+    if (naam.includes('cooper')) {
+        return { modus: 'cooper', geschikt: true, icon: '⏱️', label: 'Cooper — afteltimer 12 min' };
+    }
+
+    // 🔔 Beeptest / piepjestest / léger
     const BEEP_TERMEN = ['beep', 'bleep', 'piepjes', 'piep', 'léger', 'leger', 'shuttle run', 'msft', 'pacer'];
     if (BEEP_TERMEN.some(t => naam.includes(t))) {
         return { modus: 'beeptest', geschikt: true, icon: '🔔', label: 'Beeptest — Léger protocol' };
-    }
-    // ⏱️ Cooper test — afteltimer 12 min (vóór generieke duurloop-detectie)
-    if (naam.includes('cooper')) {
-        return { modus: 'cooper', geschikt: true, icon: '⏱️', label: 'Cooper — afteltimer 12 min' };
     }
 
     // ⬆️ Hoogspringen
@@ -1068,13 +1070,20 @@ function EigenToolTab({ leerlingen, test, groepId, testId, datum, profile, onSco
 
     if (!detectie.geschikt) return <NietGeschiktView detectie={detectie} />;
 
+    if (detectie.modus === 'beeptest') return (
+        <BeeptestTool
+            leerlingen={leerlingen}
+            groepId={groepId} testId={testId} datum={datum}
+            profile={profile}
+            onScoresOpgeslagen={onScoresOpgeslagen}
+        />
+    );
+
     if (detectie.modus === 'cooper') return (
         <EigenCooperTab leerlingen={leerlingen}
             groepId={groepId} testId={testId} datum={datum} profile={profile} onScoresOpgeslagen={onScoresOpgeslagen} />
     );
-    if (detectie.modus === 'beeptest') return (
-     <BeeptestTool />
-    );
+
     if (detectie.modus === 'hoogspring') return (
         <EigenHoogspringTab leerlingen={leerlingen}
             groepId={groepId} testId={testId} datum={datum} profile={profile} onScoresOpgeslagen={onScoresOpgeslagen} />

@@ -78,11 +78,37 @@ function scheduleBeep(ctx, t, isLevelStart) {
 }
 
 // ─── HOOFD COMPONENT ──────────────────────────────────────────────────────────
-export default function BeeptestTool() {
-    const [fase, setFase]         = useState('setup'); // setup | actief | resultaten
-    const [invoer, setInvoer]     = useState('');
-    const [studenten, setStudenten] = useState([]);
-    const [curIdx, setCurIdx]     = useState(0);
+// leerlingen prop: aanwezig = leerkracht-modus (klas al bekend, geen handmatige invoer)
+// leerlingen null/undefined = leerling-waarnemer modus (handmatige invoer)
+export default function BeeptestTool({
+    leerlingen: leerlingenProp = null,
+    groepId, testId, datum, profile,
+    onScoresOpgeslagen,
+}) {
+    const heeftKlas = leerlingenProp !== null && leerlingenProp !== undefined;
+
+    // In leerkracht-modus: zet leerlingen direct klaar, sla setupfase over
+    const initStudenten = () => {
+        if (!heeftKlas) return [];
+        return leerlingenProp
+            .filter(l => !l.score) // enkel leerlingen zonder bestaande score
+            .map((l, i) => ({
+                id:      i + 1,
+                naam:    l.naam,
+                klas:    l.klas    || null,
+                geslacht: l.geslacht || null,
+                dbId:    l.id,      // origineel Firestore ID voor opslaan
+                status:  'actief',
+                warnings: 0,
+                level:   null, shuttle: null, dist: null,
+            }));
+    };
+
+    const [fase, setFase]           = useState(heeftKlas ? 'klaar' : 'setup'); // setup | klaar | actief | resultaten
+    const [invoer, setInvoer]       = useState('');
+    const [studenten, setStudenten] = useState(initStudenten);
+    const [curIdx, setCurIdx]       = useState(0);
+    const [saving, setSaving]       = useState(false);
 
     const ctxRef          = useRef(null);
     const audioStartRef   = useRef(0);
@@ -190,6 +216,38 @@ export default function BeeptestTool() {
         setFase('resultaten');
     }, [cleanup]);
 
+    // Scores opslaan naar testafname (enkel in leerkracht-modus)
+    const slaScoresOp = useCallback(async () => {
+        if (!heeftKlas || !profile) return;
+        const metScore = studenten.filter(s => s.dist !== null && s.dbId);
+        if (!metScore.length) { return; }
+        setSaving(true);
+        const t = typeof toast !== 'undefined' ? toast.loading(`${metScore.length} score(s) opslaan...`) : null;
+        let ok = 0;
+        for (const s of metScore) {
+            try {
+                await fetch('/api/tests', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'save_score',
+                        schoolId: profile.school_id,
+                        groepId, testId, datum,
+                        leerlingId: s.dbId,
+                        klas:       s.klas     || null,
+                        geslacht:   s.geslacht || null,
+                        score:      s.dist,    // afstand in meters als score
+                    }),
+                });
+                ok++;
+            } catch { /* doorgaan */ }
+        }
+        if (t) toast.dismiss(t);
+        if (typeof toast !== 'undefined') toast.success(`${ok} score(s) opgeslagen!`);
+        setSaving(false);
+        if (onScoresOpgeslagen) onScoresOpgeslagen();
+    }, [heeftKlas, profile, studenten, groepId, testId, datum, onScoresOpgeslagen]);
+
     // ── Student management ────────────────────────────────────────────────────
     const voegToe = () => {
         const naam = invoer.trim();
@@ -226,7 +284,40 @@ export default function BeeptestTool() {
         }
     }, [studenten, fase, stopTest]);
 
-    // ─── RENDER: SETUP ────────────────────────────────────────────────────────
+    // ─── RENDER: KLAAR (leerkracht-modus — klas al geladen) ─────────────────
+    if (fase === 'klaar') return (
+        <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2">
+                <span className="text-xl">🔔</span>
+                <p className="text-sm font-medium text-amber-800">
+                    Beeptest · Léger-protocol · 21 niveaus · max 4940m
+                </p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-700">{studenten.length} deelnemers geladen</p>
+                </div>
+                <div className="divide-y divide-gray-100 max-h-60 overflow-y-auto">
+                    {studenten.map(s => (
+                        <div key={s.id} className="flex items-center gap-3 px-4 py-2.5">
+                            <span className="w-7 h-7 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0">{s.id}</span>
+                            <span className="flex-1 font-medium text-gray-900 text-sm">{s.naam}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
+                <p className="font-semibold mb-0.5">Regels</p>
+                <p>1ste mislukking = ⚠️. 2de mislukking = ❌ uitgevallen. Score = afstand in meter.</p>
+            </div>
+            <button onClick={startTest}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-black py-4 rounded-2xl text-lg transition-colors">
+                🔔 Start Beeptest
+            </button>
+        </div>
+    );
+
+    // ─── RENDER: SETUP (leerling-waarnemer modus — handmatige invoer) ─────────
     if (fase === 'setup') return (
         <div className="min-h-screen bg-slate-50 p-5 max-w-md mx-auto">
             <div className="mb-8 pt-2">
@@ -234,47 +325,30 @@ export default function BeeptestTool() {
                 <h1 className="text-3xl font-black text-slate-900">Beeptest</h1>
                 <p className="text-slate-500 text-sm mt-1">20m shuttle run · Léger-protocol · 21 niveaus · max 4940m</p>
             </div>
-
-            {/* Deelnemers */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 mb-4">
                 <h2 className="font-bold text-slate-800 mb-3 text-base">Deelnemers toevoegen</h2>
                 <div className="flex gap-2 mb-3">
-                    <input
-                        value={invoer}
-                        onChange={e => setInvoer(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && voegToe()}
-                        placeholder="Naam leerling..."
-                        className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400"
-                    />
+                    <input value={invoer} onChange={e => setInvoer(e.target.value)} onKeyDown={e => e.key === 'Enter' && voegToe()}
+                        placeholder="Naam leerling..." className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400" />
                     <button onClick={voegToe} className="w-12 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-xl transition-colors">+</button>
                 </div>
-
-                {studenten.length === 0 && (
-                    <p className="text-center text-slate-400 text-sm py-2">Nog geen leerlingen toegevoegd</p>
-                )}
-
+                {studenten.length === 0 && <p className="text-center text-slate-400 text-sm py-2">Nog geen leerlingen toegevoegd</p>}
                 <div className="space-y-1.5">
                     {studenten.map(s => (
                         <div key={s.id} className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-2.5">
                             <span className="w-7 h-7 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0">{s.id}</span>
                             <span className="flex-1 font-medium text-slate-800 text-sm">{s.naam}</span>
-                            <button onClick={() => setStudenten(p => p.filter(x => x.id !== s.id))} className="text-slate-400 hover:text-red-500 transition-colors text-sm px-1">✕</button>
+                            <button onClick={() => setStudenten(p => p.filter(x => x.id !== s.id))} className="text-slate-400 hover:text-red-500 text-sm px-1">✕</button>
                         </div>
                     ))}
                 </div>
             </div>
-
-            {/* Regels */}
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4 text-sm text-blue-800">
                 <p className="font-semibold mb-1">Regels</p>
-                <p className="leading-relaxed">Leerling moet de lijn bereiken vóór de piep. 1ste mislukking = ⚠️ waarschuwing. 2de mislukking = ❌ uitgevallen. Score = laatste niveau.shuttle voor uitvallen.</p>
+                <p className="leading-relaxed">1ste mislukking = ⚠️ waarschuwing. 2de mislukking = ❌ uitgevallen. Score = laatste niveau.shuttle voor uitvallen.</p>
             </div>
-
-            <button
-                onClick={startTest}
-                disabled={!studenten.length}
-                className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black py-5 rounded-2xl text-xl transition-colors"
-            >
+            <button onClick={startTest} disabled={!studenten.length}
+                className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black py-5 rounded-2xl text-xl transition-colors">
                 ▶ Start Beeptest
             </button>
         </div>
@@ -456,11 +530,18 @@ export default function BeeptestTool() {
             </details>
 
             <button
-                onClick={() => { cleanup(); setFase('setup'); setStudenten([]); setCurIdx(0); }}
+                onClick={() => { cleanup(); setFase(heeftKlas ? 'klaar' : 'setup'); setStudenten(heeftKlas ? initStudenten() : []); setCurIdx(0); }}
                 className="w-full border-2 border-purple-600 text-purple-600 hover:bg-purple-50 font-bold py-4 rounded-2xl transition-colors"
             >
                 ↩ Nieuwe test
             </button>
+
+            {heeftKlas && studenten.some(s => s.dist !== null) && (
+                <button onClick={slaScoresOp} disabled={saving}
+                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold py-4 rounded-2xl transition-colors flex items-center justify-center gap-2">
+                    {saving ? 'Opslaan...' : '✅ Scores opslaan in testafname'}
+                </button>
+            )}
         </div>
     );
 }
