@@ -425,13 +425,6 @@ export default function BeeptestTool({
             <div style={{ position: 'relative', width: '200px', height: '200px' }}>
                 <svg width="200" height="200" viewBox="0 0 200 200">
                     <circle cx="100" cy="100" r="80" fill="none" stroke="#1e293b" strokeWidth="6" />
-                    <circle cx="100" cy="100" r="80" fill="none" stroke="#7c3aed" strokeWidth="6"
-                        strokeDasharray={2 * Math.PI * 80}
-                        strokeDashoffset={2 * Math.PI * 80 * (countdown / 5)}
-                        strokeLinecap="round"
-                        transform="rotate(-90, 100, 100)"
-                        style={{ transition: 'stroke-dashoffset 0.9s linear' }}
-                    />
                 </svg>
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <span style={{ fontSize: countdown === 0 ? '48px' : '96px', fontWeight: 900, color: countdown === 0 ? '#7c3aed' : 'white', transition: 'all 0.2s', lineHeight: 1 }}>
