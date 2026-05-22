@@ -67,12 +67,11 @@ function playTone(ctx, t, freq, dur, vol = 0.5) {
 
 function scheduleBeep(ctx, t, isLevelStart) {
     if (isLevelStart) {
-        // Drievoudige piep bij nieuw niveau — één octaaf hoger (464 Hz)
-        playTone(ctx, t,        464, 0.30, 0.6);
-        playTone(ctx, t + 0.40, 464, 0.30, 0.6);
-        playTone(ctx, t + 0.80, 464, 0.30, 0.6);
+        // Dubbele piep bij nieuw niveau — alles 232 Hz
+        playTone(ctx, t,        232, 0.30, 0.55);
+        playTone(ctx, t + 0.45, 232, 0.30, 0.55);
     } else {
-        // Shuttle piep — 232 Hz, 300ms
+        // Enkele piep per shuttle — 232 Hz
         playTone(ctx, t, 232, 0.30, 0.55);
     }
 }
@@ -108,6 +107,7 @@ export default function BeeptestTool({
     const [invoer, setInvoer]       = useState('');
     const [studenten, setStudenten] = useState(initStudenten);
     const [curIdx, setCurIdx]       = useState(0);
+    const [countdown, setCountdown] = useState(5);
     const [saving, setSaving]       = useState(false);
 
     const ctxRef          = useRef(null);
@@ -164,9 +164,17 @@ export default function BeeptestTool({
         ctxRef.current    = ctx;
         nextEvRef.current = 0;
 
-        const DELAY = 0.3; // 300ms aanlooptijd
-        audioStartRef.current = ctx.currentTime + DELAY;
-        realStartRef.current  = Date.now() + DELAY * 1000;
+        const COUNTDOWN = 5;   // seconden aftellen
+        const DELAY     = 0.15; // kleine buffer
+
+        // Countdown beeps: 5→4→3→2→1, één piep per seconde (kort, 232Hz)
+        for (let i = 0; i < COUNTDOWN; i++) {
+            playTone(ctx, ctx.currentTime + DELAY + i, 232, 0.15, 0.4);
+        }
+
+        // Test start NADAT countdown klaar is (dubbele beep bij niveau 1 = SCHEDULE t=0)
+        audioStartRef.current = ctx.currentTime + DELAY + COUNTDOWN;
+        realStartRef.current  = Date.now() + (DELAY + COUNTDOWN) * 1000;
 
         // Speech synthesis timeouts voor niveau-aankondigingen
         const timers = SCHEDULE
@@ -180,7 +188,17 @@ export default function BeeptestTool({
                     u.volume = 1;
                     window.speechSynthesis?.speak(u);
                 } catch { /* ignore */ }
-            }, DELAY * 1000 + e.time * 1000 + 1200)); // 1200ms = ná de triple beep (3×300ms + 2×400ms gap)
+            }, DELAY * 1000 + COUNTDOWN * 1000 + e.time * 1000 + 750)); // 750ms = ná de dubbele beep
+
+        // Visuele countdown: update cijfer elke seconde
+        setCountdown(COUNTDOWN);
+        for (let i = 1; i <= COUNTDOWN; i++) {
+            setTimeout(() => setCountdown(COUNTDOWN - i), i * 1000 - 50);
+        }
+
+        // Wissel naar actief scherm als countdown klaar
+        const activeTimer = setTimeout(() => setFase('actief'), (COUNTDOWN) * 1000 + 50);
+        speechTimersRef.current.push(activeTimer);
         speechTimersRef.current = timers;
 
         // Audio scheduler
@@ -208,7 +226,7 @@ export default function BeeptestTool({
         }, 100);
 
         setCurIdx(0);
-        setFase('actief');
+        setFase('countdown');
     }, [studenten, cleanup, runScheduler]);
 
     const stopTest = useCallback(() => {
@@ -354,35 +372,112 @@ export default function BeeptestTool({
         </div>
     );
 
-    // ─── RENDER: ACTIEF ───────────────────────────────────────────────────────
-    const actief     = studenten.filter(s => s.status !== 'uitgevallen');
-    const uitgevallen = studenten.filter(s => s.status === 'uitgevallen').sort((a, b) => (b.dist || 0) - (a.dist || 0));
-
-    if (fase === 'actief') return (
-        <div style={{ minHeight: '100vh', background: '#0f172a', padding: '16px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-
-            {/* ── Niveau display ─────────────────────────────────────────── */}
-            <div style={{ textAlign: 'center', paddingTop: '20px', paddingBottom: '16px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '3px', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>
-                    Niveau
-                </div>
-                <div style={{ fontSize: '100px', fontWeight: 900, color: 'white', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-                    {cur.level}
-                </div>
-                <div style={{ fontSize: '20px', color: '#94a3b8', fontFamily: 'ui-monospace, monospace', marginBottom: '14px' }}>
-                    shuttle {cur.shuttle} / {shuttlesInLevel}
-                    <span style={{ fontSize: '14px', marginLeft: '12px', color: '#475569' }}>
-                        {getSpeed(cur.level)} km/h
+    // ─── RENDER: COUNTDOWN ───────────────────────────────────────────────────
+    if (fase === 'countdown') return (
+        <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '3px', color: '#475569', textTransform: 'uppercase', marginBottom: '24px' }}>
+                Klaar om te starten
+            </p>
+            <div style={{ position: 'relative', width: '200px', height: '200px' }}>
+                <svg width="200" height="200" viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="80" fill="none" stroke="#1e293b" strokeWidth="6" />
+                    <circle cx="100" cy="100" r="80" fill="none" stroke="#7c3aed" strokeWidth="6"
+                        strokeDasharray={2 * Math.PI * 80}
+                        strokeDashoffset={2 * Math.PI * 80 * (countdown / 5)}
+                        strokeLinecap="round"
+                        transform="rotate(-90, 100, 100)"
+                        style={{ transition: 'stroke-dashoffset 0.9s linear' }}
+                    />
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: countdown === 0 ? '48px' : '96px', fontWeight: 900, color: countdown === 0 ? '#7c3aed' : 'white', transition: 'all 0.2s', lineHeight: 1 }}>
+                        {countdown === 0 ? '▶' : countdown}
                     </span>
                 </div>
+            </div>
+            <p style={{ fontSize: '14px', color: '#334155', marginTop: '24px' }}>
+                {studenten.length} deelnemers
+            </p>
+        </div>
+    );
 
-                {/* Progress bar */}
-                <div style={{ height: '6px', background: '#1e293b', borderRadius: '3px', margin: '0 32px 8px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', background: '#7c3aed', borderRadius: '3px', width: `${Math.min(progress, 1) * 100}%`, transition: 'width 0.2s ease' }} />
-                </div>
+    // ─── RENDER: ACTIEF ───────────────────────────────────────────────────────
+    const actief      = studenten.filter(s => s.status !== 'uitgevallen');
+    const uitgevallen = studenten.filter(s => s.status === 'uitgevallen').sort((a, b) => (b.dist || 0) - (a.dist || 0));
 
-                <div style={{ fontSize: '13px', color: '#475569' }}>
-                    {getDistance(cur.level, cur.shuttle)} m afgelegd
+    // SVG cirkel constanten
+    const SVG   = 260;
+    const CX    = SVG / 2;  // 130
+    const CY    = SVG / 2;  // 130
+    const R_IN  = 95;       // binnenste ring: shuttle-voortgang in huidig niveau
+    const R_OUT = 117;      // buitenste ring: niveau-voortgang over volledige test
+    const CIRC_IN  = 2 * Math.PI * R_IN;
+    const CIRC_OUT = 2 * Math.PI * R_OUT;
+    const innerProgress = cur.shuttle / shuttlesInLevel;                              // 0→1 per niveau
+    const outerProgress = (cur.level - 1 + innerProgress) / 21;                      // 0→1 over hele test
+
+    if (fase === 'actief') return (
+        <div style={{ minHeight: '100vh', background: '#0f172a', padding: '12px 16px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+
+            {/* ── SVG dubbele cirkel + niveau ────────────────────────────── */}
+            <div style={{ textAlign: 'center', paddingTop: '12px', paddingBottom: '8px' }}>
+                <svg width={SVG} height={SVG} viewBox={`0 0 ${SVG} ${SVG}`} style={{ display: 'block', margin: '0 auto' }}>
+                    {/* Achtergrond ringen */}
+                    <circle cx={CX} cy={CY} r={R_IN}  fill="none" stroke="#1e293b" strokeWidth="8" />
+                    <circle cx={CX} cy={CY} r={R_OUT} fill="none" stroke="#1e293b" strokeWidth="5" />
+
+                    {/* Binnenste ring: shuttle-voortgang in huidig niveau (paars) */}
+                    <circle cx={CX} cy={CY} r={R_IN}
+                        fill="none" stroke="#7c3aed" strokeWidth="8"
+                        strokeDasharray={CIRC_IN}
+                        strokeDashoffset={CIRC_IN * (1 - innerProgress)}
+                        strokeLinecap="round"
+                        transform={`rotate(-90, ${CX}, ${CY})`}
+                        style={{ transition: 'stroke-dashoffset 0.2s ease' }}
+                    />
+
+                    {/* Buitenste ring: niveau-voortgang over volledige test (blauw) */}
+                    <circle cx={CX} cy={CY} r={R_OUT}
+                        fill="none" stroke="#0ea5e9" strokeWidth="5"
+                        strokeDasharray={CIRC_OUT}
+                        strokeDashoffset={CIRC_OUT * (1 - outerProgress)}
+                        strokeLinecap="round"
+                        transform={`rotate(-90, ${CX}, ${CY})`}
+                        style={{ transition: 'stroke-dashoffset 0.2s ease' }}
+                    />
+
+                    {/* Niveau cijfer */}
+                    <text x={CX} y={CY - 6} textAnchor="middle"
+                        fill="white" fontSize="72" fontWeight="900"
+                        style={{ fontFamily: 'system-ui, -apple-system, sans-serif', fontVariantNumeric: 'tabular-nums' }}>
+                        {cur.level}
+                    </text>
+
+                    {/* Shuttle info */}
+                    <text x={CX} y={CY + 22} textAnchor="middle"
+                        fill="#475569" fontSize="15"
+                        style={{ fontFamily: 'ui-monospace, monospace' }}>
+                        {cur.shuttle} / {shuttlesInLevel}
+                    </text>
+
+                    {/* Snelheid */}
+                    <text x={CX} y={CY + 44} textAnchor="middle"
+                        fill="#334155" fontSize="12"
+                        style={{ fontFamily: 'system-ui' }}>
+                        {getSpeed(cur.level)} km/h · {getDistance(cur.level, cur.shuttle)} m
+                    </text>
+                </svg>
+
+                {/* Legenda cirkels */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#7c3aed' }} />
+                        <span style={{ fontSize: '11px', color: '#475569' }}>shuttles niveau</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#0ea5e9' }} />
+                        <span style={{ fontSize: '11px', color: '#475569' }}>voortgang test</span>
+                    </div>
                 </div>
             </div>
 
