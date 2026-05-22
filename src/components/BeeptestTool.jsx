@@ -110,6 +110,13 @@ export default function BeeptestTool({
     const [countdown, setCountdown] = useState(5);
     const [saving, setSaving]       = useState(false);
 
+    // ── Cirkel animatie state ─────────────────────────────────────────────────
+    // Wordt aangestuurd via useEffect — reset naar leeg, daarna vloeiend vol
+    const [purpleOffset, setPurpleOffset] = useState(2 * Math.PI * 95);
+    const [purpleDur,    setPurpleDur]    = useState('0s');
+    const [greenOffset,  setGreenOffset]  = useState(2 * Math.PI * 117);
+    const [greenDur,     setGreenDur]     = useState('0s');
+
     const ctxRef          = useRef(null);
     const audioStartRef   = useRef(0);
     const realStartRef    = useRef(0);
@@ -148,6 +155,39 @@ export default function BeeptestTool({
 
     useEffect(() => () => cleanup(), [cleanup]);
 
+    // ── Paarse cirkel: reset + vloeiend vol per shuttle ───────────────────────
+    // Elke keer curIdx verandert (= nieuwe shuttle beep) → herstart animatie
+    useEffect(() => {
+        if (fase !== 'actief') return;
+        const tps   = getTps(cur.level);
+        const circ  = 2 * Math.PI * 95;
+        // 1. Reset naar leeg zonder transitie
+        setPurpleOffset(circ);
+        setPurpleDur('0s');
+        // 2. Twee frames wachten zodat browser de reset rendert, dan animeren
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            setPurpleOffset(0);
+            setPurpleDur(`${tps}s`);
+        }));
+    }, [curIdx, fase]); // eslint-disable-line
+
+    // ── Groene cirkel: reset + vloeiend vol per niveau ────────────────────────
+    useEffect(() => {
+        if (fase !== 'actief') return;
+        const level   = cur.level;
+        const tps     = getTps(level);
+        const nShuttles = SHUTTLES_PER_LEVEL[level - 1];
+        const levelDur  = tps * nShuttles;
+        const circ      = 2 * Math.PI * 117;
+        setPurpleOffset(circ); // ook paars resetten bij nieuw niveau
+        setGreenOffset(circ);
+        setGreenDur('0s');
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            setGreenOffset(0);
+            setGreenDur(`${levelDur}s`);
+        }));
+    }, [cur.level, fase]); // eslint-disable-line
+
     // ── Test starten ─────────────────────────────────────────────────────────
     const startTest = useCallback(() => {
         if (!studenten.length) return;
@@ -164,12 +204,25 @@ export default function BeeptestTool({
         ctxRef.current    = ctx;
         nextEvRef.current = 0;
 
-        const COUNTDOWN = 5;   // seconden aftellen
-        const DELAY     = 0.15; // kleine buffer
+        const COUNTDOWN = 5;
+        const DELAY     = 0.15;
 
-        // Countdown beeps: 5→4→3→2→1, één piep per seconde (kort, 232Hz)
+        // Aftelling 5→1 via speech synthesis — zware mannenstem (lage pitch)
+        const voices = window.speechSynthesis?.getVoices() || [];
+        const dutchVoice = voices.find(v => v.lang.startsWith('nl')) || voices[0] || null;
         for (let i = 0; i < COUNTDOWN; i++) {
-            playTone(ctx, ctx.currentTime + DELAY + i, 232, 0.15, 0.4);
+            setTimeout(() => {
+                try {
+                    const u = new SpeechSynthesisUtterance(String(COUNTDOWN - i));
+                    u.lang   = 'nl-NL';
+                    u.pitch  = 0.1;   // zo laag mogelijk = zware mannenstem
+                    u.rate   = 0.85;
+                    u.volume = 1;
+                    if (dutchVoice) u.voice = dutchVoice;
+                    window.speechSynthesis?.cancel();
+                    window.speechSynthesis?.speak(u);
+                } catch { /* ignore */ }
+            }, i * 1000);
         }
 
         // Test start NADAT countdown klaar is (dubbele beep bij niveau 1 = SCHEDULE t=0)
@@ -406,15 +459,13 @@ export default function BeeptestTool({
     const uitgevallen = studenten.filter(s => s.status === 'uitgevallen').sort((a, b) => (b.dist || 0) - (a.dist || 0));
 
     // SVG cirkel constanten
-    const SVG   = 260;
-    const CX    = SVG / 2;  // 130
-    const CY    = SVG / 2;  // 130
-    const R_IN  = 95;       // binnenste ring: shuttle-voortgang in huidig niveau
-    const R_OUT = 117;      // buitenste ring: niveau-voortgang over volledige test
+    const SVG      = 260;
+    const CX       = SVG / 2;
+    const CY       = SVG / 2;
+    const R_IN     = 95;
+    const R_OUT    = 117;
     const CIRC_IN  = 2 * Math.PI * R_IN;
     const CIRC_OUT = 2 * Math.PI * R_OUT;
-    const innerProgress = cur.shuttle / shuttlesInLevel;                              // 0→1 per niveau
-    const outerProgress = (cur.level - 1 + innerProgress) / 21;                      // 0→1 over hele test
 
     if (fase === 'actief') return (
         <div style={{ minHeight: '100vh', background: '#0f172a', padding: '12px 16px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -426,24 +477,24 @@ export default function BeeptestTool({
                     <circle cx={CX} cy={CY} r={R_IN}  fill="none" stroke="#1e293b" strokeWidth="8" />
                     <circle cx={CX} cy={CY} r={R_OUT} fill="none" stroke="#1e293b" strokeWidth="5" />
 
-                    {/* Binnenste ring: shuttle-voortgang in huidig niveau (paars) */}
+                    {/* Groene ring (buiten): vloeiend vol per niveau */}
+                    <circle cx={CX} cy={CY} r={R_OUT}
+                        fill="none" stroke="#22c55e" strokeWidth="5"
+                        strokeDasharray={CIRC_OUT}
+                        strokeDashoffset={greenOffset}
+                        strokeLinecap="round"
+                        transform={`rotate(-90, ${CX}, ${CY})`}
+                        style={{ transition: `stroke-dashoffset ${greenDur} linear` }}
+                    />
+
+                    {/* Paarse ring (binnen): vloeiend vol per shuttle */}
                     <circle cx={CX} cy={CY} r={R_IN}
                         fill="none" stroke="#7c3aed" strokeWidth="8"
                         strokeDasharray={CIRC_IN}
-                        strokeDashoffset={CIRC_IN * (1 - innerProgress)}
+                        strokeDashoffset={purpleOffset}
                         strokeLinecap="round"
                         transform={`rotate(-90, ${CX}, ${CY})`}
-                        style={{ transition: 'stroke-dashoffset 0.2s ease' }}
-                    />
-
-                    {/* Buitenste ring: niveau-voortgang over volledige test (blauw) */}
-                    <circle cx={CX} cy={CY} r={R_OUT}
-                        fill="none" stroke="#0ea5e9" strokeWidth="5"
-                        strokeDasharray={CIRC_OUT}
-                        strokeDashoffset={CIRC_OUT * (1 - outerProgress)}
-                        strokeLinecap="round"
-                        transform={`rotate(-90, ${CX}, ${CY})`}
-                        style={{ transition: 'stroke-dashoffset 0.2s ease' }}
+                        style={{ transition: `stroke-dashoffset ${purpleDur} linear` }}
                     />
 
                     {/* Niveau cijfer */}
@@ -460,7 +511,7 @@ export default function BeeptestTool({
                         {cur.shuttle} / {shuttlesInLevel}
                     </text>
 
-                    {/* Snelheid */}
+                    {/* Snelheid + afstand */}
                     <text x={CX} y={CY + 44} textAnchor="middle"
                         fill="#334155" fontSize="12"
                         style={{ fontFamily: 'system-ui' }}>
@@ -468,15 +519,15 @@ export default function BeeptestTool({
                     </text>
                 </svg>
 
-                {/* Legenda cirkels */}
+                {/* Legenda */}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#7c3aed' }} />
-                        <span style={{ fontSize: '11px', color: '#475569' }}>shuttles niveau</span>
+                        <span style={{ fontSize: '11px', color: '#475569' }}>per shuttle</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#0ea5e9' }} />
-                        <span style={{ fontSize: '11px', color: '#475569' }}>voortgang test</span>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#22c55e' }} />
+                        <span style={{ fontSize: '11px', color: '#475569' }}>per niveau</span>
                     </div>
                 </div>
             </div>
