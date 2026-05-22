@@ -67,13 +67,13 @@ function playTone(ctx, t, freq, dur, vol = 0.5) {
 
 function scheduleBeep(ctx, t, isLevelStart) {
     if (isLevelStart) {
-        // Drievoudige piep bij nieuw niveau
-        playTone(ctx, t,        1046, 0.07, 0.6);
-        playTone(ctx, t + 0.11, 1046, 0.07, 0.6);
-        playTone(ctx, t + 0.22, 1046, 0.07, 0.6);
+        // Drievoudige hoge piep bij nieuw niveau
+        playTone(ctx, t,        1568, 0.15, 0.7);
+        playTone(ctx, t + 0.20, 1568, 0.15, 0.7);
+        playTone(ctx, t + 0.40, 1568, 0.15, 0.7);
     } else {
         // Enkelvoudige piep per shuttle
-        playTone(ctx, t, 880, 0.07, 0.5);
+        playTone(ctx, t, 1319, 0.15, 0.6);
     }
 }
 
