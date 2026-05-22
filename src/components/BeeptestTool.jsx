@@ -56,10 +56,10 @@ function playTone(ctx, t, freq, dur, vol = 0.5) {
         const gain = ctx.createGain();
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.type = 'sine';
+        osc.type = 'square';        // square wave = scherpe, kenmerkende piep
         osc.frequency.value = freq;
         gain.gain.setValueAtTime(vol, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        gain.gain.setValueAtTime(0.001, t + dur); // harde stop, geen uitzakken
         osc.start(t);
         osc.stop(t + dur + 0.02);
     } catch { /* ignore */ }
@@ -67,13 +67,13 @@ function playTone(ctx, t, freq, dur, vol = 0.5) {
 
 function scheduleBeep(ctx, t, isLevelStart) {
     if (isLevelStart) {
-        // Drievoudige hoge piep bij nieuw niveau
-        playTone(ctx, t,        1568, 1.30, 0.7);
-        playTone(ctx, t + 0.20, 1568, 1.30, 0.7);
-        
+        // Drievoudige piep bij nieuw niveau — één octaaf hoger (464 Hz)
+        playTone(ctx, t,        464, 0.30, 0.6);
+        playTone(ctx, t + 0.40, 464, 0.30, 0.6);
+        playTone(ctx, t + 0.80, 464, 0.30, 0.6);
     } else {
-        // Enkelvoudige piep per shuttle
-        playTone(ctx, t, 1319, 1.30, 0.6);
+        // Shuttle piep — 232 Hz, 300ms
+        playTone(ctx, t, 232, 0.30, 0.55);
     }
 }
 
@@ -180,7 +180,7 @@ export default function BeeptestTool({
                     u.volume = 1;
                     window.speechSynthesis?.speak(u);
                 } catch { /* ignore */ }
-            }, DELAY * 1000 + e.time * 1000 + 400));
+            }, DELAY * 1000 + e.time * 1000 + 1200)); // 1200ms = ná de triple beep (3×300ms + 2×400ms gap)
         speechTimersRef.current = timers;
 
         // Audio scheduler
