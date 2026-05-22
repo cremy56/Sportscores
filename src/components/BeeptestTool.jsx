@@ -76,7 +76,19 @@ function scheduleBeep(ctx, t, isLevelStart) {
     }
 }
 
-// ─── HOOFD COMPONENT ──────────────────────────────────────────────────────────
+// ─── SPEECH HELPER ────────────────────────────────────────────────────────────
+// Gedeeld voor aftelling én niveau-aankondigingen → altijd dezelfde stem
+function speakNL(text) {
+    try {
+        window.speechSynthesis?.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang   = 'nl-NL';
+        u.rate   = 1.1;
+        u.volume = 1;
+        // Geen expliciete pitch of voice → browser kiest standaard Nederlandse stem
+        window.speechSynthesis?.speak(u);
+    } catch { /* ignore */ }
+}
 // leerlingen prop: aanwezig = leerkracht-modus (klas al bekend, geen handmatige invoer)
 // leerlingen null/undefined = leerling-waarnemer modus (handmatige invoer)
 export default function BeeptestTool({
@@ -207,22 +219,9 @@ export default function BeeptestTool({
         const COUNTDOWN = 5;
         const DELAY     = 0.15;
 
-        // Aftelling 5→1 via speech synthesis — zware mannenstem (lage pitch)
-        const voices = window.speechSynthesis?.getVoices() || [];
-        const dutchVoice = voices.find(v => v.lang.startsWith('nl')) || voices[0] || null;
+        // Aftelling 5→1 — zelfde stem als niveau-aankondigingen
         for (let i = 0; i < COUNTDOWN; i++) {
-            setTimeout(() => {
-                try {
-                    const u = new SpeechSynthesisUtterance(String(COUNTDOWN - i));
-                    u.lang   = 'nl-NL';
-                    u.pitch  = 0.1;   // zo laag mogelijk = zware mannenstem
-                    u.rate   = 0.85;
-                    u.volume = 1;
-                    if (dutchVoice) u.voice = dutchVoice;
-                    window.speechSynthesis?.cancel();
-                    window.speechSynthesis?.speak(u);
-                } catch { /* ignore */ }
-            }, i * 1000);
+            setTimeout(() => speakNL(String(COUNTDOWN - i)), i * 1000);
         }
 
         // Test start NADAT countdown klaar is (dubbele beep bij niveau 1 = SCHEDULE t=0)
@@ -232,16 +231,8 @@ export default function BeeptestTool({
         // Speech synthesis timeouts voor niveau-aankondigingen
         const timers = SCHEDULE
             .filter(e => e.isLevelStart)
-            .map(e => setTimeout(() => {
-                try {
-                    window.speechSynthesis?.cancel();
-                    const u = new SpeechSynthesisUtterance(`Niveau ${e.level}`);
-                    u.lang = 'nl-NL';
-                    u.rate = 1.1;
-                    u.volume = 1;
-                    window.speechSynthesis?.speak(u);
-                } catch { /* ignore */ }
-            }, DELAY * 1000 + COUNTDOWN * 1000 + e.time * 1000 + 750)); // 750ms = ná de dubbele beep
+            .map(e => setTimeout(() => speakNL(`Niveau ${e.level}`),
+                DELAY * 1000 + COUNTDOWN * 1000 + e.time * 1000 + 750));
 
         // Visuele countdown: update cijfer elke seconde
         setCountdown(COUNTDOWN);
