@@ -129,6 +129,10 @@ export default function BeeptestTool({
     const [greenOffset,  setGreenOffset]  = useState(2 * Math.PI * 117);
     const [greenDur,     setGreenDur]     = useState('0s');
 
+    // Cirkels mogen pas animeren NA de eerste beep (niet bij fase-wissel)
+    const [circlesActive, setCirclesActive] = useState(false);
+    const circlesActiveRef = useRef(false);
+
     const ctxRef          = useRef(null);
     const audioStartRef   = useRef(0);
     const realStartRef    = useRef(0);
@@ -160,6 +164,8 @@ export default function BeeptestTool({
         clearInterval(uiTimerRef.current);
         speechTimersRef.current.forEach(clearTimeout);
         speechTimersRef.current = [];
+        circlesActiveRef.current = false;
+        setCirclesActive(false);
         try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
         try { ctxRef.current?.close(); } catch { /* ignore */ }
         ctxRef.current = null;
@@ -168,37 +174,33 @@ export default function BeeptestTool({
     useEffect(() => () => cleanup(), [cleanup]);
 
     // ── Paarse cirkel: reset + vloeiend vol per shuttle ───────────────────────
-    // Elke keer curIdx verandert (= nieuwe shuttle beep) → herstart animatie
+    // Start pas NA de eerste beep via circlesActive vlag
     useEffect(() => {
-        if (fase !== 'actief') return;
-        const tps   = getTps(cur.level);
-        const circ  = 2 * Math.PI * 95;
-        // 1. Reset naar leeg zonder transitie
+        if (!circlesActive) return;
+        const tps  = getTps(cur.level);
+        const circ = 2 * Math.PI * 95;
         setPurpleOffset(circ);
         setPurpleDur('0s');
-        // 2. Twee frames wachten zodat browser de reset rendert, dan animeren
         requestAnimationFrame(() => requestAnimationFrame(() => {
             setPurpleOffset(0);
             setPurpleDur(`${tps}s`);
         }));
-    }, [curIdx, fase]); // eslint-disable-line
+    }, [curIdx, circlesActive]); // eslint-disable-line
 
     // ── Groene cirkel: reset + vloeiend vol per niveau ────────────────────────
     useEffect(() => {
-        if (fase !== 'actief') return;
-        const level   = cur.level;
-        const tps     = getTps(level);
-        const nShuttles = SHUTTLES_PER_LEVEL[level - 1];
+        if (!circlesActive) return;
+        const tps       = getTps(cur.level);
+        const nShuttles = SHUTTLES_PER_LEVEL[cur.level - 1];
         const levelDur  = tps * nShuttles;
         const circ      = 2 * Math.PI * 117;
-        setPurpleOffset(circ); // ook paars resetten bij nieuw niveau
         setGreenOffset(circ);
         setGreenDur('0s');
         requestAnimationFrame(() => requestAnimationFrame(() => {
             setGreenOffset(0);
             setGreenDur(`${levelDur}s`);
         }));
-    }, [cur.level, fase]); // eslint-disable-line
+    }, [cur.level, circlesActive]); // eslint-disable-line
 
     // ── Test starten ─────────────────────────────────────────────────────────
     const startTest = useCallback(() => {
@@ -253,6 +255,12 @@ export default function BeeptestTool({
         uiTimerRef.current = setInterval(() => {
             const elapsedSec = (Date.now() - realStartRef.current) / 1000;
             if (elapsedSec < 0) return;
+
+            // Eerste keer dat de test écht gestart is → cirkels activeren
+            if (!circlesActiveRef.current) {
+                circlesActiveRef.current = true;
+                setCirclesActive(true);
+            }
 
             // Binair zoeken naar huidig schema-item
             let lo = 0, hi = SCHEDULE.length - 1;
