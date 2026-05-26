@@ -90,15 +90,22 @@ export function detectWaarnemerModus(test) {
         return { modus: 'meting', geschikt: true, icon: '↗️', label: 'Afstandsmeting' };
     }
 
-    // 🏊 Zwemmen
+    // 🏊 Zwemmen — sprint (<200m) vs lange afstand (≥200m)
     const ZWEM_TERMEN = ['zwem', 'baantj', 'crawl', 'schoolslag', 'rugslag', 'vlinderslag', 'borst', 'wisselslag'];
     if (ZWEM_TERMEN.some(t => naam.includes(t))) {
-        const afstandMatch = naam.match(/(\d+)\s*m/);
-        const afstand      = afstandMatch ? parseInt(afstandMatch[1]) : null;
-        const defaultBanen = afstand ? Math.round(afstand / 25) : 16;
-        return { modus: 'chrono_rondes', geschikt: true, icon: '🏊',
-            label: 'Zwemmen — banen bijhouden', eenheidLabel: 'banen',
-            eenheidSingular: 'Baan', isZwemmen: true, defaultRondes: defaultBanen };
+        const afstandMatch  = naam.match(/(\d+)\s*m/);
+        const afstand       = afstandMatch ? parseInt(afstandMatch[1]) : null;
+        const defaultBanen  = afstand ? Math.round(afstand / 25) : 16;
+        const isLangAfstand = !afstand || afstand >= 200; // onbekend = veronderstel lange afstand
+
+        if (isLangAfstand) {
+            return { modus: 'zwem_wave', geschikt: true, icon: '🏊',
+                label: 'Zwemmen — wave start', defaultBanen, afstand };
+        }
+        return { modus: 'chrono_eenmalig', geschikt: true, icon: '🏊',
+            label: `Zwemmen sprint${afstand ? ` ${afstand}m` : ''} — eindtijd`,
+            eenheidLabel: 'banen', eenheidSingular: 'Baan',
+            isZwemmen: true, defaultRondes: defaultBanen };
     }
 
     // ↔️ Telling
@@ -1064,6 +1071,324 @@ function EigenCooperTab({ leerlingen, groepId, testId, datum, profile, onScoresO
     return null;
 }
 
+// ─── ZWEM WAVE TOOL (lange afstand ≥200m) ────────────────────────────────────
+// Één chrono, waves starten met instelbaar interval
+// Netto tijd = eindtijd − wave-offset (automatisch afgetrokken)
+function ZwemWaveTool({ leerlingen, detectie, groepId, testId, datum, profile, onScoresOpgeslagen }) {
+    const [fase, setFase]           = useState('setup');
+    const [aantalBanen, setAantalBanen] = useState(2);
+    const [banen, setBanen]         = useState(detectie?.defaultBanen || 16);
+    const [interval_, setInterval_] = useState(20); // seconden tussen waves
+    const [perTwee, setPerTwee]     = useState(false);
+    const [saving, setSaving]       = useState(false);
+
+    const [startMs, setStartMs]     = useState(null);
+    const [elapsed, setElapsed]     = useState(0);
+    const [waves, setWaves]         = useState([]);   // [{ offset: ms }]
+    const [zwemmers, setZwemmers]   = useState({});   // { id: { ...data, waveIdx, banen, gefinisht, eindtijd } }
+    const [wachtrij, setWachtrij]   = useState([]);   // [leerlingId]
+
+    const timerRef = useRef(null);
+    const actief   = leerlingen?.filter(l => !l.score) || [];
+
+    const formatTijd = (ms) => {
+        if (ms === null || ms === undefined) return '--:--';
+        const s   = Math.floor(ms / 1000);
+        const min = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    };
+
+    const getNettoTijd = useCallback((id, elapsedArg) => {
+        const z = zwemmers[id];
+        if (!z || z.waveIdx === null || z.waveIdx === undefined) return null;
+        const waveOffset = waves[z.waveIdx]?.offset ?? 0;
+        const t = (z.gefinisht && z.eindtijd !== null) ? z.eindtijd : (elapsedArg ?? elapsed);
+        return Math.max(0, t - waveOffset);
+    }, [zwemmers, waves, elapsed]);
+
+    // ── Start ────────────────────────────────────────────────────────────────
+    const handleStart = () => {
+        const now = Date.now();
+        setStartMs(now);
+
+        const eersteWave = actief.slice(0, aantalBanen);
+        const resterend  = actief.slice(aantalBanen);
+
+        const initZ = {};
+        actief.forEach(l => {
+            initZ[l.id] = {
+                id: l.id, naam: l.naam, klas: l.klas || null,
+                geslacht: l.geslacht || null, dbId: l.id,
+                waveIdx: eersteWave.find(e => e.id === l.id) !== undefined
+                    ? 0 : null,
+                banen: 0, gefinisht: false, eindtijd: null,
+            };
+        });
+
+        setWaves([{ offset: 0 }]);
+        setZwemmers(initZ);
+        setWachtrij(resterend.map(l => l.id));
+        setFase('actief');
+
+        timerRef.current = setInterval(() => setElapsed(Date.now() - now), 100);
+    };
+
+    useEffect(() => () => clearInterval(timerRef.current), []);
+
+    // ── Volgende wave ─────────────────────────────────────────────────────────
+    const volgendeWave = () => {
+        if (wachtrij.length === 0) return;
+        const offset   = Date.now() - startMs;
+        const waveIdx  = waves.length;
+        const nieuweIds = wachtrij.slice(0, aantalBanen);
+        setWaves(prev => [...prev, { offset }]);
+        setWachtrij(prev => prev.slice(aantalBanen));
+        setZwemmers(prev => {
+            const upd = { ...prev };
+            nieuweIds.forEach(id => { upd[id] = { ...upd[id], waveIdx }; });
+            return upd;
+        });
+    };
+
+    // ── Baan registreren ─────────────────────────────────────────────────────
+    const registreerBaan = (id) => {
+        const stap = perTwee ? 2 : 1;
+        setZwemmers(prev => {
+            const z = prev[id];
+            if (!z || z.gefinisht) return prev;
+            const nieuweBanen = z.banen + stap;
+            const klaar = nieuweBanen >= banen;
+            return { ...prev, [id]: { ...z, banen: nieuweBanen,
+                gefinisht: klaar, eindtijd: klaar ? elapsed : null } };
+        });
+    };
+
+    const registreerFinish = (id) => {
+        setZwemmers(prev => {
+            const z = prev[id];
+            if (!z || z.gefinisht) return prev;
+            return { ...prev, [id]: { ...z, gefinisht: true, eindtijd: elapsed } };
+        });
+    };
+
+    // ── Opslaan ───────────────────────────────────────────────────────────────
+    const handleOpslaan = async () => {
+        const klaar = Object.values(zwemmers).filter(z => z.gefinisht);
+        if (!klaar.length) { toast.error('Nog niemand gefinisht'); return; }
+        setSaving(true);
+        const t = toast.loading(`${klaar.length} score(s) opslaan...`);
+        let ok = 0;
+        for (const z of klaar) {
+            const netto = getNettoTijd(z.id, z.eindtijd);
+            if (netto === null) continue;
+            try {
+                await apiSaveScore(profile, groepId, testId, datum,
+                    z.dbId, z.klas, z.geslacht, netto / 1000);
+                ok++;
+            } catch { /* doorgaan */ }
+        }
+        toast.dismiss(t);
+        toast.success(`${ok} score(s) opgeslagen!`);
+        setSaving(false);
+        clearInterval(timerRef.current);
+        setFase('opgeslagen');
+        if (onScoresOpgeslagen) onScoresOpgeslagen();
+    };
+
+    // ─── Render: setup ────────────────────────────────────────────────────────
+    if (fase === 'setup') return (
+        <div className="space-y-5">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-2">
+                <span className="text-xl">🏊</span>
+                <div>
+                    <p className="text-sm font-medium text-blue-800">
+                        Wave start — {detectie?.afstand ? `${detectie.afstand}m` : 'lange afstand'} · {banen} banen
+                    </p>
+                    <p className="text-xs text-blue-600">Netto tijd = eindtijd − wave-offset</p>
+                </div>
+            </div>
+
+            {/* Banen in het bad */}
+            <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Beschikbare zwembanen</label>
+                <div className="flex gap-2">
+                    {[1, 2, 3, 4].map(n => (
+                        <button key={n} onClick={() => setAantalBanen(n)}
+                            className={`flex-1 py-3 rounded-xl border-2 font-bold text-lg transition-all ${
+                                aantalBanen === n ? 'border-purple-500 bg-purple-50 text-purple-800' : 'border-gray-200 bg-white text-gray-500'
+                            }`}>{n}</button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Interval */}
+            <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Interval tussen waves</label>
+                <div className="flex gap-2">
+                    {[10, 15, 20, 30].map(s => (
+                        <button key={s} onClick={() => setInterval_(s)}
+                            className={`flex-1 py-3 rounded-xl border-2 font-bold transition-all ${
+                                interval_ === s ? 'border-purple-500 bg-purple-50 text-purple-800' : 'border-gray-200 bg-white text-gray-500'
+                            }`}>{s}s</button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Aantal banen */}
+            <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Banen per zwemmer</label>
+                <input type="number" min={1} max={200} value={banen}
+                    onChange={e => setBanen(Number(e.target.value))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400" />
+                <p className="text-xs text-gray-400 mt-1 text-center">
+                    {detectie?.afstand ? `${detectie.afstand}m ÷ 25m = ${Math.round(detectie.afstand / 25)} banen` : ''}
+                </p>
+            </div>
+
+            {/* Per 2 toggle */}
+            <button onClick={() => setPerTwee(p => !p)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors ${
+                    perTwee ? 'border-blue-400 bg-blue-50 text-blue-800' : 'border-gray-200 bg-white text-gray-600'
+                }`}>
+                <div className="text-left">
+                    <p className="font-medium text-sm">Tellen per 2 banen (per lengte)</p>
+                    <p className="text-xs opacity-70">{perTwee ? 'Elke klik = 2 banen' : 'Elke klik = 1 baan'}</p>
+                </div>
+                <div className={`w-10 h-6 rounded-full flex items-center px-1 ${perTwee ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${perTwee ? 'translate-x-4' : ''}`} />
+                </div>
+            </button>
+
+            <button onClick={handleStart}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-black py-4 rounded-2xl text-lg transition-colors">
+                🏊 Start Wave Timing
+            </button>
+        </div>
+    );
+
+    // ─── Render: opgeslagen ───────────────────────────────────────────────────
+    if (fase === 'opgeslagen') return (
+        <div className="text-center py-10">
+            <CheckCircleSolid className="w-14 h-14 text-green-500 mx-auto mb-3" />
+            <p className="font-semibold text-gray-900 text-lg">Scores opgeslagen!</p>
+        </div>
+    );
+
+    // ─── Render: actief ───────────────────────────────────────────────────────
+    const actieveZwemmers = Object.values(zwemmers).filter(z => z.waveIdx !== null && !z.gefinisht);
+    const gefinisht       = Object.values(zwemmers).filter(z => z.gefinisht)
+        .sort((a, b) => getNettoTijd(a.id, a.eindtijd) - getNettoTijd(b.id, b.eindtijd));
+    const wachtrijLeerlingen = wachtrij.map(id => actief.find(l => l.id === id)).filter(Boolean);
+
+    return (
+        <div className="space-y-3">
+            {/* Chrono */}
+            <div className="bg-slate-900 rounded-2xl px-5 py-4 flex items-center justify-between">
+                <div>
+                    <p className="text-xs text-slate-500 uppercase tracking-widest">Chrono</p>
+                    <p className="text-4xl font-mono font-bold text-white">{formatTijd(elapsed)}</p>
+                </div>
+                <div className="text-right">
+                    <p className="text-xs text-slate-500 mb-1">Wave {waves.length} · interval {interval_}s</p>
+                    <button
+                        onClick={volgendeWave}
+                        disabled={wachtrij.length === 0}
+                        className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:opacity-30 text-white font-semibold rounded-xl text-sm active:scale-95 transition-all"
+                    >
+                        🏊 Volgende wave ({wachtrij.length} wacht)
+                    </button>
+                </div>
+            </div>
+
+            {/* Actieve zwemmers */}
+            {actieveZwemmers.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                    <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                        <p className="text-sm font-semibold text-gray-600">🏊 In het water ({actieveZwemmers.length})</p>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                        {actieveZwemmers.map((z, idx) => {
+                            const netto   = getNettoTijd(z.id);
+                            const waveNr  = (z.waveIdx ?? 0) + 1;
+                            return (
+                                <div key={z.id} className="flex items-center px-3 py-3 gap-3">
+                                    <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-sm flex items-center justify-center flex-shrink-0">
+                                        {idx + 1}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-gray-900 truncate text-sm">{z.naam}</p>
+                                        <p className="text-xs text-gray-400 font-mono">
+                                            W{waveNr} · {formatTijd(netto)} · {z.banen}/{banen} banen
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-1.5 flex-shrink-0">
+                                        <button
+                                            onClick={() => registreerBaan(z.id)}
+                                            className="px-3 py-2 bg-teal-100 hover:bg-teal-200 text-teal-800 rounded-xl font-semibold text-xs active:scale-95 transition-all"
+                                        >
+                                            {perTwee ? '+2 🏊' : 'Baan ✓'}
+                                        </button>
+                                        <button
+                                            onClick={() => registreerFinish(z.id)}
+                                            className="px-3 py-2 bg-green-500 hover:bg-green-400 text-white rounded-xl font-semibold text-xs active:scale-95 transition-all"
+                                        >
+                                            🏁
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* Gefinisht */}
+            {gefinisht.length > 0 && (
+                <div className="bg-white rounded-2xl border border-green-200 overflow-hidden">
+                    <div className="px-4 py-2.5 bg-green-50 border-b border-green-100">
+                        <p className="text-sm font-semibold text-green-700">✅ Gefinisht ({gefinisht.length})</p>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                        {gefinisht.map((z, i) => (
+                            <div key={z.id} className="flex items-center px-4 py-2.5 gap-3">
+                                <span className="w-6 text-center font-bold text-gray-400 text-sm">{i + 1}</span>
+                                <span className="flex-1 font-medium text-gray-900 text-sm truncate">{z.naam}</span>
+                                <span className="text-xs text-gray-400 font-mono">W{(z.waveIdx ?? 0) + 1}</span>
+                                <span className="font-mono font-bold text-green-700 text-sm">
+                                    {formatTijd(getNettoTijd(z.id, z.eindtijd))}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Wachtrij */}
+            {wachtrijLeerlingen.length > 0 && (
+                <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Wachtrij</p>
+                    <div className="flex flex-wrap gap-2">
+                        {wachtrijLeerlingen.map((l, i) => (
+                            <span key={l.id} className="bg-white border border-gray-200 rounded-full px-3 py-1 text-sm text-gray-700 font-medium">
+                                {i + 1 + actieveZwemmers.length}. {l.naam}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Opslaan */}
+            {gefinisht.length > 0 && (
+                <button onClick={handleOpslaan} disabled={saving}
+                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2">
+                    {saving ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> Opslaan...</> : <><CheckCircleSolid className="w-5 h-5" /> Scores opslaan</>}
+                </button>
+            )}
+        </div>
+    );
+}
+
 // ─── EIGEN TOOL WRAPPER (kiest automatisch de juiste tool) ────────────────────
 function EigenToolTab({ leerlingen, test, groepId, testId, datum, profile, onScoresOpgeslagen }) {
     const detectie = detectWaarnemerModus(test);
@@ -1076,6 +1401,14 @@ function EigenToolTab({ leerlingen, test, groepId, testId, datum, profile, onSco
             groepId={groepId} testId={testId} datum={datum}
             profile={profile}
             onScoresOpgeslagen={onScoresOpgeslagen}
+        />
+    );
+
+    if (detectie.modus === 'zwem_wave') return (
+        <ZwemWaveTool
+            leerlingen={leerlingen} detectie={detectie}
+            groepId={groepId} testId={testId} datum={datum}
+            profile={profile} onScoresOpgeslagen={onScoresOpgeslagen}
         />
     );
 
