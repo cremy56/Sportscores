@@ -1078,15 +1078,22 @@ function ZwemWaveTool({ leerlingen, detectie, groepId, testId, datum, profile, o
     const [fase, setFase]           = useState('setup');
     const [aantalBanen, setAantalBanen] = useState(2);
     const [banen, setBanen]         = useState(detectie?.defaultBanen || 16);
-    const [interval_, setInterval_] = useState(20); // seconden tussen waves
+    const [interval_, setInterval_] = useState(20);
     const [perTwee, setPerTwee]     = useState(false);
     const [saving, setSaving]       = useState(false);
 
     const [startMs, setStartMs]     = useState(null);
     const [elapsed, setElapsed]     = useState(0);
-    const [waves, setWaves]         = useState([]);   // [{ offset: ms }]
-    const [zwemmers, setZwemmers]   = useState({});   // { id: { ...data, waveIdx, banen, gefinisht, eindtijd } }
-    const [wachtrij, setWachtrij]   = useState([]);   // [leerlingId]
+    const [waves, setWaves]         = useState([]);
+    const [zwemmers, setZwemmers]   = useState({});
+    const [wachtrij, setWachtrij]   = useState([]);
+
+    // ── Anti-fouten ──────────────────────────────────────────────────────────
+    const lastTapTs   = useRef({});
+    const COOLDOWN_MS = 12000;
+    const [lastBanen, setLastBanen] = useState({}); // { [id]: banenVoor } — altijd zichtbaar, geen timeout
+    const [editId, setEditId]       = useState(null);
+    const [finishModal, setFinishModal] = useState(null);
 
     const timerRef = useRef(null);
     const actief   = leerlingen?.filter(l => !l.score) || [];
@@ -1111,36 +1118,33 @@ function ZwemWaveTool({ leerlingen, detectie, groepId, testId, datum, profile, o
     const handleStart = () => {
         const now = Date.now();
         setStartMs(now);
-
         const eersteWave = actief.slice(0, aantalBanen);
         const resterend  = actief.slice(aantalBanen);
-
         const initZ = {};
         actief.forEach(l => {
             initZ[l.id] = {
                 id: l.id, naam: l.naam, klas: l.klas || null,
                 geslacht: l.geslacht || null, dbId: l.id,
-                waveIdx: eersteWave.find(e => e.id === l.id) !== undefined
-                    ? 0 : null,
+                waveIdx: eersteWave.find(e => e.id === l.id) !== undefined ? 0 : null,
                 banen: 0, gefinisht: false, eindtijd: null,
             };
         });
-
         setWaves([{ offset: 0 }]);
         setZwemmers(initZ);
         setWachtrij(resterend.map(l => l.id));
         setFase('actief');
-
         timerRef.current = setInterval(() => setElapsed(Date.now() - now), 100);
     };
 
-    useEffect(() => () => clearInterval(timerRef.current), []);
+    useEffect(() => () => {
+        clearInterval(timerRef.current);
+    }, []);
 
     // ── Volgende wave ─────────────────────────────────────────────────────────
     const volgendeWave = () => {
         if (wachtrij.length === 0) return;
-        const offset   = Date.now() - startMs;
-        const waveIdx  = waves.length;
+        const offset    = Date.now() - startMs;
+        const waveIdx   = waves.length;
         const nieuweIds = wachtrij.slice(0, aantalBanen);
         setWaves(prev => [...prev, { offset }]);
         setWachtrij(prev => prev.slice(aantalBanen));
@@ -1151,25 +1155,69 @@ function ZwemWaveTool({ leerlingen, detectie, groepId, testId, datum, profile, o
         });
     };
 
-    // ── Baan registreren ─────────────────────────────────────────────────────
+    // ── Baan registreren (alert bij dubbele tap + undo tracking) ─────────────
     const registreerBaan = (id) => {
+        const nu          = Date.now();
+        const sindsLaatste = lastTapTs.current[id] ? nu - lastTapTs.current[id] : COOLDOWN_MS + 1;
+
+        if (sindsLaatste < COOLDOWN_MS) {
+            const naam = zwemmers[id]?.naam || 'deze leerling';
+            const stap = perTwee ? 2 : 1;
+            const bevestigd = window.confirm(
+                `Wil je echt ${stap > 1 ? `${stap} extra banen` : 'een extra baan'} bijtellen voor ${naam}?\n\nJe hebt deze leerling net al geregistreerd.`
+            );
+            if (!bevestigd) return;
+        }
+
+        lastTapTs.current[id] = nu;
         const stap = perTwee ? 2 : 1;
+
         setZwemmers(prev => {
             const z = prev[id];
             if (!z || z.gefinisht) return prev;
-            const nieuweBanen = z.banen + stap;
-            const klaar = nieuweBanen >= banen;
-            return { ...prev, [id]: { ...z, banen: nieuweBanen,
-                gefinisht: klaar, eindtijd: klaar ? elapsed : null } };
+            setLastBanen(lb => ({ ...lb, [id]: z.banen })); // sla op voor undo
+            return { ...prev, [id]: { ...z, banen: z.banen + stap } };
         });
     };
 
-    const registreerFinish = (id) => {
+    // ── Undo per zwemmer (altijd zichtbaar zolang er een tap was) ────────────
+    const handleUndo = (id) => {
+        const prevBanen = lastBanen[id];
+        if (prevBanen === undefined) return;
         setZwemmers(prev => {
             const z = prev[id];
-            if (!z || z.gefinisht) return prev;
-            return { ...prev, [id]: { ...z, gefinisht: true, eindtijd: elapsed } };
+            if (!z) return prev;
+            return { ...prev, [id]: { ...z, banen: prevBanen, gefinisht: false, eindtijd: null } };
         });
+        setLastBanen(lb => { const upd = { ...lb }; delete upd[id]; return upd; });
+        lastTapTs.current[id] = 0; // reset cooldown
+    };
+
+    // ── Handmatige +/- per zwemmer ────────────────────────────────────────────
+    const pasAanBanen = (id, delta) => {
+        setZwemmers(prev => {
+            const z = prev[id];
+            if (!z) return prev;
+            const nieuw = Math.max(0, z.banen + delta);
+            return { ...prev, [id]: { ...z, banen: nieuw, gefinisht: false, eindtijd: null } };
+        });
+    };
+
+    // ── Finish: open bevestigingsdialoog ──────────────────────────────────────
+    const openFinishModal = (id) => {
+        const z = zwemmers[id];
+        if (!z || z.gefinisht) return;
+        setFinishModal({ id, banen: z.banen, eindtijd: elapsed });
+    };
+
+    const bevestigFinish = () => {
+        if (!finishModal) return;
+        const { id, banen: finalBanen, eindtijd } = finishModal;
+        setZwemmers(prev => ({
+            ...prev,
+            [id]: { ...prev[id], gefinisht: true, banen: finalBanen, eindtijd },
+        }));
+        setFinishModal(null);
     };
 
     // ── Opslaan ───────────────────────────────────────────────────────────────
@@ -1283,62 +1331,156 @@ function ZwemWaveTool({ leerlingen, detectie, groepId, testId, datum, profile, o
 
     return (
         <div className="space-y-3">
-            {/* Chrono */}
+            {/* Chrono + volgende wave */}
             <div className="bg-slate-900 rounded-2xl px-5 py-4 flex items-center justify-between">
                 <div>
                     <p className="text-xs text-slate-500 uppercase tracking-widest">Chrono</p>
                     <p className="text-4xl font-mono font-bold text-white">{formatTijd(elapsed)}</p>
                 </div>
                 <div className="text-right">
-                    <p className="text-xs text-slate-500 mb-1">Wave {waves.length} · interval {interval_}s</p>
-                    <button
-                        onClick={volgendeWave}
-                        disabled={wachtrij.length === 0}
-                        className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:opacity-30 text-white font-semibold rounded-xl text-sm active:scale-95 transition-all"
-                    >
-                        🏊 Volgende wave ({wachtrij.length} wacht)
+                    <p className="text-xs text-slate-500 mb-1">Wave {waves.length} · {interval_}s interval</p>
+                    <button onClick={volgendeWave} disabled={wachtrij.length === 0}
+                        className="px-4 py-2 bg-blue-500 hover:bg-blue-400 disabled:opacity-30 text-white font-semibold rounded-xl text-sm active:scale-95">
+                        🏊 Volgende wave ({wachtrij.length})
                     </button>
                 </div>
             </div>
 
+            {/* Undo pill — VERWIJDERD: undo is nu altijd zichtbaar per zwemmer */}
+
             {/* Actieve zwemmers */}
             {actieveZwemmers.length > 0 && (
                 <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                    <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                    <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
                         <p className="text-sm font-semibold text-gray-600">🏊 In het water ({actieveZwemmers.length})</p>
+                        <p className="text-xs text-gray-400">✏️ = handmatig · ↩ = ongedaan</p>
                     </div>
                     <div className="divide-y divide-gray-100">
                         {actieveZwemmers.map((z, idx) => {
-                            const netto   = getNettoTijd(z.id);
-                            const waveNr  = (z.waveIdx ?? 0) + 1;
+                            const netto        = getNettoTijd(z.id);
+                            const waveNr       = (z.waveIdx ?? 0) + 1;
+                            const isEditing    = editId === z.id;
+                            const heeftUndo    = lastBanen[z.id] !== undefined;
+
+                            // Rood oplichten als zwemmer te lang wegblijft
+                            const waveOffset   = waves[z.waveIdx]?.offset ?? 0;
+                            const waveElapsed  = elapsed - waveOffset;
+                            const avgBaanMs    = z.banen > 1 ? waveElapsed / z.banen : 40000;
+                            const sindsLaatste = lastTapTs.current[z.id]
+                                ? elapsed - (lastTapTs.current[z.id] - (startMs ?? 0))
+                                : (z.banen > 0 ? waveElapsed : 0);
+                            const isOverdue    = z.banen > 0 && sindsLaatste > avgBaanMs * 1.8
+                                                 && sindsLaatste > 25000; // min. 25s wachten voor alert
+
                             return (
-                                <div key={z.id} className="flex items-center px-3 py-3 gap-3">
-                                    <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-sm flex items-center justify-center flex-shrink-0">
-                                        {idx + 1}
-                                    </span>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-gray-900 truncate text-sm">{z.naam}</p>
-                                        <p className="text-xs text-gray-400 font-mono">
-                                            W{waveNr} · {formatTijd(netto)} · {z.banen}/{banen} banen
-                                        </p>
+                                <div key={z.id}>
+                                    <div className={`flex items-center px-3 py-3 gap-3 transition-colors ${
+                                        isOverdue ? 'bg-red-50 border-l-4 border-red-400' : ''
+                                    }`}>
+                                        {/* Nummer */}
+                                        <span className={`w-8 h-8 rounded-full font-bold text-sm flex items-center justify-center flex-shrink-0 ${
+                                            isOverdue
+                                                ? 'bg-red-500 text-white animate-pulse'
+                                                : 'bg-blue-100 text-blue-700'
+                                        }`}>
+                                            {idx + 1}
+                                        </span>
+
+                                        {/* Naam + info */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className={`font-semibold truncate text-sm ${isOverdue ? 'text-red-700' : 'text-gray-900'}`}>
+                                                {z.naam}
+                                                {isOverdue && <span className="ml-1 text-xs">⚠️ vergeten?</span>}
+                                            </p>
+                                            <p className="text-xs text-gray-400 font-mono">
+                                                W{waveNr} · {formatTijd(netto)} · {z.banen}/{banen} banen
+                                            </p>
+                                        </div>
+
+                                        {/* Knoppen */}
+                                        <div className="flex gap-1.5 flex-shrink-0">
+                                            {/* Undo — altijd zichtbaar na minstens 1 tap */}
+                                            {heeftUndo && (
+                                                <button onClick={() => handleUndo(z.id)}
+                                                    className="w-8 h-8 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-xl text-sm active:scale-95 transition-all"
+                                                    title="Laatste tap ongedaan maken">
+                                                    ↩
+                                                </button>
+                                            )}
+
+                                            {/* Handmatig edit toggle */}
+                                            <button onClick={() => setEditId(isEditing ? null : z.id)}
+                                                className={`w-8 h-8 rounded-xl text-sm transition-colors ${
+                                                    isEditing ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                                }`}>✏️</button>
+
+                                            {/* Baan-knop — altijd actief, alert bij dubbele tap */}
+                                            <button onClick={() => registreerBaan(z.id)}
+                                                className={`px-3 py-2 rounded-xl font-bold text-xs active:scale-95 transition-all ${
+                                                    isOverdue
+                                                        ? 'bg-red-500 hover:bg-red-400 text-white'
+                                                        : 'bg-teal-100 hover:bg-teal-200 text-teal-800'
+                                                }`}>
+                                                {perTwee ? '+2🏊' : 'Baan ✓'}
+                                            </button>
+
+                                            {/* Finish */}
+                                            <button onClick={() => openFinishModal(z.id)}
+                                                className="px-2 py-2 bg-green-500 hover:bg-green-400 text-white rounded-xl font-semibold text-xs active:scale-95">
+                                                🏁
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-1.5 flex-shrink-0">
-                                        <button
-                                            onClick={() => registreerBaan(z.id)}
-                                            className="px-3 py-2 bg-teal-100 hover:bg-teal-200 text-teal-800 rounded-xl font-semibold text-xs active:scale-95 transition-all"
-                                        >
-                                            {perTwee ? '+2 🏊' : 'Baan ✓'}
-                                        </button>
-                                        <button
-                                            onClick={() => registreerFinish(z.id)}
-                                            className="px-3 py-2 bg-green-500 hover:bg-green-400 text-white rounded-xl font-semibold text-xs active:scale-95 transition-all"
-                                        >
-                                            🏁
-                                        </button>
-                                    </div>
+
+                                    {/* Inline +/- editor */}
+                                    {isEditing && (
+                                        <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 border-t border-amber-100">
+                                            <span className="text-xs text-amber-700 font-medium flex-1">Handmatig aanpassen</span>
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={() => pasAanBanen(z.id, -1)}
+                                                    className="w-9 h-9 bg-white border border-amber-300 rounded-xl font-bold text-amber-700 text-lg hover:bg-amber-100 active:scale-95">−</button>
+                                                <span className="w-10 text-center font-bold text-gray-900 text-lg">{z.banen}</span>
+                                                <button onClick={() => pasAanBanen(z.id, 1)}
+                                                    className="w-9 h-9 bg-white border border-amber-300 rounded-xl font-bold text-amber-700 text-lg hover:bg-amber-100 active:scale-95">+</button>
+                                            </div>
+                                            <button onClick={() => setEditId(null)} className="text-xs text-amber-600 hover:text-amber-800 font-medium">Sluiten</button>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
+                    </div>
+                </div>
+            )}
+
+            {/* Finish bevestigingsmodal */}
+            {finishModal && (
+                <div className="bg-white rounded-2xl border-2 border-green-400 p-4 shadow-lg">
+                    <p className="font-bold text-gray-900 mb-1">
+                        🏁 Finish bevestigen — {zwemmers[finishModal.id]?.naam}
+                    </p>
+                    <p className="text-sm text-gray-500 mb-3">Pas indien nodig het aantal banen aan:</p>
+                    <div className="flex items-center gap-3 mb-4">
+                        <button onClick={() => setFinishModal(m => ({ ...m, banen: Math.max(0, m.banen - 1) }))}
+                            className="w-10 h-10 bg-gray-100 rounded-xl font-bold text-gray-700 text-xl hover:bg-gray-200">−</button>
+                        <span className="flex-1 text-center font-bold text-2xl text-gray-900">
+                            {finishModal.banen} / {banen}
+                        </span>
+                        <button onClick={() => setFinishModal(m => ({ ...m, banen: m.banen + 1 }))}
+                            className="w-10 h-10 bg-gray-100 rounded-xl font-bold text-gray-700 text-xl hover:bg-gray-200">+</button>
+                    </div>
+                    <p className="text-xs text-gray-400 text-center mb-4">
+                        Netto tijd: {formatTijd(getNettoTijd(finishModal.id, finishModal.eindtijd))}
+                    </p>
+                    <div className="flex gap-2">
+                        <button onClick={() => setFinishModal(null)}
+                            className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+                            Annuleren
+                        </button>
+                        <button onClick={bevestigFinish}
+                            className="flex-1 py-2.5 bg-green-500 hover:bg-green-400 text-white font-semibold rounded-xl text-sm">
+                            ✅ Bevestigen
+                        </button>
                     </div>
                 </div>
             )}
