@@ -152,12 +152,7 @@ function WaarnemerSetup({ onStart, profile }) {
             toast.error('Stel het aantal rondes in');
             return;
         }
-        // Al een test gekozen → direct starten. Anders eerst de "test afnemen?" dialog.
-        if (gekozenTest) {
-            startMetTest();
-        } else {
-            setTestDialog(true);
-        }
+        startMetTest();
     };
 
     return (
@@ -170,7 +165,12 @@ function WaarnemerSetup({ onStart, profile }) {
                     {SPORT_TYPES.map(s => (
                         <button
                             key={s.id}
-                            onClick={() => { setSportType(s.id); setGekozenTest(null); setTesten(null); }}
+                            onClick={() => {
+                                setSportType(s.id);
+                                setGekozenTest(null);
+                                setTesten(null);
+                                setTestDialog(true); // dialog meteen na sportkeuze
+                            }}
                             className={`flex items-center gap-2 px-3 py-3 rounded-xl border-2 text-sm font-medium transition-all text-left ${
                                 sportType === s.id
                                     ? 'border-teal-500 bg-teal-50 text-teal-800'
@@ -322,7 +322,7 @@ function WaarnemerSetup({ onStart, profile }) {
                                 </p>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => { setTestDialog(false); startMetTest(); }}
+                                        onClick={() => { setGekozenTest(null); setTestDialog(false); }}
                                         className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600 font-medium hover:bg-gray-50"
                                     >
                                         Nee, vrij meten
@@ -345,7 +345,7 @@ function WaarnemerSetup({ onStart, profile }) {
                                     Er zijn geen tests gekoppeld aan deze activiteit. Je kan vrij meten en de leerkracht koppelt later.
                                 </p>
                                 <button
-                                    onClick={() => { setTestDialog(false); startMetTest(); }}
+                                    onClick={() => { setGekozenTest(null); setTestDialog(false); }}
                                     className="w-full py-3 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl"
                                 >
                                     Doorgaan zonder test
@@ -375,7 +375,7 @@ function WaarnemerSetup({ onStart, profile }) {
                                     ))}
                                 </div>
                                 <button
-                                    onClick={() => { setTestDialog(false); startMetTest(); }}
+                                    onClick={() => { setGekozenTest(null); setTestDialog(false); }}
                                     className="w-full py-2.5 text-sm text-gray-500 hover:text-gray-700"
                                 >
                                     Overslaan, vrij meten
