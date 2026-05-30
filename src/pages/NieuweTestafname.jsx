@@ -109,8 +109,10 @@ function formatTimeAgo(pastDate, referenceDate) {
 export default function NieuweTestafname() {
     const { profile } = useOutletContext();
     const [groepen, setGroepen] = useState([]);
+    const [klassen, setKlassen] = useState([]);
     const [testen, setTesten] = useState([]);
     const [selectedGroep, setSelectedGroep] = useState(null);
+    const [selectedKlas, setSelectedKlas] = useState(null);
     const [selectedTest, setSelectedTest] = useState(null);
     const [volledigeLeerlingen, setVolledigeLeerlingen] = useState([]);
     const [datum, setDatum] = useState(new Date().toISOString().split('T')[0]);
@@ -145,6 +147,10 @@ export default function NieuweTestafname() {
                 }, profile._token);
                 setGroepen(data.groepen || []);
                 setTesten(data.testen || []);
+                try {
+                    const klData = await apiPost('get_mijn_klassen', { schoolId: profile.school_id }, profile._token);
+                    setKlassen(klData.klassen || []);
+                } catch { /* klassen optioneel */ }
             } catch (error) {
                 toast.error("Kon groepen of testen niet laden.");
             }
@@ -167,16 +173,13 @@ export default function NieuweTestafname() {
 
         if (datumParam) setDatum(datumParam);
 
-        // Groep matchen: eerst op groep-id, anders op klas-naam
+        // Doelgroep: groep-id óf klas-naam (klas wordt rechtstreeks geladen via get_klas_detail)
         if (groepParam) {
             const match = groepen.find(g => g.id === groepParam);
-            if (match) setSelectedGroep(match);
+            if (match) { setSelectedGroep(match); setSelectedKlas(null); }
         } else if (klasParam) {
-            // Zoek een groep die overeenkomt met de klas (op naam of klas-veld)
-            const match = groepen.find(g =>
-                g.naam === klasParam || g.klas === klasParam || g.naam?.includes(klasParam)
-            );
-            if (match) setSelectedGroep(match);
+            setSelectedKlas(klasParam);
+            setSelectedGroep(null);
         }
 
         if (testParam) {
@@ -189,30 +192,53 @@ export default function NieuweTestafname() {
         if (groepParam || klasParam || datumParam || testParam) prefillRef.current = true;
     }, [groepen, testen, searchParams]);
 
-    // Open de Waarnemer Tool automatisch zodra groep + test klaarstaan (vanuit melding)
+    // Open de Waarnemer Tool automatisch zodra doelgroep (groep OF klas) + test klaarstaan
     useEffect(() => {
-        if (autoWaarnemerTab && selectedGroep && selectedTest) {
+        if (autoWaarnemerTab && (selectedGroep || selectedKlas) && selectedTest) {
             setShowWaarnemer(true);
             setAutoWaarnemerTab(false);
         }
-    }, [autoWaarnemerTab, selectedGroep, selectedTest]);
+    }, [autoWaarnemerTab, selectedGroep, selectedKlas, selectedTest]);
 
     // =============================================
     // EFFECT 2: Leerlingen ophalen via API
     // ✅ GEMIGREERD: geen toegestane_gebruikers query meer
     // =============================================
     useEffect(() => {
-        if (!selectedGroep) {
+        if (!selectedGroep && !selectedKlas) {
             setVolledigeLeerlingen([]);
             return;
         }
 
         const fetchLeerlingen = async () => {
-            if (!selectedGroep.leerling_ids || selectedGroep.leerling_ids.length === 0) {
-                setVolledigeLeerlingen([]);
-                return;
-            }
             try {
+                // KLAS-modus: leerlingen via get_klas_detail
+                if (selectedKlas) {
+                    const data = await apiPost('get_klas_detail', {
+                        klasNaam: selectedKlas,
+                        schoolId: profile.school_id,
+                    }, profile._token);
+
+                    const members = data.members || data.leerlingen || [];
+                    const genormaliseerd = members.map(m => ({
+                        id: m.id || m.leerling_id,
+                        data: {
+                            naam:     m.naam || m.decrypted_name || 'Leerling',
+                            klas:     m.klas || selectedKlas || null,
+                            geslacht: (m.geslacht || m.gender || '').toLowerCase() || null,
+                        },
+                    })).sort((a, b) => a.data.naam.localeCompare(b.data.naam));
+
+                    setVolledigeLeerlingen(genormaliseerd);
+                    setScores({});
+                    return;
+                }
+
+                // GROEP-modus (bestaand)
+                if (!selectedGroep.leerling_ids || selectedGroep.leerling_ids.length === 0) {
+                    setVolledigeLeerlingen([]);
+                    return;
+                }
                 const data = await apiPost('get_leerlingen_voor_groep', {
                     groepId: selectedGroep.id,
                     schoolId: profile.school_id
@@ -229,7 +255,7 @@ export default function NieuweTestafname() {
 
         fetchLeerlingen();
         setScores({});
-    }, [selectedGroep, profile]);
+    }, [selectedGroep, selectedKlas, profile]);
 
     // =============================================
     // EFFECT 3: Normen controleren + cachen via API
@@ -539,14 +565,31 @@ export default function NieuweTestafname() {
                             </div>
                             <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Kies een groep</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Kies een groep of klas</label>
                                     <select
-                                        value={selectedGroep?.id || ''}
-                                        onChange={(e) => setSelectedGroep(groepen.find(g => g.id === e.target.value) || null)}
+                                        value={selectedGroep?.id || (selectedKlas ? `klas:${selectedKlas}` : '')}
+                                        onChange={(e) => {
+                                            const v = e.target.value;
+                                            if (!v) { setSelectedGroep(null); setSelectedKlas(null); }
+                                            else if (v.startsWith('klas:')) { setSelectedKlas(v.slice(5)); setSelectedGroep(null); }
+                                            else { setSelectedGroep(groepen.find(g => g.id === v) || null); setSelectedKlas(null); }
+                                        }}
                                         className="w-full h-[46px] px-3 border border-gray-200 rounded-xl shadow-sm"
                                     >
-                                        <option value="">-- Selecteer groep --</option>
-                                        {groepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}
+                                        <option value="">-- Selecteer groep of klas --</option>
+                                        {groepen.length > 0 && (
+                                            <optgroup label="Groepen">
+                                                {groepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}
+                                            </optgroup>
+                                        )}
+                                        {klassen.length > 0 && (
+                                            <optgroup label="Klassen">
+                                                {klassen.map(k => {
+                                                    const naam = typeof k === 'string' ? k : (k.naam || k.klas || k.id);
+                                                    return <option key={`klas:${naam}`} value={`klas:${naam}`}>Klas {naam}</option>;
+                                                })}
+                                            </optgroup>
+                                        )}
                                     </select>
                                 </div>
                                 <div>
@@ -554,7 +597,7 @@ export default function NieuweTestafname() {
                                     <select
                                         value={selectedTest?.id || ''}
                                         onChange={(e) => setSelectedTest(testen.find(t => t.id === e.target.value) || null)}
-                                        disabled={!selectedGroep}
+                                        disabled={!selectedGroep && !selectedKlas}
                                         className="w-full h-[46px] px-3 border border-gray-200 rounded-xl shadow-sm disabled:bg-gray-50"
                                     >
                                         <option value="">-- Selecteer test --</option>
@@ -588,7 +631,7 @@ export default function NieuweTestafname() {
                     )}
 
                     {/* Scores invoeren */}
-                    {selectedGroep && selectedTest && (
+                    {(selectedGroep || selectedKlas) && selectedTest && (
                         <div className="border-t border-gray-200 pt-8">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl font-semibold text-gray-800">Scores invoeren</h2>
@@ -667,7 +710,7 @@ export default function NieuweTestafname() {
                                 {selectedTest && detectWaarnemerModus(selectedTest).geschikt && (
                                     <button
                                         onClick={() => setShowWaarnemer(true)}
-                                        disabled={!selectedGroep}
+                                        disabled={!selectedGroep && !selectedKlas}
                                         className="w-full sm:w-auto flex items-center justify-center gap-2 bg-teal-100 text-teal-700 hover:bg-teal-200 disabled:opacity-50 px-6 py-3 rounded-xl font-medium transition-colors"
                                     >
                                         <span>🔭</span>
@@ -688,7 +731,7 @@ export default function NieuweTestafname() {
                 </div>
             </div>
 
-            {showWaarnemer && selectedGroep && selectedTest && (
+            {showWaarnemer && (selectedGroep || selectedKlas) && selectedTest && (
                 <WaarnemerPanel
                     leerlingen={volledigeLeerlingen.map(l => ({
                         id:       l.id,
@@ -700,10 +743,10 @@ export default function NieuweTestafname() {
                     test={selectedTest}
                     testInfo={{
                         test_naam:  selectedTest.naam,
-                        groep_naam: selectedGroep.naam,
+                        groep_naam: selectedGroep ? selectedGroep.naam : `Klas ${selectedKlas}`,
                         eenheid:    selectedTest.eenheid,
                     }}
-                    groepId={selectedGroep.id}
+                    groepId={selectedGroep ? selectedGroep.id : null}
                     testId={selectedTest.id}
                     datum={datum}
                     profile={profile}
@@ -711,7 +754,8 @@ export default function NieuweTestafname() {
                     onClose={() => setShowWaarnemer(false)}
                     onScoresOpgeslagen={() => {
                         setShowWaarnemer(false);
-                        navigate(`/testafname/${selectedGroep.id}/${selectedTest.id}/${datum}`);
+                        const doel = selectedGroep ? selectedGroep.id : `klas:${selectedKlas}`;
+                        navigate(`/testafname/${doel}/${selectedTest.id}/${datum}`);
                     }}
                 />
             )}
