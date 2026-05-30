@@ -5,7 +5,7 @@ import { verifyToken } from '../lib/firebaseAdmin.js';
 import {
     handleGetTests, handleGetLeaderboard, handleGetSetupData,
     handleGetLeerlingenVoorGroep, handleGetNormen, handleGetRecentScores,
-    handleSaveScores, handleGetTestafnameDetail, handleUpdateScore,
+    handleSaveScores, handleSaveScore, handleGetTestafnameDetail, handleUpdateScore,
     handleDeleteScore, handleUpdateScoreDate, handleDeleteTestafname,
     handleGetEvaluaties, handleDeleteTest, handleGetStudentEvolution,
     handleGetScoreNorms, handleGetStudentProfile, handleGetTestRanking,
@@ -49,7 +49,6 @@ import {
     handleUpdateMatchScore, handleStopToernooi, handleVolgendeRonde,
     handleGetBlessureContent,
     handleSubmitWaarnemerMetingen, handleGetWaarnemerMetingen, handleMarkeerWaarnemerGekoppeld,
-    handleVerwijderWaarnemerMetingen,
 } from './handlers/sportlab.js';
 
 // ─── HOOFD HANDLER ────────────────────────────────────────────────────────────
@@ -72,6 +71,7 @@ export default async function handler(req, res) {
             case 'get_normen':              return await handleGetNormen(req, res, decodedToken);
             case 'get_recent_scores':       return await handleGetRecentScores(req, res, decodedToken);
             case 'save_scores':             return await handleSaveScores(req, res, decodedToken);
+            case 'save_score':              return await handleSaveScore(req, res, decodedToken);
             case 'get_testafname_detail':   return await handleGetTestafnameDetail(req, res, decodedToken);
             case 'update_score':            return await handleUpdateScore(req, res, decodedToken);
             case 'delete_score':            return await handleDeleteScore(req, res, decodedToken);
@@ -155,7 +155,6 @@ export default async function handler(req, res) {
             case 'submit_waarnemer_metingen':    return await handleSubmitWaarnemerMetingen(req, res, decodedToken);
             case 'get_waarnemer_metingen':       return await handleGetWaarnemerMetingen(req, res, decodedToken);
             case 'markeer_waarnemer_gekoppeld':  return await handleMarkeerWaarnemerGekoppeld(req, res, decodedToken);
-            case 'verwijder_waarnemer_metingen': return await handleVerwijderWaarnemerMetingen(req, res, decodedToken);
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
         }

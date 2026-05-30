@@ -296,6 +296,72 @@ export async function handleSaveScores(req, res, decodedToken) {
     }
 }
 
+// ─── SAVE SCORE (enkelvoud) ───────────────────────────────────────────────────
+// Gebruikt door de Waarnemer Tool om één leerling-score op te slaan.
+// Idempotent: bestaat er al een score voor leerling+test+datum(+groep), dan wordt
+// die geüpdatet i.p.v. een duplicaat aan te maken (leerkracht kan opnieuw koppelen).
+export async function handleSaveScore(req, res, decodedToken) {
+    try {
+        const { schoolId, groepId, testId, datum, leerlingId, klas, geslacht, score } = req.body;
+
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang tot deze school.' });
+        if (!testId || !leerlingId || score === null || score === undefined || isNaN(score)) {
+            return res.status(400).json({ error: 'Verplichte velden ontbreken (testId, leerlingId, score).' });
+        }
+
+        // Test ophalen + normen voor puntberekening
+        const testSnap = await db.collection('testen').doc(testId).get();
+        if (!testSnap.exists) return res.status(404).json({ error: 'Test niet gevonden.' });
+        if (testSnap.data().school_id !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang tot deze test.' });
+        const testData = { id: testSnap.id, ...testSnap.data() };
+
+        const normenSnap = await db.collection('normen').where('test_id', '==', testId).limit(1).get();
+        const normenData = normenSnap.empty ? null : normenSnap.docs[0].data();
+        const rapportpunt = berekenPunt(testData, klas, geslacht, Number(score), normenData);
+
+        const scoreDatum = datum ? new Date(datum) : new Date();
+        const dayStart = new Date(scoreDatum); dayStart.setHours(0, 0, 0, 0);
+        const dayEnd   = new Date(scoreDatum); dayEnd.setHours(23, 59, 59, 999);
+
+        // Bestaande score zoeken (idempotentie) — zelfde leerling+test+dag(+groep)
+        let bestaandeQuery = db.collection('scores')
+            .where('leerling_id', '==', leerlingId)
+            .where('test_id', '==', testId)
+            .where('datum', '>=', Timestamp.fromDate(dayStart))
+            .where('datum', '<=', Timestamp.fromDate(dayEnd));
+        if (groepId) bestaandeQuery = bestaandeQuery.where('groep_id', '==', groepId);
+
+        const bestaandeSnap = await bestaandeQuery.limit(1).get();
+
+        if (!bestaandeSnap.empty) {
+            await bestaandeSnap.docs[0].ref.update({
+                score: Number(score),
+                rapportpunt: rapportpunt ?? null,
+            });
+            return res.status(200).json({ success: true, updated: true, rapportpunt });
+        }
+
+        await db.collection('scores').add({
+            datum:         Timestamp.fromDate(scoreDatum),
+            groep_id:      groepId || null,
+            leerling_id:   leerlingId,
+            score:         Number(score),
+            rapportpunt:   rapportpunt ?? null,
+            school_id:     verifiedSchoolId,
+            test_id:       testId,
+            leerkracht_id: decodedToken.uid,
+            created_at:    Timestamp.now(),
+        });
+
+        return res.status(200).json({ success: true, created: true, rapportpunt });
+
+    } catch (error) {
+        console.error('❌ handleSaveScore:', error);
+        return res.status(500).json({ error: 'Fout bij opslaan score: ' + error.message });
+    }
+}
+
 // ─── GET TESTAFNAME DETAIL ────────────────────────────────────────────────────
 export async function handleGetTestafnameDetail(req, res, decodedToken) {
     try {
