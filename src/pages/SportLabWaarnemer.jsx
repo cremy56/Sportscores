@@ -20,6 +20,7 @@ import { CheckCircleIcon as CheckCircleSolid, FlagIcon } from '@heroicons/react/
 const SPORT_TYPES = [
     { id: 'loop',         naam: 'Loop / Duurloop',      eenheid: 'seconden', icon: '🏃', modus: 'chrono_rondes'   },
     { id: 'sprint',       naam: 'Sprint (60m / 100m)',  eenheid: 'seconden', icon: '⚡', modus: 'chrono_eenmalig' },
+    { id: 'zwemmen',      naam: 'Zwemmen',              eenheid: 'seconden', icon: '🏊', modus: 'chrono_rondes'   },
     { id: 'shuttle',      naam: 'Shuttle Run',          eenheid: 'aantal',   icon: '↔️', modus: 'telling'         },
     { id: 'verspringen',  naam: 'Verspringen',          eenheid: 'm',        icon: '↗️', modus: 'meting_pogingen' },
     { id: 'hoogspringen', naam: 'Hoogspringen',         eenheid: 'm',        icon: '⬆️', modus: 'meting_pogingen' },
@@ -111,11 +112,11 @@ function WaarnemerSetup({ onStart }) {
                 </div>
             </div>
 
-            {/* Configuratie rondes */}
+            {/* Configuratie rondes / banen */}
             {sportConfig?.modus === 'chrono_rondes' && (
                 <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Aantal rondes per leerling
+                        Aantal {sportConfig.id === 'zwemmen' ? 'banen' : 'rondes'} per leerling
                     </label>
                     <input
                         type="number"
@@ -126,7 +127,9 @@ function WaarnemerSetup({ onStart }) {
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500"
                     />
                     <p className="text-xs text-gray-400 mt-1.5 text-center">
-                        bv. 3 km op 400 m piste = 7 rondes + 1 korte schoot (stel in als 8)
+                        {sportConfig.id === 'zwemmen'
+                            ? 'bv. 200m in 25m bad = 8 banen'
+                            : 'bv. 3 km op 400 m piste = 7 rondes + 1 korte schoot (stel in als 8)'}
                     </p>
                 </div>
             )}
@@ -300,7 +303,7 @@ function ChronoView({ config, onIndienen }) {
             <div className="bg-slate-900 rounded-2xl p-6 text-center">
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-2">
                     {sportConfig.naam}
-                    {sportConfig.modus === 'chrono_rondes' && ` — ${maxRondes} ronde${maxRondes > 1 ? 's' : ''}`}
+                    {sportConfig.modus === 'chrono_rondes' && ` — ${maxRondes} ${sportConfig.id === 'zwemmen' ? `baan${maxRondes > 1 ? 'en' : ''}` : `ronde${maxRondes > 1 ? 's' : ''}`}`}
                 </p>
                 <div className="text-5xl font-mono font-bold text-white tracking-wider mb-5">
                     {formatTijd(elapsed)}

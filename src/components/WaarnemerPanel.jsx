@@ -1601,22 +1601,23 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    // Geen sessieId/groepId/testId — haal ALLE openstaande inzendingen
+                    // van deze leerkracht op. De leerkracht koppelt ze handmatig aan
+                    // de huidige testafname (groepId/testId/datum) bij het opslaan.
                     action:   'get_waarnemer_metingen',
                     schoolId: profile.school_id,
-                    groepId, testId, datum,
                 }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             setInzendingen(data.inzendingen || []);
         } catch {
-            // Stille fout — geen toast, gewoon lege staat tonen
             setFout(true);
             setInzendingen([]);
         } finally {
             setLoading(false);
         }
-    }, [groepId, testId, datum, profile]);
+    }, [profile]);
 
     useEffect(() => { fetchInzendingen(); }, [fetchInzendingen]);
 
@@ -1782,9 +1783,13 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
                 <>
                     <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
                         <p className="text-sm font-medium text-blue-800">
-                            Inzending van <strong>{actieveInzending.waarnemer}</strong> — {actieveInzending.metingen.length} leerlingen.
-                            Koppel elke naam aan de juiste leerling.
+                            Inzending van <strong>{actieveInzending.waarnemer}</strong> — {actieveInzending.metingen.length} leerlingen
                         </p>
+                        <p className="text-xs text-blue-600 mt-0.5">
+                            {actieveInzending.sport_type || 'onbekende activiteit'}
+                            {actieveInzending.ingediend_op && ` · ingediend ${new Date(actieveInzending.ingediend_op).toLocaleDateString('nl-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                        </p>
+                        <p className="text-xs text-blue-500 mt-1">Koppel elke naam aan de juiste leerling van deze testafname.</p>
                     </div>
 
                     <div className="space-y-3">
