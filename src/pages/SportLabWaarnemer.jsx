@@ -20,6 +20,7 @@ import { CheckCircleIcon as CheckCircleSolid, FlagIcon } from '@heroicons/react/
 const SPORT_TYPES = [
     { id: 'loop',         naam: 'Loop / Duurloop',      eenheid: 'seconden', icon: '🏃', modus: 'chrono_rondes'   },
     { id: 'sprint',       naam: 'Sprint (60m / 100m)',  eenheid: 'seconden', icon: '⚡', modus: 'chrono_eenmalig' },
+    { id: 'zwemmen',      naam: 'Zwemmen',              eenheid: 'seconden', icon: '🏊', modus: 'chrono_rondes'   },
     { id: 'shuttle',      naam: 'Shuttle Run',          eenheid: 'aantal',   icon: '↔️', modus: 'telling'         },
     { id: 'verspringen',  naam: 'Verspringen',          eenheid: 'm',        icon: '↗️', modus: 'meting_pogingen' },
     { id: 'hoogspringen', naam: 'Hoogspringen',         eenheid: 'm',        icon: '⬆️', modus: 'meting_pogingen' },
