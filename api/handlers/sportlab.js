@@ -1148,7 +1148,7 @@ export async function handleVolgendeRonde(req, res, decodedToken) {
 // ─── WAARNEMER: SUBMIT METINGEN (leerling) ────────────────────────────────────
 export async function handleSubmitWaarnemerMetingen(req, res, decodedToken) {
     try {
-        const { schoolId, sessieId, sportType, modus, eenheid, configuratie, metingen } = req.body;
+        const { schoolId, sessieId, sportType, testId, testNaam, modus, eenheid, configuratie, metingen } = req.body;
 
         const verifiedSchoolId = await getSchoolId(decodedToken.uid);
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
@@ -1195,6 +1195,8 @@ export async function handleSubmitWaarnemerMetingen(req, res, decodedToken) {
             ingediend_op:   Timestamp.now(),
             vervalt_op:     Timestamp.fromDate(TTL_14D),
             sport_type:     sportType,
+            test_id:        testId   || null,
+            test_naam:      testNaam || null,
             modus:          modus || null,
             eenheid:        eenheid || null,
             configuratie:   configuratie || {},
@@ -1241,16 +1243,33 @@ export async function handleGetWaarnemerMetingen(req, res, decodedToken) {
         const snap = await query.get();
         if (snap.empty) return res.status(200).json({ success: true, inzendingen: [] });
 
+        // Echte naam van de waarnemer ontsleutelen (voor de leerkracht — niet de nickname)
+        const masterKey     = await getMasterKey();
         const waarnemerUids = [...new Set(snap.docs.map(d => d.data().ingediend_door))];
         const userSnaps     = await db.getAll(...waarnemerUids.map(uid => db.collection('users').doc(uid)));
-        const nicknameMap   = Object.fromEntries(userSnaps.map(s => [s.id, s.data()?.nickname || 'Waarnemer']));
+        const naamMap       = {};
+        for (const s of userSnaps) {
+            const ud = s.data();
+            let naam = ud?.nickname || 'Waarnemer';
+            if (ud?.toegestane_gebruikers_id && masterKey) {
+                try {
+                    const tgSnap = await db.collection('toegestane_gebruikers').doc(ud.toegestane_gebruikers_id).get();
+                    if (tgSnap.exists && tgSnap.data().encrypted_name) {
+                        naam = decryptName(tgSnap.data().encrypted_name, masterKey);
+                    }
+                } catch { /* val terug op nickname */ }
+            }
+            naamMap[s.id] = naam;
+        }
 
         const inzendingen = snap.docs.map(doc => {
             const data = doc.data();
             return {
                 id:           doc.id,
-                waarnemer:    nicknameMap[data.ingediend_door] || 'Waarnemer',
+                waarnemer:    naamMap[data.ingediend_door] || 'Waarnemer',
                 sport_type:   data.sport_type,
+                test_id:      data.test_id || null,
+                test_naam:    data.test_naam || null,
                 modus:        data.modus,
                 eenheid:      data.eenheid,
                 configuratie: data.configuratie,
@@ -1264,6 +1283,39 @@ export async function handleGetWaarnemerMetingen(req, res, decodedToken) {
     } catch (error) {
         console.error('❌ handleGetWaarnemerMetingen:', error);
         return res.status(500).json({ error: 'Fout bij ophalen metingen' });
+    }
+}
+
+// ─── WAARNEMER: VERWIJDER INZENDING (leerkracht) ──────────────────────────────
+export async function handleVerwijderWaarnemerMetingen(req, res, decodedToken) {
+    try {
+        const { schoolId, metingId } = req.body;
+
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
+
+        const callerSnap = await db.collection('users').doc(decodedToken.uid).get();
+        const callerRol  = callerSnap.data()?.rol;
+        if (!['leerkracht', 'administrator', 'super-administrator'].includes(callerRol)) {
+            return res.status(403).json({ error: 'Geen toegang.' });
+        }
+
+        const ref  = db.collection('sport_lab_waarnemer_metingen').doc(metingId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'Meting niet gevonden.' });
+
+        const docData = snap.data();
+        if (docData.leerkracht_id !== decodedToken.uid
+            && !['administrator', 'super-administrator'].includes(callerRol)) {
+            return res.status(403).json({ error: 'Geen toegang.' });
+        }
+
+        await ref.delete();
+        return res.status(200).json({ success: true });
+
+    } catch (error) {
+        console.error('❌ handleVerwijderWaarnemerMetingen:', error);
+        return res.status(500).json({ error: 'Fout bij verwijderen' });
     }
 }
 

@@ -128,7 +128,8 @@ export default function NieuweTestafname() {
     const [isMobile, setIsMobile] = useState(false);
     const [showWaarnemer, setShowWaarnemer] = useState(false);
     const [searchParams] = useSearchParams();
-    const prefillToegepast = useRef(false);
+    const prefillRef = useRef(false);
+    const [autoWaarnemerTab, setAutoWaarnemerTab] = useState(false); // open direct koppel-tab
 
     // =============================================
     // EFFECT 1: Groepen en testen laden via API
@@ -152,22 +153,49 @@ export default function NieuweTestafname() {
         fetchData();
     }, [profile]);
 
-    // Voorinvullen vanuit URL-parameters (komst vanuit SportLab Waarnemer-melding)
-    // ?groep=<id>&datum=<YYYY-MM-DD>
+    // Voorinvullen vanuit URL (komst vanuit SportLab Waarnemer-melding)
+    // ?groep=<id> of ?klas=<naam>, &datum=, &test=<id>, &waarnemer=1
     useEffect(() => {
-        if (prefillToegepast.current) return;
-        if (groepen.length === 0) return;
+        if (prefillRef.current) return;
+        if (groepen.length === 0 && testen.length === 0) return;
 
         const groepParam = searchParams.get('groep');
+        const klasParam  = searchParams.get('klas');
         const datumParam = searchParams.get('datum');
+        const testParam  = searchParams.get('test');
+        const waarnParam = searchParams.get('waarnemer');
 
         if (datumParam) setDatum(datumParam);
+
+        // Groep matchen: eerst op groep-id, anders op klas-naam
         if (groepParam) {
             const match = groepen.find(g => g.id === groepParam);
             if (match) setSelectedGroep(match);
+        } else if (klasParam) {
+            // Zoek een groep die overeenkomt met de klas (op naam of klas-veld)
+            const match = groepen.find(g =>
+                g.naam === klasParam || g.klas === klasParam || g.naam?.includes(klasParam)
+            );
+            if (match) setSelectedGroep(match);
         }
-        if (groepParam || datumParam) prefillToegepast.current = true;
-    }, [groepen, searchParams]);
+
+        if (testParam) {
+            const t = testen.find(t => t.id === testParam);
+            if (t) setSelectedTest(t);
+        }
+
+        if (waarnParam === '1') setAutoWaarnemerTab(true);
+
+        if (groepParam || klasParam || datumParam || testParam) prefillRef.current = true;
+    }, [groepen, testen, searchParams]);
+
+    // Open de Waarnemer Tool automatisch zodra groep + test klaarstaan (vanuit melding)
+    useEffect(() => {
+        if (autoWaarnemerTab && selectedGroep && selectedTest) {
+            setShowWaarnemer(true);
+            setAutoWaarnemerTab(false);
+        }
+    }, [autoWaarnemerTab, selectedGroep, selectedTest]);
 
     // =============================================
     // EFFECT 2: Leerlingen ophalen via API
@@ -679,6 +707,7 @@ export default function NieuweTestafname() {
                     testId={selectedTest.id}
                     datum={datum}
                     profile={profile}
+                    defaultTab={searchParams.get('waarnemer') === '1' ? 'koppel' : 'eigen'}
                     onClose={() => setShowWaarnemer(false)}
                     onScoresOpgeslagen={() => {
                         setShowWaarnemer(false);

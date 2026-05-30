@@ -17,6 +17,7 @@ import {
     XMarkIcon,
     CheckIcon,
     ArrowPathIcon,
+    TrashIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
@@ -1601,34 +1602,92 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    // Geen sessieId/groepId/testId — haal ALLE openstaande inzendingen
-                    // van deze leerkracht op. De leerkracht koppelt ze handmatig aan
-                    // de huidige testafname (groepId/testId/datum) bij het opslaan.
                     action:   'get_waarnemer_metingen',
                     schoolId: profile.school_id,
+                    groepId, testId, datum,
                 }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             setInzendingen(data.inzendingen || []);
         } catch {
+            // Stille fout — geen toast, gewoon lege staat tonen
             setFout(true);
             setInzendingen([]);
         } finally {
             setLoading(false);
         }
-    }, [profile]);
+    }, [groepId, testId, datum, profile]);
 
     useEffect(() => { fetchInzendingen(); }, [fetchInzendingen]);
-
-    // Reset koppelingen bij wisselen van actieve inzending
-    useEffect(() => { setKoppelingen({}); }, [actieveIndex]);
 
     const actieveInzending = inzendingen[actieveIndex] || null;
     const nogTeVerwerken   = inzendingen.filter(i => !verwerktIds.includes(i.id));
 
+    // Slimme auto-suggestie: koppel namen waarvan de voornaam overeenkomt
+    // met exact één leerling. Reset bij wisselen van inzending.
+    useEffect(() => {
+        if (!actieveInzending) { setKoppelingen({}); return; }
+
+        const normaliseer = (s) => (s || '').toLowerCase().trim();
+        const voornaam    = (s) => normaliseer(s).split(/\s+/)[0];
+
+        const auto = {};
+        const alGebruikt = new Set();
+
+        for (const m of actieveInzending.metingen) {
+            const ingediendeVoornaam = voornaam(m.naam);
+            if (!ingediendeVoornaam) continue;
+
+            // Zoek leerlingen waarvan de (voor)naam overeenkomt
+            const matches = leerlingen.filter(l => {
+                if (alGebruikt.has(l.id)) return false;
+                const lvoor = voornaam(l.naam);
+                const lvol  = normaliseer(l.naam);
+                return lvoor === ingediendeVoornaam
+                    || lvol === normaliseer(m.naam)
+                    || lvol.startsWith(ingediendeVoornaam + ' ');
+            });
+
+            // Enkel auto-koppelen bij een unieke match (geen dubbelzinnigheid)
+            if (matches.length === 1) {
+                auto[m.naam] = matches[0].id;
+                alGebruikt.add(matches[0].id);
+            }
+        }
+        setKoppelingen(auto);
+    }, [actieveIndex, actieveInzending, leerlingen]);
+
     const handleKoppelChange = (ingediendeNaam, leerlingId) => {
         setKoppelingen(prev => ({ ...prev, [ingediendeNaam]: leerlingId }));
+    };
+
+    // Inzending verwijderen (na bevestiging)
+    const handleVerwijder = async () => {
+        if (!actieveInzending) return;
+        const bevestigd = window.confirm(
+            `Inzending van ${actieveInzending.waarnemer} (${actieveInzending.metingen.length} leerlingen) definitief verwijderen?\n\nDit kan niet ongedaan gemaakt worden.`
+        );
+        if (!bevestigd) return;
+
+        try {
+            const res = await fetch('/api/tests', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action:   'verwijder_waarnemer_metingen',
+                    schoolId: profile.school_id,
+                    metingId: actieveInzending.id,
+                }),
+            });
+            if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+            toast.success('Inzending verwijderd');
+            // Lokaal verwijderen + index corrigeren
+            setInzendingen(prev => prev.filter(i => i.id !== actieveInzending.id));
+            setActieveIndex(0);
+        } catch (e) {
+            toast.error('Verwijderen mislukt: ' + e.message);
+        }
     };
 
     const handleOpslaan = async () => {
@@ -1783,13 +1842,9 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
                 <>
                     <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
                         <p className="text-sm font-medium text-blue-800">
-                            Inzending van <strong>{actieveInzending.waarnemer}</strong> — {actieveInzending.metingen.length} leerlingen
+                            Inzending van <strong>{actieveInzending.waarnemer}</strong> — {actieveInzending.metingen.length} leerlingen.
+                            Koppel elke naam aan de juiste leerling.
                         </p>
-                        <p className="text-xs text-blue-600 mt-0.5">
-                            {actieveInzending.sport_type || 'onbekende activiteit'}
-                            {actieveInzending.ingediend_op && ` · ingediend ${new Date(actieveInzending.ingediend_op).toLocaleDateString('nl-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
-                        </p>
-                        <p className="text-xs text-blue-500 mt-1">Koppel elke naam aan de juiste leerling van deze testafname.</p>
                     </div>
 
                     <div className="space-y-3">
@@ -1830,18 +1885,28 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
                         })}
                     </div>
 
-                    <button
-                        onClick={handleOpslaan}
-                        disabled={saving || !Object.values(koppelingen).some(Boolean)}
-                        className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-semibold py-4 rounded-2xl transition-colors flex items-center justify-center gap-2"
-                    >
-                        {saving
-                            ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> Opslaan...</>
-                            : <><CheckCircleSolid className="w-5 h-5" />
-                                Scores opslaan ({Object.values(koppelingen).filter(Boolean).length}/{actieveInzending.metingen.length} gekoppeld)
-                              </>
-                        }
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleVerwijder}
+                            disabled={saving}
+                            className="px-4 py-4 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-40 font-medium rounded-2xl transition-colors flex items-center justify-center"
+                            title="Inzending verwijderen"
+                        >
+                            <TrashIcon className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={handleOpslaan}
+                            disabled={saving || !Object.values(koppelingen).some(Boolean)}
+                            className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-semibold py-4 rounded-2xl transition-colors flex items-center justify-center gap-2"
+                        >
+                            {saving
+                                ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> Opslaan...</>
+                                : <><CheckCircleSolid className="w-5 h-5" />
+                                    Scores opslaan ({Object.values(koppelingen).filter(Boolean).length}/{actieveInzending.metingen.length} gekoppeld)
+                                  </>
+                            }
+                        </button>
+                    </div>
                 </>
             )}
         </div>
@@ -1850,8 +1915,8 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
 
 // ─── HOOFD COMPONENT ─────────────────────────────────────────────────────────
 // Gebruik: <WaarnemerPanel leerlingen={...} test={selectedTest} testInfo={...} ... />
-export default function WaarnemerPanel({ leerlingen, test, testInfo, groepId, testId, datum, profile, onClose, onScoresOpgeslagen }) {
-    const [tab, setTab]     = useState('eigen');
+export default function WaarnemerPanel({ leerlingen, test, testInfo, groepId, testId, datum, profile, defaultTab = 'eigen', onClose, onScoresOpgeslagen }) {
+    const [tab, setTab]     = useState(defaultTab);
     const detectie          = detectWaarnemerModus(test);
     const toolLabel         = detectie.geschikt ? `${detectie.icon} ${detectie.label}` : '⛔ Niet beschikbaar';
 

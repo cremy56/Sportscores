@@ -15,7 +15,6 @@ import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
 import { Scorebord, DigitaalKlembord, ToernooiBuilder, ToernooiDashboard } from './SportLabToernooi';
 import { BodyFixerView } from './SportLabBodyFixer';
-import { WaarnemerView } from './SportLabWaarnemer';
 
 // ─── API HELPER ───────────────────────────────────────────────────────────────
 async function apiPost(action, body, token) {
@@ -119,23 +118,6 @@ const ROLLEN = [
             'Level 3 — Zelfstandig: eigen revalidatieplan opvolgen',
         ],
         vrijgesteldOnly: true, // Enkel voor vrijgestelde leerlingen
-    },
-    {
-        id: 'waarnemer',
-        naam: 'De Waarnemer',
-        subtitel: 'Tijdregistratie & Metingen',
-        emoji: '🔭',
-        kleur: 'from-teal-400 to-cyan-500',
-        bg: 'bg-teal-50',
-        border: 'border-teal-200',
-        tekst: 'text-teal-800',
-        beschrijving: 'Meet tijden en afstanden, registreer rondes en dien de resultaten in bij de leerkracht.',
-        niveaus: [
-            'Level 1 — Tijdregistratie: chrono en rondes bijhouden bij loops en sprints',
-            'Level 2 — Meting & Registratie: afstanden noteren bij verspringen, werpen en meer',
-            'Level 3 — Volledig waarnemer: tijden, metingen én rangschikking presenteren',
-        ],
-        vrijgesteldOnly: false,
     },
 ];
 
@@ -616,7 +598,10 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                                                                 : new Date().toISOString().split('T')[0];
                                                             const params = new URLSearchParams();
                                                             if (sessie.groep_id) params.set('groep', sessie.groep_id);
+                                                            if (sessie.klas)     params.set('klas', sessie.klas);
+                                                            if (d.waarnemer_inzending.test_id) params.set('test', d.waarnemer_inzending.test_id);
                                                             params.set('datum', datum);
+                                                            params.set('waarnemer', '1'); // open direct de koppel-tab
                                                             navigate(`/nieuwe-testafname?${params.toString()}`);
                                                         }}
                                                         className="text-[10px] font-bold text-teal-700 bg-teal-100 border border-teal-300 px-2 py-0.5 rounded-md flex items-center gap-1 hover:bg-teal-200 transition-colors animate-pulse"
@@ -871,19 +856,6 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                     deelname={deelname}
                     profile={profile}
                     onGereflecteerd={onGereflecteerd}
-                />
-            </div>
-        );
-    }
-
-    // ─── WAARNEMER KRIJGT ZIJN EIGEN SCHERM ───
-    if (rol === 'waarnemer') {
-        return (
-            <div className="max-w-2xl mx-auto">
-                <WaarnemerView
-                    sessie={sessie}
-                    profile={profile}
-                    onTerug={onTerug}
                 />
             </div>
         );
