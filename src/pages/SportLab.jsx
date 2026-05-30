@@ -1,6 +1,6 @@
 // src/pages/SportLab.jsx
 import { useState, useEffect, useCallback } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import {
     ChevronRightIcon,
@@ -15,7 +15,6 @@ import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
 import { Scorebord, DigitaalKlembord, ToernooiBuilder, ToernooiDashboard } from './SportLabToernooi';
 import { BodyFixerView } from './SportLabBodyFixer';
-import { WaarnemerView } from './SportLabWaarnemer';
 
 // ─── API HELPER ───────────────────────────────────────────────────────────────
 async function apiPost(action, body, token) {
@@ -120,23 +119,6 @@ const ROLLEN = [
         ],
         vrijgesteldOnly: true, // Enkel voor vrijgestelde leerlingen
     },
-    {
-    id: 'waarnemer',
-    naam: 'De Waarnemer',
-    subtitel: 'Tijdregistratie & Metingen',
-    emoji: '🔭',
-    kleur: 'from-teal-400 to-cyan-500',
-    bg: 'bg-teal-50',
-    border: 'border-teal-200',
-    tekst: 'text-teal-800',
-    beschrijving: 'Meet tijden en afstanden, registreer rondes en dien de resultaten in bij de leerkracht.',
-    niveaus: [
-        'Level 1 — Tijdregistratie: chrono en rondes bijhouden bij loops en sprints',
-        'Level 2 — Meting & Registratie: afstanden noteren bij verspringen, werpen en meer',
-        'Level 3 — Volledig waarnemer: tijden, metingen én rangschikking presenteren',
-    ],
-    vrijgesteldOnly: false,
-},
 ];
 
 // ─── NIVEAU BADGE ─────────────────────────────────────────────────────────────
@@ -251,7 +233,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 max-w-xl w-full">
                 <div className="mb-6">
                     <h2 className="font-bold text-slate-900 text-lg">Nieuwe Sport Lab Sessie</h2>
-                    <p className="text-sm text-slate-500 mt-1">Leerlingen kunnen daarna joinen via de website</p>
+                    <p className="text-sm text-slate-500 mt-1">Leerlingen kunnen daarna joinen via de app</p>
                 </div>
 
                 <div className="space-y-4">
@@ -426,6 +408,7 @@ function BeoordelingRij({ d, sessie, profile, onOpgeslagen }) {
 
 // ─── LEERKRACHT: ACTIEVE SESSIE BEHEER ────────────────────────────────────────
 function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh }) {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [duur, setDuur] = useState(0);
     const [toonAfbreekBevestiging, setToonAfbreekBevestiging] = useState(false);
@@ -586,7 +569,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                             
                             {deelnames.length === 0 ? (
                                 <div className="px-4 py-6 text-sm text-center text-slate-400 italic">
-                                    Nog geen rollen gekozen.<br/>Leerlingen kunnen nu joinen via de website.
+                                    Nog geen rollen gekozen.<br/>Leerlingen kunnen nu joinen via de app.
                                 </div>
                             ) : (
                                 <ul className="divide-y divide-slate-50">
@@ -606,6 +589,24 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                                                 <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                                                     {d.rol_naam}
                                                 </span>
+                                                {/* Waarnemer inzending — klikbaar, stuurt naar NieuweTestafname */}
+                                                {d.waarnemer_inzending && (
+                                                    <button
+                                                        onClick={() => {
+                                                            const datum = sessie.start_tijd
+                                                                ? new Date(sessie.start_tijd).toISOString().split('T')[0]
+                                                                : new Date().toISOString().split('T')[0];
+                                                            const params = new URLSearchParams();
+                                                            if (sessie.groep_id) params.set('groep', sessie.groep_id);
+                                                            params.set('datum', datum);
+                                                            navigate(`/nieuwe-testafname?${params.toString()}`);
+                                                        }}
+                                                        className="text-[10px] font-bold text-teal-700 bg-teal-100 border border-teal-300 px-2 py-0.5 rounded-md flex items-center gap-1 hover:bg-teal-200 transition-colors animate-pulse"
+                                                        title="Resultaten verwerken in testafname"
+                                                    >
+                                                        🔭 {d.waarnemer_inzending.aantal_leerlingen} resultaten →
+                                                    </button>
+                                                )}
                                                 {d.voltooid && (
                                                     <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md flex items-center gap-1">
                                                         <CheckCircleSolid className="w-3 h-3" /> OK
@@ -832,20 +833,11 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, eigenDeelname, onRo
 
 // ─── DIGITAAL SCOREBORD (Speciaal voor de Arbiter) ────────────────────────────
 // ─── LEERLING: ACTIEVE ROL VIEW ───────────────────────────────────────────────
-
+// ─── LEERLING: ACTIEVE ROL VIEW ───────────────────────────────────────────────
 function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteerd, onTerug, onRefresh }) {
     const rolData = ROLLEN.find(r => r.id === rol) || ROLLEN[0];
 
-    if (rol === 'waarnemer') {
-        return (
-            <WaarnemerView
-                sessie={sessie}
-                profile={profile}
-                onTerug={onTerug}
-            />
-        );
-    }
-
+    // ─── FIX: BODY FIXER KRIJGT ZIJN EIGEN SPECIALE SCHERM ───
     if (rol === 'alternatief') {
         return (
             <div className="max-w-2xl mx-auto">
@@ -1269,7 +1261,7 @@ function getTakenVoorRol(rol, niveau, sport) {
     const taken = {
         arbiter: {
             1: [`Leer de basisregels van ${sport}`, 'Houd de score bij', 'Geef aan bij welk team de volgende beurten is'],
-            2: ['Houd de tijd bij met de timer', 'Fluit bij duidelijke overtredingen', 'Noteer beslissingen op de website'],
+            2: ['Houd de tijd bij met de timer', 'Fluit bij duidelijke overtredingen', 'Noteer beslissingen in de app'],
             3: ['Beheer complexe situaties', 'Communiceer beslissingen naar spelers', 'Houd wedstrijdverloop bij'],
         },
         coach: {
@@ -1428,7 +1420,7 @@ export default function SportLab() {
                         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">SportLab</h1>
                         <p className="text-slate-500 text-sm">
                             {isTeacher 
-                                ? 'Start een sessie en laat leerlingen hun rol kiezen via de website.' 
+                                ? 'Start een sessie en laat leerlingen hun rol kiezen via de app.' 
                                 : (isLeerling && !gekozenRol) 
                                     ? 'Kies je rol voor de les en verdien XP door actief bij te dragen.' 
                                     : 'Jouw actieve SportLab missie.'

@@ -298,6 +298,24 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                     .where('leerling_id', '==', data.leerling_firebase_uid)
                     .limit(1).get();
 
+                // Check of deze waarnemer-leerling al metingen heeft ingediend
+                let waarnemerInzending = null;
+                if (data.rol === 'waarnemer') {
+                    const wmSnap = await db.collection('sport_lab_waarnemer_metingen')
+                        .where('sessie_id', '==', d.id)
+                        .where('ingediend_door', '==', data.leerling_firebase_uid)
+                        .where('status', '==', 'ingediend')
+                        .limit(1).get();
+                    if (!wmSnap.empty) {
+                        const wm = wmSnap.docs[0].data();
+                        waarnemerInzending = {
+                            meting_id:       wmSnap.docs[0].id,
+                            aantal_leerlingen: Array.isArray(wm.metingen) ? wm.metingen.length : 0,
+                            sport_type:      wm.sport_type || null,
+                        };
+                    }
+                }
+
                 return {
                     id: dd.id,
                     leerling_uid: data.leerling_firebase_uid,
@@ -310,7 +328,8 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                     is_vrijgesteld: data.rol === 'alternatief',
                     beoordeeld: !scoreSnap.empty,
                     beoordeling: !scoreSnap.empty ? scoreSnap.docs[0].data() : null,
-                    observaties_aantal: data.observaties_aantal || 0
+                    observaties_aantal: data.observaties_aantal || 0,
+                    waarnemer_inzending: waarnemerInzending,
                 };
             }));
 

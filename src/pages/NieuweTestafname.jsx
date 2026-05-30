@@ -2,7 +2,7 @@
 // ✅ VOLLEDIG GEMIGREERD — geen directe Firestore calls meer
 // Alle data gaat via /api/tests (Admin SDK server-side)
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useOutletContext, useNavigate, Link } from 'react-router-dom';
+import { useOutletContext, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { auth } from '../firebase';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, PencilIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
@@ -127,6 +127,8 @@ export default function NieuweTestafname() {
     const [filtersZijnOpen, setFiltersZijnOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [showWaarnemer, setShowWaarnemer] = useState(false);
+    const [searchParams] = useSearchParams();
+    const prefillToegepast = useRef(false);
 
     // =============================================
     // EFFECT 1: Groepen en testen laden via API
@@ -149,6 +151,23 @@ export default function NieuweTestafname() {
         };
         fetchData();
     }, [profile]);
+
+    // Voorinvullen vanuit URL-parameters (komst vanuit SportLab Waarnemer-melding)
+    // ?groep=<id>&datum=<YYYY-MM-DD>
+    useEffect(() => {
+        if (prefillToegepast.current) return;
+        if (groepen.length === 0) return;
+
+        const groepParam = searchParams.get('groep');
+        const datumParam = searchParams.get('datum');
+
+        if (datumParam) setDatum(datumParam);
+        if (groepParam) {
+            const match = groepen.find(g => g.id === groepParam);
+            if (match) setSelectedGroep(match);
+        }
+        if (groepParam || datumParam) prefillToegepast.current = true;
+    }, [groepen, searchParams]);
 
     // =============================================
     // EFFECT 2: Leerlingen ophalen via API
