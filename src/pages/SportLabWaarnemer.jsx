@@ -20,7 +20,6 @@ import { CheckCircleIcon as CheckCircleSolid, FlagIcon } from '@heroicons/react/
 const SPORT_TYPES = [
     { id: 'loop',         naam: 'Loop / Duurloop',      eenheid: 'seconden', icon: '🏃', modus: 'chrono_rondes'   },
     { id: 'sprint',       naam: 'Sprint (60m / 100m)',  eenheid: 'seconden', icon: '⚡', modus: 'chrono_eenmalig' },
-    { id: 'zwemmen',      naam: 'Zwemmen',              eenheid: 'seconden', icon: '🏊', modus: 'chrono_rondes'   },
     { id: 'shuttle',      naam: 'Shuttle Run',          eenheid: 'aantal',   icon: '↔️', modus: 'telling'         },
     { id: 'verspringen',  naam: 'Verspringen',          eenheid: 'm',        icon: '↗️', modus: 'meting_pogingen' },
     { id: 'hoogspringen', naam: 'Hoogspringen',         eenheid: 'm',        icon: '⬆️', modus: 'meting_pogingen' },
@@ -46,13 +45,47 @@ function formatRondetijd(ms) {
 }
 
 // ─── FASE 1: SETUP ────────────────────────────────────────────────────────────
-function WaarnemerSetup({ onStart }) {
+// Matcht een test aan een activiteit op basis van naam/eenheid/categorie
+function testMatchtActiviteit(test, sportId) {
+    const naam      = (test.naam || '').toLowerCase();
+    const eenheid   = (test.eenheid || '').toLowerCase();
+    const categorie = (test.categorie || '').toLowerCase();
+
+    switch (sportId) {
+        case 'loop':
+            return categorie.includes('uithouding') || ['cooper', 'km', 'duurloop', 'loop'].some(w => naam.includes(w));
+        case 'sprint':
+            return ['sprint', '50m', '60m', '100m', 'snelheid'].some(w => naam.includes(w) || categorie.includes(w));
+        case 'zwemmen':
+            return ['zwem', 'crawl', 'schoolslag', 'rugslag', 'vlinderslag', 'borst', 'wisselslag', 'baantj'].some(w => naam.includes(w));
+        case 'shuttle':
+            return ['shuttle', 'beep', 'piepjes', 'léger', 'leger'].some(w => naam.includes(w));
+        case 'verspringen':
+            return naam.includes('verspring') || (naam.includes('spring') && !naam.includes('hoog'));
+        case 'hoogspringen':
+            return naam.includes('hoog');
+        case 'werpen':
+            return ['werp', 'kogel', 'bal', 'speer', 'discus'].some(w => naam.includes(w));
+        case 'touwspringen':
+            return naam.includes('touw');
+        default:
+            return false;
+    }
+}
+
+function WaarnemerSetup({ onStart, profile }) {
     const [sportType, setSportType] = useState('');
     const [rondes, setRondes] = useState(7);
     const [pogingen, setPogingen] = useState(3);
     const [namen, setNamen] = useState([]);
     const [naamInput, setNaamInput] = useState('');
     const inputRef = useRef(null);
+
+    // Test-keuze flow
+    const [testDialog, setTestDialog]   = useState(false);   // toont "test afnemen?" dialog
+    const [testen, setTesten]           = useState(null);    // null = nog niet geladen
+    const [laadtTesten, setLaadtTesten] = useState(false);
+    const [gekozenTest, setGekozenTest] = useState(null);
 
     const sportConfig = SPORT_TYPES.find(s => s.id === sportType);
 
@@ -72,20 +105,58 @@ function WaarnemerSetup({ onStart }) {
         if (e.key === 'Enter') { e.preventDefault(); voegNaamToe(); }
     };
 
+    // Tests ophalen + filteren op activiteit
+    const laadTesten = async () => {
+        setLaadtTesten(true);
+        try {
+            const res = await fetch('/api/tests', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get_tests', schoolId: profile.school_id }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Geen toegang');
+            const alle = data.testen || data.tests || [];
+            const gefilterd = alle.filter(t => testMatchtActiviteit(t, sportType));
+            setTesten(gefilterd);
+        } catch {
+            // Leerling heeft mogelijk geen toegang tot tests — ga gewoon door zonder test
+            setTesten([]);
+        } finally {
+            setLaadtTesten(false);
+        }
+    };
+
+    const startMetTest = () => {
+        // bepaal banen/afstand uit testnaam indien zwemmen
+        let autoRondes = Number(rondes);
+        if (gekozenTest) {
+            const m = (gekozenTest.naam || '').match(/(\d+)\s*m/);
+            if (sportType === 'zwemmen' && m) autoRondes = Math.round(parseInt(m[1]) / 25);
+        }
+        onStart({
+            sportType, sportConfig,
+            rondes: autoRondes,
+            pogingen: Number(pogingen),
+            namen,
+            test: gekozenTest,           // { id, naam, eenheid } of null
+            banenVast: !!gekozenTest && sportType === 'zwemmen', // banen niet wijzigbaar
+        });
+    };
+
     const handleStart = () => {
         if (!sportType) { toast.error('Kies een activiteit'); return; }
         if (namen.length < 1) { toast.error('Voeg minstens 1 naam toe'); return; }
-        if (sportConfig.modus === 'chrono_rondes' && (!rondes || rondes < 1)) {
+        if (sportConfig.modus === 'chrono_rondes' && !gekozenTest && (!rondes || rondes < 1)) {
             toast.error('Stel het aantal rondes in');
             return;
         }
-        onStart({
-            sportType,
-            sportConfig,
-            rondes: Number(rondes),
-            pogingen: Number(pogingen),
-            namen,
-        });
+        // Al een test gekozen → direct starten. Anders eerst de "test afnemen?" dialog.
+        if (gekozenTest) {
+            startMetTest();
+        } else {
+            setTestDialog(true);
+        }
     };
 
     return (
@@ -98,7 +169,7 @@ function WaarnemerSetup({ onStart }) {
                     {SPORT_TYPES.map(s => (
                         <button
                             key={s.id}
-                            onClick={() => setSportType(s.id)}
+                            onClick={() => { setSportType(s.id); setGekozenTest(null); setTesten(null); }}
                             className={`flex items-center gap-2 px-3 py-3 rounded-xl border-2 text-sm font-medium transition-all text-left ${
                                 sportType === s.id
                                     ? 'border-teal-500 bg-teal-50 text-teal-800'
@@ -112,8 +183,21 @@ function WaarnemerSetup({ onStart }) {
                 </div>
             </div>
 
-            {/* Configuratie rondes / banen */}
-            {sportConfig?.modus === 'chrono_rondes' && (
+            {/* Gekozen test badge */}
+            {gekozenTest && (
+                <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-semibold text-teal-800">📋 Test: {gekozenTest.naam}</p>
+                        {sportType === 'zwemmen' && (
+                            <p className="text-xs text-teal-600">{rondes} banen — automatisch ingesteld</p>
+                        )}
+                    </div>
+                    <button onClick={() => { setGekozenTest(null); }} className="text-teal-600 hover:text-teal-800 text-sm">✕</button>
+                </div>
+            )}
+
+            {/* Configuratie rondes / banen — verborgen als test de banen vastzet */}
+            {sportConfig?.modus === 'chrono_rondes' && !(gekozenTest && sportType === 'zwemmen') && (
                 <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Aantal {sportConfig.id === 'zwemmen' ? 'banen' : 'rondes'} per leerling
@@ -220,6 +304,86 @@ function WaarnemerSetup({ onStart }) {
                     Start Registratie
                 </button>
             )}
+
+            {/* ── Test-afnemen dialog ───────────────────────────────────── */}
+            {testDialog && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl">
+                        {testen === null ? (
+                            // Stap 1: vraag of er een test afgenomen wordt
+                            <>
+                                <p className="text-4xl text-center mb-3">📋</p>
+                                <h3 className="font-bold text-gray-900 text-center text-lg mb-2">
+                                    Test afnemen?
+                                </h3>
+                                <p className="text-sm text-gray-500 text-center mb-5">
+                                    Wenst de leerkracht een test af te nemen voor deze {sportConfig?.naam.toLowerCase()}?
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => { setTestDialog(false); startMetTest(); }}
+                                        className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600 font-medium hover:bg-gray-50"
+                                    >
+                                        Nee, vrij meten
+                                    </button>
+                                    <button
+                                        onClick={laadTesten}
+                                        disabled={laadtTesten}
+                                        className="flex-1 py-3 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl disabled:opacity-50"
+                                    >
+                                        {laadtTesten ? 'Laden...' : 'Ja, kies test'}
+                                    </button>
+                                </div>
+                            </>
+                        ) : testen.length === 0 ? (
+                            // Geen tests gevonden/toegankelijk
+                            <>
+                                <p className="text-4xl text-center mb-3">🤷</p>
+                                <h3 className="font-bold text-gray-900 text-center mb-2">Geen tests gevonden</h3>
+                                <p className="text-sm text-gray-500 text-center mb-5">
+                                    Er zijn geen tests gekoppeld aan deze activiteit. Je kan vrij meten en de leerkracht koppelt later.
+                                </p>
+                                <button
+                                    onClick={() => { setTestDialog(false); startMetTest(); }}
+                                    className="w-full py-3 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl"
+                                >
+                                    Doorgaan zonder test
+                                </button>
+                            </>
+                        ) : (
+                            // Stap 2: kies een test uit de gefilterde lijst
+                            <>
+                                <h3 className="font-bold text-gray-900 mb-1">Kies de test</h3>
+                                <p className="text-xs text-gray-500 mb-3">Tests voor {sportConfig?.naam.toLowerCase()}</p>
+                                <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
+                                    {testen.map(t => (
+                                        <button
+                                            key={t.id}
+                                            onClick={() => {
+                                                setGekozenTest({ id: t.id, naam: t.naam, eenheid: t.eenheid });
+                                                // banen automatisch instellen bij zwemmen
+                                                const m = (t.naam || '').match(/(\d+)\s*m/);
+                                                if (sportType === 'zwemmen' && m) setRondes(Math.round(parseInt(m[1]) / 25));
+                                                setTestDialog(false);
+                                            }}
+                                            className="w-full text-left px-4 py-3 border border-gray-200 rounded-xl hover:border-teal-400 hover:bg-teal-50 transition-colors"
+                                        >
+                                            <p className="font-medium text-gray-900 text-sm">{t.naam}</p>
+                                            <p className="text-xs text-gray-400">{t.eenheid}</p>
+                                        </button>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => { setTestDialog(false); startMetTest(); }}
+                                    className="w-full py-2.5 text-sm text-gray-500 hover:text-gray-700"
+                                >
+                                    Overslaan, vrij meten
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -303,7 +467,7 @@ function ChronoView({ config, onIndienen }) {
             <div className="bg-slate-900 rounded-2xl p-6 text-center">
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-2">
                     {sportConfig.naam}
-                    {sportConfig.modus === 'chrono_rondes' && ` — ${maxRondes} ${sportConfig.id === 'zwemmen' ? `baan${maxRondes > 1 ? 'en' : ''}` : `ronde${maxRondes > 1 ? 's' : ''}`}`}
+                    {sportConfig.modus === 'chrono_rondes' && ` — ${maxRondes} ronde${maxRondes > 1 ? 's' : ''}`}
                 </p>
                 <div className="text-5xl font-mono font-bold text-white tracking-wider mb-5">
                     {formatTijd(elapsed)}
@@ -641,8 +805,10 @@ export function WaarnemerView({ sessie, profile, onTerug }) {
                     schoolId:     profile.school_id,
                     sessieId:     sessie.id,
                     sportType:    config.sportType,
+                    testId:       config.test?.id   || null,
+                    testNaam:     config.test?.naam || null,
                     modus:        config.sportConfig.modus,
-                    eenheid:      config.sportConfig.eenheid,
+                    eenheid:      config.test?.eenheid || config.sportConfig.eenheid,
                     configuratie: { rondes: config.rondes, pogingen: config.pogingen },
                     metingen,
                 }),
@@ -687,7 +853,7 @@ export function WaarnemerView({ sessie, profile, onTerug }) {
             </div>
 
             {/* Fasen */}
-            {fase === 'setup' && <WaarnemerSetup onStart={handleStart} />}
+            {fase === 'setup' && <WaarnemerSetup onStart={handleStart} profile={profile} />}
 
             {fase === 'actief' && config && (() => {
                 const { modus } = config.sportConfig;
