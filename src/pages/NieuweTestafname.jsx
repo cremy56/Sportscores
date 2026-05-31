@@ -405,7 +405,7 @@ export default function NieuweTestafname() {
     // ✅ GEMIGREERD: geen writeBatch meer via client
     // =============================================
     const handleSaveScores = async () => {
-        if (!selectedGroep || !selectedTest) return toast.error("Selecteer een groep en een test.");
+        if ((!selectedGroep && !selectedKlas) || !selectedTest) return toast.error("Selecteer een groep of klas en een test.");
 
         setIsSaving(true);
 
@@ -422,8 +422,10 @@ export default function NieuweTestafname() {
                 if (finalScoreValue !== null && !isNaN(finalScoreValue)) {
                     const leerling = gefilterdeLeerlingen.find(l => l.id === leerlingId);
                     scoresToSave.push({
-                        leerling_id: leerling.id,                          // ✅ smartschool_id_hash
-                        leerling_naam: leerling?.data?.naam || 'Onbekend', // ✅ ontsleutelde naam
+                        leerling_id: leerling.id,
+                        leerling_naam: leerling?.data?.naam || 'Onbekend',
+                        klas: leerling?.data?.klas || null,
+                        geslacht: leerling?.data?.geslacht || null,
                         score: finalScoreValue,
                         rapportpunt: scoreData.rapportpunt ?? null,
                     });
@@ -438,13 +440,30 @@ export default function NieuweTestafname() {
         }
 
         try {
-            await apiPost('save_scores', {
-                groepId: selectedGroep.id,
-                testId: selectedTest.id,
-                schoolId: profile.school_id,
-                datum: datum,
-                scores: scoresToSave
-            }, profile._token);
+            if (selectedGroep) {
+                // GROEP: bestaande bulk-opslag
+                await apiPost('save_scores', {
+                    groepId: selectedGroep.id,
+                    testId: selectedTest.id,
+                    schoolId: profile.school_id,
+                    datum: datum,
+                    scores: scoresToSave
+                }, profile._token);
+            } else {
+                // KLAS: per leerling opslaan via save_score (enkelvoud, groep_id = null)
+                for (const s of scoresToSave) {
+                    await apiPost('save_score', {
+                        schoolId:   profile.school_id,
+                        groepId:    null,
+                        testId:     selectedTest.id,
+                        datum:      datum,
+                        leerlingId: s.leerling_id,
+                        klas:       s.klas,
+                        geslacht:   s.geslacht,
+                        score:      s.score,
+                    }, profile._token);
+                }
+            }
 
             toast.success("Scores succesvol opgeslagen!");
             navigate('/Sporttesten');
@@ -555,6 +574,25 @@ export default function NieuweTestafname() {
                         </button>
                     </div>
 
+                    {/* Samenvatting van de selectie (zichtbaar op mobiel wanneer filters dicht zijn) */}
+                    {!filtersZijnOpen && (selectedGroep || selectedKlas || selectedTest) && (
+                        <div className="md:hidden mb-4 flex flex-wrap gap-2 text-sm">
+                            <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                                📅 {new Date(datum).toLocaleDateString('nl-BE', { day: 'numeric', month: 'short' })}
+                            </span>
+                            {(selectedGroep || selectedKlas) && (
+                                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+                                    {selectedGroep ? selectedGroep.naam : `Klas ${selectedKlas}`}
+                                </span>
+                            )}
+                            {selectedTest && (
+                                <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full">
+                                    {selectedTest.naam}
+                                </span>
+                            )}
+                        </div>
+                    )}
+
                     {/* Filters */}
                     <div className={`transition-all duration-500 ease-in-out overflow-hidden ${filtersZijnOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'} md:max-h-full md:opacity-100 ${filtersZijnOpen ? 'mb-4 lg:mb-8' : 'mb-0'}`}>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -633,7 +671,12 @@ export default function NieuweTestafname() {
                     {(selectedGroep || selectedKlas) && selectedTest && (
                         <div className="border-t border-gray-200 pt-8">
                             <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-semibold text-gray-800">Scores invoeren</h2>
+                                <div>
+                                    <h2 className="text-xl font-semibold text-gray-800">Scores invoeren</h2>
+                                    <p className="text-sm text-gray-500 mt-0.5">
+                                        {selectedTest.naam} · {selectedGroep ? selectedGroep.naam : `Klas ${selectedKlas}`}
+                                    </p>
+                                </div>
                                 <div className="text-sm text-gray-600 bg-gray-50 px-3 py-1 rounded-full">
                                     {validScoresCount} / {gefilterdeLeerlingen.length} ingevoerd
                                 </div>
