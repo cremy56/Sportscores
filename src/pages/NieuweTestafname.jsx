@@ -163,13 +163,19 @@ export default function NieuweTestafname() {
     // ?groep=<id> of ?klas=<naam>, &datum=, &test=<id>, &waarnemer=1
     useEffect(() => {
         if (prefillRef.current) return;
-        if (groepen.length === 0 && testen.length === 0) return;
 
         const groepParam = searchParams.get('groep');
         const klasParam  = searchParams.get('klas');
         const datumParam = searchParams.get('datum');
         const testParam  = searchParams.get('test');
         const waarnParam = searchParams.get('waarnemer');
+
+        // Niks voor te vullen → niets doen
+        if (!groepParam && !klasParam && !datumParam && !testParam) return;
+
+        // Wacht tot de nodige data geladen is: groep nodig → wacht op groepen, test nodig → wacht op testen
+        if (groepParam && groepen.length === 0) return;
+        if (testParam  && testen.length === 0) return;
 
         if (datumParam) setDatum(datumParam);
 
@@ -189,7 +195,8 @@ export default function NieuweTestafname() {
 
         if (waarnParam === '1') setAutoWaarnemerTab(true);
 
-        if (groepParam || klasParam || datumParam || testParam) prefillRef.current = true;
+        // Guard pas zetten als alles wat nodig was ook beschikbaar is
+        prefillRef.current = true;
     }, [groepen, testen, searchParams]);
 
     // Open de Waarnemer Tool automatisch zodra doelgroep (groep OF klas) + test klaarstaan

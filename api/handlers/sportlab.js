@@ -312,6 +312,8 @@ export async function handleGetSportLabSessies(req, res, decodedToken) {
                             meting_id:       wmSnap.docs[0].id,
                             aantal_leerlingen: Array.isArray(wm.metingen) ? wm.metingen.length : 0,
                             sport_type:      wm.sport_type || null,
+                            test_id:         wm.test_id   || null,
+                            test_naam:       wm.test_naam || null,
                         };
                     }
                 }
