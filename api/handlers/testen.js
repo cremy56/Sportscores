@@ -363,17 +363,23 @@ export async function handleSaveScore(req, res, decodedToken) {
         const dayEnd   = new Date(scoreDatum); dayEnd.setHours(23, 59, 59, 999);
 
         // Bestaande score zoeken (idempotentie) — zelfde leerling+test+dag(+groep)
-        let bestaandeQuery = db.collection('scores')
+        // Bestaande score zoeken (idempotentie) zonder samengestelde index:
+        // query op leerling_id + test_id, filter datum + groep in het geheugen.
+        const kandidatenSnap = await db.collection('scores')
             .where('leerling_id', '==', leerlingId)
             .where('test_id', '==', testId)
-            .where('datum', '>=', Timestamp.fromDate(dayStart))
-            .where('datum', '<=', Timestamp.fromDate(dayEnd));
-        if (groepId) bestaandeQuery = bestaandeQuery.where('groep_id', '==', groepId);
+            .get();
 
-        const bestaandeSnap = await bestaandeQuery.limit(1).get();
+        const bestaande = kandidatenSnap.docs.find(d => {
+            const data = d.data();
+            const dt = data.datum?.toDate ? data.datum.toDate() : new Date(data.datum);
+            if (dt < dayStart || dt > dayEnd) return false;
+            if (groepId) return data.groep_id === groepId;
+            return true; // klas-score: groep_id is null
+        });
 
-        if (!bestaandeSnap.empty) {
-            await bestaandeSnap.docs[0].ref.update({
+        if (bestaande) {
+            await bestaande.ref.update({
                 score: Number(score),
                 rapportpunt: rapportpunt ?? null,
             });
@@ -425,16 +431,27 @@ export async function handleGetTestafnameDetail(req, res, decodedToken) {
         const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date(targetDate); dayEnd.setHours(23, 59, 59, 999);
 
-        // Scores ophalen: op klas-veld óf op groep_id
-        let scoresQuery = db.collection('scores')
-            .where('test_id', '==', testId)
-            .where('datum', '>=', Timestamp.fromDate(dayStart))
-            .where('datum', '<=', Timestamp.fromDate(dayEnd));
-        scoresQuery = isKlas
-            ? scoresQuery.where('klas', '==', klasNaam)
-            : scoresQuery.where('groep_id', '==', groepId);
-
-        const scoresSnap = await scoresQuery.get();
+        // Scores ophalen. Voor klas vermijden we een samengestelde index door
+        // de datum-filter in het geheugen toe te passen (enkel test_id + klas in de query).
+        let scoresSnap;
+        if (isKlas) {
+            const snap = await db.collection('scores')
+                .where('test_id', '==', testId)
+                .where('klas', '==', klasNaam)
+                .get();
+            // filter op dag in het geheugen
+            scoresSnap = { docs: snap.docs.filter(d => {
+                const dt = d.data().datum?.toDate ? d.data().datum.toDate() : new Date(d.data().datum);
+                return dt >= dayStart && dt <= dayEnd;
+            }) };
+        } else {
+            scoresSnap = await db.collection('scores')
+                .where('groep_id', '==', groepId)
+                .where('test_id', '==', testId)
+                .where('datum', '>=', Timestamp.fromDate(dayStart))
+                .where('datum', '<=', Timestamp.fromDate(dayEnd))
+                .get();
+        }
 
         const scoresMap = new Map();
         scoresSnap.docs.forEach(d => {
@@ -617,16 +634,26 @@ export async function handleDeleteTestafname(req, res, decodedToken) {
         const isKlas   = typeof groepId === 'string' && groepId.startsWith('klas:');
         const klasNaam = isKlas ? groepId.slice(5) : null;
 
-        let scoresQuery = db.collection('scores')
-            .where('test_id', '==', testId)
-            .where('school_id', '==', verifiedSchoolId)
-            .where('datum', '>=', Timestamp.fromDate(dayStart))
-            .where('datum', '<=', Timestamp.fromDate(dayEnd));
-        scoresQuery = isKlas
-            ? scoresQuery.where('klas', '==', klasNaam)
-            : scoresQuery.where('groep_id', '==', groepId);
-
-        const scoresSnap = await scoresQuery.get();
+        let scoresSnap;
+        if (isKlas) {
+            const snap = await db.collection('scores')
+                .where('test_id', '==', testId)
+                .where('klas', '==', klasNaam)
+                .where('school_id', '==', verifiedSchoolId)
+                .get();
+            scoresSnap = { docs: snap.docs.filter(d => {
+                const dt = d.data().datum?.toDate ? d.data().datum.toDate() : new Date(d.data().datum);
+                return dt >= dayStart && dt <= dayEnd;
+            }) };
+        } else {
+            scoresSnap = await db.collection('scores')
+                .where('groep_id', '==', groepId)
+                .where('test_id', '==', testId)
+                .where('school_id', '==', verifiedSchoolId)
+                .where('datum', '>=', Timestamp.fromDate(dayStart))
+                .where('datum', '<=', Timestamp.fromDate(dayEnd))
+                .get();
+        }
 
         const batch = db.batch();
         scoresSnap.docs.forEach(d => batch.delete(d.ref));
