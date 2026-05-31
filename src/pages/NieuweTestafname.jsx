@@ -179,7 +179,7 @@ export default function NieuweTestafname() {
 
         if (datumParam) setDatum(datumParam);
 
-        // Doelgroep: groep-id óf klas-naam (klas wordt rechtstreeks geladen via get_klas_detail)
+        // Doelgroep: groep-id óf klas-naam (klas wordt geladen via get_leerlingen_voor_klas)
         if (groepParam) {
             const match = groepen.find(g => g.id === groepParam);
             if (match) { setSelectedGroep(match); setSelectedKlas(null); }
@@ -219,24 +219,16 @@ export default function NieuweTestafname() {
 
         const fetchLeerlingen = async () => {
             try {
-                // KLAS-modus: leerlingen via get_klas_detail
+                // KLAS-modus: leerlingen via get_leerlingen_voor_klas (zelfde formaat als groep, mét gender)
                 if (selectedKlas) {
-                    const data = await apiPost('get_klas_detail', {
+                    const data = await apiPost('get_leerlingen_voor_klas', {
                         klasNaam: selectedKlas,
                         schoolId: profile.school_id,
                     }, profile._token);
 
-                    const members = data.members || data.leerlingen || [];
-                    const genormaliseerd = members.map(m => ({
-                        id: m.id || m.leerling_id,
-                        data: {
-                            naam:     m.naam || m.decrypted_name || 'Leerling',
-                            klas:     m.klas || selectedKlas || null,
-                            geslacht: (m.geslacht || m.gender || '').toLowerCase() || null,
-                        },
-                    })).sort((a, b) => a.data.naam.localeCompare(b.data.naam));
-
-                    setVolledigeLeerlingen(genormaliseerd);
+                    setVolledigeLeerlingen(
+                        (data.leerlingen || []).sort((a, b) => a.data.naam.localeCompare(b.data.naam))
+                    );
                     setScores({});
                     return;
                 }

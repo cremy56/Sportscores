@@ -185,6 +185,45 @@ export async function handleGetLeerlingenVoorGroep(req, res, decodedToken) {
     }
 }
 
+// ─── LEERLINGEN VOOR KLAS ─────────────────────────────────────────────────────
+// Zelfde formaat als handleGetLeerlingenVoorGroep, maar filtert op het klas-veld
+// in toegestane_gebruikers i.p.v. een groep-lijst. Levert gender mee voor normen.
+export async function handleGetLeerlingenVoorKlas(req, res, decodedToken) {
+    try {
+        const { klasNaam, schoolId } = req.body;
+        const verifiedSchoolId = await getSchoolId(decodedToken.uid);
+        if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang tot deze school.' });
+        if (!klasNaam) return res.status(400).json({ error: 'klasNaam ontbreekt.' });
+
+        const masterKey = await getMasterKey();
+        const snap = await db.collection('toegestane_gebruikers')
+            .where('school_id', '==', verifiedSchoolId)
+            .where('klas', '==', klasNaam)
+            .get();
+
+        if (snap.empty) return res.status(200).json({ success: true, leerlingen: [] });
+
+        const leerlingen = snap.docs
+            .map(d => {
+                const tgData = d.data();
+                return {
+                    id: d.id,
+                    data: {
+                        klas: tgData.klas || null,
+                        geslacht: (tgData.gender || '').toLowerCase() || null,
+                        naam: tgData.encrypted_name ? decryptName(tgData.encrypted_name, masterKey) : 'Leerling',
+                    }
+                };
+            })
+            .sort((a, b) => a.data.naam.localeCompare(b.data.naam));
+
+        return res.status(200).json({ success: true, leerlingen });
+    } catch (error) {
+        console.error('❌ handleGetLeerlingenVoorKlas:', error);
+        return res.status(500).json({ error: 'Fout bij ophalen klas-leerlingen' });
+    }
+}
+
 // ─── GET NORMEN ───────────────────────────────────────────────────────────────
 export async function handleGetNormen(req, res, decodedToken) {
     try {

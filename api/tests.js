@@ -4,7 +4,7 @@ import { verifyToken } from '../lib/firebaseAdmin.js';
 
 import {
     handleGetTests, handleGetLeaderboard, handleGetSetupData,
-    handleGetLeerlingenVoorGroep, handleGetNormen, handleGetRecentScores,
+    handleGetLeerlingenVoorGroep, handleGetLeerlingenVoorKlas, handleGetNormen, handleGetRecentScores,
     handleSaveScores, handleSaveScore, handleGetTestafnameDetail, handleUpdateScore,
     handleDeleteScore, handleUpdateScoreDate, handleDeleteTestafname,
     handleGetEvaluaties, handleDeleteTest, handleGetStudentEvolution,
@@ -68,6 +68,7 @@ export default async function handler(req, res) {
             case 'get_leaderboard':         return await handleGetLeaderboard(req, res, decodedToken);
             case 'get_setup_data':          return await handleGetSetupData(req, res, decodedToken);
             case 'get_leerlingen_voor_groep': return await handleGetLeerlingenVoorGroep(req, res, decodedToken);
+            case 'get_leerlingen_voor_klas': return await handleGetLeerlingenVoorKlas(req, res, decodedToken);
             case 'get_normen':              return await handleGetNormen(req, res, decodedToken);
             case 'get_recent_scores':       return await handleGetRecentScores(req, res, decodedToken);
             case 'save_scores':             return await handleSaveScores(req, res, decodedToken);
