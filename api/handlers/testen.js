@@ -342,7 +342,6 @@ export async function handleSaveScores(req, res, decodedToken) {
 export async function handleSaveScore(req, res, decodedToken) {
     try {
         const { schoolId, groepId, testId, datum, leerlingId, klas, geslacht, score } = req.body;
-
         const verifiedSchoolId = await getSchoolId(decodedToken.uid);
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang tot deze school.' });
         if (!testId || !leerlingId || score === null || score === undefined || isNaN(score)) {
@@ -384,6 +383,7 @@ export async function handleSaveScore(req, res, decodedToken) {
         await db.collection('scores').add({
             datum:         Timestamp.fromDate(scoreDatum),
             groep_id:      groepId || null,
+            klas:          (!groepId && klas) ? klas : null,
             leerling_id:   leerlingId,
             score:         Number(score),
             rapportpunt:   rapportpunt ?? null,
@@ -408,27 +408,33 @@ export async function handleGetTestafnameDetail(req, res, decodedToken) {
         const verifiedSchoolId = await getSchoolId(decodedToken.uid);
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
 
-        const masterKey = await getMasterKey();
-        const [groepSnap, testSnap] = await Promise.all([
-            db.collection('groepen').doc(groepId).get(),
-            db.collection('testen').doc(testId).get()
-        ]);
+        // Klas-testafname herkennen aan de "klas:"-prefix in groepId
+        const isKlas   = typeof groepId === 'string' && groepId.startsWith('klas:');
+        const klasNaam = isKlas ? groepId.slice(5) : null;
 
+        const masterKey = await getMasterKey();
+        const testSnap  = await db.collection('testen').doc(testId).get();
         if (!testSnap.exists) return res.status(404).json({ error: 'Test niet gevonden.' });
-        const groepData = groepSnap.exists ? groepSnap.data() : null;
         const testData = { id: testSnap.id, ...testSnap.data() };
+
+        const groepSnap = isKlas ? null : await db.collection('groepen').doc(groepId).get();
+        const groepData = (groepSnap && groepSnap.exists) ? groepSnap.data() : null;
         const leerlingIds = groepData?.leerling_ids || [];
 
         const targetDate = new Date(datum);
         const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date(targetDate); dayEnd.setHours(23, 59, 59, 999);
 
-        const scoresSnap = await db.collection('scores')
-            .where('groep_id', '==', groepId)
+        // Scores ophalen: op klas-veld óf op groep_id
+        let scoresQuery = db.collection('scores')
             .where('test_id', '==', testId)
             .where('datum', '>=', Timestamp.fromDate(dayStart))
-            .where('datum', '<=', Timestamp.fromDate(dayEnd))
-            .get();
+            .where('datum', '<=', Timestamp.fromDate(dayEnd));
+        scoresQuery = isKlas
+            ? scoresQuery.where('klas', '==', klasNaam)
+            : scoresQuery.where('groep_id', '==', groepId);
+
+        const scoresSnap = await scoresQuery.get();
 
         const scoresMap = new Map();
         scoresSnap.docs.forEach(d => {
@@ -437,6 +443,41 @@ export async function handleGetTestafnameDetail(req, res, decodedToken) {
         });
 
         let leerlingenData = [];
+
+        // KLAS: leerlingen via klas-veld in toegestane_gebruikers
+        if (isKlas) {
+            const klasSnap = await db.collection('toegestane_gebruikers')
+                .where('school_id', '==', verifiedSchoolId)
+                .where('klas', '==', klasNaam)
+                .get();
+
+            leerlingenData = klasSnap.docs
+                .map(doc => {
+                    const tgData = doc.data();
+                    const scoreInfo = scoresMap.get(doc.id);
+                    return {
+                        id: doc.id,
+                        naam: decryptName(tgData.encrypted_name, masterKey) || '[Naam niet beschikbaar]',
+                        klas: tgData.klas || null,
+                        geslacht: (tgData.gender || '').toLowerCase() || null,
+                        score: scoreInfo?.score ?? null,
+                        punt: scoreInfo?.rapportpunt ?? null,
+                        score_id: scoreInfo?.id || null,
+                    };
+                })
+                .sort((a, b) => a.naam.localeCompare(b.naam));
+
+            return res.status(200).json({
+                success: true,
+                groep_naam: `Klas ${klasNaam}`,
+                test_naam: testData.naam,
+                eenheid: testData.eenheid,
+                max_punten: testData.max_punten || 20,
+                test_volledig: testData,
+                isOrphanedGroup: false,
+                leerlingen: leerlingenData,
+            });
+        }
 
         if (leerlingIds.length > 0) {
             const chunks = [];
@@ -573,13 +614,19 @@ export async function handleDeleteTestafname(req, res, decodedToken) {
         const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date(targetDate); dayEnd.setHours(23, 59, 59, 999);
 
-        const scoresSnap = await db.collection('scores')
-            .where('groep_id', '==', groepId)
+        const isKlas   = typeof groepId === 'string' && groepId.startsWith('klas:');
+        const klasNaam = isKlas ? groepId.slice(5) : null;
+
+        let scoresQuery = db.collection('scores')
             .where('test_id', '==', testId)
             .where('school_id', '==', verifiedSchoolId)
             .where('datum', '>=', Timestamp.fromDate(dayStart))
-            .where('datum', '<=', Timestamp.fromDate(dayEnd))
-            .get();
+            .where('datum', '<=', Timestamp.fromDate(dayEnd));
+        scoresQuery = isKlas
+            ? scoresQuery.where('klas', '==', klasNaam)
+            : scoresQuery.where('groep_id', '==', groepId);
+
+        const scoresSnap = await scoresQuery.get();
 
         const batch = db.batch();
         scoresSnap.docs.forEach(d => batch.delete(d.ref));
@@ -614,16 +661,22 @@ export async function handleGetEvaluaties(req, res, decodedToken) {
             const data = d.data();
             const datum = data.datum?.toDate ? data.datum.toDate() : new Date(data.datum);
             const datumDag = datum.toISOString().split('T')[0];
-            const key = `${data.groep_id}-${data.test_id}-${datumDag}`;
+            // Klas-testafname (groep_id null) groepeert op klas; anders op groep
+            const isKlas = !data.groep_id && data.klas;
+            const doelKey = isKlas ? `klas:${data.klas}` : data.groep_id;
+            const key = `${doelKey}-${data.test_id}-${datumDag}`;
 
             if (!grouped[key]) {
-                const groep = groepen.find(g => g.id === data.groep_id);
+                const groep = isKlas ? null : groepen.find(g => g.id === data.groep_id);
                 const test = testen.find(t => t.id === data.test_id);
                 grouped[key] = {
-                    groep_id: data.groep_id, test_id: data.test_id, datum: datumDag,
-                    groep_naam: groep?.naam || 'Verwijderde Groep',
+                    groep_id: isKlas ? null : data.groep_id,
+                    klas: isKlas ? data.klas : null,
+                    test_id: data.test_id, datum: datumDag,
+                    groep_naam: isKlas ? `Klas ${data.klas}` : (groep?.naam || 'Verwijderde Groep'),
                     test_naam: test?.naam || 'Onbekende Test',
-                    score_ids: [], leerling_count: 0, isOrphanedGroup: !groep
+                    score_ids: [], leerling_count: 0,
+                    isOrphanedGroup: !isKlas && !groep,
                 };
             }
             grouped[key].score_ids.push(d.id);
