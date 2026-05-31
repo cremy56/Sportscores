@@ -604,11 +604,11 @@ export default function NieuweTestafname() {
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Kies een groep of klas</label>
                                     <select
-                                        value={selectedGroep?.id || (selectedKlas ? `klas:${selectedKlas}` : '')}
+                                        value={selectedGroep?.id || (selectedKlas ? `klas-${selectedKlas}` : '')}
                                         onChange={(e) => {
                                             const v = e.target.value;
                                             if (!v) { setSelectedGroep(null); setSelectedKlas(null); }
-                                            else if (v.startsWith('klas:')) { setSelectedKlas(v.slice(5)); setSelectedGroep(null); }
+                                            else if (v.startsWith('klas-')) { setSelectedKlas(v.slice(5)); setSelectedGroep(null); }
                                             else { setSelectedGroep(groepen.find(g => g.id === v) || null); setSelectedKlas(null); }
                                         }}
                                         className="w-full h-[46px] px-3 border border-gray-200 rounded-xl shadow-sm"
@@ -623,7 +623,7 @@ export default function NieuweTestafname() {
                                             <optgroup label="Klassen">
                                                 {klassen.map(k => {
                                                     const naam = typeof k === 'string' ? k : (k.naam || k.klas || k.id);
-                                                    return <option key={`klas:${naam}`} value={`klas:${naam}`}>Klas {naam}</option>;
+                                                    return <option key={`klas-${naam}`} value={`klas-${naam}`}>Klas {naam}</option>;
                                                 })}
                                             </optgroup>
                                         )}
@@ -796,7 +796,7 @@ export default function NieuweTestafname() {
                     onClose={() => setShowWaarnemer(false)}
                     onScoresOpgeslagen={() => {
                         setShowWaarnemer(false);
-                        const doel = selectedGroep ? selectedGroep.id : `klas:${selectedKlas}`;
+                        const doel = selectedGroep ? selectedGroep.id : `klas-${selectedKlas}`;
                         navigate(`/testafname/${doel}/${selectedTest.id}/${datum}`);
                     }}
                 />

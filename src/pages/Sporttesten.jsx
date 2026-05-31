@@ -115,13 +115,13 @@ export default function Sporttesten() {
         const loadingToast = toast.loading('Testafname verwijderen...');
         try {
             await apiPost('delete_testafname', {
-                groepId: item.klas ? `klas:${item.klas}` : item.groep_id,
+                groepId: item.klas ? `klas-${item.klas}` : item.groep_id,
                 testId: item.test_id,
                 datum: item.datum,
                 schoolId: profile.school_id
             }, profile._token);
             toast.success("Testafname succesvol verwijderd.");
-            setEvaluaties(prev => prev.filter(e => !((e.klas ? `klas:${e.klas}` : e.groep_id) === (item.klas ? `klas:${item.klas}` : item.groep_id) && e.test_id === item.test_id && e.datum === item.datum)));
+            setEvaluaties(prev => prev.filter(e => !((e.klas ? `klas-${e.klas}` : e.groep_id) === (item.klas ? `klas-${item.klas}` : item.groep_id) && e.test_id === item.test_id && e.datum === item.datum)));
         } catch (error) {
             toast.error(`Verwijderen mislukt: ${error.message}`);
         } finally {
@@ -165,7 +165,7 @@ export default function Sporttesten() {
                 {filteredEvaluaties.length > 0 ? (
                     <ul className="divide-y divide-gray-200/70">
                         {filteredEvaluaties.map(item => {
-                            const doelId = item.klas ? `klas:${item.klas}` : item.groep_id;
+                            const doelId = item.klas ? `klas-${item.klas}` : item.groep_id;
                             return (
                             <li key={`${doelId}-${item.test_id}-${item.datum}`} className={`group hover:bg-purple-50/50 transition-colors ${item.isOrphanedGroup ? 'opacity-75' : ''}`}>
                                 <div onClick={() => navigate(`/testafname/${doelId}/${item.test_id}/${item.datum}`)} className="flex items-center justify-between p-6 cursor-pointer">

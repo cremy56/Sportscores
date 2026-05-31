@@ -415,7 +415,7 @@ export async function handleGetTestafnameDetail(req, res, decodedToken) {
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang.' });
 
         // Klas-testafname herkennen aan de "klas:"-prefix in groepId
-        const isKlas   = typeof groepId === 'string' && groepId.startsWith('klas:');
+        const isKlas   = typeof groepId === 'string' && groepId.startsWith('klas-');
         const klasNaam = isKlas ? groepId.slice(5) : null;
 
         const masterKey = await getMasterKey();
@@ -631,7 +631,7 @@ export async function handleDeleteTestafname(req, res, decodedToken) {
         const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date(targetDate); dayEnd.setHours(23, 59, 59, 999);
 
-        const isKlas   = typeof groepId === 'string' && groepId.startsWith('klas:');
+        const isKlas   = typeof groepId === 'string' && groepId.startsWith('klas-');
         const klasNaam = isKlas ? groepId.slice(5) : null;
 
         let scoresSnap;
@@ -690,7 +690,7 @@ export async function handleGetEvaluaties(req, res, decodedToken) {
             const datumDag = datum.toISOString().split('T')[0];
             // Klas-testafname (groep_id null) groepeert op klas; anders op groep
             const isKlas = !data.groep_id && data.klas;
-            const doelKey = isKlas ? `klas:${data.klas}` : data.groep_id;
+            const doelKey = isKlas ? `klas-${data.klas}` : data.groep_id;
             const key = `${doelKey}-${data.test_id}-${datumDag}`;
 
             if (!grouped[key]) {
