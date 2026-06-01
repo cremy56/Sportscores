@@ -327,13 +327,13 @@ export default function NieuweTestafname() {
     // ✅ GEMIGREERD: geen directe scores query meer
     // =============================================
     useEffect(() => {
-        if (!selectedGroep || !selectedTest || !datum || gefilterdeLeerlingen.length === 0) return;
+        if ((!selectedGroep && !selectedKlas) || !selectedTest || !datum || gefilterdeLeerlingen.length === 0) return;
 
         const checkForRecentTests = async () => {
             try {
                 const data = await apiPost('get_recent_scores', {
                     testId: selectedTest.id,
-                    groepId: selectedGroep.id,
+                    groepId: selectedGroep ? selectedGroep.id : `klas-${selectedKlas}`,
                     datum: datum,
                     schoolId: profile.school_id
                 }, profile._token);
@@ -360,7 +360,7 @@ export default function NieuweTestafname() {
             }
         };
         checkForRecentTests();
-    }, [selectedGroep, selectedTest, datum, gefilterdeLeerlingen, profile]);
+    }, [selectedGroep, selectedKlas, selectedTest, datum, gefilterdeLeerlingen, profile]);
 
     // =============================================
     // EFFECT 5: Debounced puntberekening

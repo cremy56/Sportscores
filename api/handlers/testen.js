@@ -251,9 +251,22 @@ export async function handleGetRecentScores(req, res, decodedToken) {
         const verifiedSchoolId = await getSchoolId(decodedToken.uid);
         if (schoolId !== verifiedSchoolId) return res.status(403).json({ error: 'Geen toegang tot deze school.' });
 
-        const groepSnap = await db.collection('groepen').doc(groepId).get();
-        if (!groepSnap.exists) return res.status(404).json({ error: 'Groep niet gevonden.' });
-        const leerlingIds = groepSnap.data().leerling_ids || [];
+        // Klas-testafname herkennen aan de "klas-"-prefix
+        const isKlas   = typeof groepId === 'string' && groepId.startsWith('klas-');
+        const klasNaam = isKlas ? groepId.slice(5) : null;
+
+        let leerlingIds = [];
+        if (isKlas) {
+            const klasSnap = await db.collection('toegestane_gebruikers')
+                .where('school_id', '==', verifiedSchoolId)
+                .where('klas', '==', klasNaam)
+                .get();
+            leerlingIds = klasSnap.docs.map(d => d.id);
+        } else {
+            const groepSnap = await db.collection('groepen').doc(groepId).get();
+            if (!groepSnap.exists) return res.status(404).json({ error: 'Groep niet gevonden.' });
+            leerlingIds = groepSnap.data().leerling_ids || [];
+        }
         if (leerlingIds.length === 0) return res.status(200).json({ success: true, hasRecentScores: false });
 
         const geselecteerdeDatum = new Date(datum);
