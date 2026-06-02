@@ -1344,8 +1344,20 @@ export default function SportLab() {
     const [sessie, setSessie] = useState(null);
     const [eigenDeelname, setEigenDeelname] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [gekozenRol, setGekozenRol] = useState(null);
+    const [gekozenRol, setGekozenRolState] = useState(null);
     const [leerkrachtSessie, setLeerkrachtSessie] = useState(null);
+
+    // gekozenRol overleeft een herlaad/swipe via localStorage, gekoppeld aan de sessie.
+    const setGekozenRol = useCallback((rol) => {
+        setGekozenRolState(rol);
+        try {
+            if (rol && sessie?.id) {
+                localStorage.setItem('sportlab_actieve_rol', JSON.stringify({ sessieId: sessie.id, rol }));
+            } else {
+                localStorage.removeItem('sportlab_actieve_rol');
+            }
+        } catch { /* */ }
+    }, [sessie?.id]);
 
     const isLeerling = profile?.rol === 'leerling';
     const isTeacher = ['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol);
@@ -1361,9 +1373,22 @@ export default function SportLab() {
 
     useEffect(() => {
         if (!sessie) {
-            setGekozenRol(null);
+            setGekozenRolState(null);
             setEigenDeelname(null);
+            return;
         }
+        // Herstel een eerder gekozen rol na herlaad/swipe (enkel als die bij deze sessie hoort)
+        try {
+            const raw = localStorage.getItem('sportlab_actieve_rol');
+            if (raw) {
+                const saved = JSON.parse(raw);
+                if (saved?.sessieId === sessie.id && saved?.rol) {
+                    setGekozenRolState(saved.rol);
+                } else if (saved?.sessieId !== sessie.id) {
+                    localStorage.removeItem('sportlab_actieve_rol'); // oude sessie — opruimen
+                }
+            }
+        } catch { /* */ }
     }, [sessie?.id]);
 
     const fetchSessie = useCallback(async () => {
