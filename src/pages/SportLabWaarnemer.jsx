@@ -1074,7 +1074,14 @@ export function WaarnemerView({ sessie, profile, onTerug }) {
             <div className="flex items-center gap-3 mb-6">
                 {fase !== 'ingediend' && (
                     <button
-                        onClick={fase === 'setup' ? onTerug : () => setFase('setup')}
+                        onClick={() => {
+                            if (fase === 'setup') {
+                                const verder = window.confirm('Weet je zeker dat je de Waarnemer wil verlaten? Je huidige instellingen gaan verloren.');
+                                if (verder) onTerug();
+                            } else {
+                                setFase('setup');
+                            }
+                        }}
                         className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex-shrink-0"
                     >
                         <ArrowLeftIcon className="w-5 h-5 text-gray-500" />
