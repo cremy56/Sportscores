@@ -929,14 +929,39 @@ function WaarnemerIngediend({ metingen, sportConfig }) {
 
 // ─── HOOFD EXPORT ─────────────────────────────────────────────────────────────
 export function WaarnemerView({ sessie, profile, onTerug }) {
-    const [fase, setFase]                   = useState('setup');
-    const [config, setConfig]               = useState(null);
+    const faseKey = `waarnemer_fase_${sessie?.id}`;
+
+    // Herstel fase + config na herlaad/swipe
+    const hersteld = (() => {
+        try {
+            const raw = localStorage.getItem(faseKey);
+            return raw ? JSON.parse(raw) : null;
+        } catch { return null; }
+    })();
+
+    const [fase, setFaseState]              = useState(hersteld?.fase || 'setup');
+    const [config, setConfig]               = useState(hersteld?.config || null);
     const [ingediendMetingen, setIngediend] = useState(null);
     const [loading, setLoading]             = useState(false);
 
+    // fase + config bewaren zodat een herlaad terugkeert naar de actieve meting
+    const setFase = (nieuweFase, nieuweConfig) => {
+        setFaseState(nieuweFase);
+        try {
+            if (nieuweFase === 'actief') {
+                localStorage.setItem(faseKey, JSON.stringify({
+                    fase: 'actief',
+                    config: nieuweConfig ?? config,
+                }));
+            } else {
+                localStorage.removeItem(faseKey);
+            }
+        } catch { /* */ }
+    };
+
     const handleStart = (cfg) => {
         setConfig(cfg);
-        setFase('actief');
+        setFase('actief', cfg);
     };
 
     const handleIndienen = async (metingen) => {
