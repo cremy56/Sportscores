@@ -91,13 +91,35 @@ function WaarnemerSetup({ onStart, profile }) {
     const sportConfig = SPORT_TYPES.find(s => s.id === sportType);
 
     const voegNaamToe = () => {
-        const naam = naamInput.trim();
-        if (!naam) return;
-        if (namen.map(n => n.toLowerCase()).includes(naam.toLowerCase())) {
-            toast.error('Naam al toegevoegd');
-            return;
-        }
-        setNamen(prev => [...prev, naam]);
+        // Splits op komma, puntkomma, slash of plus (per ongeluk of bewust gebruikt)
+        const losseNamen = naamInput
+            .split(/[,;/+]/)
+            .map(n => n.trim())
+            .filter(n => n.length > 0);
+
+        if (losseNamen.length === 0) return;
+
+        setNamen(prev => {
+            const bestaand = new Set(prev.map(n => n.toLowerCase()));
+            const toegevoegd = [];
+            let duplicaten = 0;
+
+            for (const naam of losseNamen) {
+                const sleutel = naam.toLowerCase();
+                if (bestaand.has(sleutel)) { duplicaten++; continue; }
+                bestaand.add(sleutel);
+                toegevoegd.push(naam);
+            }
+
+            if (toegevoegd.length === 0) {
+                toast.error(losseNamen.length === 1 ? 'Naam al toegevoegd' : 'Deze namen staan er al');
+            } else if (duplicaten > 0) {
+                toast.success(`${toegevoegd.length} toegevoegd, ${duplicaten} stond er al`);
+            }
+
+            return [...prev, ...toegevoegd];
+        });
+
         setNaamInput('');
         inputRef.current?.focus();
     };
@@ -160,28 +182,45 @@ function WaarnemerSetup({ onStart, profile }) {
 
             {/* Activiteit kiezen */}
             <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">Type activiteit</label>
-                <div className="grid grid-cols-2 gap-2">
-                    {SPORT_TYPES.map(s => (
+                {!sportType ? (
+                    <>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">Type activiteit</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {SPORT_TYPES.map(s => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => {
+                                        setSportType(s.id);
+                                        setGekozenTest(null);
+                                        setTesten(null);
+                                        setTestDialog(true); // dialog meteen na sportkeuze
+                                    }}
+                                    className="flex items-center gap-2 px-3 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-700 hover:border-gray-300 text-sm font-medium transition-all text-left"
+                                >
+                                    <span className="text-xl flex-shrink-0">{s.icon}</span>
+                                    <span className="leading-tight">{s.naam}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex items-center justify-between bg-teal-50 border-2 border-teal-500 rounded-xl px-4 py-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-2xl flex-shrink-0">{sportConfig?.icon}</span>
+                            <span className="font-semibold text-teal-800 truncate">{sportConfig?.naam}</span>
+                        </div>
                         <button
-                            key={s.id}
                             onClick={() => {
-                                setSportType(s.id);
+                                setSportType('');
                                 setGekozenTest(null);
                                 setTesten(null);
-                                setTestDialog(true); // dialog meteen na sportkeuze
                             }}
-                            className={`flex items-center gap-2 px-3 py-3 rounded-xl border-2 text-sm font-medium transition-all text-left ${
-                                sportType === s.id
-                                    ? 'border-teal-500 bg-teal-50 text-teal-800'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                            }`}
+                            className="text-sm text-teal-600 hover:text-teal-800 font-medium flex-shrink-0 ml-3"
                         >
-                            <span className="text-xl flex-shrink-0">{s.icon}</span>
-                            <span className="leading-tight">{s.naam}</span>
+                            Wijzig
                         </button>
-                    ))}
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Gekozen test badge */}
@@ -250,7 +289,7 @@ function WaarnemerSetup({ onStart, profile }) {
                         Leerlingen toevoegen
                     </label>
                     <p className="text-xs text-gray-400 mb-3">
-                        Gebruik voornamen of bijnamen zoals jij ze kent — geen echte namen vereist.
+                        Voeg de voornamen van de leerlingen toe, indien 2 dezelfde voornamen ook de eerste letter van de familienaam. Je kan meerdere namen in 1 keer toevoegen door ze af te scheiden met een komma.
                     </p>
                     <div className="flex gap-2 mb-3">
                         <input
@@ -259,7 +298,7 @@ function WaarnemerSetup({ onStart, profile }) {
                             value={naamInput}
                             onChange={e => setNaamInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="bv. Thomas, Grote Jan, Robin..."
+                            placeholder="bv. Thomas, Jan D, Jan V, Robin"
                             className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500"
                         />
                         <button
@@ -953,11 +992,36 @@ export function WaarnemerView({ sessie, profile, onTerug }) {
                     fase: 'actief',
                     config: nieuweConfig ?? config,
                 }));
+                // Vlag voor navigatie-waarschuwing: er loopt een meting
+                localStorage.setItem('waarnemer_meting_actief', '1');
             } else {
                 localStorage.removeItem(faseKey);
+                localStorage.removeItem('waarnemer_meting_actief');
             }
         } catch { /* */ }
     };
+
+    // Browser-waarschuwing bij tab sluiten / herladen / URL wijzigen tijdens actieve meting
+    useEffect(() => {
+        const handler = (e) => {
+            if (fase === 'actief') {
+                e.preventDefault();
+                e.returnValue = ''; // vereist door sommige browsers om de dialog te tonen
+                return '';
+            }
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [fase]);
+
+    // Vlag opruimen wanneer de component verdwijnt zonder actieve meting
+    useEffect(() => {
+        return () => {
+            if (fase !== 'actief') {
+                try { localStorage.removeItem('waarnemer_meting_actief'); } catch { /* */ }
+            }
+        };
+    }, [fase]);
 
     const handleStart = (cfg) => {
         setConfig(cfg);
