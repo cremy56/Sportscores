@@ -982,6 +982,7 @@ export function WaarnemerView({ sessie, profile, onTerug }) {
     const [config, setConfig]               = useState(hersteld?.config || null);
     const [ingediendMetingen, setIngediend] = useState(null);
     const [loading, setLoading]             = useState(false);
+    const [setupKey, setSetupKey]           = useState(0); // verhoogt bij terugkeer → verse setup
 
     // fase + config bewaren zodat een herlaad terugkeert naar de actieve meting
     const setFase = (nieuweFase, nieuweConfig) => {
@@ -1076,10 +1077,15 @@ export function WaarnemerView({ sessie, profile, onTerug }) {
                     <button
                         onClick={() => {
                             if (fase === 'setup') {
-                                const verder = window.confirm('Weet je zeker dat je de Waarnemer wil verlaten? Je huidige instellingen gaan verloren.');
-                                if (verder) onTerug();
+                                onTerug();
                             } else {
-                                setFase('setup');
+                                // Vanuit actieve meting terug: waarschuwen, want meting gaat verloren
+                                const verder = window.confirm('Weet je zeker dat je terug wil? Je huidige meting gaat verloren.');
+                                if (verder) {
+                                    setConfig(null);
+                                    setSetupKey(k => k + 1); // verse setup, geen oude test
+                                    setFase('setup');
+                                }
                             }
                         }}
                         className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex-shrink-0"
@@ -1097,7 +1103,7 @@ export function WaarnemerView({ sessie, profile, onTerug }) {
             </div>
 
             {/* Fasen */}
-            {fase === 'setup' && <WaarnemerSetup onStart={handleStart} profile={profile} />}
+            {fase === 'setup' && <WaarnemerSetup key={setupKey} onStart={handleStart} profile={profile} />}
 
             {fase === 'actief' && config && (() => {
                 const { modus } = config.sportConfig;
