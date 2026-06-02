@@ -695,13 +695,26 @@ function ChronoView({ config, onIndienen }) {
 function MetingView({ config, onIndienen }) {
     const { namen, pogingen, sportConfig } = config;
 
+    const storageKey = `meting_${config.test?.id || sportConfig.id}_${namen.join('_')}`.slice(0, 120);
+    const hersteld = (() => {
+        try { const raw = localStorage.getItem(storageKey); return raw ? JSON.parse(raw) : null; }
+        catch { return null; }
+    })();
+    const [toonHersteld, setToonHersteld] = useState(!!hersteld);
+
     const [metingen, setMetingen] = useState(() =>
-        namen.map(naam => ({
+        hersteld?.metingen ?? namen.map(naam => ({
             naam,
             pogingen: Array(pogingen).fill(''),
             beste: null,
         }))
     );
+
+    // Continu wegschrijven (crash-herstel)
+    useEffect(() => {
+        try { localStorage.setItem(storageKey, JSON.stringify({ metingen })); }
+        catch { /* */ }
+    }, [metingen, storageKey]);
 
     const updatePoging = (naam, idx, waarde) => {
         setMetingen(prev => prev.map(l => {
@@ -725,6 +738,7 @@ function MetingView({ config, onIndienen }) {
             pogingen: l.pogingen.map(p => parseFloat(String(p).replace(',', '.')) || null),
             beste:    l.beste,
         }));
+        try { localStorage.removeItem(storageKey); } catch { /* */ }
         onIndienen(resultaten);
     };
 
@@ -732,6 +746,12 @@ function MetingView({ config, onIndienen }) {
 
     return (
         <div className="space-y-4">
+            {toonHersteld && (
+                <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                    <p className="text-sm text-amber-800">↩ Je vorige invoer is hersteld. Je kan gewoon verdergaan.</p>
+                    <button onClick={() => setToonHersteld(false)} className="text-amber-600 hover:text-amber-800 text-sm font-medium flex-shrink-0">OK</button>
+                </div>
+            )}
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2">
                 <span className="text-xl">{sportConfig.icon}</span>
                 <p className="text-sm font-medium text-amber-800">
@@ -797,15 +817,28 @@ function MetingView({ config, onIndienen }) {
 function TellingView({ config, onIndienen }) {
     const { namen, sportConfig } = config;
 
+    const storageKey = `telling_${config.test?.id || sportConfig.id}_${namen.join('_')}`.slice(0, 120);
+    const hersteld = (() => {
+        try { const raw = localStorage.getItem(storageKey); return raw ? JSON.parse(raw) : null; }
+        catch { return null; }
+    })();
+    const [toonHersteld, setToonHersteld] = useState(!!hersteld);
+
     const [tellingen, setTellingen] = useState(() =>
-        namen.map(naam => ({ naam, waarde: '' }))
+        hersteld?.tellingen ?? namen.map(naam => ({ naam, waarde: '' }))
     );
+
+    useEffect(() => {
+        try { localStorage.setItem(storageKey, JSON.stringify({ tellingen })); }
+        catch { /* */ }
+    }, [tellingen, storageKey]);
 
     const handleIndienen = () => {
         const resultaten = tellingen.map(l => ({
             naam:   l.naam,
             waarde: parseFloat(l.waarde) || null,
         }));
+        try { localStorage.removeItem(storageKey); } catch { /* */ }
         onIndienen(resultaten);
     };
 
@@ -813,6 +846,12 @@ function TellingView({ config, onIndienen }) {
 
     return (
         <div className="space-y-4">
+            {toonHersteld && (
+                <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                    <p className="text-sm text-amber-800">↩ Je vorige invoer is hersteld. Je kan gewoon verdergaan.</p>
+                    <button onClick={() => setToonHersteld(false)} className="text-amber-600 hover:text-amber-800 text-sm font-medium flex-shrink-0">OK</button>
+                </div>
+            )}
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2">
                 <span className="text-xl">{sportConfig.icon}</span>
                 <p className="text-sm font-medium text-amber-800">
