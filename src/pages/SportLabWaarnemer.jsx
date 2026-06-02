@@ -393,25 +393,53 @@ function WaarnemerSetup({ onStart, profile }) {
 function ChronoView({ config, onIndienen }) {
     const { namen, rondes, sportConfig } = config;
     const maxRondes = sportConfig.modus === 'chrono_eenmalig' ? 1 : rondes;
+    const isZwem = sportConfig.id === 'zwemmen';
+    const rondeWoord = isZwem ? 'baan' : 'ronde';
+    const rondeWoordMv = isZwem ? 'banen' : 'rondes';
 
-    const [gestart, setGestart] = useState(false);
-    const [startTijd, setStartTijd] = useState(null);
-    const [elapsed, setElapsed] = useState(0);
-    const [gestopt, setGestopt] = useState(false);
+    // Unieke sleutel voor crash-herstel in localStorage (per sessie+test+namen)
+    const storageKey = `chrono_${config.test?.id || sportConfig.id}_${namen.join('_')}`.slice(0, 120);
+
+    const COOLDOWN_MS = 3000; // dubbelklik-beveiliging: min. 3s tussen taps per leerling
+
+    // Herstel uit localStorage bij mount (crash/herlaad-bescherming)
+    const hersteld = (() => {
+        try {
+            const raw = localStorage.getItem(storageKey);
+            return raw ? JSON.parse(raw) : null;
+        } catch { return null; }
+    })();
+
+    const [gestart, setGestart]     = useState(hersteld?.gestart ?? false);
+    const [startTijd, setStartTijd] = useState(hersteld?.startTijd ?? null);
+    const [elapsed, setElapsed]     = useState(0);
+    const [gestopt, setGestopt]     = useState(hersteld?.gestopt ?? false);
+    const [toonHersteld, setToonHersteld] = useState(!!hersteld);
 
     const [leerlingen, setLeerlingen] = useState(() =>
-        namen.map(naam => ({
+        hersteld?.leerlingen ?? namen.map(naam => ({
             naam,
-            rondetijden: [],   // absolute ms per ronde tov startTijd
+            rondetijden: [],
             gefinisht: false,
             eindtijd: null,
         }))
     );
 
     const intervalRef = useRef(null);
+    const lastTapRef  = useRef({});  // { naam: timestampMs } voor cooldown
+    const [bevestigDialog, setBevestigDialog] = useState(null); // { naam, actie } bij dubbele tap
+
+    // Continu wegschrijven naar localStorage (crash-herstel + internet-uitval)
+    useEffect(() => {
+        try {
+            localStorage.setItem(storageKey, JSON.stringify({
+                gestart, startTijd, gestopt, leerlingen,
+            }));
+        } catch { /* opslag vol of geblokkeerd — negeer */ }
+    }, [gestart, startTijd, gestopt, leerlingen, storageKey]);
 
     useEffect(() => {
-        if (gestart && !gestopt) {
+        if (gestart && !gestopt && startTijd) {
             intervalRef.current = setInterval(() => {
                 setElapsed(Date.now() - startTijd);
             }, 50);
@@ -430,7 +458,8 @@ function ChronoView({ config, onIndienen }) {
         setGestopt(true);
     };
 
-    const registreerRonde = (naam) => {
+    // Ronde registreren met dubbelklik-cooldown
+    const doeRonde = (naam) => {
         if (!gestart || gestopt) return;
         const nu = Date.now() - startTijd;
 
@@ -447,6 +476,41 @@ function ChronoView({ config, onIndienen }) {
         }));
     };
 
+    const registreerRonde = (naam) => {
+        if (!gestart || gestopt) return;
+        const nu = Date.now();
+        const laatste = lastTapRef.current[naam];
+        // Dubbelklik-beveiliging: binnen cooldown → vraag bevestiging
+        if (laatste && nu - laatste < COOLDOWN_MS) {
+            setBevestigDialog({ naam });
+            return;
+        }
+        lastTapRef.current[naam] = nu;
+        doeRonde(naam);
+    };
+
+    const bevestigExtraRonde = () => {
+        const naam = bevestigDialog.naam;
+        lastTapRef.current[naam] = Date.now();
+        doeRonde(naam);
+        setBevestigDialog(null);
+    };
+
+    // Ronde ongedaan maken (laatste tap terugdraaien)
+    const undoRonde = (naam) => {
+        setLeerlingen(prev => prev.map(l => {
+            if (l.naam !== naam || l.rondetijden.length === 0) return l;
+            const nieuweRondetijden = l.rondetijden.slice(0, -1);
+            return {
+                ...l,
+                rondetijden: nieuweRondetijden,
+                gefinisht: false,
+                eindtijd: null,
+            };
+        }));
+        lastTapRef.current[naam] = 0; // reset cooldown
+    };
+
     const actief   = leerlingen.filter(l => !l.gefinisht);
     const gefinisht = leerlingen.filter(l => l.gefinisht).sort((a, b) => a.eindtijd - b.eindtijd);
     const alleKlaar = actief.length === 0;
@@ -454,21 +518,33 @@ function ChronoView({ config, onIndienen }) {
     const handleIndienen = () => {
         const metingen = leerlingen.map(l => ({
             naam:        l.naam,
-            rondetijden: l.rondetijden,    // ms per ronde (cumulatief)
-            eindtijd:    l.eindtijd,       // ms totale tijd (null als niet gefinisht)
+            rondetijden: l.rondetijden,
+            eindtijd:    l.eindtijd,
             gefinisht:   l.gefinisht,
         }));
+        try { localStorage.removeItem(storageKey); } catch { /* */ }
         onIndienen(metingen);
     };
 
     return (
         <div className="space-y-4">
 
-            {/* Chrono display */}
-            <div className="bg-slate-900 rounded-2xl p-6 text-center">
+            {/* Herstel-melding na crash/herlaad */}
+            {toonHersteld && (
+                <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                    <p className="text-sm text-amber-800">
+                        ↩ Je vorige meting is hersteld. Je kan gewoon verdergaan.
+                    </p>
+                    <button onClick={() => setToonHersteld(false)}
+                        className="text-amber-600 hover:text-amber-800 text-sm font-medium flex-shrink-0">OK</button>
+                </div>
+            )}
+
+            {/* Chrono display — sticky zodat hij in beeld blijft bij scrollen */}
+            <div className="sticky top-2 z-20 bg-slate-900 rounded-2xl p-6 text-center shadow-lg">
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-2">
                     {sportConfig.naam}
-                    {sportConfig.modus === 'chrono_rondes' && ` — ${maxRondes} ronde${maxRondes > 1 ? 's' : ''}`}
+                    {sportConfig.modus === 'chrono_rondes' && ` — ${maxRondes} ${maxRondes > 1 ? rondeWoordMv : rondeWoord}`}
                 </p>
                 <div className="text-5xl font-mono font-bold text-white tracking-wider mb-5">
                     {formatTijd(elapsed)}
@@ -495,6 +571,29 @@ function ChronoView({ config, onIndienen }) {
                 )}
             </div>
 
+            {/* Bevestigingsdialog bij dubbele tap */}
+            {bevestigDialog && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl">
+                        <p className="text-3xl text-center mb-2">⚠️</p>
+                        <h3 className="font-bold text-gray-900 text-center mb-2">Extra {rondeWoord} bijtellen?</h3>
+                        <p className="text-sm text-gray-500 text-center mb-5">
+                            Je hebt <strong>{bevestigDialog.naam}</strong> net al geregistreerd. Wil je echt nog een {rondeWoord} bijtellen?
+                        </p>
+                        <div className="flex gap-2">
+                            <button onClick={() => setBevestigDialog(null)}
+                                className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600 font-medium hover:bg-gray-50">
+                                Nee
+                            </button>
+                            <button onClick={bevestigExtraRonde}
+                                className="flex-1 py-3 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl">
+                                Ja, bijtellen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Actieve lopers */}
             {actief.length > 0 && (
                 <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
@@ -509,20 +608,29 @@ function ChronoView({ config, onIndienen }) {
                             const huidigeRondeTijd = l.rondetijden.length > 0
                                 ? l.rondetijden[l.rondetijden.length - 1] - vorigeRonde
                                 : null;
+                            const heeftRondes = l.rondetijden.length > 0;
 
                             return (
-                                <div key={l.naam} className="flex items-center px-4 py-3.5 gap-3">
+                                <div key={l.naam} className="flex items-center px-4 py-3.5 gap-2">
                                     <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-gray-900 truncate">{l.naam}</p>
                                         <p className="text-xs text-gray-400">
-                                            Ronde {rondeNr} / {maxRondes}
+                                            {isZwem ? 'Baan' : 'Ronde'} {rondeNr} / {maxRondes}
                                             {huidigeRondeTijd !== null && (
                                                 <span className="ml-2 text-teal-500 font-mono">
-                                                    laatste: {formatRondetijd(huidigeRondeTijd)}
+                                                    laatste: {formatTijd(huidigeRondeTijd)}
                                                 </span>
                                             )}
                                         </p>
                                     </div>
+                                    {/* Undo — zichtbaar zodra er minstens 1 ronde is */}
+                                    {heeftRondes && !gestopt && (
+                                        <button
+                                            onClick={() => undoRonde(l.naam)}
+                                            className="flex-shrink-0 w-9 h-9 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-xl text-sm active:scale-95"
+                                            title={`Laatste ${rondeWoord} ongedaan maken`}
+                                        >↩</button>
+                                    )}
                                     <button
                                         onClick={() => registreerRonde(l.naam)}
                                         disabled={!gestart || gestopt}
@@ -532,7 +640,7 @@ function ChronoView({ config, onIndienen }) {
                                                 : 'bg-teal-100 hover:bg-teal-200 text-teal-800'
                                         }`}
                                     >
-                                        {isFinish ? '🏁 Finish' : `Ronde ${rondeNr} ✓`}
+                                        {isFinish ? '🏁 Finish' : `${isZwem ? 'Baan' : 'Ronde'} ${rondeNr} ✓`}
                                     </button>
                                 </div>
                             );
