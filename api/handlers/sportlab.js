@@ -177,10 +177,23 @@ export async function handleGetActieveSportLabSessie(req, res, decodedToken) {
 
         if (snap.empty) return res.status(200).json({ success: true, sessie: null });
 
-        // Check in welke groepen de leerling zit
-        const groepenSnap = await db.collection('groepen').where('leerling_ids', 'array-contains', decodedToken.uid).get();
-        const studentGroepIds = groepenSnap.docs.map(d => d.id);
-        const leerlingKlas = userData?.klas || null;
+        // Check in welke groepen de leerling zit.
+        // BELANGRIJK: groep.leerling_ids bevat toegestane_gebruikers-ids (smartschool-hash),
+        // NIET de Firebase UID. Daarom zoeken we met de hash uit het user-document.
+        const leerlingHash = userData?.toegestane_gebruikers_id || null;
+        let studentGroepIds = [];
+        if (leerlingHash) {
+            const groepenSnap = await db.collection('groepen')
+                .where('leerling_ids', 'array-contains', leerlingHash).get();
+            studentGroepIds = groepenSnap.docs.map(d => d.id);
+        }
+
+        // Klas van de leerling: eerst uit users, anders uit toegestane_gebruikers
+        let leerlingKlas = userData?.klas || null;
+        if (!leerlingKlas && leerlingHash) {
+            const tgSnap = await db.collection('toegestane_gebruikers').doc(leerlingHash).get();
+            if (tgSnap.exists) leerlingKlas = tgSnap.data().klas || null;
+        }
 
         const matchendDoc = snap.docs.find(d => {
             const data = d.data();
