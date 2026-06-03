@@ -1069,6 +1069,39 @@ export function WaarnemerView({ sessie, profile, onTerug }) {
         ingediend: 'Ingediend bij leerkracht',
     };
 
+    // Beoordeelt of de back-knop moet waarschuwen, op basis van de chrono-status.
+    // Regels: chrono gestopt → test mag weg (geen waarschuwing).
+    //         chrono loopt → waarschuwen.
+    //         chrono loopt al > 1 uur → test mag alsnog weg (verlaten meting).
+    const EEN_UUR_MS = 60 * 60 * 1000;
+    const chronoKey = () => config
+        ? `chrono_${config.test?.id || config.sportConfig.id}_${config.namen.join('_')}`.slice(0, 120)
+        : null;
+
+    const chronoVraagtBevestiging = () => {
+        const isChrono = config?.sportConfig?.modus === 'chrono_rondes'
+            || config?.sportConfig?.modus === 'chrono_eenmalig';
+        if (!isChrono) return false; // meting/telling: geen lopende chrono → geen waarschuwing
+        try {
+            const raw = localStorage.getItem(chronoKey());
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data.gestart) return false;  // nog niet gestart
+            if (data.gestopt) return false;   // gestopt → test mag weg
+            if (data.startTijd && (Date.now() - data.startTijd) > EEN_UUR_MS) return false; // > 1u → verlaten
+            return true;                      // loopt actief → waarschuwen
+        } catch {
+            return true; // bij twijfel: waarschuwen
+        }
+    };
+
+    const verlaatMeting = () => {
+        try { const k = chronoKey(); if (k) localStorage.removeItem(k); } catch { /* */ }
+        setConfig(null);
+        setSetupKey(k => k + 1);
+        setFase('setup');
+    };
+
     return (
         <div>
             {/* Header */}
@@ -1078,14 +1111,14 @@ export function WaarnemerView({ sessie, profile, onTerug }) {
                         onClick={() => {
                             if (fase === 'setup') {
                                 onTerug();
-                            } else {
-                                // Vanuit actieve meting terug: waarschuwen, want meting gaat verloren
-                                const verder = window.confirm('Weet je zeker dat je terug wil? Je huidige meting gaat verloren.');
-                                if (verder) {
-                                    setConfig(null);
-                                    setSetupKey(k => k + 1); // verse setup, geen oude test
-                                    setFase('setup');
+                            } else if (chronoVraagtBevestiging()) {
+                                // Chrono loopt nog (< 1u): waarschuwen
+                                if (window.confirm('Weet je zeker dat je terug wil? De chrono loopt nog en je huidige meting gaat verloren.')) {
+                                    verlaatMeting();
                                 }
+                            } else {
+                                // Chrono gestopt, niet gestart, of > 1u oud: zonder waarschuwing terug
+                                verlaatMeting();
                             }
                         }}
                         className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex-shrink-0"
