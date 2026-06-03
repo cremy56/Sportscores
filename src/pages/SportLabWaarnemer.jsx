@@ -652,62 +652,55 @@ function ChronoView({ config, onIndienen }) {
                 </div>
             )}
 
-            {/* Actieve lopers */}
+            {/* Actieve lopers — naam is de tik-knop, 2 kolommen op gsm */}
             {actief.length > 0 && (
-                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                    <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-                        <p className="text-sm font-semibold text-gray-600">🏃 Actief ({actief.length})</p>
-                    </div>
-                    <div className="divide-y divide-gray-100">
+                <div>
+                    <p className="text-sm font-semibold text-gray-600 mb-2 px-1">🏃 Actief ({actief.length})</p>
+                    <div className="flex flex-wrap gap-2">
                         {actief.map(l => {
                             const rondeNr     = l.rondetijden.length + 1;
                             const isFinish    = rondeNr === maxRondes;
-                            const vorigeRonde = l.rondetijden[l.rondetijden.length - 2] || 0;
-                            const huidigeRondeTijd = l.rondetijden.length > 0
-                                ? l.rondetijden[l.rondetijden.length - 1] - vorigeRonde
-                                : null;
                             const heeftRondes = l.rondetijden.length > 0;
 
                             return (
-                                <div key={l.naam} className="flex items-center px-3 py-3.5 gap-2">
-                                    <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center bg-gray-800 text-white text-sm font-bold rounded-full">{l.nr}</span>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-gray-900 truncate">{l.naam}</p>
-                                        <p className="text-xs text-gray-400">
-                                            {isZwem ? 'Baan' : 'Ronde'} {rondeNr} / {maxRondes}
-                                            {huidigeRondeTijd !== null && (
-                                                <span className="ml-2 text-teal-500 font-mono">
-                                                    laatste: {formatTijd(huidigeRondeTijd)}
-                                                </span>
-                                            )}
-                                        </p>
+                                <div
+                                    key={l.naam}
+                                    className="relative flex flex-col bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden"
+                                    style={{ width: 'calc(50% - 0.25rem)' }}
+                                >
+                                    {/* Kleine actieknoppen rechtsboven */}
+                                    <div className="absolute top-1.5 right-1.5 flex gap-1 z-10">
+                                        {heeftRondes && !gestopt && (
+                                            <button
+                                                onClick={() => undoRonde(l.naam)}
+                                                className="w-7 h-7 flex items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg text-xs active:scale-95"
+                                                title={`Laatste ${rondeWoord} ongedaan maken`}
+                                            >↩</button>
+                                        )}
+                                        {!gestopt && (
+                                            <button
+                                                onClick={() => markeerOpgegeven(l.naam)}
+                                                className="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-xs active:scale-95"
+                                                title="Opgegeven / geblesseerd"
+                                            >✕</button>
+                                        )}
                                     </div>
-                                    {/* Opgegeven/geblesseerd markeren */}
-                                    {!gestopt && (
-                                        <button
-                                            onClick={() => markeerOpgegeven(l.naam)}
-                                            className="flex-shrink-0 w-9 h-9 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl text-sm active:scale-95"
-                                            title="Opgegeven / geblesseerd"
-                                        >✕</button>
-                                    )}
-                                    {/* Undo — zichtbaar zodra er minstens 1 ronde is */}
-                                    {heeftRondes && !gestopt && (
-                                        <button
-                                            onClick={() => undoRonde(l.naam)}
-                                            className="flex-shrink-0 w-9 h-9 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-xl text-sm active:scale-95"
-                                            title={`Laatste ${rondeWoord} ongedaan maken`}
-                                        >↩</button>
-                                    )}
+
+                                    {/* De hele knop = ronde registreren */}
                                     <button
                                         onClick={() => registreerRonde(l.naam)}
                                         disabled={!gestart || gestopt}
-                                        className={`flex-shrink-0 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-30 ${
-                                            isFinish
-                                                ? 'bg-green-500 hover:bg-green-400 text-white'
-                                                : 'bg-teal-100 hover:bg-teal-200 text-teal-800'
+                                        className={`flex-1 text-left px-3 pt-3 pb-3 pr-16 transition-all active:scale-[0.98] disabled:opacity-40 ${
+                                            isFinish ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-teal-50'
                                         }`}
                                     >
-                                        {isFinish ? '🏁 Finish' : `${isZwem ? 'Baan' : 'Ronde'} ${rondeNr} ✓`}
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-gray-800 text-white text-xs font-bold rounded-full">{l.nr}</span>
+                                            <span className="font-semibold text-gray-900 truncate">{l.naam}</span>
+                                        </div>
+                                        <p className={`text-xs font-medium ${isFinish ? 'text-green-600' : 'text-gray-400'}`}>
+                                            {isFinish ? '🏁 Tik voor finish' : `${isZwem ? 'Baan' : 'Ronde'} ${rondeNr} / ${maxRondes} — tik`}
+                                        </p>
                                     </button>
                                 </div>
                             );
