@@ -318,7 +318,7 @@ export default function Sporttesten() {
                     <div className="lg:hidden mb-8">
                         <div className="flex justify-between items-center">
                             <h1 className="text-2xl font-bold text-gray-800">
-                                {activeTab === 'testafnames' ? 'Historiek' : activeTab === 'waarnemer' ? 'Onverwerkt' : 'Testen'}
+                                {activeTab === 'testafnames' ? 'Testafnames' : activeTab === 'waarnemer' ? 'Onverwerkt' : 'Testen'}
                             </h1>
                             {canManage && activeTab !== 'waarnemer' && (
                                 <button onClick={() => activeTab === 'testafnames' ? navigate('/nieuwe-testafname') : setModal({ type: 'testForm', data: null })} className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg">
