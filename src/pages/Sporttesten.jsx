@@ -78,6 +78,8 @@ export default function Sporttesten() {
     const [loading, setLoading] = useState(true);
     const [modal, setModal] = useState({ type: null, data: null });
     const [filters, setFilters] = useState({ search: '', groep: '', test: '' });
+    const [waarnemerInzendingen, setWaarnemerInzendingen] = useState([]);
+    const [waarnemerLoading, setWaarnemerLoading] = useState(false);
 
     const canManage = ['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol);
 
@@ -103,6 +105,25 @@ export default function Sporttesten() {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    // Openstaande waarnemer-inzendingen ophalen (los van sessie — blijven 14 dagen beschikbaar)
+    const fetchWaarnemerInzendingen = useCallback(async () => {
+        if (!profile?.school_id || !profile?._token) return;
+        setWaarnemerLoading(true);
+        try {
+            const data = await apiPost('get_waarnemer_metingen', { schoolId: profile.school_id }, profile._token);
+            setWaarnemerInzendingen(data.inzendingen || []);
+        } catch (error) {
+            // Stil: toon gewoon lege lijst
+            setWaarnemerInzendingen([]);
+        } finally {
+            setWaarnemerLoading(false);
+        }
+    }, [profile]);
+
+    useEffect(() => {
+        fetchWaarnemerInzendingen();
+    }, [fetchWaarnemerInzendingen]);
 
     const handleCloseModal = () => setModal({ type: null, data: null });
 
@@ -196,6 +217,59 @@ export default function Sporttesten() {
         </>
     );
 
+    const WaarnemerInzendingenTab = () => {
+        const formatDatum = (iso) => {
+            if (!iso) return '';
+            try {
+                return new Date(iso).toLocaleString('nl-BE', {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                });
+            } catch { return ''; }
+        };
+
+        return (
+            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+                <div className="p-5 border-b border-gray-100 bg-teal-50/50">
+                    <p className="text-sm text-gray-600">
+                        Resultaten die leerlingen als waarnemer hebben ingediend. Ze blijven hier beschikbaar tot je ze koppelt of verwijdert — ook nadat een SportLab-sessie is afgelopen.
+                    </p>
+                </div>
+
+                {waarnemerLoading ? (
+                    <div className="p-12 text-center text-gray-400">Laden…</div>
+                ) : waarnemerInzendingen.length === 0 ? (
+                    <div className="text-center py-16">
+                        <p className="text-4xl mb-3">🔭</p>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">Geen openstaande resultaten</h3>
+                        <p className="text-gray-600">Er zijn momenteel geen waarnemer-resultaten die op koppeling wachten.</p>
+                    </div>
+                ) : (
+                    <ul className="divide-y divide-gray-200/70">
+                        {waarnemerInzendingen.map(inz => (
+                            <li key={inz.id} className="group hover:bg-teal-50/50 transition-colors">
+                                <div className="flex items-center justify-between p-6 gap-3">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-lg text-gray-900">
+                                            {inz.test_naam || inz.sport_type || 'Meting'}
+                                        </p>
+                                        <p className="text-sm text-gray-600 mt-1">
+                                            Door <span className="font-medium">{inz.waarnemer}</span>
+                                            {' • '}{inz.metingen?.length || 0} leerling{(inz.metingen?.length || 0) !== 1 ? 'en' : ''}
+                                            {inz.ingediend_op && <> • {formatDatum(inz.ingediend_op)}</>}
+                                        </p>
+                                    </div>
+                                    <span className="flex-shrink-0 text-xs font-medium bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
+                                        Te koppelen
+                                    </span>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        );
+    };
+
     const TestenBeheerTab = () => (
         <>
             {testen.length === 0 ? (
@@ -243,8 +317,10 @@ export default function Sporttesten() {
                     {/* Mobile Header */}
                     <div className="lg:hidden mb-8">
                         <div className="flex justify-between items-center">
-                            <h1 className="text-2xl font-bold text-gray-800">{activeTab === 'testafnames' ? 'Testafnames' : 'Testen'}</h1>
-                            {canManage && (
+                            <h1 className="text-2xl font-bold text-gray-800">
+                                {activeTab === 'testafnames' ? 'Historiek' : activeTab === 'waarnemer' ? 'Onverwerkt' : 'Testen'}
+                            </h1>
+                            {canManage && activeTab !== 'waarnemer' && (
                                 <button onClick={() => activeTab === 'testafnames' ? navigate('/nieuwe-testafname') : setModal({ type: 'testForm', data: null })} className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg">
                                     <PlusIcon className="h-6 w-6" />
                                 </button>
@@ -256,10 +332,18 @@ export default function Sporttesten() {
                     <div className="hidden lg:block mb-8">
                         <div className="flex justify-between items-center">
                             <div>
-                                <h1 className="text-3xl font-bold text-gray-800">{activeTab === 'testafnames' ? 'Testafnames' : 'Sporttesten Beheer'}</h1>
-                                <p className="text-gray-600 mt-1">{activeTab === 'testafnames' ? 'Beheer en bekijk alle testresultaten' : 'Beheer de beschikbare sporttesten voor je school'}</p>
+                                <h1 className="text-3xl font-bold text-gray-800">
+                                    {activeTab === 'testafnames' ? 'Historiek' : activeTab === 'waarnemer' ? 'Onverwerkte resultaten' : 'Sporttesten Beheer'}
+                                </h1>
+                                <p className="text-gray-600 mt-1">
+                                    {activeTab === 'testafnames'
+                                        ? 'Beheer en bekijk alle testresultaten'
+                                        : activeTab === 'waarnemer'
+                                        ? 'Resultaten van leerlingen die nog gekoppeld moeten worden'
+                                        : 'Beheer de beschikbare sporttesten voor je school'}
+                                </p>
                             </div>
-                            {canManage && (
+                            {canManage && activeTab !== 'waarnemer' && (
                                 <button onClick={() => activeTab === 'testafnames' ? navigate('/nieuwe-testafname') : setModal({ type: 'testForm', data: null })} className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-3 rounded-2xl shadow-lg hover:scale-105">
                                     <PlusIcon className="h-6 w-6" />
                                     <span className="ml-2">{activeTab === 'testafnames' ? 'Nieuwe Afname' : 'Nieuwe Test'}</span>
@@ -270,12 +354,19 @@ export default function Sporttesten() {
 
                     {/* Tab Navigatie */}
                     <div className="flex gap-2 border-b border-gray-200 mb-6">
-                        <button onClick={() => setActiveTab('testafnames')} className={`px-4 py-2 font-medium text-sm ${activeTab === 'testafnames' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'}`}>Testafnames</button>
+                        <button onClick={() => setActiveTab('testafnames')} className={`px-4 py-2 font-medium text-sm ${activeTab === 'testafnames' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'}`}>Historiek</button>
+                        <button onClick={() => setActiveTab('waarnemer')} className={`px-4 py-2 font-medium text-sm flex items-center gap-1.5 ${activeTab === 'waarnemer' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'}`}>
+                            Onverwerkt
+                            {waarnemerInzendingen.length > 0 && (
+                                <span className="bg-teal-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{waarnemerInzendingen.length}</span>
+                            )}
+                        </button>
                         <button onClick={() => setActiveTab('testenbeheer')} className={`px-4 py-2 font-medium text-sm ${activeTab === 'testenbeheer' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-gray-500'}`}>Testinfo en normen</button>
                     </div>
 
                     {activeTab === 'testafnames' && <TestafnamesTab />}
                     {activeTab === 'testenbeheer' && <TestenBeheerTab />}
+                    {activeTab === 'waarnemer' && <WaarnemerInzendingenTab />}
                 </div>
             </div>
 
