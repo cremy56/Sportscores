@@ -310,9 +310,9 @@ function WaarnemerSetup({ onStart, profile }) {
                     </div>
 
                     {namen.length > 0 && (
-                        <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div className="flex flex-wrap gap-2 mb-2">
                             {namen.map((naam, idx) => (
-                                <div key={naam} className="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-xl px-2.5 py-1.5">
+                                <div key={naam} className="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-xl px-2.5 py-1.5" style={{ width: 'calc(50% - 0.25rem)' }}>
                                     <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-teal-600 text-white text-xs font-bold rounded-full">{idx + 1}</span>
                                     <span className="flex-1 text-sm font-medium text-teal-800 truncate">{naam}</span>
                                     <button
