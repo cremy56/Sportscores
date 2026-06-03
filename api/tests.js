@@ -48,7 +48,7 @@ import {
     handleGetSportLabToernooiSpelers, handleStartToernooi,
     handleUpdateMatchScore, handleStopToernooi, handleVolgendeRonde,
     handleGetBlessureContent,
-    handleSubmitWaarnemerMetingen, handleGetWaarnemerMetingen, handleMarkeerWaarnemerGekoppeld,
+    handleSubmitWaarnemerMetingen, handleGetWaarnemerMetingen, handleMarkeerWaarnemerGekoppeld, handleVerwijderWaarnemerMetingen,
 } from './handlers/sportlab.js';
 
 // ─── HOOFD HANDLER ────────────────────────────────────────────────────────────
@@ -156,6 +156,7 @@ export default async function handler(req, res) {
             case 'submit_waarnemer_metingen':    return await handleSubmitWaarnemerMetingen(req, res, decodedToken);
             case 'get_waarnemer_metingen':       return await handleGetWaarnemerMetingen(req, res, decodedToken);
             case 'markeer_waarnemer_gekoppeld':  return await handleMarkeerWaarnemerGekoppeld(req, res, decodedToken);
+            case 'verwijder_waarnemer_metingen': return await handleVerwijderWaarnemerMetingen(req, res, decodedToken);
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
         }

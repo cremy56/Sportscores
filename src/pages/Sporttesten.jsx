@@ -322,6 +322,22 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
         fetchWaarnemerInzendingen();
     }, [fetchWaarnemerInzendingen]);
 
+    // Een onverwerkte inzending verwijderen (na bevestiging)
+    const handleVerwijderInzending = async (inz) => {
+        const aantal = inz.metingen?.length || 0;
+        const bevestigd = window.confirm(
+            `Inzending van ${inz.waarnemer} (${aantal} leerling${aantal !== 1 ? 'en' : ''}) definitief verwijderen?\n\nDit kan niet ongedaan gemaakt worden.`
+        );
+        if (!bevestigd) return;
+        try {
+            await apiPost('verwijder_waarnemer_metingen', { schoolId: profile.school_id, metingId: inz.id }, profile._token);
+            toast.success('Inzending verwijderd');
+            setWaarnemerInzendingen(prev => prev.filter(i => i.id !== inz.id));
+        } catch (error) {
+            toast.error('Verwijderen mislukt: ' + error.message);
+        }
+    };
+
     const handleCloseModal = () => setModal({ type: null, data: null });
 
     // =============================================
@@ -456,10 +472,11 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
                                         </p>
                                     </div>
                                     <button
-                                        onClick={() => setKoppelInzending(inz)}
-                                        className="flex-shrink-0 text-sm font-medium bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-xl"
+                                        onClick={() => handleVerwijderInzending(inz)}
+                                        className="flex-shrink-0 p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
+                                        title="Inzending verwijderen"
                                     >
-                                        Koppelen →
+                                        <TrashIcon className="h-5 w-5" />
                                     </button>
                                 </div>
                             </li>
@@ -518,7 +535,7 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
                     <div className="lg:hidden mb-8">
                         <div className="flex justify-between items-center">
                             <h1 className="text-2xl font-bold text-gray-800">
-                                {activeTab === 'testafnames' ? 'Testafnames' : activeTab === 'waarnemer' ? 'Onverwerkt' : 'Testen'}
+                                {activeTab === 'testafnames' ? 'Historiek' : activeTab === 'waarnemer' ? 'Onverwerkt' : 'Testen'}
                             </h1>
                             {canManage && activeTab !== 'waarnemer' && (
                                 <button onClick={() => activeTab === 'testafnames' ? navigate('/nieuwe-testafname') : setModal({ type: 'testForm', data: null })} className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg">
@@ -533,7 +550,7 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
                         <div className="flex justify-between items-center">
                             <div>
                                 <h1 className="text-3xl font-bold text-gray-800">
-                                    {activeTab === 'testafnames' ? 'Testafnames' : activeTab === 'waarnemer' ? 'Onverwerkte resultaten' : 'Sporttesten Beheer'}
+                                    {activeTab === 'testafnames' ? 'Historiek' : activeTab === 'waarnemer' ? 'Onverwerkte resultaten' : 'Sporttesten Beheer'}
                                 </h1>
                                 <p className="text-gray-600 mt-1">
                                     {activeTab === 'testafnames'
