@@ -73,7 +73,11 @@ function msNaarSeconden(ms) { return ms / 1000; }
 // Koppelt één waarnemer-inzending aan echte leerlingen.
 // De leerkracht kiest een groep/klas + datum; de test komt uit de inzending.
 function KoppelModal({ inzending, groepen, klassen, profile, onClose, onKlaar }) {
-    const [doel, setDoel]           = useState('');   // groep-id of 'klas-<naam>'
+    // Doel voorselecteren op basis van de sessie waarin de meting werd ingediend
+    const initieelDoel = inzending?.klas
+        ? `klas-${inzending.klas}`
+        : (inzending?.groep_id || '');
+    const [doel, setDoel]           = useState(initieelDoel);
     const [datum, setDatum]         = useState(new Date().toISOString().split('T')[0]);
     const [leerlingen, setLeerlingen] = useState([]);
     const [koppelingen, setKoppelingen] = useState({}); // { ingediendeNaam: leerlingId }

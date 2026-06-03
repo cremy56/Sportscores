@@ -1217,6 +1217,9 @@ export async function handleSubmitWaarnemerMetingen(req, res, decodedToken) {
             configuratie:   configuratie || {},
             metingen:       opgeschoond,
             status:         'ingediend',
+            // Doelgroep van de sessie meeslaan zodat de leerkracht ze niet opnieuw hoeft te kiezen
+            klas:           sessieData.klas     || null,
+            groep_id:       sessieData.groep_id || null,
         });
 
         return res.status(200).json({ success: true, meting_id: docRef.id });
@@ -1289,6 +1292,8 @@ export async function handleGetWaarnemerMetingen(req, res, decodedToken) {
                 eenheid:      data.eenheid,
                 configuratie: data.configuratie,
                 metingen:     data.metingen,
+                klas:         data.klas     || null,
+                groep_id:     data.groep_id || null,
                 ingediend_op: data.ingediend_op?.toDate?.()?.toISOString() || null,
             };
         });
