@@ -322,19 +322,18 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
         fetchWaarnemerInzendingen();
     }, [fetchWaarnemerInzendingen]);
 
-    // Een onverwerkte inzending verwijderen (na bevestiging)
-    const handleVerwijderInzending = async (inz) => {
-        const aantal = inz.metingen?.length || 0;
-        const bevestigd = window.confirm(
-            `Inzending van ${inz.waarnemer} (${aantal} leerling${aantal !== 1 ? 'en' : ''}) definitief verwijderen?\n\nDit kan niet ongedaan gemaakt worden.`
-        );
-        if (!bevestigd) return;
+    // Een onverwerkte inzending verwijderen — uitgevoerd na bevestiging via ConfirmModal
+    const handleVerwijderInzending = async () => {
+        const inz = modal.data;
+        if (!inz) return;
         try {
             await apiPost('verwijder_waarnemer_metingen', { schoolId: profile.school_id, metingId: inz.id }, profile._token);
             toast.success('Inzending verwijderd');
             setWaarnemerInzendingen(prev => prev.filter(i => i.id !== inz.id));
         } catch (error) {
             toast.error('Verwijderen mislukt: ' + error.message);
+        } finally {
+            handleCloseModal();
         }
     };
 
@@ -460,8 +459,8 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
                     <ul className="divide-y divide-gray-200/70">
                         {waarnemerInzendingen.map(inz => (
                             <li key={inz.id} className="group hover:bg-teal-50/50 transition-colors">
-                                <div className="flex items-center justify-between p-6 gap-3">
-                                    <div onClick={() => setKoppelInzending(inz)} className="flex-1 min-w-0 cursor-pointer">
+                                <div onClick={() => setKoppelInzending(inz)} className="flex items-center justify-between p-6 gap-3 cursor-pointer">
+                                    <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-lg text-gray-900 group-hover:text-teal-700">
                                             {inz.test_naam || inz.sport_type || 'Meting'}
                                         </p>
@@ -471,13 +470,16 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
                                             {inz.ingediend_op && <> • {formatDatum(inz.ingediend_op)}</>}
                                         </p>
                                     </div>
-                                    <button
-                                        onClick={() => handleVerwijderInzending(inz)}
-                                        className="flex-shrink-0 p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
-                                        title="Inzending verwijderen"
-                                    >
-                                        <TrashIcon className="h-5 w-5" />
-                                    </button>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setModal({ type: 'confirmDeleteInzending', data: inz }); }}
+                                            className="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors"
+                                            title="Inzending verwijderen"
+                                        >
+                                            <TrashIcon className="h-5 w-5" />
+                                        </button>
+                                        <ChevronRightIcon className="h-6 w-6 text-gray-400 group-hover:text-teal-700 transition-all group-hover:translate-x-1" />
+                                    </div>
                                 </div>
                             </li>
                         ))}
@@ -608,6 +610,9 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
             </ConfirmModal>
             <ConfirmModal isOpen={modal.type === 'confirmDeleteTest'} onClose={handleCloseModal} onConfirm={handleDeleteTest} title="Test Verwijderen">
                 Weet u zeker dat u de test "{modal.data?.naam}" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+            </ConfirmModal>
+            <ConfirmModal isOpen={modal.type === 'confirmDeleteInzending'} onClose={handleCloseModal} onConfirm={handleVerwijderInzending} title="Inzending Verwijderen">
+                Weet u zeker dat u de inzending van {modal.data?.waarnemer} ({modal.data?.metingen?.length || 0} leerling{(modal.data?.metingen?.length || 0) !== 1 ? 'en' : ''}) wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
             </ConfirmModal>
         </>
     );
