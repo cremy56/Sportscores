@@ -310,13 +310,15 @@ function WaarnemerSetup({ onStart, profile }) {
                     </div>
 
                     {namen.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-2">
-                            {namen.map(naam => (
-                                <div key={naam} className="flex items-center gap-1.5 bg-teal-50 border border-teal-200 rounded-full px-3 py-1.5">
-                                    <span className="text-sm font-medium text-teal-800">{naam}</span>
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                            {namen.map((naam, idx) => (
+                                <div key={naam} className="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-xl px-2.5 py-1.5">
+                                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-teal-600 text-white text-xs font-bold rounded-full">{idx + 1}</span>
+                                    <span className="flex-1 text-sm font-medium text-teal-800 truncate">{naam}</span>
                                     <button
                                         onClick={() => setNamen(prev => prev.filter(n => n !== naam))}
-                                        className="text-teal-400 hover:text-teal-700 transition-colors"
+                                        className="flex-shrink-0 text-teal-400 hover:text-red-600 transition-colors"
+                                        title="Verwijderen"
                                     >
                                         <TrashIcon className="w-3.5 h-3.5" />
                                     </button>
@@ -456,11 +458,13 @@ function ChronoView({ config, onIndienen }) {
     const [toonHersteld, setToonHersteld] = useState(!!hersteld);
 
     const [leerlingen, setLeerlingen] = useState(() =>
-        hersteld?.leerlingen ?? namen.map(naam => ({
+        hersteld?.leerlingen ?? namen.map((naam, idx) => ({
             naam,
+            nr: idx + 1,
             rondetijden: [],
             gefinisht: false,
             eindtijd: null,
+            opgegeven: false,
         }))
     );
 
@@ -550,16 +554,31 @@ function ChronoView({ config, onIndienen }) {
         lastTapRef.current[naam] = 0; // reset cooldown
     };
 
-    const actief   = leerlingen.filter(l => !l.gefinisht);
-    const gefinisht = leerlingen.filter(l => l.gefinisht).sort((a, b) => a.eindtijd - b.eindtijd);
+    // Loper als opgegeven/geblesseerd markeren (verdwijnt uit actief, telt niet als score)
+    const markeerOpgegeven = (naam) => {
+        setLeerlingen(prev => prev.map(l =>
+            l.naam === naam ? { ...l, opgegeven: true, gefinisht: false, eindtijd: null } : l
+        ));
+    };
+    const herstelOpgegeven = (naam) => {
+        setLeerlingen(prev => prev.map(l =>
+            l.naam === naam ? { ...l, opgegeven: false } : l
+        ));
+    };
+
+    const actief    = leerlingen.filter(l => !l.gefinisht && !l.opgegeven);
+    const gefinisht  = leerlingen.filter(l => l.gefinisht).sort((a, b) => a.eindtijd - b.eindtijd);
+    const opgegeven  = leerlingen.filter(l => l.opgegeven);
     const alleKlaar = actief.length === 0;
 
     const handleIndienen = () => {
         const metingen = leerlingen.map(l => ({
             naam:        l.naam,
-            rondetijden: l.rondetijden,
-            eindtijd:    l.eindtijd,
-            gefinisht:   l.gefinisht,
+            nr:          l.nr,
+            rondetijden: l.opgegeven ? [] : l.rondetijden,
+            eindtijd:    l.opgegeven ? null : l.eindtijd,
+            gefinisht:   l.opgegeven ? false : l.gefinisht,
+            opgegeven:   !!l.opgegeven,
         }));
         try { localStorage.removeItem(storageKey); } catch { /* */ }
         onIndienen(metingen);
@@ -650,7 +669,8 @@ function ChronoView({ config, onIndienen }) {
                             const heeftRondes = l.rondetijden.length > 0;
 
                             return (
-                                <div key={l.naam} className="flex items-center px-4 py-3.5 gap-2">
+                                <div key={l.naam} className="flex items-center px-3 py-3.5 gap-2">
+                                    <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center bg-gray-800 text-white text-sm font-bold rounded-full">{l.nr}</span>
                                     <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-gray-900 truncate">{l.naam}</p>
                                         <p className="text-xs text-gray-400">
@@ -662,6 +682,14 @@ function ChronoView({ config, onIndienen }) {
                                             )}
                                         </p>
                                     </div>
+                                    {/* Opgegeven/geblesseerd markeren */}
+                                    {!gestopt && (
+                                        <button
+                                            onClick={() => markeerOpgegeven(l.naam)}
+                                            className="flex-shrink-0 w-9 h-9 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl text-sm active:scale-95"
+                                            title="Opgegeven / geblesseerd"
+                                        >✕</button>
+                                    )}
                                     {/* Undo — zichtbaar zodra er minstens 1 ronde is */}
                                     {heeftRondes && !gestopt && (
                                         <button
@@ -710,6 +738,27 @@ function ChronoView({ config, onIndienen }) {
                 </div>
             )}
 
+            {opgegeven.length > 0 && (
+                <div className="bg-white rounded-2xl border border-red-200 overflow-hidden shadow-sm">
+                    <div className="px-4 py-3 border-b border-red-100 bg-red-50">
+                        <p className="text-sm font-semibold text-red-700">✕ Opgegeven / geblesseerd ({opgegeven.length})</p>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                        {opgegeven.map(l => (
+                            <div key={l.naam} className="flex items-center px-4 py-3 gap-3">
+                                <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center bg-gray-300 text-gray-600 text-sm font-bold rounded-full">{l.nr}</span>
+                                <span className="flex-1 font-medium text-gray-500 line-through">{l.naam}</span>
+                                <button
+                                    onClick={() => herstelOpgegeven(l.naam)}
+                                    className="flex-shrink-0 text-sm text-teal-600 hover:text-teal-800 font-medium"
+                                    title="Terug naar actief"
+                                >↩ terug</button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Indienen */}
             {(alleKlaar || gestopt) && leerlingen.some(l => l.gefinisht) && (
                 <button
@@ -742,8 +791,9 @@ function MetingView({ config, onIndienen }) {
     const [toonHersteld, setToonHersteld] = useState(!!hersteld);
 
     const [metingen, setMetingen] = useState(() =>
-        hersteld?.metingen ?? namen.map(naam => ({
+        hersteld?.metingen ?? namen.map((naam, idx) => ({
             naam,
+            nr: idx + 1,
             pogingen: Array(pogingen).fill(''),
             beste: null,
         }))
@@ -774,6 +824,7 @@ function MetingView({ config, onIndienen }) {
     const handleIndienen = () => {
         const resultaten = metingen.map(l => ({
             naam:     l.naam,
+            nr:       l.nr,
             pogingen: l.pogingen.map(p => parseFloat(String(p).replace(',', '.')) || null),
             beste:    l.beste,
         }));
@@ -801,7 +852,10 @@ function MetingView({ config, onIndienen }) {
             {metingen.map(l => (
                 <div key={l.naam} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
                     <div className="flex items-center justify-between mb-3">
-                        <span className="font-semibold text-gray-900">{l.naam}</span>
+                        <span className="font-semibold text-gray-900 flex items-center gap-2">
+                            <span className="w-6 h-6 flex items-center justify-center bg-gray-800 text-white text-xs font-bold rounded-full">{l.nr}</span>
+                            {l.naam}
+                        </span>
                         {l.beste !== null && (
                             <span className="text-sm font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-lg">
                                 Beste: {l.beste} {sportConfig.eenheid}
@@ -864,7 +918,7 @@ function TellingView({ config, onIndienen }) {
     const [toonHersteld, setToonHersteld] = useState(!!hersteld);
 
     const [tellingen, setTellingen] = useState(() =>
-        hersteld?.tellingen ?? namen.map(naam => ({ naam, waarde: '' }))
+        hersteld?.tellingen ?? namen.map((naam, idx) => ({ naam, nr: idx + 1, waarde: '' }))
     );
 
     useEffect(() => {
@@ -875,6 +929,7 @@ function TellingView({ config, onIndienen }) {
     const handleIndienen = () => {
         const resultaten = tellingen.map(l => ({
             naam:   l.naam,
+            nr:     l.nr,
             waarde: parseFloat(l.waarde) || null,
         }));
         try { localStorage.removeItem(storageKey); } catch { /* */ }
@@ -904,6 +959,7 @@ function TellingView({ config, onIndienen }) {
                         key={l.naam}
                         className={`flex items-center px-4 py-3.5 gap-4 ${i > 0 ? 'border-t border-gray-100' : ''}`}
                     >
+                        <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center bg-gray-800 text-white text-sm font-bold rounded-full">{l.nr}</span>
                         <span className="flex-1 font-medium text-gray-900">{l.naam}</span>
                         <input
                             type="number"
