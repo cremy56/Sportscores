@@ -138,6 +138,23 @@ function KoppelModal({ inzending, groepen, klassen, profile, onClose, onKlaar })
         return null;
     };
 
+    // Weergave van de score: tijden tonen als min:sec, andere als getal + eenheid
+    const isTijd = inzending?.modus === 'chrono_rondes'
+        || inzending?.modus === 'chrono_eenmalig'
+        || /min|sec/i.test(inzending?.eenheid || '');
+
+    const toonScore = (m) => {
+        const s = scoreVanMeting(m);
+        if (s === null) return '–';
+        if (isTijd) {
+            const totaal = Math.round(s);
+            const min = Math.floor(totaal / 60);
+            const sec = totaal % 60;
+            return `${min}:${String(sec).padStart(2, '0')}`;
+        }
+        return `${s}${inzending?.eenheid ? ' ' + inzending.eenheid : ''}`;
+    };
+
     const handleOpslaan = async () => {
         if (!doel) { toast.error('Kies eerst een groep of klas.'); return; }
         if (!inzending.test_id) { toast.error('Deze inzending heeft geen gekoppelde test.'); return; }
@@ -230,7 +247,7 @@ function KoppelModal({ inzending, groepen, klassen, profile, onClose, onKlaar })
                                 <div key={idx} className="flex items-center gap-2">
                                     <span className="flex-1 text-sm text-gray-800 truncate">
                                         {m.naam}
-                                        <span className="text-gray-400 ml-1">({scoreVanMeting(m) ?? '–'})</span>
+                                        <span className="text-gray-400 ml-1">({toonScore(m)})</span>
                                     </span>
                                     <select
                                         value={koppelingen[m.naam] || ''}
@@ -541,7 +558,7 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
                     <div className="lg:hidden mb-8">
                         <div className="flex justify-between items-center">
                             <h1 className="text-2xl font-bold text-gray-800">
-                                {activeTab === 'testafnames' ? 'Historiek' : activeTab === 'waarnemer' ? 'Onverwerkt' : 'Testen'}
+                                {activeTab === 'testafnames' ? 'Testafnames' : activeTab === 'waarnemer' ? 'Onverwerkt' : 'Testen'}
                             </h1>
                             {canManage && activeTab !== 'waarnemer' && (
                                 <button onClick={() => activeTab === 'testafnames' ? navigate('/nieuwe-testafname') : setModal({ type: 'testForm', data: null })} className="flex items-center justify-center bg-gradient-to-r from-purple-600 to-blue-600 text-white p-3 rounded-full shadow-lg">
@@ -556,7 +573,7 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
                         <div className="flex justify-between items-center">
                             <div>
                                 <h1 className="text-3xl font-bold text-gray-800">
-                                    {activeTab === 'testafnames' ? 'Historiek' : activeTab === 'waarnemer' ? 'Onverwerkte resultaten' : 'Sporttesten Beheer'}
+                                    {activeTab === 'testafnames' ? 'Testafnames' : activeTab === 'waarnemer' ? 'Onverwerkte resultaten' : 'Sporttesten Beheer'}
                                 </h1>
                                 <p className="text-gray-600 mt-1">
                                     {activeTab === 'testafnames'
