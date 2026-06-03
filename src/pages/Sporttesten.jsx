@@ -67,8 +67,199 @@ function FilterBar({ filters, onFiltersChange, groepen, testen }) {
     );
 }
 
-export default function Sporttesten() {
-    const { profile } = useOutletContext();
+function msNaarSeconden(ms) { return ms / 1000; }
+
+// ─── KOPPEL MODAL ──────────────────────────────────────────────────────────────
+// Koppelt één waarnemer-inzending aan echte leerlingen.
+// De leerkracht kiest een groep/klas + datum; de test komt uit de inzending.
+function KoppelModal({ inzending, groepen, klassen, profile, onClose, onKlaar }) {
+    const [doel, setDoel]           = useState('');   // groep-id of 'klas-<naam>'
+    const [datum, setDatum]         = useState(new Date().toISOString().split('T')[0]);
+    const [leerlingen, setLeerlingen] = useState([]);
+    const [koppelingen, setKoppelingen] = useState({}); // { ingediendeNaam: leerlingId }
+    const [laadtLeerlingen, setLaadtLeerlingen] = useState(false);
+    const [saving, setSaving]       = useState(false);
+
+    const metingen = inzending?.metingen || [];
+
+    // Leerlingen laden zodra een doel gekozen is
+    useEffect(() => {
+        if (!doel) { setLeerlingen([]); return; }
+        const laad = async () => {
+            setLaadtLeerlingen(true);
+            try {
+                let data;
+                if (doel.startsWith('klas-')) {
+                    data = await apiPost('get_leerlingen_voor_klas', { klasNaam: doel.slice(5), schoolId: profile.school_id }, profile._token);
+                } else {
+                    data = await apiPost('get_leerlingen_voor_groep', { groepId: doel, schoolId: profile.school_id }, profile._token);
+                }
+                const lijst = (data.leerlingen || []).map(l => ({
+                    id: l.id, naam: l.data.naam, klas: l.data.klas || null, geslacht: l.data.geslacht || null,
+                })).sort((a, b) => a.naam.localeCompare(b.naam));
+                setLeerlingen(lijst);
+            } catch {
+                toast.error('Kon leerlingen niet laden.');
+                setLeerlingen([]);
+            } finally {
+                setLaadtLeerlingen(false);
+            }
+        };
+        laad();
+    }, [doel, profile]);
+
+    // Slimme auto-suggestie op voornaam zodra leerlingen geladen zijn
+    useEffect(() => {
+        if (leerlingen.length === 0) { setKoppelingen({}); return; }
+        const norm = (s) => (s || '').toLowerCase().trim();
+        const voornaam = (s) => norm(s).split(/\s+/)[0];
+        const auto = {};
+        const gebruikt = new Set();
+        for (const m of metingen) {
+            const vn = voornaam(m.naam);
+            if (!vn) continue;
+            const matches = leerlingen.filter(l => {
+                if (gebruikt.has(l.id)) return false;
+                return voornaam(l.naam) === vn || norm(l.naam) === norm(m.naam) || norm(l.naam).startsWith(vn + ' ');
+            });
+            if (matches.length === 1) { auto[m.naam] = matches[0].id; gebruikt.add(matches[0].id); }
+        }
+        setKoppelingen(auto);
+    }, [leerlingen]);
+
+    const scoreVanMeting = (m) => {
+        if (m.eindtijd !== null && m.eindtijd !== undefined) return msNaarSeconden(m.eindtijd);
+        if (m.beste !== null && m.beste !== undefined) return m.beste;
+        if (m.waarde !== null && m.waarde !== undefined) return m.waarde;
+        return null;
+    };
+
+    const handleOpslaan = async () => {
+        if (!doel) { toast.error('Kies eerst een groep of klas.'); return; }
+        if (!inzending.test_id) { toast.error('Deze inzending heeft geen gekoppelde test.'); return; }
+
+        const gekoppeld = metingen
+            .filter(m => koppelingen[m.naam])
+            .map(m => {
+                const l = leerlingen.find(x => x.id === koppelingen[m.naam]);
+                return { leerlingId: l.id, klas: l.klas, geslacht: l.geslacht, score: scoreVanMeting(m) };
+            })
+            .filter(k => k.score !== null);
+
+        if (gekoppeld.length === 0) { toast.error('Koppel minstens 1 naam aan een leerling.'); return; }
+
+        setSaving(true);
+        const t = toast.loading(`${gekoppeld.length} score(s) opslaan...`);
+        let succes = 0;
+        const isKlas = doel.startsWith('klas-');
+        for (const k of gekoppeld) {
+            try {
+                await apiPost('save_score', {
+                    schoolId: profile.school_id,
+                    groepId:  isKlas ? null : doel,
+                    testId:   inzending.test_id,
+                    datum,
+                    ...k,
+                }, profile._token);
+                succes++;
+            } catch { /* doorgaan */ }
+        }
+        try {
+            await apiPost('markeer_waarnemer_gekoppeld', { schoolId: profile.school_id, metingId: inzending.id }, profile._token);
+        } catch { /* niet kritisch */ }
+
+        toast.dismiss(t);
+        toast.success(`${succes} score(s) opgeslagen!`);
+        setSaving(false);
+        onKlaar();
+    };
+
+    const aantalGekoppeld = Object.values(koppelingen).filter(Boolean).length;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-lg w-full my-8 shadow-2xl max-h-[90vh] flex flex-col">
+                <div className="p-5 border-b border-gray-100 flex justify-between items-start">
+                    <div>
+                        <h3 className="font-bold text-gray-900 text-lg">{inzending.test_naam || inzending.sport_type}</h3>
+                        <p className="text-sm text-gray-500">Door {inzending.waarnemer} • {metingen.length} leerlingen</p>
+                    </div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                </div>
+
+                <div className="p-5 space-y-4 overflow-y-auto">
+                    {!inzending.test_id && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+                            Deze inzending heeft geen test. Koppelen is niet mogelijk; je kan ze enkel verwijderen.
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Groep of klas</label>
+                            <select value={doel} onChange={e => setDoel(e.target.value)} className="w-full h-[44px] px-3 border border-gray-200 rounded-xl">
+                                <option value="">-- Kies --</option>
+                                {groepen.length > 0 && (
+                                    <optgroup label="Groepen">
+                                        {groepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}
+                                    </optgroup>
+                                )}
+                                {klassen.length > 0 && (
+                                    <optgroup label="Klassen">
+                                        {klassen.map(k => { const n = typeof k === 'string' ? k : (k.naam || k.klas || k.id); return <option key={`klas-${n}`} value={`klas-${n}`}>Klas {n}</option>; })}
+                                    </optgroup>
+                                )}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+                            <input type="date" value={datum} onChange={e => setDatum(e.target.value)} className="w-full h-[44px] px-3 border border-gray-200 rounded-xl" />
+                        </div>
+                    </div>
+
+                    {laadtLeerlingen ? (
+                        <p className="text-center text-gray-400 py-6">Leerlingen laden…</p>
+                    ) : doel && (
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-gray-700">Koppel elke gemeten naam aan een leerling:</p>
+                            {metingen.map((m, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                    <span className="flex-1 text-sm text-gray-800 truncate">
+                                        {m.naam}
+                                        <span className="text-gray-400 ml-1">({scoreVanMeting(m) ?? '–'})</span>
+                                    </span>
+                                    <select
+                                        value={koppelingen[m.naam] || ''}
+                                        onChange={e => setKoppelingen(prev => ({ ...prev, [m.naam]: e.target.value }))}
+                                        className="flex-1 h-[40px] px-2 border border-gray-200 rounded-lg text-sm"
+                                    >
+                                        <option value="">— niet koppelen —</option>
+                                        {leerlingen.map(l => <option key={l.id} value={l.id}>{l.naam}</option>)}
+                                    </select>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-5 border-t border-gray-100 flex gap-2">
+                    <button onClick={onClose} className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-600 font-medium hover:bg-gray-50">
+                        Annuleren
+                    </button>
+                    <button
+                        onClick={handleOpslaan}
+                        disabled={saving || !doel || aantalGekoppeld === 0 || !inzending.test_id}
+                        className="flex-1 py-3 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl disabled:opacity-40"
+                    >
+                        {aantalGekoppeld > 0 ? `${aantalGekoppeld} koppelen` : 'Koppelen'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function Sporttesten() {    const { profile } = useOutletContext();
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState('testafnames');
@@ -80,6 +271,8 @@ export default function Sporttesten() {
     const [filters, setFilters] = useState({ search: '', groep: '', test: '' });
     const [waarnemerInzendingen, setWaarnemerInzendingen] = useState([]);
     const [waarnemerLoading, setWaarnemerLoading] = useState(false);
+    const [klassen, setKlassen] = useState([]);
+    const [koppelInzending, setKoppelInzending] = useState(null);
 
     const canManage = ['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol);
 
@@ -114,11 +307,15 @@ export default function Sporttesten() {
             const data = await apiPost('get_waarnemer_metingen', { schoolId: profile.school_id }, profile._token);
             setWaarnemerInzendingen(data.inzendingen || []);
         } catch (error) {
-            // Stil: toon gewoon lege lijst
             setWaarnemerInzendingen([]);
         } finally {
             setWaarnemerLoading(false);
         }
+        // Klassen ophalen voor de koppel-modal (stil, optioneel)
+        try {
+            const kl = await apiPost('get_mijn_klassen', { schoolId: profile.school_id }, profile._token);
+            setKlassen(kl.klassen || []);
+        } catch { /* */ }
     }, [profile]);
 
     useEffect(() => {
@@ -248,8 +445,8 @@ export default function Sporttesten() {
                         {waarnemerInzendingen.map(inz => (
                             <li key={inz.id} className="group hover:bg-teal-50/50 transition-colors">
                                 <div className="flex items-center justify-between p-6 gap-3">
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-lg text-gray-900">
+                                    <div onClick={() => setKoppelInzending(inz)} className="flex-1 min-w-0 cursor-pointer">
+                                        <p className="font-semibold text-lg text-gray-900 group-hover:text-teal-700">
                                             {inz.test_naam || inz.sport_type || 'Meting'}
                                         </p>
                                         <p className="text-sm text-gray-600 mt-1">
@@ -258,9 +455,12 @@ export default function Sporttesten() {
                                             {inz.ingediend_op && <> • {formatDatum(inz.ingediend_op)}</>}
                                         </p>
                                     </div>
-                                    <span className="flex-shrink-0 text-xs font-medium bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
-                                        Te koppelen
-                                    </span>
+                                    <button
+                                        onClick={() => setKoppelInzending(inz)}
+                                        className="flex-shrink-0 text-sm font-medium bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-xl"
+                                    >
+                                        Koppelen →
+                                    </button>
                                 </div>
                             </li>
                         ))}
@@ -333,7 +533,7 @@ export default function Sporttesten() {
                         <div className="flex justify-between items-center">
                             <div>
                                 <h1 className="text-3xl font-bold text-gray-800">
-                                    {activeTab === 'testafnames' ? 'Historiek' : activeTab === 'waarnemer' ? 'Onverwerkte resultaten' : 'Sporttesten Beheer'}
+                                    {activeTab === 'testafnames' ? 'Testafnames' : activeTab === 'waarnemer' ? 'Onverwerkte resultaten' : 'Sporttesten Beheer'}
                                 </h1>
                                 <p className="text-gray-600 mt-1">
                                     {activeTab === 'testafnames'
@@ -371,6 +571,21 @@ export default function Sporttesten() {
             </div>
 
            <TestFormModal isOpen={modal.type === 'testForm'} onClose={handleCloseModal} testData={modal.data} schoolId={profile?.school_id} onSuccess={fetchData} token={profile?._token} />
+
+            {koppelInzending && (
+                <KoppelModal
+                    inzending={koppelInzending}
+                    groepen={groepen}
+                    klassen={klassen}
+                    profile={profile}
+                    onClose={() => setKoppelInzending(null)}
+                    onKlaar={() => {
+                        setKoppelInzending(null);
+                        fetchWaarnemerInzendingen(); // lijst verversen
+                        fetchData();                 // historiek verversen
+                    }}
+                />
+            )}
             <ConfirmModal isOpen={modal.type === 'confirmDeleteTestafname'} onClose={handleCloseModal} onConfirm={handleDeleteTestafname} title="Testafname Verwijderen">
                 Weet u zeker dat u de testafname voor "{modal.data?.test_naam}" van {modal.data?.groep_naam} wilt verwijderen? Alle {modal.data?.leerling_count} scores worden permanent gewist.
             </ConfirmModal>

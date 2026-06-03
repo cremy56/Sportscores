@@ -1916,10 +1916,6 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
 // ─── HOOFD COMPONENT ─────────────────────────────────────────────────────────
 // Gebruik: <WaarnemerPanel leerlingen={...} test={selectedTest} testInfo={...} ... />
 export default function WaarnemerPanel({ leerlingen, test, testInfo, groepId, testId, datum, profile, defaultTab = 'eigen', onClose, onScoresOpgeslagen }) {
-    const [tab, setTab]     = useState(defaultTab);
-    const detectie          = detectWaarnemerModus(test);
-    const toolLabel         = detectie.geschikt ? `${detectie.icon} ${detectie.label}` : '⛔ Niet beschikbaar';
-
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
@@ -1940,53 +1936,17 @@ export default function WaarnemerPanel({ leerlingen, test, testInfo, groepId, te
                     </button>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex gap-1 px-6 pt-4 pb-1 flex-shrink-0">
-                    <button
-                        onClick={() => setTab('eigen')}
-                        className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-                            tab === 'eigen'
-                                ? 'bg-purple-600 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                    >
-                        {toolLabel}
-                    </button>
-                    <button
-                        onClick={() => setTab('koppel')}
-                        className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-                            tab === 'koppel'
-                                ? 'bg-purple-600 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                    >
-                        Ingediend door waarnemer
-                    </button>
-                </div>
-
-                {/* Content */}
+                {/* Content — enkel de eigen meet-tool (koppelen gebeurt nu via 'Onverwerkt') */}
                 <div className="flex-1 overflow-y-auto px-6 py-4">
-                    {tab === 'eigen' && (
-                        <EigenToolTab
-                            leerlingen={leerlingen}
-                            test={test}
-                            groepId={groepId}
-                            testId={testId}
-                            datum={datum}
-                            profile={profile}
-                            onScoresOpgeslagen={onScoresOpgeslagen}
-                        />
-                    )}
-                    {tab === 'koppel' && (
-                        <KoppelTab
-                            groepId={groepId}
-                            testId={testId}
-                            datum={datum}
-                            leerlingen={leerlingen}
-                            profile={profile}
-                            onScoresOpgeslagen={onScoresOpgeslagen}
-                        />
-                    )}
+                    <EigenToolTab
+                        leerlingen={leerlingen}
+                        test={test}
+                        groepId={groepId}
+                        testId={testId}
+                        datum={datum}
+                        profile={profile}
+                        onScoresOpgeslagen={onScoresOpgeslagen}
+                    />
                 </div>
             </div>
         </div>

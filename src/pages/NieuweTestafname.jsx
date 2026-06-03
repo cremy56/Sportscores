@@ -792,7 +792,7 @@ export default function NieuweTestafname() {
                     testId={selectedTest.id}
                     datum={datum}
                     profile={profile}
-                    defaultTab={searchParams.get('waarnemer') === '1' ? 'koppel' : 'eigen'}
+                    defaultTab="eigen"
                     onClose={() => setShowWaarnemer(false)}
                     onScoresOpgeslagen={() => {
                         setShowWaarnemer(false);
