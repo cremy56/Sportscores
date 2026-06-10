@@ -784,9 +784,28 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
 
     const [loadingMatch, setLoadingMatch] = useState(null);
     const [inputScores, setInputScores] = useState({});
+    const [zojuistGekozen, setZojuistGekozen] = useState({}); // king: match-id's net ingediend, tot data 'gespeeld' toont
     
     const [toonStopBevestiging, setToonStopBevestiging] = useState(false);
     const [isStopping, setIsStopping] = useState(false);
+
+    // Ruim de 'net gekozen'-guard op zodra de verse data de match als gespeeld toont.
+    useEffect(() => {
+        setZojuistGekozen(prev => {
+            const ids = Object.keys(prev);
+            if (ids.length === 0) return prev;
+            const gespeeldIds = new Set(
+                toernooi.wedstrijden.filter(m => m.gespeeld).map(m => m.id)
+            );
+            const nog = {};
+            let veranderd = false;
+            ids.forEach(id => {
+                if (gespeeldIds.has(id)) veranderd = true; // klaar → laten vallen
+                else nog[id] = true;
+            });
+            return veranderd ? nog : prev;
+        });
+    }, [toernooi.wedstrijden]);
 
     // 1. Klassement Berekenen
     const klassement = toernooi.teams
@@ -817,7 +836,12 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
     const isKing = toernooi.type === 'king';
     let kroonMap = {};
     let veldLadder = [];
+    let spelersPerTeamId = {};
     if (isKing) {
+        // Spelersnamen per team-id (voor weergave onder de teamnaam).
+        (toernooi.teams || []).forEach(t => {
+            spelersPerTeamId[t.id] = (t.spelers || []).map(s => s.naam).filter(Boolean);
+        });
         // Kronen: elke gespeelde wedstrijd op veld 1 met een winnaar telt één kroon.
         toernooi.wedstrijden.forEach(m => {
             if (m.veld !== 1 || !m.gespeeld || !m.winst_voor) return;
@@ -866,6 +890,9 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
     // We sturen 1-0/0-1 zodat de backend winst_voor correct afleidt (geen backend-wijziging nodig).
     const handleWinnaarKiezen = async (matchId, winnaar) => {
         setLoadingMatch(matchId);
+        // Markeer als 'net gekozen' zodat de winnaarknoppen niet terugflikkeren
+        // in het venster tussen opslaan en het binnenkomen van de verse data.
+        setZojuistGekozen(prev => ({ ...prev, [matchId]: true }));
         try {
             await apiPost('update_match_score', {
                 schoolId: profile.school_id,
@@ -874,8 +901,10 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                 score1: winnaar === 'team1' ? 1 : 0,
                 score2: winnaar === 'team2' ? 1 : 0,
             }, profile._token);
-            if (onRefresh) onRefresh();
+            if (onRefresh) await onRefresh();
         } catch (e) {
+            // Bij fout: guard weer vrijgeven zodat de knoppen terugkomen
+            setZojuistGekozen(prev => { const n = { ...prev }; delete n[matchId]; return n; });
             toast.error(e.message);
         } finally {
             setLoadingMatch(null);
@@ -949,14 +978,24 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                                                 {koningsveld ? 'Koningsveld' : `Veld ${m.veld}`}
                                             </span>
                                         </div>
-                                        <div className="flex items-center justify-between gap-2">
-                                            <span className={`flex-1 text-sm font-bold truncate ${winT1 ? 'text-emerald-600' : 'text-slate-700'}`}>
-                                                {winT1 && '✓ '}{m.team1?.naam}
-                                            </span>
-                                            <span className="text-[10px] font-black text-slate-300 px-2">VS</span>
-                                            <span className={`flex-1 text-right text-sm font-bold truncate ${winT2 ? 'text-emerald-600' : 'text-slate-700'}`}>
-                                                {m.team2?.naam}{winT2 && ' ✓'}
-                                            </span>
+                                        <div className="flex items-stretch justify-between gap-2">
+                                            <div className={`flex-1 min-w-0 text-sm ${winT1 ? 'text-emerald-600' : 'text-slate-700'}`}>
+                                                <div className="font-bold truncate">{winT1 && '✓ '}{m.team1?.naam}</div>
+                                                {(spelersPerTeamId[m.team1?.id] || []).length > 0 && (
+                                                    <div className="text-[11px] text-slate-500 font-medium leading-tight mt-0.5">
+                                                        {spelersPerTeamId[m.team1.id].join(', ')}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] font-black text-slate-300 px-2 self-center">VS</span>
+                                            <div className={`flex-1 min-w-0 text-right text-sm ${winT2 ? 'text-emerald-600' : 'text-slate-700'}`}>
+                                                <div className="font-bold truncate">{m.team2?.naam}{winT2 && ' ✓'}</div>
+                                                {(spelersPerTeamId[m.team2?.id] || []).length > 0 && (
+                                                    <div className="text-[11px] text-slate-500 font-medium leading-tight mt-0.5">
+                                                        {spelersPerTeamId[m.team2.id].join(', ')}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 );
@@ -1157,7 +1196,7 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                                                     {/* FIX: Verberg invulvakjes en Oeps-knop als iemand tegen 'Rust' (bye) speelt! */}
                                                     {!isLeerkracht && match.ronde === huidigeRonde && match.team1.id !== 'bye' && match.team2.id !== 'bye' && (
                                                         <div className="p-3 flex justify-center bg-slate-50/50">
-                                                            {loadingMatch === match.id ? (
+                                                            {(loadingMatch === match.id || (zojuistGekozen[match.id] && !match.gespeeld)) ? (
                                                                 <div className="py-2 text-xs text-slate-400 animate-pulse font-bold">Opslaan...</div>
                                                             ) : match.gespeeld ? (
                                                                 <button onClick={() => handleResetMatch(match.id)} className="py-1 px-4 text-xs font-bold text-slate-400 hover:text-slate-600 bg-white border border-slate-200 rounded-lg transition-colors shadow-sm">
