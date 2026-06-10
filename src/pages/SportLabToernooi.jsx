@@ -438,7 +438,7 @@ export function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onS
             }
         } else {
             // Manual mode (Level 2/3 leerling): genereert wel anonieme spelers via slider
-            pool = Array.from({ length: aantalSpelersFallback }, (_, i) => ({ id: `p_${i}`, naam: `Speler ${i+1}` }));
+            pool = Array.from({ length: aantalSpelersFallback }, (_, i) => ({ id: `pm_${i}_${Math.random().toString(36).slice(2, 8)}`, naam: `Speler ${i+1}` }));
         }
 
         pool.sort(() => Math.random() - 0.5);
@@ -459,16 +459,23 @@ export function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onS
     };
 
     const handlePlayerTap = (tIdx, sIdx) => {
-        if (!selectedPlayer) setSelectedPlayer({ tIdx, sIdx });
-        else {
-            const nt = [...teams];
-            const s1 = nt[selectedPlayer.tIdx].spelers[selectedPlayer.sIdx];
-            const s2 = nt[tIdx].spelers[sIdx];
-            nt[selectedPlayer.tIdx].spelers[selectedPlayer.sIdx] = s2;
-            nt[tIdx].spelers[sIdx] = s1;
-            setTeams(nt);
-            setSelectedPlayer(null);
+        if (!selectedPlayer) {
+            setSelectedPlayer({ tIdx, sIdx });
+            return;
         }
+        // Opnieuw op dezelfde speler tikken = selectie annuleren
+        if (selectedPlayer.tIdx === tIdx && selectedPlayer.sIdx === sIdx) {
+            setSelectedPlayer(null);
+            return;
+        }
+        // Immutable wissel: kopieer teams én de betrokken spelers-arrays
+        const nt = teams.map(team => ({ ...team, spelers: [...team.spelers] }));
+        const s1 = nt[selectedPlayer.tIdx].spelers[selectedPlayer.sIdx];
+        const s2 = nt[tIdx].spelers[sIdx];
+        nt[selectedPlayer.tIdx].spelers[selectedPlayer.sIdx] = s2;
+        nt[tIdx].spelers[sIdx] = s1;
+        setTeams(nt);
+        setSelectedPlayer(null);
     };
 
     const containerClasses = mode === 'database' 
@@ -545,7 +552,7 @@ export function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onS
             {stap === 'builder' && (
                 <div className={`space-y-4 ${mode === 'manual' ? 'p-4 bg-slate-50' : ''}`}>
                     <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-xl text-xs font-medium">
-                        💡 Controleer de teams. Tik op speler A en daarna op speler B om ze te wisselen.
+                        💡 Typ de namen in de vakjes. Om twee spelers te wisselen: tik op de ⇄ van de eerste, daarna op de ⇄ van de tweede.
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {teams.map((t, tIdx) => (
@@ -555,13 +562,33 @@ export function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onS
                                 }} />
                                 <div className="p-2 space-y-1">
                                     {t.spelers.map((s, sIdx) => (
-                                        <div key={s.id} onClick={() => handlePlayerTap(tIdx, sIdx)} className={`p-2 rounded bg-white text-xs border cursor-pointer transition-colors ${selectedPlayer?.tIdx === tIdx && selectedPlayer?.sIdx === sIdx ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200 font-bold shadow-inner' : 'border-slate-100 hover:border-emerald-300 hover:bg-emerald-50'}`}>
-                                            {mode === 'database' ? s.naam : (
-                                                <input className="w-full outline-none bg-transparent" value={s.naam} onChange={e => {
-                                                    const nt = [...teams]; nt[tIdx].spelers[sIdx].naam = e.target.value; setTeams(nt);
-                                                }} />
-                                            )}
-                                        </div>
+                                        mode === 'database' ? (
+                                            <div key={s.id} onClick={() => handlePlayerTap(tIdx, sIdx)} className={`p-2 rounded bg-white text-xs border cursor-pointer transition-colors ${selectedPlayer?.tIdx === tIdx && selectedPlayer?.sIdx === sIdx ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200 font-bold shadow-inner' : 'border-slate-100 hover:border-emerald-300 hover:bg-emerald-50'}`}>
+                                                {s.naam}
+                                            </div>
+                                        ) : (
+                                            <div key={s.id} className={`flex items-center gap-1 p-1 rounded bg-white text-xs border transition-colors ${selectedPlayer?.tIdx === tIdx && selectedPlayer?.sIdx === sIdx ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200 shadow-inner' : 'border-slate-100'}`}>
+                                                <input
+                                                    className="flex-1 min-w-0 outline-none bg-transparent px-1"
+                                                    value={s.naam}
+                                                    placeholder={`Speler ${sIdx + 1}`}
+                                                    onClick={e => e.stopPropagation()}
+                                                    onFocus={e => e.stopPropagation()}
+                                                    onChange={e => {
+                                                        const nt = teams.map(team => ({ ...team, spelers: [...team.spelers] }));
+                                                        nt[tIdx].spelers[sIdx] = { ...nt[tIdx].spelers[sIdx], naam: e.target.value };
+                                                        setTeams(nt);
+                                                    }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handlePlayerTap(tIdx, sIdx)}
+                                                    title={selectedPlayer ? 'Tik om met de gekozen speler te wisselen' : 'Kies deze speler om te wisselen'}
+                                                    className={`shrink-0 w-7 h-7 rounded flex items-center justify-center transition-colors ${selectedPlayer?.tIdx === tIdx && selectedPlayer?.sIdx === sIdx ? 'bg-amber-400 text-white ring-2 ring-amber-200' : selectedPlayer ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-600'}`}>
+                                                    ⇄
+                                                </button>
+                                            </div>
+                                        )
                                     ))}
                                 </div>
                             </div>
