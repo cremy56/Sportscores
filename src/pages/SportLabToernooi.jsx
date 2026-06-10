@@ -624,6 +624,133 @@ export function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onS
     );
 }
 
+// ─── KONING VAN HET VELD: CENTRALE WEDSTRIJDKLOK ─────────────────────────────
+// Eén lokale aftelklok voor alle velden tegelijk. De persoon die het dashboard
+// bedient (leerling bij een leerling-toernooi, leerkracht bij een leerkracht-
+// toernooi) stelt de duur één keer in en drukt elke ronde op Start.
+// Geluid + rood knipperen als signaal op nul. Duur onthouden per toernooi.
+function KingTimer({ toernooiId, kleur }) {
+    const opslagKey = `sportlab_king_timer_min_${toernooiId}`;
+    const [minuten, setMinuten] = useState(() => {
+        const v = parseInt(localStorage.getItem(opslagKey), 10);
+        return Number.isFinite(v) && v > 0 ? v : 5;
+    });
+    const [resterend, setResterend] = useState(minuten * 60); // seconden
+    const [loopt, setLoopt] = useState(false);
+    const [afgelopen, setAfgelopen] = useState(false);
+
+    // Duur bewaren
+    useEffect(() => {
+        localStorage.setItem(opslagKey, String(minuten));
+    }, [minuten, opslagKey]);
+
+    // Aftellen
+    useEffect(() => {
+        if (!loopt) return;
+        const id = setInterval(() => {
+            setResterend(prev => {
+                if (prev <= 1) {
+                    clearInterval(id);
+                    setLoopt(false);
+                    setAfgelopen(true);
+                    speelSignaal();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => clearInterval(id);
+    }, [loopt]);
+
+    const speelSignaal = () => {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'square';
+            osc.frequency.value = 880;
+            gain.gain.setValueAtTime(0.25, ctx.currentTime);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.6);
+            setTimeout(() => ctx.close(), 800);
+        } catch { /* geluid niet beschikbaar — visueel signaal volstaat */ }
+    };
+
+    const start = () => {
+        setAfgelopen(false);
+        setResterend(minuten * 60);
+        setLoopt(true);
+    };
+    const pauze = () => setLoopt(false);
+    const reset = () => {
+        setLoopt(false);
+        setAfgelopen(false);
+        setResterend(minuten * 60);
+    };
+    const wijzigMinuten = (m) => {
+        const veilig = Math.max(1, m);
+        setMinuten(veilig);
+        if (!loopt) { setResterend(veilig * 60); setAfgelopen(false); }
+    };
+
+    const mm = Math.floor(resterend / 60);
+    const ss = (resterend % 60).toString().padStart(2, '0');
+
+    return (
+        <div className={`rounded-2xl overflow-hidden shadow-sm border-2 ${afgelopen ? 'border-red-400 animate-pulse bg-red-50' : 'border-slate-200 bg-white'}`}>
+            <div className={`p-3 font-bold flex items-center gap-2 text-white bg-gradient-to-r ${kleur}`}>
+                <ClockIcon className="w-4 h-4" />
+                <span className="text-sm">Wedstrijdklok — alle velden</span>
+            </div>
+            <div className="p-4 space-y-4">
+                <div className={`text-center font-black tabular-nums tracking-widest ${afgelopen ? 'text-red-600' : 'text-slate-800'}`} style={{ fontSize: '3rem', lineHeight: 1 }}>
+                    {mm}:{ss}
+                </div>
+
+                {afgelopen && (
+                    <p className="text-center text-sm font-bold text-red-600">⏱ Tijd! Scores invoeren en doorschuiven.</p>
+                )}
+
+                {/* Duur instellen */}
+                <div className="flex items-center justify-center gap-2">
+                    {[3, 5, 7, 10].map(m => (
+                        <button key={m} onClick={() => wijzigMinuten(m)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors ${minuten === m ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}>
+                            {m}m
+                        </button>
+                    ))}
+                    <div className="flex items-center gap-1 pl-1">
+                        <input type="number" min="1" value={minuten}
+                            onChange={e => wijzigMinuten(parseInt(e.target.value) || 1)}
+                            className="w-14 p-1.5 border border-slate-200 rounded-lg text-center text-sm font-bold outline-none focus:border-emerald-400" />
+                        <span className="text-xs text-slate-400 font-bold">min</span>
+                    </div>
+                </div>
+
+                {/* Bediening */}
+                <div className="flex gap-2">
+                    {!loopt ? (
+                        <button onClick={start}
+                            className={`flex-1 py-3 text-white font-black rounded-xl shadow-md active:scale-95 transition-transform bg-gradient-to-r ${kleur}`}>
+                            ▶ Start ronde
+                        </button>
+                    ) : (
+                        <button onClick={pauze}
+                            className="flex-1 py-3 text-slate-700 font-black rounded-xl shadow-sm active:scale-95 transition-transform bg-slate-100 hover:bg-slate-200">
+                            ⏸ Pauze
+                        </button>
+                    )}
+                    <button onClick={reset}
+                        className="px-4 py-3 text-slate-500 font-bold rounded-xl bg-white border border-slate-200 hover:bg-slate-50 active:scale-95 transition-transform shadow-sm">
+                        ↻
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── DIGITAAL WEDSTRIJDSECRETARIAAT: HET DASHBOARD (Fase 3 & 4) ───────────────
 export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, onRefresh }) {
     if (!toernooi || !toernooi.wedstrijden) return null;
@@ -726,6 +853,11 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
     return (
         <div className="animate-fade-in space-y-6">
             
+            {/* CENTRALE WEDSTRIJDKLOK — enkel bij Koning van het Veld */}
+            {toernooi.type === 'king' && (
+                <KingTimer toernooiId={toernooi.id} kleur={rolData?.kleur || 'from-emerald-500 to-emerald-600'} />
+            )}
+
             {/* HET LIVE KLASSEMENT */}
             <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                 <div className={`p-3 font-bold flex justify-between items-center text-white ${isLeerkracht ? 'bg-slate-800' : `bg-gradient-to-r ${rolData?.kleur}`}`}>
