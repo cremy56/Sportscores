@@ -9,17 +9,17 @@ import {
     handleDeleteScore, handleUpdateScoreDate, handleDeleteTestafname,
     handleGetEvaluaties, handleDeleteTest, handleGetStudentEvolution,
     handleGetScoreNorms, handleGetStudentProfile, handleGetTestRanking,
-} from './handlers/testen.js';
+} from '../lib/handlers/testen.js';
 
 import {
     handleSaveNorm, handleUpdateNorm, handleDeleteNormen, handleImportNormen,
-} from './handlers/normen.js';
+} from '../lib/handlers/normen.js';
 
 import {
     handleGetGroepen, handleGetMijnKlassen, handleCreateGroep, handleUpdateGroep,
     handleDeleteGroep, handleGetGroepDetail, handleAddLeerling, handleRemoveLeerling,
     handleGetKlasDetail, handleSetVrijstelling,
-} from './handlers/groepen.js';
+} from '../lib/handlers/groepen.js';
 
 import {
     handleGetGroeiplanData, handleGetTrainingsschemas, handleGetTrainingsschemaForTest,
@@ -27,17 +27,17 @@ import {
     handleStartSchema, handleDeleteLeerlingSchema, handleSaveSchema, handleSaveOefening,
     handleGetOefeningDetail, handleGetOefeningen, handleGetSchemaDetail,
     handleGetSchemaActief, handleVoltooienTaak, handleValideerWeek,
-} from './handlers/schemas.js';
+} from '../lib/handlers/schemas.js';
 
 import {
     handleSaveTest, handleSaveSchool, handleGetSchoolSettings, handleSaveSchoolSettings,
     handleGetScholen, handleGetRapportperioden, handleDeleteSchool,
     handleDeleteRapportperiode, handleSaveRapportperiode,
-} from './handlers/scholen.js';
+} from '../lib/handlers/scholen.js';
 
 import {
     handleGetEhboStats, handleGetWelzijnStats,
-} from './handlers/welzijn.js';
+} from '../lib/handlers/welzijn.js';
 
 import {
     handleStartSportLabSessie, handleSluitSportLabSessie,
@@ -49,7 +49,7 @@ import {
     handleUpdateMatchScore, handleStopToernooi, handleVolgendeRonde,
     handleGetBlessureContent,
     handleSubmitWaarnemerMetingen, handleGetWaarnemerMetingen, handleMarkeerWaarnemerGekoppeld, handleVerwijderWaarnemerMetingen,
-} from './handlers/sportlab.js';
+} from '../lib/handlers/sportlab.js';
 
 // ─── HOOFD HANDLER ────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
