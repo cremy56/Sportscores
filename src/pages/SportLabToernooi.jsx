@@ -387,6 +387,7 @@ export function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onS
     const [extraNamen, setExtraNamen] = useState("");
     const [aantalTeams, setAantalTeams] = useState(3);
     const [aantalSpelersFallback, setAantalSpelersFallback] = useState(20); // Enkel nog voor leerling-mode
+    const [spelersPerTeam, setSpelersPerTeam] = useState(4); // Leerling-mode: bv. 2 voor padel
     const [teams, setTeams] = useState([]);
     const [toernooiType, setToernooiType] = useState('poule');
     const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -441,11 +442,18 @@ export function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onS
         }
 
         pool.sort(() => Math.random() - 0.5);
-        const nieuweTeams = Array.from({ length: aantalTeams }, (_, i) => ({
+
+        // Manual-mode leidt het aantal teams af uit spelers/spelersPerTeam (bv. padel = 2).
+        // Database-mode gebruikt de teams-slider (aantalTeams).
+        const teamCount = mode === 'manual'
+            ? Math.max(1, Math.ceil(pool.length / Math.max(1, spelersPerTeam)))
+            : aantalTeams;
+
+        const nieuweTeams = Array.from({ length: teamCount }, (_, i) => ({
             id: `t_${i}`, naam: `Team ${String.fromCharCode(65 + i)}`, spelers: []
         }));
 
-        pool.forEach((s, i) => nieuweTeams[i % aantalTeams].spelers.push(s));
+        pool.forEach((s, i) => nieuweTeams[i % teamCount].spelers.push(s));
         setTeams(nieuweTeams);
         setStap('builder');
     };
@@ -592,12 +600,22 @@ export function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onS
             {stap === 'selectie' && mode === 'manual' && (
                 <div className="p-6 space-y-6 text-center">
                     <p className="text-sm text-slate-600">Stel je toernooi handmatig in. Je moet straks zelf de voornamen van de spelers intypen.</p>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Aantal Spelers Totaal</label>
-                        <input type="number" min="4" placeholder="Bv. 20" className="w-full p-3 border border-slate-200 rounded-xl text-center text-lg font-bold outline-none focus:border-emerald-400" onChange={e => {
-                            setAantalSpelersFallback(parseInt(e.target.value) || 20);
-                            setAantalTeams(Math.max(2, Math.ceil((parseInt(e.target.value) || 20)/4)));
-                        }} />
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Aantal Spelers Totaal</label>
+                            <input type="number" min="2" placeholder="Bv. 20" value={aantalSpelersFallback} className="w-full p-3 border border-slate-200 rounded-xl text-center text-lg font-bold outline-none focus:border-emerald-400" onChange={e => {
+                                setAantalSpelersFallback(parseInt(e.target.value) || 0);
+                            }} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Spelers per Team</label>
+                            <input type="number" min="1" placeholder="Bv. 2 (padel)" value={spelersPerTeam} className="w-full p-3 border border-slate-200 rounded-xl text-center text-lg font-bold outline-none focus:border-emerald-400" onChange={e => {
+                                setSpelersPerTeam(parseInt(e.target.value) || 1);
+                            }} />
+                        </div>
+                        <p className="text-xs text-slate-500">
+                            Dat geeft <strong className="text-emerald-600">{Math.max(1, Math.ceil((aantalSpelersFallback || 0) / Math.max(1, spelersPerTeam)))}</strong> team(s).
+                        </p>
                     </div>
                     <button onClick={genereerTeams} className={`w-full py-4 text-white font-bold rounded-xl shadow-md transition-transform active:scale-95 bg-gradient-to-r ${rolData.kleur}`}>Start Bouwen</button>
                 </div>
