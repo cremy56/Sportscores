@@ -784,6 +784,28 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
 
     klassement.sort((a, b) => b.p - a.p || (b.dv - b.dt) - (a.dv - a.dt) || b.dv - a.dv); 
 
+    // ── KONING VAN HET VELD: kroonteller + huidige veldindeling ──────────────
+    // Geen puntentabel: de veldpositie ís de stand. We tellen enkel hoe vaak
+    // een team op veld 1 (Koningsveld) won = "kronen".
+    const isKing = toernooi.type === 'king';
+    let kroonMap = {};
+    let veldLadder = [];
+    if (isKing) {
+        // Kronen: elke gespeelde wedstrijd op veld 1 met een winnaar telt één kroon.
+        toernooi.wedstrijden.forEach(m => {
+            if (m.veld !== 1 || !m.gespeeld || !m.winst_voor) return;
+            const winnaar = m.winst_voor === 'team1' ? m.team1 : m.team2;
+            if (winnaar?.id && winnaar.id !== 'bye') {
+                kroonMap[winnaar.id] = (kroonMap[winnaar.id] || 0) + 1;
+            }
+        });
+        // Huidige veldindeling = de actieve (hoogste) ronde, per veld oplopend.
+        const maxR = Math.max(...toernooi.wedstrijden.map(m => m.ronde));
+        veldLadder = toernooi.wedstrijden
+            .filter(m => m.ronde === maxR)
+            .sort((a, b) => a.veld - b.veld);
+    }
+
     const handleScoreOpslaan = async (matchId) => {
         const s1 = inputScores[`${matchId}_1`];
         const s2 = inputScores[`${matchId}_2`];
@@ -807,6 +829,26 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
             }, profile._token);
             if(onRefresh) onRefresh();
         } catch(e) {
+            toast.error(e.message);
+        } finally {
+            setLoadingMatch(null);
+        }
+    };
+
+    // KONING VAN HET VELD: geen scores, enkel winnaar aanduiden.
+    // We sturen 1-0/0-1 zodat de backend winst_voor correct afleidt (geen backend-wijziging nodig).
+    const handleWinnaarKiezen = async (matchId, winnaar) => {
+        setLoadingMatch(matchId);
+        try {
+            await apiPost('update_match_score', {
+                schoolId: profile.school_id,
+                toernooiId: toernooi.id,
+                matchId,
+                score1: winnaar === 'team1' ? 1 : 0,
+                score2: winnaar === 'team2' ? 1 : 0,
+            }, profile._token);
+            if (onRefresh) onRefresh();
+        } catch (e) {
             toast.error(e.message);
         } finally {
             setLoadingMatch(null);
@@ -858,12 +900,78 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                 <KingTimer toernooiId={toernooi.id} kleur={rolData?.kleur || 'from-emerald-500 to-emerald-600'} />
             )}
 
-            {/* HET LIVE KLASSEMENT */}
+            {/* KONING VAN HET VELD: VELDLADDER + KROONTELLER (geen puntentabel) */}
+            {isKing ? (
+                <div className="space-y-4">
+                    {/* Veldladder */}
+                    <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                        <div className={`p-3 font-bold flex justify-between items-center text-white ${isLeerkracht ? 'bg-slate-800' : `bg-gradient-to-r ${rolData?.kleur}`}`}>
+                            <span className="flex items-center gap-2"><span>👑</span> Veldindeling</span>
+                            <span className="text-xs bg-white/20 px-2 py-1 rounded border border-white/30">Koning v/h Veld</span>
+                        </div>
+                        <div className="p-3 space-y-2">
+                            {veldLadder.map(m => {
+                                const koningsveld = m.veld === 1;
+                                const winT1 = m.gespeeld && m.winst_voor === 'team1';
+                                const winT2 = m.gespeeld && m.winst_voor === 'team2';
+                                return (
+                                    <div key={m.id} className={`rounded-xl border p-3 ${koningsveld ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-sm">{koningsveld ? '👑' : '🏟️'}</span>
+                                            <span className={`text-[11px] font-black uppercase tracking-wider ${koningsveld ? 'text-amber-700' : 'text-slate-500'}`}>
+                                                {koningsveld ? 'Koningsveld' : `Veld ${m.veld}`}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className={`flex-1 text-sm font-bold truncate ${winT1 ? 'text-emerald-600' : 'text-slate-700'}`}>
+                                                {winT1 && '✓ '}{m.team1?.naam}
+                                            </span>
+                                            <span className="text-[10px] font-black text-slate-300 px-2">VS</span>
+                                            <span className={`flex-1 text-right text-sm font-bold truncate ${winT2 ? 'text-emerald-600' : 'text-slate-700'}`}>
+                                                {m.team2?.naam}{winT2 && ' ✓'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <p className="text-[10px] text-slate-400 text-center pb-2 px-2">
+                            Winnaar schuift omhoog · verliezer zakt · veld 1 = de koning
+                        </p>
+                    </div>
+
+                    {/* Kroonteller */}
+                    {Object.keys(kroonMap).length > 0 && (
+                        <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                            <div className="p-3 font-bold flex items-center gap-2 text-white bg-slate-800">
+                                <span>🏅</span> Kronen <span className="text-xs font-normal text-white/60">(keer koning geweest)</span>
+                            </div>
+                            <div className="p-3 space-y-1">
+                                {klassement
+                                    .map(t => ({ ...t, kronen: kroonMap[t.id] || 0 }))
+                                    .sort((a, b) => b.kronen - a.kronen)
+                                    .filter(t => t.kronen > 0)
+                                    .map((t, idx) => (
+                                        <div key={t.id} className={`flex items-center justify-between px-3 py-2 rounded-lg ${idx === 0 ? 'bg-amber-50' : ''}`}>
+                                            <span className="font-bold text-sm text-slate-700 flex items-center gap-2">
+                                                {idx === 0 && <span>🥇</span>}{t.naam}
+                                            </span>
+                                            <span className="font-black text-slate-800 flex items-center gap-1">
+                                                {t.kronen} <span>👑</span>
+                                            </span>
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : (
+            /* HET LIVE KLASSEMENT (poule / knock-out) */
             <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                 <div className={`p-3 font-bold flex justify-between items-center text-white ${isLeerkracht ? 'bg-slate-800' : `bg-gradient-to-r ${rolData?.kleur}`}`}>
                     <span className="flex items-center gap-2"><span>🏆</span> Live Klassement</span>
                     <span className="text-xs bg-white/20 px-2 py-1 rounded border border-white/30">
-                        {toernooi.type === 'king' ? 'Koning v/h Veld' : toernooi.type === 'knockout' ? 'Knock-out' : 'Poule'}
+                        {toernooi.type === 'knockout' ? 'Knock-out' : 'Poule'}
                     </span>
                 </div>
                 <div className="p-0 overflow-x-auto">
@@ -904,6 +1012,7 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                     W = Gewonnen · G = Gelijk · V = Verloren · DS = Doelsaldo · PTN = Punten
                 </p>
             </div>
+            )}
 
             {/* WEDSTRIJDSCHEMA */}
             <div>
@@ -997,9 +1106,15 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                                                         
                                                         <div className="px-3">
                                                             {match.gespeeld ? (
-                                                                <div className="bg-slate-800 text-white font-black text-lg px-3 py-1 rounded-lg shadow-inner tabular-nums tracking-widest">
-                                                                    {match.score1} - {match.score2}
-                                                                </div>
+                                                                isKing ? (
+                                                                    <div className="bg-amber-100 text-amber-700 font-black text-base px-3 py-1 rounded-lg shadow-inner">
+                                                                        👑
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="bg-slate-800 text-white font-black text-lg px-3 py-1 rounded-lg shadow-inner tabular-nums tracking-widest">
+                                                                        {match.score1} - {match.score2}
+                                                                    </div>
+                                                                )
                                                             ) : (
                                                                 <div className="px-2 py-1 bg-white border border-slate-200 rounded text-[10px] font-black text-slate-400 shadow-sm uppercase">
                                                                     {toernooi.type === 'king' ? `Veld ${match.veld}` : `VS`}
@@ -1021,6 +1136,15 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                                                                 <button onClick={() => handleResetMatch(match.id)} className="py-1 px-4 text-xs font-bold text-slate-400 hover:text-slate-600 bg-white border border-slate-200 rounded-lg transition-colors shadow-sm">
                                                                     ↻ Oeps, pas uitslag aan
                                                                 </button>
+                                                            ) : isKing ? (
+                                                                <div className="w-full grid grid-cols-2 gap-2">
+                                                                    <button onClick={() => handleWinnaarKiezen(match.id, 'team1')} className="py-3 text-sm font-bold text-emerald-700 bg-emerald-50 border-2 border-emerald-300 hover:bg-emerald-100 rounded-xl transition-transform active:scale-95 shadow-sm truncate">
+                                                                        🏆 {match.team1.naam}
+                                                                    </button>
+                                                                    <button onClick={() => handleWinnaarKiezen(match.id, 'team2')} className="py-3 text-sm font-bold text-emerald-700 bg-emerald-50 border-2 border-emerald-300 hover:bg-emerald-100 rounded-xl transition-transform active:scale-95 shadow-sm truncate">
+                                                                        🏆 {match.team2.naam}
+                                                                    </button>
+                                                                </div>
                                                             ) : (
                                                                 <div className="w-full space-y-3">
                                                                     {/* Team 1 score */}
