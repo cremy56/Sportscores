@@ -437,16 +437,22 @@ export function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onS
                 return;
             }
         } else {
-            // Manual mode (Level 2/3 leerling): genereert wel anonieme spelers via slider
-            pool = Array.from({ length: aantalSpelersFallback }, (_, i) => ({ id: `pm_${i}_${Math.random().toString(36).slice(2, 8)}`, naam: `Speler ${i+1}` }));
+            // Manual mode (Level 2/3 leerling): genereert anonieme spelers o.b.v. het ingevulde aantal.
+            const aantal = Number(aantalSpelersFallback) || 0;
+            if (aantal < 2) {
+                toast.error('Vul minstens 2 spelers in.');
+                return;
+            }
+            pool = Array.from({ length: aantal }, (_, i) => ({ id: `pm_${i}_${Math.random().toString(36).slice(2, 8)}`, naam: `Speler ${i+1}` }));
         }
 
         pool.sort(() => Math.random() - 0.5);
 
         // Manual-mode leidt het aantal teams af uit spelers/spelersPerTeam (bv. padel = 2).
         // Database-mode gebruikt de teams-slider (aantalTeams).
+        const perTeam = Math.max(1, Number(spelersPerTeam) || 1);
         const teamCount = mode === 'manual'
-            ? Math.max(1, Math.ceil(pool.length / Math.max(1, spelersPerTeam)))
+            ? Math.max(1, Math.ceil(pool.length / perTeam))
             : aantalTeams;
 
         const nieuweTeams = Array.from({ length: teamCount }, (_, i) => ({
@@ -631,17 +637,19 @@ export function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onS
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Aantal Spelers Totaal</label>
                             <input type="number" min="2" placeholder="Bv. 20" value={aantalSpelersFallback} className="w-full p-3 border border-slate-200 rounded-xl text-center text-lg font-bold outline-none focus:border-emerald-400" onChange={e => {
-                                setAantalSpelersFallback(parseInt(e.target.value) || 0);
+                                const v = e.target.value;
+                                setAantalSpelersFallback(v === '' ? '' : parseInt(v));
                             }} />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Spelers per Team</label>
                             <input type="number" min="1" placeholder="Bv. 2 (padel)" value={spelersPerTeam} className="w-full p-3 border border-slate-200 rounded-xl text-center text-lg font-bold outline-none focus:border-emerald-400" onChange={e => {
-                                setSpelersPerTeam(parseInt(e.target.value) || 1);
+                                const v = e.target.value;
+                                setSpelersPerTeam(v === '' ? '' : parseInt(v));
                             }} />
                         </div>
                         <p className="text-xs text-slate-500">
-                            Dat geeft <strong className="text-emerald-600">{Math.max(1, Math.ceil((aantalSpelersFallback || 0) / Math.max(1, spelersPerTeam)))}</strong> team(s).
+                            Dat geeft <strong className="text-emerald-600">{Math.max(1, Math.ceil((Number(aantalSpelersFallback) || 0) / Math.max(1, Number(spelersPerTeam) || 1)))}</strong> team(s).
                         </p>
                     </div>
                     <button onClick={genereerTeams} className={`w-full py-4 text-white font-bold rounded-xl shadow-md transition-transform active:scale-95 bg-gradient-to-r ${rolData.kleur}`}>Start Bouwen</button>
