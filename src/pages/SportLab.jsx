@@ -710,13 +710,23 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                                 </div>
                             ) : (
                                 <div className="flex gap-3">
-                                    <button
-                                        onClick={() => veranderStatus(false, false)}
-                                        disabled={loading || deelnames.length === 0}
-                                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 px-4 rounded-xl transition-colors text-sm shadow-md"
-                                    >
-                                        Start Leerling Evaluatie
-                                    </button>
+                                    {sessie.toernooi?.leerkracht_leidt ? (
+                                        <button
+                                            onClick={() => veranderStatus(false, true)}
+                                            disabled={loading || deelnames.length === 0}
+                                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 px-4 rounded-xl transition-colors text-sm shadow-md"
+                                        >
+                                            Naar Mijn Evaluatie (Punten & Levels)
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => veranderStatus(false, false)}
+                                            disabled={loading || deelnames.length === 0}
+                                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 px-4 rounded-xl transition-colors text-sm shadow-md"
+                                        >
+                                            Start Leerling Evaluatie
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => setToonAfbreekBevestiging(true)}
                                         disabled={loading}
@@ -1428,11 +1438,26 @@ export default function SportLab() {
         return () => clearInterval(interval);
     }, [fetchSessie]);
 
-    // NIEUW: Onderschep de hardware 'terug'-knop op de smartphone
+    // Onderschep de hardware 'terug'-knop op de smartphone
     useEffect(() => {
         if (gekozenRol) {
             window.history.pushState({ roleActive: true }, '');
-            const handlePopState = () => setGekozenRol(null);
+            const handlePopState = () => {
+                let metingActief = false;
+                try { metingActief = localStorage.getItem('waarnemer_meting_actief') === '1'; } catch { /* */ }
+
+                if (metingActief) {
+                    const verder = window.confirm(
+                        'Je hebt een meting lopen. Als je teruggaat verlies je je huidige meting niet, maar je verlaat wel het meetscherm. Toch teruggaan?'
+                    );
+                    if (!verder) {
+                        // Blijf in de rol: herstel het history-item zodat terug opnieuw werkt
+                        window.history.pushState({ roleActive: true }, '');
+                        return;
+                    }
+                }
+                setGekozenRol(null);
+            };
             window.addEventListener('popstate', handlePopState);
             return () => window.removeEventListener('popstate', handlePopState);
         }

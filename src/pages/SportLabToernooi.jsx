@@ -842,6 +842,9 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
     // Geen puntentabel: de veldpositie ís de stand. We tellen enkel hoe vaak
     // een team op veld 1 (Koningsveld) won = "kronen".
     const isKing = toernooi.type === 'king';
+    // Wie mag uitslagen invoeren? Normaal de toernooileider-leerling (niet de leerkracht).
+    // Maar als de leerkracht het toernooi zelf leidt, voert de leerkracht zelf in.
+    const magInvoeren = !isLeerkracht || toernooi.leerkracht_leidt === true;
     let kroonMap = {};
     let veldLadder = [];
     let spelersPerTeamId = {};
@@ -1202,7 +1205,7 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                                                     </div>
 
                                                     {/* FIX: Verberg invulvakjes en Oeps-knop als iemand tegen 'Rust' (bye) speelt! */}
-                                                    {!isLeerkracht && match.ronde === huidigeRonde && match.team1.id !== 'bye' && match.team2.id !== 'bye' && (
+                                                    {magInvoeren && match.ronde === huidigeRonde && match.team1.id !== 'bye' && match.team2.id !== 'bye' && (
                                                         <div className="p-3 flex justify-center bg-slate-50/50">
                                                             {(loadingMatch === match.id || (zojuistGekozen[match.id] && !match.gespeeld)) ? (
                                                                 <div className="py-2 text-xs text-slate-400 animate-pulse font-bold">Opslaan...</div>
