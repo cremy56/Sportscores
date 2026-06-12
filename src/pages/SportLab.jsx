@@ -430,6 +430,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
     const [loading, setLoading] = useState(false);
     const [duur, setDuur] = useState(0);
     const [toonAfbreekBevestiging, setToonAfbreekBevestiging] = useState(false);
+    const [toonAfrondBevestiging, setToonAfrondBevestiging] = useState(false);
     const [deelnames, setDeelnames] = useState(sessie.deelnames || []);
     const [vrijgesteld, setVrijgesteld] = useState(sessie.vrijgestelde_leerlingen || []);
     
@@ -712,11 +713,11 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                                 <div className="flex gap-3">
                                     {sessie.toernooi?.leerkracht_leidt ? (
                                         <button
-                                            onClick={() => veranderStatus(false, true)}
-                                            disabled={loading || deelnames.length === 0}
+                                            onClick={() => setToonAfrondBevestiging(true)}
+                                            disabled={loading}
                                             className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-bold py-3.5 px-4 rounded-xl transition-colors text-sm shadow-md"
                                         >
-                                            Naar Mijn Evaluatie (Punten & Levels)
+                                            Sessie afronden
                                         </button>
                                     ) : (
                                         <button
@@ -764,6 +765,36 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                                     className="flex-1 py-3 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-sm transition-colors"
                                 >
                                     Ja, afbreken
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── BEVESTIGING: SESSIE AFRONDEN (leerkracht leidt zelf) ── */}
+                {toonAfrondBevestiging && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+                        <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-auto transform scale-100">
+                            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4 mx-auto border-4 border-white shadow-sm">
+                                <span className="text-3xl">🏁</span>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-800 text-center mb-2">Sessie afronden?</h3>
+                            <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed">
+                                De sessie wordt definitief gesloten. Het toernooi en de resultaten blijven bewaard.
+                            </p>
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setToonAfrondBevestiging(false)} 
+                                    className="flex-1 py-3 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                                >
+                                    Annuleren
+                                </button>
+                                <button 
+                                    onClick={() => veranderStatus(true)} 
+                                    disabled={loading} 
+                                    className="flex-1 py-3 text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl shadow-sm transition-colors disabled:opacity-40"
+                                >
+                                    Ja, afronden
                                 </button>
                             </div>
                         </div>
