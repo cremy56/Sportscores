@@ -437,6 +437,8 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
     // Toernooi beheerders-states
     const [toonToernooiBuilder, setToonToernooiBuilder] = useState(false);
     const heeftToernooileider = deelnames.some(d => d.rol === 'toernooileider');
+    // Bouwfase: toernooischema wordt opgezet (teams kiezen/verdelen), nog niet gestart.
+    const toernooiInBouw = !sessie.toernooi && (heeftToernooileider || toonToernooiBuilder);
 
     // Live timer
     useEffect(() => {
@@ -719,7 +721,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                                         >
                                             Sessie afronden
                                         </button>
-                                    ) : (
+                                    ) : !toernooiInBouw && (
                                         <button
                                             onClick={() => veranderStatus(false, false)}
                                             disabled={loading || deelnames.length === 0}
@@ -728,13 +730,15 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                                             Start Leerling Evaluatie
                                         </button>
                                     )}
-                                    <button
-                                        onClick={() => setToonAfbreekBevestiging(true)}
-                                        disabled={loading}
-                                        className="px-5 py-3.5 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-xl transition-colors text-sm font-bold border border-slate-200 bg-white shadow-sm"
-                                    >
-                                        Afbreken
-                                    </button>
+                                    {!sessie.toernooi?.leerkracht_leidt && (
+                                        <button
+                                            onClick={() => setToonAfbreekBevestiging(true)}
+                                            disabled={loading}
+                                            className="px-5 py-3.5 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-xl transition-colors text-sm font-bold border border-slate-200 bg-white shadow-sm"
+                                        >
+                                            Afbreken
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
