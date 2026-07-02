@@ -1,6 +1,7 @@
 // api/auth.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
-import { generateHash } from '../lib/apiHelpers.js';
+import { generateHash, generateLegacyHash } from '../lib/apiHelpers.js';
+import { getHashPepper } from '../lib/keyManager.js';
 
 // ─── Nickname generator ───────────────────────────────────────────────────────
 const ADJECTIVES = [
@@ -123,12 +124,28 @@ export default async function handler(req, res) {
             smartschoolUserId = decodedToken.providerData[0].uid;
         }
 
-        const hashedSmartschoolId = generateHash(smartschoolUserId);
+        const pepper = await getHashPepper();
+        const hashedSmartschoolId = generateHash(smartschoolUserId, pepper);
         // === Whitelist zoeken via document ID ===
-        // FIX: toegestane_gebruikers gebruikt de hash als document ID, niet als veld
-        const whitelistSnap = await db.collection('toegestane_gebruikers')
+        // toegestane_gebruikers gebruikt de hash als document ID, niet als veld
+        let whitelistSnap = await db.collection('toegestane_gebruikers')
             .doc(hashedSmartschoolId)
             .get();
+
+        // ── TRANSITIE-FALLBACK (verwijderen na afronding hash-migratie) ──────
+        // Accounts die nog niet gemigreerd zijn naar HMAC (h1) staan onder hun
+        // oude kale SHA-256 hash. Zo blijft inloggen werken tussen deploy en
+        // het draaien van api/admin/migrate-hash.js.
+        if (!whitelistSnap.exists) {
+            const legacyHash = generateLegacyHash(smartschoolUserId);
+            const legacySnap = await db.collection('toegestane_gebruikers')
+                .doc(legacyHash)
+                .get();
+            if (legacySnap.exists) {
+                console.warn('⚠️ Login via legacy SHA-256 hash — dit account is nog niet gemigreerd (migrate-hash.js)');
+                whitelistSnap = legacySnap;
+            }
+        }
 
         if (!whitelistSnap.exists) {
             return res.status(403).json({ error: 'Je hebt geen toegang tot deze applicatie.' });

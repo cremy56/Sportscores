@@ -1,6 +1,6 @@
 // pages/api/users.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
-import { getMasterKey } from '../lib/keyManager.js';
+import { getMasterKey, getHashPepper } from '../lib/keyManager.js';
 import { writeAuditLog } from '../lib/auditLogger.js';
 import { decryptName, encryptName, generateHash } from '../lib/apiHelpers.js';
 
@@ -320,8 +320,9 @@ async function handleCreateUser(req, res, decodedToken) {
         if (!masterKey) {
             return res.status(500).json({ error: 'Server configuratie fout (key)' });
         }
+        const pepper = await getHashPepper();
 
-        const docId = generateHash(formData.smartschool_user_id.trim());
+        const docId = generateHash(formData.smartschool_user_id.trim(), pepper);
         const encryptedName = encryptName(formData.naam.trim(), masterKey);
         
         const whitelistData = {
@@ -555,11 +556,12 @@ async function handleBulkCreate(req, res, decodedToken) {
             return res.status(400).json({ error: 'CSV bevat geen data' });
         }
 
-        // === 4. HAAL SLEUTEL OP ===
+        // === 4. HAAL SLEUTELS OP ===
         const masterKey = await getMasterKey();
         if (!masterKey) {
             return res.status(500).json({ error: 'Server configuratie fout (key)' });
         }
+        const pepper = await getHashPepper();
 
         // === 5. DATA VERWERKEN ===
         let successCount = 0;
@@ -598,7 +600,7 @@ async function handleBulkCreate(req, res, decodedToken) {
                             }
                         }
         
-                        const hashedId = generateHash(row.smartschool_user_id.trim());
+                        const hashedId = generateHash(row.smartschool_user_id.trim(), pepper);
                         const encryptedName = encryptName(row.naam.trim(), masterKey);
         
                         const whitelistData = {
@@ -671,7 +673,7 @@ async function handleBulkCreate(req, res, decodedToken) {
             try {
                 const geimporteerdeHashen = csvData
                     .filter(r => r.rol?.toLowerCase() === 'leerling' && r.smartschool_user_id?.trim())
-                    .map(r => generateHash(r.smartschool_user_id.trim()));
+                    .map(r => generateHash(r.smartschool_user_id.trim(), pepper));
 
                 // Haal alle actieve leerlingen op
                 const actieveSnap = await db.collection('toegestane_gebruikers')
