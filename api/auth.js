@@ -1,6 +1,6 @@
 // api/auth.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
-import CryptoJS from 'crypto-js';
+import { generateHash } from '../lib/apiHelpers.js';
 
 // ─── Nickname generator ───────────────────────────────────────────────────────
 const ADJECTIVES = [
@@ -23,9 +23,8 @@ const generateNickname = () => {
     return `${adj}${animal}${num}`;
 };
 
-const generateHash = (smartschoolUserId) => {
-    return CryptoJS.SHA256(smartschoolUserId).toString();
-};
+// generateHash komt uit lib/apiHelpers.js — één gedeelde implementatie
+// (voorbereiding op de HMAC/salted-hash migratie in stap 2)
 
 // ─── Nickname validatie ───────────────────────────────────────────────────────
 const validateNickname = (nickname) => {

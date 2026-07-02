@@ -221,6 +221,15 @@ export default function Gebruikersbeheer() {
     const context = useOutletContext();
     const { profile, school } = context || {};
 
+    // ─── Feature flag: Gebruikersbeheer tijdelijk verborgen ──────────────────
+    // De CSV-import blijft als fallback bestaan (naast de toekomstige
+    // Smartschool API-sync), maar de UI is voorlopig enkel toegankelijk
+    // voor super-administrators. Terug openzetten: zet deze flag op true.
+    const GEBRUIKERSBEHEER_ENABLED = false;
+
+    const heeftToegang = GEBRUIKERSBEHEER_ENABLED
+        || profile?.rol === 'super-administrator';
+
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [filterKlas, setFilterKlas] = useState('');
@@ -243,7 +252,7 @@ export default function Gebruikersbeheer() {
     // =============================================
     useEffect(() => {
         const getTotalCount = async () => {
-            if (!profile?.school_id) return;
+            if (!heeftToegang || !profile?.school_id) return;
             try {
                 const token = await getAuthToken();
                 const response = await fetch('/api/users', {
@@ -264,8 +273,8 @@ export default function Gebruikersbeheer() {
     // GEBRUIKERS LADEN
     // =============================================
     useEffect(() => {
-        if (profile?.school_id) loadUsers();
-    }, [profile?.school_id, filterKlas, filterRol]);
+        if (heeftToegang && profile?.school_id) loadUsers();
+    }, [heeftToegang, profile?.school_id, filterKlas, filterRol]);
 
     const loadUsers = async () => {
         if (!profile?.school_id) return;
@@ -397,6 +406,26 @@ export default function Gebruikersbeheer() {
     const handleOpenModal = (type, data = null, role = null) => setModal({ type, data, role });
     const handleCloseModal = () => setModal({ type: null, data: null, role: null });
     const handleUserSaved = () => loadUsers();
+
+    // =============================================
+    // TOEGANGSGUARD — Gebruikersbeheer tijdelijk verborgen
+    // (na alle hooks geplaatst i.v.m. rules of hooks)
+    // =============================================
+    if (!heeftToegang) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
+                <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
+                    <ShieldCheckIcon className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+                    <h1 className="text-xl font-bold text-gray-800 mb-2">Gebruikersbeheer niet beschikbaar</h1>
+                    <p className="text-sm text-gray-500">
+                        Deze module is tijdelijk uitgeschakeld. Gebruikers worden
+                        centraal beheerd. Neem contact op met de beheerder als je
+                        toegang nodig hebt.
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     // =============================================
     // RENDER

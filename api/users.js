@@ -664,7 +664,10 @@ async function handleBulkCreate(req, res, decodedToken) {
         // === 7. DEACTIVEER ONTBREKENDE LEERLINGEN ===
         // Vergelijk de net geïmporteerde lijst met de bestaande actieve leerlingen
         // Leerlingen die niet meer in de import zitten worden gedeactiveerd
-        if (rol === 'leerling' || csvData.some(r => r.rol?.toLowerCase() === 'leerling')) {
+        // 🐛 FIX (jul 2026): 'rol' was hier out of scope (const binnen de for-loop)
+        // → ReferenceError → elke bulk import gaf een 500 terug NA het wegschrijven
+        // van de data, en dit deactivatieblok draaide nooit.
+        if (csvData.some(r => r.rol?.toLowerCase() === 'leerling')) {
             try {
                 const geimporteerdeHashen = csvData
                     .filter(r => r.rol?.toLowerCase() === 'leerling' && r.smartschool_user_id?.trim())
