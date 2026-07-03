@@ -17,7 +17,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { db, verifyToken } from '../../lib/firebaseAdmin.js';
-import { getMasterKey } from '../../lib/keyManager.js';
+import { FieldValue } from 'firebase-admin/firestore';
 import { writeAuditLog } from '../../lib/auditLogger.js';
 import CryptoJS from 'crypto-js';
 
@@ -201,9 +201,12 @@ export default async function handler(req, res) {
                     if (!verified || verified.length < 2) throw new Error('Verificatie mislukt');
 
                     // Promoveer: kopieer shadow naar hoofd, verwijder shadow
+                    // 🐛 FIX (jul 2026): was `db.FieldValue?.delete() ?? null` —
+                    // FieldValue bestaat niet op de db-instantie (Admin SDK),
+                    // dus het shadow-veld bleef als null staan i.p.v. verwijderd.
                     currentBatch.update(doc.ref, {
                         encrypted_name: data.encrypted_name_new,
-                        encrypted_name_new: db.FieldValue?.delete() ?? null,
+                        encrypted_name_new: FieldValue.delete(),
                     });
                     count++;
 
