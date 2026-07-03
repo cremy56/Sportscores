@@ -171,7 +171,7 @@ export default function UserFormModal({
                 const apiPayload = {
                     userId: userData.id, 
                     updates: updates,
-                    currentUserProfileHash: currentUserProfile?.smartschool_id_hash
+                    currentUserProfileHash: currentUserProfile?.toegestane_gebruikers_id
                 };
 
                 response = await fetch('/api/users', {
@@ -181,7 +181,7 @@ export default function UserFormModal({
                         action: 'update_user',
                         userId: userData.id,
                         updates: updates,
-                        currentUserProfileHash: currentUserProfile.smartschool_id_hash
+                        currentUserProfileHash: currentUserProfile.toegestane_gebruikers_id
                     })
                 });
                 result = await response.json();
@@ -193,7 +193,7 @@ export default function UserFormModal({
                     formData: formData,
                     currentUserRole: currentUserRole,
                     targetSchoolId: targetSchoolId,
-                    currentUserProfileHash: currentUserProfile?.smartschool_id_hash
+                    currentUserProfileHash: currentUserProfile?.toegestane_gebruikers_id
                 };
 
                 
@@ -205,7 +205,7 @@ export default function UserFormModal({
                     formData: formData,
                     targetSchoolId: targetSchoolId, // <-- CORRECT
                     currentUserRole: currentUserRole, // <-- CORRECT
-                    currentUserProfileHash: currentUserProfile?.smartschool_id_hash
+                    currentUserProfileHash: currentUserProfile?.toegestane_gebruikers_id
                 })
             })
                 result = await response.json();
