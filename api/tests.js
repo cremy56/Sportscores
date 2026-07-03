@@ -1,6 +1,7 @@
 // api/tests.js — dunne router
 // Frontend roept nog steeds /api/tests aan — geen wijzigingen in de client nodig.
 import { verifyToken } from '../lib/firebaseAdmin.js';
+import { checkRateLimit, stuurRateLimitResponse, categorieVoorAction } from '../lib/rateLimiter.js';
 
 import {
     handleGetTests, handleGetLeaderboard, handleGetSetupData,
@@ -61,6 +62,13 @@ export default async function handler(req, res) {
     try {
         const decodedToken = await verifyToken(req.headers.authorization);
         const { action } = req.body;
+
+        // ── Rate limit (per gebruiker, categorie op basis van action) ────────
+        const rl = await checkRateLimit(req, {
+            categorie: categorieVoorAction(action),
+            uid: decodedToken.uid,
+        });
+        if (!rl.toegestaan) return stuurRateLimitResponse(res, rl.retryAfter);
 
         switch (action) {
             // ── Testen & Scores ────────────────────────────────────────────────

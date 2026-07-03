@@ -1,5 +1,6 @@
 // api/archive.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
+import { checkRateLimit, stuurRateLimitResponse } from '../lib/rateLimiter.js';
 import { Timestamp } from 'firebase-admin/firestore';
 import { writeAuditLog } from '../lib/auditLogger.js';
 
@@ -325,6 +326,13 @@ export default async function handler(req, res) {
     try {
         const decodedToken = await verifyToken(req.headers.authorization);
         const { action } = req.body;
+
+        // ── Rate limit (categorie 'admin' — alle actions hier zijn beheer) ───
+        // NB: de cron roept archiveerRankingsVoorSchool() rechtstreeks aan
+        // (import in de Cloud Function), niet via HTTP — die raakt deze
+        // limiter dus nooit.
+        const rl = await checkRateLimit(req, { categorie: 'admin', uid: decodedToken.uid });
+        if (!rl.toegestaan) return stuurRateLimitResponse(res, rl.retryAfter);
 
         switch (action) {
             case 'archiveer_rankings':

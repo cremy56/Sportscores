@@ -1,5 +1,6 @@
 // pages/api/getAdValvasData.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
+import { checkRateLimit, stuurRateLimitResponse } from '../lib/rateLimiter.js';
 import { Timestamp } from 'firebase-admin/firestore'; // Belangrijk! Gebruik de Admin Timestamp
 
 // Helper functie (kopiëren uit je client-side utils)
@@ -131,7 +132,10 @@ async function getBreakingNewsAndActiveTests(schoolId) {
             // Controleer op record
             const testRef = db.collection('testen').doc(scoreData.test_id);
             const testSnap = await testRef.get();
-            if (!testSnap.exists()) continue;
+            // 🐛 FIX (jul 2026): .exists is in de Admin SDK een property, geen
+            // functie — testSnap.exists() gooide een TypeError waardoor
+            // breaking news bij elke dashboard-load crashte.
+            if (!testSnap.exists) continue;
 
             const testData = testSnap.data();
             const direction = testData.score_richting === 'laag' ? 'asc' : 'desc';
@@ -179,7 +183,7 @@ async function getBreakingNewsAndActiveTests(schoolId) {
             const testPromises = Array.from(activeTestIds).map(testId => db.collection('testen').doc(testId).get());
             const testSnaps = await Promise.all(testPromises);
             activeTestsData = testSnaps
-                .filter(snap => snap.exists())
+                .filter(snap => snap.exists) // 🐛 FIX: property, geen functie
                 .map(snap => ({ id: snap.id, ...snap.data() }));
         }
         
@@ -254,7 +258,14 @@ export default async function handler(req, res) {
     try {
         // Stap 1 (Authenticatie) gebeurt hier voor BEIDE routes
         const decodedToken = await verifyToken(req.headers.authorization);
-        
+
+        // ── Rate limit (per gebruiker: GET = lees, POST = schrijf) ───────────
+        const rl = await checkRateLimit(req, {
+            categorie: req.method === 'GET' ? 'lees' : 'schrijf',
+            uid: decodedToken.uid,
+        });
+        if (!rl.toegestaan) return stuurRateLimitResponse(res, rl.retryAfter);
+
         if (req.method === 'GET') {
             // === 2. HAAL PROFIEL (en school_id) ===
             const adminUserSnap = await db.collection('users').doc(decodedToken.uid).get();
