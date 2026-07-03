@@ -3,6 +3,7 @@ import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { getMasterKey, getHashPepper } from '../lib/keyManager.js';
 import { writeAuditLog } from '../lib/auditLogger.js';
 import { decryptName, encryptName, generateHash, CURRENT_HASH_VERSION } from '../lib/apiHelpers.js';
+import { checkRateLimit, stuurRateLimitResponse, categorieVoorAction } from '../lib/rateLimiter.js';
 
 async function handleUpdateTeacherKlassen(req, res, decodedToken) {
     try {
@@ -771,6 +772,13 @@ export default async function handler(req, res) {
         // Authenticatie gebeurt één keer
         const decodedToken = await verifyToken(req.headers.authorization);
         const { action } = req.body; 
+
+        // ── Rate limit (per gebruiker, categorie op basis van action) ────────
+        const rl = await checkRateLimit(req, {
+            categorie: categorieVoorAction(action),
+            uid: decodedToken.uid,
+        });
+        if (!rl.toegestaan) return stuurRateLimitResponse(res, rl.retryAfter);
 
         // Routeren op basis van de 'action'
         switch (action) {

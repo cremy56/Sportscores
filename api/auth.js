@@ -2,6 +2,7 @@
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { generateHash } from '../lib/apiHelpers.js';
 import { getHashPepper } from '../lib/keyManager.js';
+import { checkRateLimit, stuurRateLimitResponse } from '../lib/rateLimiter.js';
 
 // ─── Nickname generator ───────────────────────────────────────────────────────
 const ADJECTIVES = [
@@ -43,7 +44,26 @@ export default async function handler(req, res) {
     }
 
     try {
-        const decodedToken = await verifyToken(req.headers.authorization);
+        // ── Token + rate limiting in twee sporen (schoolvriendelijk) ─────────
+        // Een hele school deelt vaak ÉÉN publiek IP (NAT). Daarom:
+        // - MISLUKTE verificaties tellen per IP ('auth', 15/min): stopt
+        //   brute-force met ongeldige tokens, maar raakt nooit een klas
+        //   die tegelijk achter het school-IP inlogt.
+        // - GESLAAGDE verificaties tellen per gebruiker (uid): 15 profiel-
+        //   checks/min per persoon is ruim; 30 leerlingen tegelijk = 30
+        //   aparte tellers.
+        let decodedToken;
+        try {
+            decodedToken = await verifyToken(req.headers.authorization);
+        } catch {
+            const rl = await checkRateLimit(req, { categorie: 'auth' }); // per IP
+            if (!rl.toegestaan) return stuurRateLimitResponse(res, rl.retryAfter);
+            return res.status(401).json({ error: 'Niet geauthenticeerd' });
+        }
+
+        const rlUser = await checkRateLimit(req, { categorie: 'auth', uid: decodedToken.uid });
+        if (!rlUser.toegestaan) return stuurRateLimitResponse(res, rlUser.retryAfter);
+
         const firebaseUid = decodedToken.uid;
         const { action } = req.body || {};
 
