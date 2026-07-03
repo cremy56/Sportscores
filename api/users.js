@@ -2,7 +2,7 @@
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { getMasterKey, getHashPepper } from '../lib/keyManager.js';
 import { writeAuditLog } from '../lib/auditLogger.js';
-import { decryptName, encryptName, generateHash } from '../lib/apiHelpers.js';
+import { decryptName, encryptName, generateHash, CURRENT_HASH_VERSION } from '../lib/apiHelpers.js';
 
 async function handleUpdateTeacherKlassen(req, res, decodedToken) {
     try {
@@ -327,6 +327,7 @@ async function handleCreateUser(req, res, decodedToken) {
         
         const whitelistData = {
             smartschool_id_hash: docId,
+            hash_version: CURRENT_HASH_VERSION,
             encrypted_name: encryptedName,
             school_id: targetSchoolId,
             rol: currentUserRole,
@@ -605,6 +606,7 @@ async function handleBulkCreate(req, res, decodedToken) {
         
                         const whitelistData = {
                             smartschool_id_hash: hashedId,
+                            hash_version: CURRENT_HASH_VERSION,
                             encrypted_name: encryptedName,
                             school_id: targetSchoolId,
                             rol: rol,

@@ -1,7 +1,55 @@
 // api/auth.js
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
-import { generateHash, generateLegacyHash } from '../lib/apiHelpers.js';
-import { getHashPepper } from '../lib/keyManager.js';
+import { generateHash, generateLegacyHash, encryptName, CURRENT_HASH_VERSION } from '../lib/apiHelpers.js';
+import { getHashPepper, getMasterKey } from '../lib/keyManager.js';
+
+// ─── Auto-migratie legacy hash → HMAC (h1) ────────────────────────────────────
+// TIJDELIJK: verwijderen zodra alle whitelist-docs hash_version 'h1' hebben.
+// Het Smartschool-ID zit in het OAuth-token bij login — de server kan de
+// migratie dus zelf doen, zonder dat het ID ergens opgeslagen of opgezocht
+// hoeft te worden. Bij login: als het HMAC-doc niet bestaat maar er wél een
+// doc onder de oude kale SHA-256-hash staat, wordt dat doc verplaatst.
+// Geeft altijd { nieuweHash, snap } terug — snap is null als de gebruiker
+// in geen van beide vormen op de whitelist staat.
+async function resolveWhitelistDoc(smartschoolUserId, pepper) {
+    const nieuweHash = generateHash(smartschoolUserId, pepper);
+    const nieuwRef = db.collection('toegestane_gebruikers').doc(nieuweHash);
+    const nieuwSnap = await nieuwRef.get();
+    if (nieuwSnap.exists) {
+        return { nieuweHash, snap: nieuwSnap, gemigreerd: false };
+    }
+
+    const legacyHash = generateLegacyHash(smartschoolUserId);
+    const legacyRef = db.collection('toegestane_gebruikers').doc(legacyHash);
+    const legacySnap = await legacyRef.get();
+    if (!legacySnap.exists) {
+        return { nieuweHash, snap: null, gemigreerd: false };
+    }
+
+    // Migreren: kopie onder HMAC-ID, plaintext-restanten strippen, oud doc weg
+    const data = legacySnap.data();
+    const nieuwDoc = {
+        ...data,
+        smartschool_id_hash: nieuweHash,
+        hash_version: CURRENT_HASH_VERSION,
+        hash_gemigreerd_op: new Date(),
+        last_updated: new Date(),
+    };
+    if (!nieuwDoc.encrypted_name && typeof data.naam === 'string' && data.naam.trim()) {
+        const masterKey = await getMasterKey();
+        nieuwDoc.encrypted_name = encryptName(data.naam.trim(), masterKey);
+    }
+    delete nieuwDoc.smartschool_id;
+    delete nieuwDoc.naam;
+    delete nieuwDoc.naam_keywords;
+
+    await nieuwRef.set(nieuwDoc);
+    await legacyRef.delete();
+    console.warn('⚠️ Whitelist-account automatisch gemigreerd naar HMAC-hash (h1)');
+
+    const snap = await nieuwRef.get();
+    return { nieuweHash, snap, gemigreerd: true };
+}
 
 // ─── Nickname generator ───────────────────────────────────────────────────────
 const ADJECTIVES = [
@@ -89,13 +137,39 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, nickname: trimmed });
         }
 
+        // === Smartschool User ID ophalen (uit het OAuth-token) ===
+        let smartschoolUserId = firebaseUid;
+        if (decodedToken.smartschool_user_id) {
+            smartschoolUserId = decodedToken.smartschool_user_id;
+        } else if (decodedToken.providerData?.length > 0 && decodedToken.providerData[0].uid) {
+            smartschoolUserId = decodedToken.providerData[0].uid;
+        }
+
+        const pepper = await getHashPepper();
+
         // ── Profiel check / aanmaken (default flow) ───────────────────────────
         const profileRef = db.collection('users').doc(firebaseUid);
         const docSnap = await profileRef.get();
 
         if (docSnap.exists) {
-            await profileRef.update({ last_login: new Date() });
             const rawData = docSnap.data();
+
+            // ── TIJDELIJK: auto-migratie voor bestaande profielen ─────────────
+            // Migreert het whitelist-doc naar de HMAC-hash zodra de gebruiker
+            // inlogt, en werkt de koppeling in het users-profiel bij.
+            // Verwijderen zodra alle accounts hash_version 'h1' hebben.
+            const profileUpdate = { last_login: new Date() };
+            try {
+                const { nieuweHash, snap, gemigreerd } = await resolveWhitelistDoc(smartschoolUserId, pepper);
+                if (snap && (gemigreerd || rawData.toegestane_gebruikers_id !== nieuweHash)) {
+                    profileUpdate.toegestane_gebruikers_id = nieuweHash;
+                    rawData.toegestane_gebruikers_id = nieuweHash;
+                }
+            } catch (err) {
+                // Migratie mag een login nooit blokkeren
+                console.error('Auto-migratie check mislukt:', err.message);
+            }
+            await profileRef.update(profileUpdate);
 
             // Firestore Timestamps serialiseren niet correct naar JSON.
             // Zet alle datum-velden om naar ISO string.
@@ -116,38 +190,10 @@ export default async function handler(req, res) {
             });
         }
 
-        // === Smartschool User ID ophalen ===
-        let smartschoolUserId = firebaseUid;
-        if (decodedToken.smartschool_user_id) {
-            smartschoolUserId = decodedToken.smartschool_user_id;
-        } else if (decodedToken.providerData?.length > 0 && decodedToken.providerData[0].uid) {
-            smartschoolUserId = decodedToken.providerData[0].uid;
-        }
+        // === Whitelist zoeken (met auto-migratie van legacy hashes) ===
+        const { snap: whitelistSnap } = await resolveWhitelistDoc(smartschoolUserId, pepper);
 
-        const pepper = await getHashPepper();
-        const hashedSmartschoolId = generateHash(smartschoolUserId, pepper);
-        // === Whitelist zoeken via document ID ===
-        // toegestane_gebruikers gebruikt de hash als document ID, niet als veld
-        let whitelistSnap = await db.collection('toegestane_gebruikers')
-            .doc(hashedSmartschoolId)
-            .get();
-
-        // ── TRANSITIE-FALLBACK (verwijderen na afronding hash-migratie) ──────
-        // Accounts die nog niet gemigreerd zijn naar HMAC (h1) staan onder hun
-        // oude kale SHA-256 hash. Zo blijft inloggen werken tussen deploy en
-        // het draaien van api/admin/migrate-hash.js.
-        if (!whitelistSnap.exists) {
-            const legacyHash = generateLegacyHash(smartschoolUserId);
-            const legacySnap = await db.collection('toegestane_gebruikers')
-                .doc(legacyHash)
-                .get();
-            if (legacySnap.exists) {
-                console.warn('⚠️ Login via legacy SHA-256 hash — dit account is nog niet gemigreerd (migrate-hash.js)');
-                whitelistSnap = legacySnap;
-            }
-        }
-
-        if (!whitelistSnap.exists) {
+        if (!whitelistSnap) {
             return res.status(403).json({ error: 'Je hebt geen toegang tot deze applicatie.' });
         }
 
