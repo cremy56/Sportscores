@@ -1,8 +1,8 @@
 // src/App.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { auth, db } from './firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, onIdTokenChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore'; 
 import { setupNetworkMonitoring } from './utils/firebaseUtils';
 import toast from 'react-hot-toast';
@@ -58,6 +58,30 @@ function App() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [activeRole, setActiveRole] = useState(null);
 
+  // 🐛 FIX (jul 2026): het ID-token werd één keer bij login opgehaald en
+  // daarna als statische string in profile._token gedeeld met de hele app.
+  // Firebase-tokens verlopen na 1 uur → app-brede 401's bij lange sessies.
+  // Oplossing: de SDK ververst tokens zelf proactief en meldt dat via
+  // onIdTokenChanged — wij houden profile._token synchroon.
+  const tokenRef = useRef(null);
+
+  useEffect(() => {
+    const unsubscribeToken = onIdTokenChanged(auth, async (currentUser) => {
+      if (!currentUser) {
+        tokenRef.current = null;
+        return;
+      }
+      try {
+        const versToken = await currentUser.getIdToken();
+        tokenRef.current = versToken;
+        setProfile(p => (p ? { ...p, _token: versToken } : p));
+      } catch (err) {
+        console.error('Token-verversing mislukt:', err.message);
+      }
+    });
+    return () => unsubscribeToken();
+  }, []);
+
   // Auth state listener
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
@@ -91,6 +115,7 @@ function App() {
     const checkAndCreateProfile = async (firebaseUser) => {
       try {
         const token = await firebaseUser.getIdToken();
+        tokenRef.current = token;
 
         const response = await fetch('/api/auth', {
           method: 'POST',
@@ -111,7 +136,7 @@ function App() {
               const profileData = { 
                 id: docSnap.id,
                 ...docSnap.data(),
-                _token: token
+                _token: tokenRef.current || token // altijd het meest recente token
               };
               setProfile(profileData);
 
