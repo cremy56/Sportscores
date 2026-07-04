@@ -70,3 +70,5 @@ Thumbs.db
 *.orig
 serviceAccountKey.json
 
+serviceAccountKey.json
+*serviceaccount*.json
