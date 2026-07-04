@@ -42,7 +42,6 @@ export default function AlgemeenInstellingen() {
         sportdashboardAsHomepage: false,
         teachersCanPostAnnouncements: true,
         disableSportLiveFeed: false,
-        welzijnModuleActief: true,
         evaluationMethod: 'punten',
     });
     const [initialSettings, setInitialSettings] = useState(settings);
@@ -66,13 +65,16 @@ export default function AlgemeenInstellingen() {
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
-        const fetchedSettings = data.instellingen || {
+        const fetched = data.instellingen || {
             sportdashboardAsHomepage: false,
             teachersCanPostAnnouncements: true,
             disableSportLiveFeed: false,
-            welzijnModuleActief: true,
             evaluationMethod: 'punten',
         };
+        // Ontmanteling welzijnsmodule (jul 2026): wees-veld strippen zodat
+        // een gewone save het ook meteen uit Firestore verwijdert.
+        const fetchedSettings = { ...fetched };
+        delete fetchedSettings.welzijnModuleActief;
         setSettings(fetchedSettings);
         setInitialSettings(fetchedSettings);
     } catch (error) {
@@ -198,19 +200,9 @@ export default function AlgemeenInstellingen() {
 
                 <hr className="border-gray-200" />
 
-                {/* --- Instelling 4: Welzijnsmodule --- */}
-                <MobileToggle
-                    id="welzijnModuleActief"
-                    name="welzijnModuleActief"
-                    checked={settings.welzijnModuleActief ?? true}
-                    onChange={handleChange}
-                    label="Welzijnsmodule activeren"
-                    description="Laat leerlingen hun slaap, voeding, beweging en mentaal welzijn bijhouden. Enkel zichtbaar voor de leerling zelf. Schakel uit om de module volledig te verbergen voor deze school."
-                />
-
-                <hr className="border-gray-200" />
-
-                {/* --- Instelling 5: Evaluatiemethode --- */}
+                {/* --- Instelling 4: Evaluatiemethode ---
+                    (De vroegere Instelling 4 "Welzijnsmodule activeren" is
+                    verwijderd bij de ontmanteling van de welzijnsmodule, jul 2026.) */}
                 <div>
                     <h3 className="font-semibold text-gray-800 mb-2">Evaluatiemethode</h3>
                     <p className="text-sm text-gray-500 mb-4 sm:mb-6">Kies de standaardmethode voor het evalueren van testen en opdrachten.</p>
