@@ -1,0 +1,151 @@
+rules_version = '2';
+// firestore.rules — versie 2.5
+// Wijzigingen t.o.v. v2.4 (ontmanteling welzijnsmodule, jul 2026 —
+// Gezondheid 2.0: datavrij by design):
+//   - Welzijn-collectie: read/write-regels VERVANGEN door expliciete deny
+//     (tombstone). Gezondheidsdata (Art. 9 AVG) wordt niet meer verwerkt.
+//   - class_challenges: expliciete deny toegevoegd (systeem gesloopt).
+//   - Helper hasWelzijnConsent() verwijderd (nergens meer gebruikt).
+//   - consent_records blijft: infrastructuur wordt hergebruikt voor de
+//     app-brede toestemming (consent modal, te bouwen).
+// Wijzigingen v2.3 → v2.4:
+//   - Sport Lab collecties toegevoegd:
+//     sport_lab_sessions, sport_lab_deelnames, sport_lab_content
+//     sport_lab_scores, sport_lab_toernooien
+//   - Leerling onSnapshot toegang voor sessies + eigen deelname
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper functies ────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEigenUid(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getUserRol() {
+      return getUserData().rol;
+    }
+
+    function isAdmin() {
+      return getUserRol() in ['administrator', 'super-administrator'];
+    }
+
+    // ─── ONTMANTELD jul 2026 — welzijnsmodule ────────────────────────────────
+    // Gezondheidsdata (Art. 9 AVG) wordt niet meer verwerkt. Deze tombstones
+    // blokkeren expliciet elke read/write, ook als oude clients of gecachte
+    // frontends nog zouden proberen te schrijven tijdens de uitrol, en
+    // documenteren de beslissing in de rules zelf (auditspoor richting DPO).
+    match /welzijn/{document=**} {
+      allow read, write: if false;
+    }
+    match /class_challenges/{document=**} {
+      allow read, write: if false;
+    }
+
+    // ─── Scholen ────────────────────────────────────────────────────────────
+    match /scholen/{schoolId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ─── Users ──────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if isSignedIn() && isEigenUid(uid);
+
+      allow update: if isSignedIn()
+        && isEigenUid(uid)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['rol', 'school_id', 'toegestane_gebruikers_id']);
+
+      allow create, delete: if false;
+
+      match /consent_records/{recordId} {
+        allow create: if isSignedIn() && isEigenUid(uid);
+        allow read:   if isSignedIn() && isEigenUid(uid);
+        allow update, delete: if false;
+      }
+
+      match /xp_transactions/{txId} {
+        allow read:  if isSignedIn() && isEigenUid(uid);
+        allow write: if false;
+      }
+    }
+
+    // ─── Audit logs — IMMUTABLE ──────────────────────────────────────────────
+    match /audit_logs/{logId} {
+      allow read:                  if isSignedIn() && isAdmin();
+      allow create:                if false;
+      allow update, delete, write: if false;
+    }
+
+    // ─── Sport Lab: Sessies ──────────────────────────────────────────────────
+    // Leerlingen lezen actieve sessies via onSnapshot (client SDK).
+    // Alle schrijfacties verlopen via Admin SDK (Vercel API / Cloud Functions).
+    //
+    // Beveiliging: leerling kan enkel sessies lezen van zijn eigen school.
+    // Een kwaadaardige gebruiker die een ander school_id probeert te lezen,
+    // wordt geblokkeerd door de rule op resource.data.school_id.
+    match /sport_lab_sessions/{sessieId} {
+      allow read: if isSignedIn()
+        && resource.data.school_id == getUserData().school_id;
+      allow write: if false; // Enkel via Admin SDK
+    }
+
+    // ─── Sport Lab: Deelnames ────────────────────────────────────────────────
+    // Leerlingen lezen enkel hun EIGEN deelname via onSnapshot.
+    // Andere leerlingen kunnen elkaars deelnames NOOIT lezen.
+    // Leerkrachten lezen alle deelnames via Admin SDK (server-side decryptie).
+    match /sport_lab_deelnames/{deelnameId} {
+      allow read: if isSignedIn()
+        && resource.data.leerling_firebase_uid == request.auth.uid;
+      allow write: if false; // Enkel via Admin SDK
+    }
+
+    // ─── Sport Lab: Content (spelregels, taken, beslissingen) ────────────────
+    // Geen PII — enkel pedagogische content.
+    // Alle ingelogde gebruikers mogen lezen (leerling + leerkracht).
+    // Schrijven enkel via seeding script (Admin SDK).
+    match /sport_lab_content/{sport} {
+      allow read: if isSignedIn();
+      allow write: if false; // Enkel via seeding script
+    }
+
+    // ─── Sport Lab: Scores (leerkrachtbeoordelingen) ─────────────────────────
+    // Beoordelingen zijn enkel zichtbaar voor leerkrachten (via Admin SDK).
+    // Leerlingen mogen hun eigen score NOOIT rechtstreeks lezen via client SDK
+    // — dit wordt gecontroleerd via de Vercel API die de score pas toont
+    // nadat de leerkracht de sessie afsluit.
+    //
+    // GDPR: scores zijn geen gezondheidsdata maar prestatie-evaluaties.
+    // Ze worden na 14 dagen automatisch verwijderd via TTL (vervalt_op).
+    match /sport_lab_scores/{scoreId} {
+      allow read, write: if false; // Enkel via Admin SDK
+    }
+
+    // ─── Sport Lab: Toernooien ───────────────────────────────────────────────
+    // Toernooidata wordt geladen via de Vercel API (Admin SDK).
+    // Client SDK toegang is niet nodig — toernooi zit in de API response.
+    match /sport_lab_toernooien/{toernooiId} {
+      allow read, write: if false; // Enkel via Admin SDK
+    }
+
+    // ─── Sport Lab: Blessures ────────────────────────────────────────────────
+    match /sport_lab_blessures/{blessureId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // ─── Catch-all — alles wat hier niet staat wordt geblokkeerd ────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
