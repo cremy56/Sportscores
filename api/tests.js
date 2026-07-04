@@ -37,8 +37,8 @@ import {
 } from '../lib/handlers/scholen.js';
 
 import {
-    handleGetEhboStats, handleGetWelzijnStats,
-} from '../lib/handlers/welzijn.js';
+    handleGetEhboStats,
+} from '../lib/handlers/ehbo.js';
 
 import {
     handleStartSportLabSessie, handleSluitSportLabSessie,
@@ -140,9 +140,9 @@ export default async function handler(req, res) {
             case 'delete_rapportperiode':   return await handleDeleteRapportperiode(req, res, decodedToken);
             case 'save_rapportperiode':     return await handleSaveRapportperiode(req, res, decodedToken);
 
-            // ── Welzijn & EHBO stats (leerkracht view) ─────────────────────────
+            // ── EHBO stats (leerkracht view) ───────────────────────────────────
+            // (get_welzijn_stats verwijderd bij ontmanteling welzijnsmodule jul 2026)
             case 'get_ehbo_stats':          return await handleGetEhboStats(req, res, decodedToken);
-            case 'get_welzijn_stats':       return await handleGetWelzijnStats(req, res, decodedToken);
 
             // ── SportLab ──────────────────────────────────────────────────────
             case 'start_sportlab_sessie':        return await handleStartSportLabSessie(req, res, decodedToken);
