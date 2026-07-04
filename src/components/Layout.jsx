@@ -122,7 +122,7 @@ const ProfileMenu = ({
     const currentPath = location.pathname;
 
     const restrictedPaths = {
-      'leerling': ['/instellingen', '/welzijnsmonitor', '/groepsbeheer', '/sporttesten'],
+      'leerling': ['/instellingen', '/ehbo-monitor', '/groepsbeheer', '/sporttesten'],
       'leerkracht': ['/instellingen'],
       'administrator': [],
       'super-administrator': []
@@ -371,7 +371,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
 
     const currentPath = location.pathname;
     const restrictedPaths = {
-      'leerling': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer', '/welzijnsmonitor', '/groepsbeheer', '/sporttesten'],
+      'leerling': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer', '/ehbo-monitor', '/groepsbeheer', '/sporttesten'],
       'leerkracht': ['/instellingen', '/gebruikersbeheer', '/trainingsbeheer', '/schoolbeheer'],
       'administrator': ['/schoolbeheer'],
       'super-administrator': []
@@ -379,15 +379,12 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
 
     const isPathRestricted = restrictedPaths[activeRole]?.some(path => currentPath.startsWith(path));
 
-    // Redirect als welzijnsmodule uitgeschakeld is en gebruiker op welzijn-pagina zit
-    const welzijnPaths = ['/gezondheid', '/welzijnsmonitor'];
-    const isOnWelzijnPath = welzijnPaths.some(path => currentPath.startsWith(path));
-    const welzijnUitgeschakeld = schoolSettings?.welzijnModuleActief === false;
-
-    if (isPathRestricted || (isOnWelzijnPath && welzijnUitgeschakeld)) {
+    // (Welzijn-guard verwijderd bij ontmanteling welzijnsmodule jul 2026 —
+    //  de /gezondheid- en /welzijnsmonitor-routes zijn nu redirects in App.jsx.)
+    if (isPathRestricted) {
       navigate('/');
     }
-  }, [activeRole, location.pathname, navigate, profile, schoolSettings]);
+  }, [activeRole, location.pathname, navigate, profile]);
 
   const toggleMenu = () => {
     if (menuButtonRef.current) {
@@ -416,7 +413,6 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
   }, [realtimeProfile, activeRole, impersonatedStudent]);
 
   const isTeacherOrAdmin = activeRole === 'leerkracht' || activeRole === 'administrator' || activeRole === 'super-administrator';
-  const welzijnActief = schoolSettings !== null && schoolSettings?.welzijnModuleActief !== false; // verborgen tijdens laden én als uitgeschakeld
   const evolutieLinkText = isTeacherOrAdmin ? 'Portfolio' : 'Mijn Evolutie';
   const groeiplanLinkText = isTeacherOrAdmin ? 'Remediëring' : 'Groeiplan';
   const homeLinkText = schoolSettings?.sportdashboardAsHomepage ? 'Highscores' : 'Home';
@@ -430,8 +426,8 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     '/highscores': 'Highscores',
     '/evolutie': evolutieLinkText,
     '/groeiplan': groeiplanLinkText,
-    '/gezondheid': 'Gezondheid',
-    '/welzijnsmonitor': 'Welzijnsmonitor',
+    '/ehbo': 'EHBO',
+    '/ehbo-monitor': 'EHBO Monitor',
     '/groepsbeheer': 'Groepsbeheer',
     '/sporttesten': 'Sporttesten',
     '/gebruikersbeheer': 'Gebruikersbeheer',
@@ -485,9 +481,6 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
 
-            {(activeRole === 'leerling' || activeRole === 'super-administrator') && welzijnActief && (
-              <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gezondheid</NavLink></li>
-            )}
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/ehbo" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>EHBO</NavLink></li>
             )}
@@ -495,8 +488,8 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             {(activeRole === 'leerling' || isTeacherOrAdmin) && (
               <li><NavLink to="/sportlab" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>SportLab</NavLink></li>
             )}
-            {isTeacherOrAdmin && welzijnActief && (
-              <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
+            {isTeacherOrAdmin && (
+              <li><NavLink to="/ehbo-monitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>EHBO Monitor</NavLink></li>
             )}
 
             {isTeacherOrAdmin && (
@@ -555,9 +548,6 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             <li><NavLink to="/evolutie" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{evolutieLinkText}</NavLink></li>
             <li><NavLink to="/groeiplan" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>{groeiplanLinkText}</NavLink></li>
 
-            {(activeRole === 'leerling' || activeRole === 'super-administrator') && welzijnActief && (
-              <li><NavLink to="/gezondheid" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Gezondheid</NavLink></li>
-            )}
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/ehbo" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>EHBO</NavLink></li>
             )}
@@ -567,9 +557,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
             )}
             {isTeacherOrAdmin && (
               <>
-                {welzijnActief && (
-                  <li><NavLink to="/welzijnsmonitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Welzijnsmonitor</NavLink></li>
-                )}
+                <li><NavLink to="/ehbo-monitor" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>EHBO Monitor</NavLink></li>
                 <li><NavLink to="/groepsbeheer" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Groepsbeheer</NavLink></li>
                 <li><NavLink to="/sporttesten" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Sporttesten</NavLink></li>
               </>

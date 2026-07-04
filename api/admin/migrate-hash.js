@@ -27,6 +27,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { db, verifyToken } from '../../lib/firebaseAdmin.js';
+import { checkRateLimit, stuurRateLimitResponse } from '../../lib/rateLimiter.js';
 import { getMasterKey, getHashPepper } from '../../lib/keyManager.js';
 import { writeAuditLog } from '../../lib/auditLogger.js';
 import {
@@ -65,6 +66,10 @@ export default async function handler(req, res) {
     } catch {
         return res.status(401).json({ error: 'Niet geauthenticeerd' });
     }
+
+    // ── Rate limit (categorie 'admin', per gebruiker) ─────────────────────────
+    const rl = await checkRateLimit(req, { categorie: 'admin', uid: decodedToken.uid });
+    if (!rl.toegestaan) return stuurRateLimitResponse(res, rl.retryAfter);
 
     const adminSnap = await db.collection('users').doc(decodedToken.uid).get();
     if (!adminSnap.exists || adminSnap.data().rol !== 'super-administrator') {

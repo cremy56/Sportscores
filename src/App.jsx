@@ -29,14 +29,8 @@ import SetupAccount from './pages/SetupAccount';
 import NieuweTestafname from './pages/NieuweTestafname';
 import SchemaDetail from './pages/SchemaDetail'; 
 import Trainingsbeheer from './pages/Trainingsbeheer';
-import Gezondheid from './pages/Gezondheid';
-import Welzijnsmonitor from './pages/Welzijnsmonitor';
-import BewegingDetail from './pages/BewegingDetail';
-import MentaalDetail from './pages/MentaalDetail';
-import VoedingDetail from './pages/VoedingDetail';
-import SlaapDetail from './pages/SlaapDetail';
-import HartDetail from './pages/HartDetail';
 import EHBODetail from './pages/EHBODetail';
+import EHBOMonitor from './pages/EHBOMonitor';
 import Instellingen from './pages/Instellingen';
 import AlgemeenInstellingen from './pages/AlgemeenInstellingen';
 import SportLab from './pages/SportLab';
@@ -241,21 +235,20 @@ function App() {
                 <Route path="/testafname/:groepId/:testId/:datum" element={<TestafnameDetail />} />
                 <Route path="/trainingsbeheer/schema/:schemaId" element={<SchemaDetail />} />
 
-                {/* Welzijnsmodule — enkel zichtbaar als module actief is (bewaakt in Gezondheid.jsx) */}
-                <Route path="/gezondheid" element={<Gezondheid />} />
-                <Route path="/gezondheid/beweging" element={<BewegingDetail />} />
-                <Route path="/gezondheid/mentaal" element={<MentaalDetail />} />
-                <Route path="/gezondheid/voeding" element={<VoedingDetail />} />
-                <Route path="/gezondheid/slaap" element={<SlaapDetail />} />
-                <Route path="/gezondheid/hart" element={<HartDetail />} />
-
-                {/* EHBO staat los van welzijn — altijd toegankelijk voor leerlingen */}
-                <Route path="/ehbo" element={<EHBODetail />} />
-                {/* Oude /gezondheid/ehbo redirect voor bestaande bookmarks/links */}
+                {/* ONTMANTELD jul 2026 — welzijnsmodule (Gezondheid 2.0: datavrij by design).
+                    Redirects vangen oude bookmarks op. /gezondheid/ehbo staat vóór de
+                    wildcard maar wint sowieso: react-router v6 rangschikt op specificiteit. */}
                 <Route path="/gezondheid/ehbo" element={<Navigate to="/ehbo" replace />} />
+                <Route path="/gezondheid/*" element={<Navigate to="/" replace />} />
+                <Route path="/gezondheid" element={<Navigate to="/" replace />} />
+
+                {/* EHBO — eigen pagina, los van de (gesloopte) welzijnsmodule */}
+                <Route path="/ehbo" element={<EHBODetail />} />
                 <Route path="/sportlab" element={<SportLab />} />
 
-                <Route path="/welzijnsmonitor" element={<Welzijnsmonitor />} />
+                {/* EHBO Monitor — leerkrachtdashboard, opvolger van Welzijnsmonitor */}
+                <Route path="/ehbo-monitor" element={<EHBOMonitor />} />
+                <Route path="/welzijnsmonitor" element={<Navigate to="/ehbo-monitor" replace />} />
 
                 <Route path="/instellingen" element={<Instellingen />}>
                   <Route index element={<AlgemeenInstellingen />} />

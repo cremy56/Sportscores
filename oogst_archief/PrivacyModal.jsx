@@ -47,7 +47,7 @@ const RightCard = ({ icon, title, desc }) => (
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 export default function PrivacyModal({ isOpen, onClose }) {
-    const lastUpdated = '21 juni 2026';
+    const lastUpdated = '27 april 2026';
 
     // Sluit bij Escape
     useEffect(() => {
@@ -80,7 +80,7 @@ export default function PrivacyModal({ isOpen, onClose }) {
                         <span className="text-xl">🔒</span>
                         <div>
                             <h1 className="text-lg font-bold text-slate-900">Privacyverklaring SportScores</h1>
-                            <p className="text-xs text-slate-500">Laatste update: {lastUpdated} · Versie 2.0</p>
+                            <p className="text-xs text-slate-500">Laatste update: {lastUpdated} · Versie 1.0</p>
                         </div>
                     </div>
                     <button
@@ -99,7 +99,6 @@ export default function PrivacyModal({ isOpen, onClose }) {
                     <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl">
                         <p className="text-sm font-semibold text-amber-900 mb-2">📋 Samenvatting in eenvoudige taal</p>
                         <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
-                            <li>Je school (GO! scholengroep Waasland) is verantwoordelijk voor je gegevens; SportScores is de technische leverancier die ze in opdracht verwerkt.</li>
                             <li>SportScores bewaart jouw sportresultaten en een zelfgekozen bijnaam (nickname).</li>
                             <li>Je echte naam is versleuteld — leerkrachten zien je naam, maar ze staat nooit op een scherm of ranking.</li>
                             <li>Op het scorebord staat enkel jouw nickname, nooit je echte naam.</li>
@@ -108,20 +107,18 @@ export default function PrivacyModal({ isOpen, onClose }) {
                         </ul>
                     </div>
 
-                    <Section id="verantwoordelijke" title="1. Verwerkingsverantwoordelijke en verwerker">
-                        <p>De <strong>verwerkingsverantwoordelijke</strong> voor de verwerking van persoonsgegevens via SportScores is je onderwijsinstelling, vertegenwoordigd door:</p>
+                    <Section id="verantwoordelijke" title="1. Verwerkingsverantwoordelijke">
+                        <p>SportScores is een digitaal platform voor sportprestatieopvolging, ontwikkeld en beheerd door:</p>
                         <div className="bg-slate-50 rounded-xl p-4 mt-2 text-xs space-y-1">
-                            <p className="font-semibold text-slate-800">GO! scholengroep Waasland (Scholengroep 17)</p>
-                            <p>Onderdeel van het GO! onderwijs van de Vlaamse Gemeenschap</p>
-                            <p>Theo De Deckerlaan 2, 9140 Temse · Ondernemingsnummer: 0267381290</p>
-                            <p>Inrichtende macht van o.a. KA Beveren</p>
-                            <p>E-mail privacy: <a href="mailto:privacy@sgr17.be" className="text-blue-600 hover:underline">privacy@sgr17.be</a></p>
+                            <p className="font-semibold text-slate-800">Christoph Remy — SportScores</p>
+                            <p>Eenmanszaak · Ondernemingsnummer: BE 0766.639.993 <em>(fictief)</em></p>
+                            <p>Van Eykpark 17, 9250 Waasmunster</p>
+                            <p>E-mail: <a href="mailto:privacy@sportscores.be" className="text-blue-600 hover:underline">privacy@sportscores.be</a></p>
                         </div>
-                        <p className="mt-2">Het GO! (Onderwijs van de Vlaamse Gemeenschap, Willebroekkaai 36, 1000 Brussel, ondernemingsnummer 0850.036.635) is de overkoepelende openbare instelling met rechtspersoonlijkheid. De scholengroep treedt namens het GO! op als verwerkingsverantwoordelijke (Art. 4(7) AVG).</p>
-                        <p>De toepassing SportScores wordt geleverd en technisch beheerd door <strong>Remyzzzy</strong> (eenmanszaak van Christoph Remy), die hierbij optreedt als <strong>verwerker</strong> (Art. 4(8) AVG). De verwerking gebeurt uitsluitend in opdracht en onder de verantwoordelijkheid van de scholengroep, op basis van een <strong>verwerkersovereenkomst (DPA)</strong> conform Art. 28 AVG.</p>
+                        <p>Christoph Remy treedt op als <strong>verwerkingsverantwoordelijke</strong> (Art. 4(7) AVG). Met elke school wordt een afzonderlijke <strong>verwerkersovereenkomst (DPA)</strong> gesloten conform Art. 28 AVG.</p>
                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs">
-                            <p className="font-semibold text-blue-900 mb-1">ℹ️ Functionaris voor Gegevensbescherming (DPO)</p>
-                            <p className="text-blue-800">De scholengroep heeft een Functionaris voor Gegevensbescherming aangesteld. Je kan de DPO rechtstreeks contacteren voor alle privacyvragen: <a href="mailto:[DPO-e-mailadres invullen]" className="underline">[DPO-e-mailadres invullen]</a>. Voor de centrale diensten van het GO!: <a href="mailto:dpo@g-o.be" className="underline">dpo@g-o.be</a>.</p>
+                            <p className="font-semibold text-blue-900 mb-1">ℹ️ Geen DPO aangesteld</p>
+                            <p className="text-blue-800">Gezien de huidige schaal is er nog geen Functionaris voor Gegevensbescherming aangesteld. Voor alle privacyvragen: <a href="mailto:privacy@sportscores.be" className="underline">privacy@sportscores.be</a>. Wij antwoorden binnen 5 werkdagen.</p>
                         </div>
                     </Section>
 
@@ -137,7 +134,7 @@ export default function PrivacyModal({ isOpen, onClose }) {
                         ]} />
                         <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mt-3 text-xs">
                             <p className="font-semibold text-orange-900 mb-1">⚠️ Welzijnsmodule — Art. 9 AVG</p>
-                            <p className="text-orange-800">Welzijnsgegevens worden enkel verwerkt op basis van uitdrukkelijke toestemming en zijn uitsluitend voor de leerling zelf zichtbaar. Het loggen is volledig vrijblijvend en staat los van XP-punten of beloningen, zodat er geen druk ontstaat om gezondheidsgegevens in te voeren. De module kan door de school worden uitgeschakeld.</p>
+                            <p className="text-orange-800">Welzijnsgegevens worden enkel verwerkt op basis van uitdrukkelijke toestemming bij elke invoer. Leerkrachten zien enkel anonieme statistieken. De module kan door de school worden uitgeschakeld.</p>
                         </div>
                     </Section>
 
@@ -161,7 +158,7 @@ export default function PrivacyModal({ isOpen, onClose }) {
                             ['Sportscores', 'Max. 10 jaar na inschrijving', 'Ontkoppeld van identiteit'],
                             ['Alltime top 5', 'Permanent (gearchiveerd)', 'Enkel nickname — geen ID'],
                             ['Welzijnsgegevens', 'Schooljaar + 1 jaar', 'Of eerder op verzoek'],
-                            ['Audit logs', '3 jaar', 'Automatisch gewist'],
+                            ['Audit logs', '1 jaar', 'Automatisch gewist'],
                         ]} />
                         <div className="bg-slate-50 rounded-xl p-3 mt-3 text-xs border border-slate-200">
                             <p className="font-semibold text-slate-800 mb-1">📅 Virtueel afstudeerjaar</p>
@@ -169,21 +166,20 @@ export default function PrivacyModal({ isOpen, onClose }) {
                         </div>
                     </Section>
 
-                    <Section id="ontvangers" title="5. Ontvangers en verwerkers">
+                    <Section id="ontvangers" title="5. Ontvangers">
                         <Table rows={[
                             ['Ontvanger', 'Rol', 'Gegevens'],
                             ['Leerkrachten', 'Intern — eigen klassen', 'Ontsleutelde naam + scores'],
                             ['Schooladministrator', 'Intern — eigen school', 'Alle gegevens eigen school'],
-                            ['Remyzzzy (SportScores)', 'Verwerker (Art. 28)', 'Technisch beheer in opdracht van de scholengroep'],
-                            ['Vercel Inc.', 'Subverwerker (Art. 28)', 'Technische hosting — EU servers'],
-                            ['Google Firebase', 'Subverwerker (Art. 28)', 'Versleutelde opslag — EU regio'],
+                            ['Vercel Inc.', 'Verwerker (Art. 28)', 'Technische hosting — EU servers'],
+                            ['Google Firebase', 'Verwerker (Art. 28)', 'Versleutelde opslag — EU regio'],
                             ['Smartschool', 'Authenticatiebron', 'Enkel login-token — geen sportdata'],
                         ]} />
-                        <p>De verwerker en subverwerkers handelen uitsluitend in opdracht van de scholengroep, op basis van verwerkersovereenkomsten. Gegevens worden <strong>nooit</strong> verkocht of gedeeld met advertentiepartners.</p>
+                        <p>Gegevens worden <strong>nooit</strong> verkocht of gedeeld met advertentiepartners.</p>
                     </Section>
 
                     <Section id="rechten" title="6. Uw rechten">
-                        <p>Je oefent je rechten uit bij de verwerkingsverantwoordelijke, via <a href="mailto:privacy@sgr17.be" className="text-blue-600 hover:underline">privacy@sgr17.be</a> of bij de DPO. De scholengroep antwoordt binnen 30 dagen. Een aantal acties (nickname wijzigen, welzijnsgegevens verwijderen) kan je ook rechtstreeks in de app uitvoeren.</p>
+                        <p>Uitoefenen via <a href="mailto:privacy@sportscores.be" className="text-blue-600 hover:underline">privacy@sportscores.be</a> — wij antwoorden binnen 30 dagen.</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
                             <RightCard icon="👁️" title="Inzage (Art. 15)" desc="Opvragen welke gegevens wij verwerken." />
                             <RightCard icon="✏️" title="Rectificatie (Art. 16)" desc="Onjuiste gegevens laten corrigeren. Nickname zelf wijzigen op de website." />
@@ -205,36 +201,35 @@ export default function PrivacyModal({ isOpen, onClose }) {
                         </ul>
                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mt-3 text-xs">
                             <p className="font-semibold text-blue-900 mb-1">🇧🇪 Belgische leeftijdsgrens</p>
-                            <p className="text-blue-800">Minimumleeftijd 13 jaar (Art. 8 AVG, Belgische Privacywet). Basisfunctionaliteit is gebaseerd op de onderwijstaak van de scholengroep (Art. 6(1)(e)) — geen afzonderlijke ouderlijke toestemming vereist voor kernfunctionaliteit. De scholengroep en school informeren ouders via het schoolreglement en de toestemmingscommunicatie.</p>
+                            <p className="text-blue-800">Minimumleeftijd 13 jaar (Art. 8 AVG, Belgische Privacywet). Basisfunctionaliteit is gebaseerd op de onderwijstaak (Art. 6(1)(e)) — geen afzonderlijke ouderlijke toestemming vereist voor kernfunctionaliteit. School informeert ouders via schoolreglement.</p>
                         </div>
                     </Section>
 
                     <Section id="beveiliging" title="8. Beveiliging (Art. 32 AVG)">
                         <ul className="list-disc list-inside space-y-1">
                             <li><strong>AES-256-GCM</strong> voor naamversleuteling — sleutel in Google Secret Manager.</li>
-                            <li><strong>SHA-256 hash met salt/HMAC</strong> voor Smartschool-ID's — eenrichtingsversleuteld en bestand tegen brute-force.</li>
+                            <li><strong>SHA-256 hash</strong> voor Smartschool-ID's — eenrichtingsversleuteld.</li>
                             <li><strong>Rol-gebaseerde toegang</strong> — leerkrachten zien enkel eigen klassen.</li>
                             <li><strong>API-first</strong> — geen directe databasetoegang vanuit browser.</li>
                             <li><strong>TLS 1.3</strong> voor alle verbindingen.</li>
                             <li><strong>Audit logs</strong> voor alle administratieve handelingen.</li>
                         </ul>
-                        <p>Bij een datalek meldt de verwerkingsverantwoordelijke dit binnen 72u aan de bevoegde toezichthouder (Art. 33); de verwerker stelt de scholengroep onverwijld op de hoogte. Betrokkenen worden ingelicht bij hoog risico (Art. 34).</p>
+                        <p>Bij een datalek: GBA verwittigd binnen 72u (Art. 33) en betrokkenen bij hoog risico (Art. 34).</p>
                     </Section>
 
                     <Section id="klacht" title="9. Klacht indienen">
-                        <p>Je kan een klacht indienen bij de <strong>Gegevensbeschermingsautoriteit (GBA)</strong>, de federale toezichthouder:</p>
+                        <p>Klacht indienen bij de <strong>Gegevensbeschermingsautoriteit (GBA)</strong>:</p>
                         <div className="bg-slate-50 rounded-xl p-3 mt-2 text-xs space-y-1">
-                            <p>Drukpersstraat 35, 1000 Brussel · +32 (0)2 274 48 00</p>
+                            <p>Persstraat 35, 1000 Brussel · +32 (0)2 274 48 00</p>
                             <p><a href="https://www.gegevensbeschermingsautoriteit.be" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">www.gegevensbeschermingsautoriteit.be</a></p>
                             <p><a href="mailto:contact@apd-gba.be" className="text-blue-600 hover:underline">contact@apd-gba.be</a></p>
                         </div>
-                        <p className="mt-3 text-xs text-slate-500">Voor verwerkingen door Vlaamse overheidsinstanties kan daarnaast de Vlaamse Toezichtcommissie (VTC) een rol spelen. De bevoegdheidsverdeling tussen GBA en VTC is op dit moment juridisch in beweging; bij twijfel kan je je klacht aan de GBA richten of eerst bij de DPO van de scholengroep terecht.</p>
                     </Section>
 
                     {/* Footer */}
                     <div className="mt-6 pt-4 border-t border-slate-200 text-center">
                         <p className="text-xs text-slate-400">
-                            SportScores · Verwerkingsverantwoordelijke: GO! scholengroep Waasland · Verwerker: Remyzzzy (Christoph Remy) · Versie 2.0 · {lastUpdated}
+                            SportScores · Christoph Lemaire · BE 0123.456.789 · Versie 1.0 · {lastUpdated}
                         </p>
                     </div>
                 </div>

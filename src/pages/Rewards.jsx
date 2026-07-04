@@ -2,17 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Trophy, Star, TrendingUp, Zap } from 'lucide-react';
 
+// Herijkt bij ontmanteling welzijnsmodule (jul 2026):
+// - Welzijn Kompas XP (segment + volledig) VERWIJDERD
+// - Perfect Week welzijn-variant VERWIJDERD (enkel nog 3× training)
+// - Klas Challenge VERWIJDERD (class-challenge-functions.js gesloopt)
+// - Streak telt nu op trainingsdagen (last_activity_date via awardTrainingXP)
+// Principe Gezondheid 2.0: XP beloont weten (EHBO, quizzen) en sportinzet,
+// nooit gezondheidsgedrag of -metingen.
 const XP = {
-  WELZIJN_SEGMENT: 4,
-  KOMPAS_VOLLEDIG: 100,
-  PERFECT_WEEK_WELZIJN: 500,
   PERFECT_WEEK_TRAINING: 300,
   WEEKLY_TRAINING_BONUS: 150,
   TRAINING_PROGRAMMA: 800,
   STREAK_7: 300,
   STREAK_30: 1200,
   STREAK_100: 4000,
-  KLAS_CHALLENGE: 500,
   EHBO: [30, 10, 5, 1],
   LEADERBOARD: [1000, 750, 500, 250, 100],
   PR: 500,
@@ -113,18 +116,17 @@ const Rewards = () => {
           <p className="text-xs text-gray-500 mb-4">Deze acties verhogen je Periodescore, Jaarscore en Carrièrescore.</p>
           <div className="space-y-4">
             <div>
-              <p className="font-semibold">Welzijn Kompas</p>
-              <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
-                <li>Per segment ingevuld: <span className="font-bold">+{XP.WELZIJN_SEGMENT} XP</span></li>
-                <li>Kompas volledig (alle 5): <span className="font-bold">+{XP.KOMPAS_VOLLEDIG} XP</span> <span className="text-xs text-gray-400">incl. bonus</span></li>
-              </ul>
-            </div>
-            <div>
               <p className="font-semibold">Trainingen</p>
               <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
                 <li>Training gelogd: <span className="font-bold">XP via schema</span></li>
                 <li>Trainingsprogramma voltooid (90%): <span className="font-bold">+{XP.TRAINING_PROGRAMMA} XP</span></li>
                 <li>3+ trainingen in de week: <span className="font-bold">+{XP.WEEKLY_TRAINING_BONUS} XP</span></li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-semibold">Perfect Week</p>
+              <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
+                <li>3× training in één week: <span className="font-bold">+{XP.PERFECT_WEEK_TRAINING} XP</span></li>
               </ul>
             </div>
             <div>
@@ -134,14 +136,7 @@ const Rewards = () => {
                 <li>30 Dagen: <span className="font-bold">+{XP.STREAK_30} XP</span></li>
                 <li>100 Dagen: <span className="font-bold">+{XP.STREAK_100} XP</span></li>
               </ul>
-              <p className="text-xs text-gray-400 mt-1">Streak telt als je elke dag welzijn invult of een training logt.</p>
-            </div>
-            <div>
-              <p className="font-semibold">Perfect Week</p>
-              <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-1">
-                <li>5× kompas + 2× training: <span className="font-bold">+{XP.PERFECT_WEEK_WELZIJN} XP</span></li>
-                <li>3× training (zonder welzijn): <span className="font-bold">+{XP.PERFECT_WEEK_TRAINING} XP</span></li>
-              </ul>
+              <p className="text-xs text-gray-400 mt-1">Streak telt als je elke dag een training logt.</p>
             </div>
             <div>
               <p className="font-semibold">EHBO</p>
@@ -169,7 +164,7 @@ const Rewards = () => {
 
         {/* Kolom 2 */}
         <div>
-          <h4 className="font-bold text-blue-700 mb-3 border-b-2 border-blue-200 pb-2">Sportprestaties & Teamwork</h4>
+          <h4 className="font-bold text-blue-700 mb-3 border-b-2 border-blue-200 pb-2">Sportprestaties</h4>
           <p className="text-xs text-gray-500 mb-4">Tellen mee voor Jaarscore en Carrièrescore, niet voor Periodescore.</p>
           <div className="space-y-4">
             <div>
@@ -183,12 +178,6 @@ const Rewards = () => {
             <div>
               <p className="font-semibold">Persoonlijk Record Verbreken</p>
               <p className="text-sm text-gray-600 mt-1"><span className="font-bold">+{XP.PR} XP</span> bij elke PR.</p>
-            </div>
-            <div className="mt-6">
-              <h4 className="font-bold text-green-700 mb-3 border-b-2 border-green-200 pb-2">Teamwork</h4>
-              <p className="text-xs text-gray-500 mb-3">Telt mee voor alle scores (Periode, Jaar en Carrière).</p>
-              <p className="font-semibold">Klas Challenge</p>
-              <p className="text-sm text-gray-600 mt-1">Teambonus van <span className="font-bold">+{XP.KLAS_CHALLENGE} XP</span> bij behalen.</p>
             </div>
           </div>
         </div>
