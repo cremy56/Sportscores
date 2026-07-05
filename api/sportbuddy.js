@@ -6,6 +6,7 @@ import { checkRateLimit, stuurRateLimitResponse, categorieVoorAction } from '../
 
 import {
     handleGetBuddy, handleCreateBuddy, handleVerzorgDag, handleZetRustperiode,
+    handleResolveEvent,
 } from '../lib/handlers/sportbuddy.js';
 
 // ─── HOOFD HANDLER ────────────────────────────────────────────────────────────
@@ -31,7 +32,8 @@ export default async function handler(req, res) {
             case 'create_buddy':     return await handleCreateBuddy(req, res, decodedToken);
             case 'verzorg_dag':      return await handleVerzorgDag(req, res, decodedToken);
             case 'zet_rustperiode':  return await handleZetRustperiode(req, res, decodedToken);
-            // Sessie 3+: resolve_event · complete_kennis
+            case 'resolve_event':    return await handleResolveEvent(req, res, decodedToken);
+            // Sessie 5: complete_kennis
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
         }

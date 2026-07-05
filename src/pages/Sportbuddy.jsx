@@ -12,6 +12,7 @@ import PageHeader from '../components/PageHeader';
 import AanmaakWizard from '../components/sportbuddy/AanmaakWizard';
 import BuddyAvatar from '../components/sportbuddy/BuddyAvatar';
 import VerzorgPaneel from '../components/sportbuddy/VerzorgPaneel';
+import EventModal from '../components/sportbuddy/EventModal';
 import { getSport, STATS } from '../data/sportbuddy/sporten';
 
 function StatBalk({ label, waarde, kleur = 'from-purple-500 to-blue-500' }) {
@@ -62,6 +63,10 @@ export default function Sportbuddy() {
   const [buddy, setBuddy] = useState(null);
   const [vandaagVerzorgd, setVandaagVerzorgd] = useState(false);
   const [meldingen, setMeldingen] = useState([]);
+  const [context, setContext] = useState(null);
+  const [statusbericht, setStatusbericht] = useState(null);
+  const [event, setEvent] = useState(null);
+  const [eventOpen, setEventOpen] = useState(false);
   const [laden, setLaden] = useState(true);
   const [apiFout, setApiFout] = useState(null);
   const [rustBezig, setRustBezig] = useState(false);
@@ -86,6 +91,10 @@ export default function Sportbuddy() {
       setBuddy(result.buddy || null);
       setVandaagVerzorgd(!!result.vandaag_verzorgd);
       setMeldingen(result.meldingen || []);
+      setContext(result.context || null);
+      setStatusbericht(result.statusbericht || null);
+      setEvent(result.event || null);
+      setEventOpen(!!result.event);
     } catch (error) {
       console.error('get_buddy mislukt:', error.message);
       setApiFout(error.message);
@@ -102,6 +111,10 @@ export default function Sportbuddy() {
     setBuddy(result.buddy);
     setVandaagVerzorgd(true);
     setMeldingen(result.meldingen || []);
+  };
+
+  const handleEventResolved = (result) => {
+    setBuddy(result.buddy);
   };
 
   const wisselRustperiode = async () => {
@@ -184,6 +197,38 @@ export default function Sportbuddy() {
         title="Sportbuddy"
         subtitle={`${buddyNaam} · ${sport ? `${sport.emoji} ${sport.naam}` : ''} · dag ${buddy.seizoen?.dag ?? 1} van het seizoen · 🪙 ${buddy.coins ?? 0}`}
       />
+
+      {context && (
+        <div className="max-w-5xl mx-auto mb-4 flex flex-wrap items-center gap-3 text-sm">
+          <span className="bg-white shadow rounded-full px-4 py-2 font-semibold text-gray-700">
+            {context.weer?.emoji} {context.weer?.tempMax}°C · {context.weer?.label}
+          </span>
+          <span className="bg-white shadow rounded-full px-4 py-2 font-semibold text-gray-700">
+            {context.kalender?.matchdag
+              ? '🏟️ Vandaag: WEDSTRIJDDAG'
+              : `⚽ Wedstrijd over ${context.kalender?.dagenTotMatch} ${context.kalender?.dagenTotMatch === 1 ? 'dag' : 'dagen'} (zaterdag)`}
+          </span>
+        </div>
+      )}
+
+      {statusbericht && (
+        <div className="max-w-5xl mx-auto mb-4 bg-white border-l-4 border-purple-500 shadow rounded-xl px-4 py-3">
+          <p className="text-sm text-gray-800">{statusbericht.tekst}</p>
+          {statusbericht.hint && <p className="text-xs text-purple-600 mt-1">💡 {statusbericht.hint}</p>}
+        </div>
+      )}
+
+      {event && !eventOpen && (
+        <div className="max-w-5xl mx-auto mb-4">
+          <button
+            type="button"
+            onClick={() => setEventOpen(true)}
+            className="w-full bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl px-4 py-3 font-bold shadow hover:shadow-lg transition-all text-left"
+          >
+            {event.emoji} {event.titel} — er wacht een beslissing op je buddy! (+10 XP)
+          </button>
+        </div>
+      )}
 
       {meldingen.length > 0 && (
         <div className="max-w-5xl mx-auto mb-6 space-y-2">
@@ -273,6 +318,15 @@ export default function Sportbuddy() {
           🔒 Alles hier gaat over je fictieve buddy — nooit over jouw eigen gezondheid.
         </p>
       </div>
+
+      {event && eventOpen && (
+        <EventModal
+          event={event}
+          profile={profile}
+          onResolved={handleEventResolved}
+          onClose={() => { setEventOpen(false); setEvent(null); }}
+        />
+      )}
     </div>
   );
 }
