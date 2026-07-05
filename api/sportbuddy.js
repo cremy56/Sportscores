@@ -5,7 +5,7 @@ import { verifyToken } from '../lib/firebaseAdmin.js';
 import { checkRateLimit, stuurRateLimitResponse, categorieVoorAction } from '../lib/rateLimiter.js';
 
 import {
-    handleGetBuddy, handleCreateBuddy,
+    handleGetBuddy, handleCreateBuddy, handleVerzorgDag, handleZetRustperiode,
 } from '../lib/handlers/sportbuddy.js';
 
 // ─── HOOFD HANDLER ────────────────────────────────────────────────────────────
@@ -27,9 +27,11 @@ export default async function handler(req, res) {
         if (!rl.toegestaan) return stuurRateLimitResponse(res, rl.retryAfter);
 
         switch (action) {
-            case 'get_buddy':     return await handleGetBuddy(req, res, decodedToken);
-            case 'create_buddy':  return await handleCreateBuddy(req, res, decodedToken);
-            // Sessie 2+: verzorg_dag · resolve_event · complete_kennis · zet_rustperiode
+            case 'get_buddy':        return await handleGetBuddy(req, res, decodedToken);
+            case 'create_buddy':     return await handleCreateBuddy(req, res, decodedToken);
+            case 'verzorg_dag':      return await handleVerzorgDag(req, res, decodedToken);
+            case 'zet_rustperiode':  return await handleZetRustperiode(req, res, decodedToken);
+            // Sessie 3+: resolve_event · complete_kennis
             default:
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
         }
