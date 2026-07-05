@@ -172,6 +172,12 @@ export default function Sportbuddy() {
   const risico = RISICO_BADGE[dagstaat.blessurerisico] || RISICO_BADGE.laag;
   const opRust = !!buddy.seizoen?.rustperiode;
 
+  // Conditie voor de avatar: je ZIET overtraining, vermoeidheid en topvorm
+  let conditie = 'fris';
+  if ((buddy.vermoeidheid ?? 0) > 70 || dagstaat.vorm < -20) conditie = 'uitgeput';
+  else if ((buddy.vermoeidheid ?? 0) > 45 || dagstaat.vorm < -8) conditie = 'moe';
+  else if (dagstaat.vorm >= 25) conditie = 'top';
+
   return (
     <div>
       <PageHeader
@@ -198,6 +204,11 @@ export default function Sportbuddy() {
               huid={buddy.avatar?.huid}
               haar={buddy.avatar?.haar}
               haarkleur={buddy.avatar?.haarkleur}
+              graad={buddy.weergave?.graad ?? 1}
+              lichaam={buddy.weergave?.lichaam ?? 'neutraal'}
+              kracht={buddy.stats?.K ?? 10}
+              conditie={conditie}
+              blessure={!!buddy.gezondheid?.blessure}
               className="w-full"
             />
           </div>

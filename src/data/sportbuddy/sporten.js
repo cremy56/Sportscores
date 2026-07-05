@@ -72,3 +72,23 @@ export const SPORTEN = [
 export function getSport(id) {
   return SPORTEN.find((s) => s.id === id) || null;
 }
+
+// ─── Weergave-helpers (avatar) ────────────────────────────────────────────────
+// Graad uit de klas (1-2 → 1ste, 3-4 → 2de, 5-6 → 3de graad).
+// Zelfde logica als server-side (lib/sportbuddy/constants.js) — synchroon houden.
+export function graadVanKlas(klas) {
+  const match = (klas || '').toString().match(/^(\d)/);
+  const leerjaar = match ? parseInt(match[1], 10) : 0;
+  if (leerjaar >= 1 && leerjaar <= 2) return 1;
+  if (leerjaar >= 3 && leerjaar <= 4) return 2;
+  if (leerjaar >= 5 && leerjaar <= 6) return 3;
+  return 2;
+}
+
+// 'm' | 'v' | null (null = onbekend/X → leerling kiest lichaam in de wizard)
+export function weergaveGeslacht(geslacht) {
+  const g = (geslacht || '').toString().toLowerCase();
+  if (['m', 'man', 'jongen'].includes(g)) return 'm';
+  if (['v', 'vrouw', 'meisje'].includes(g)) return 'v';
+  return null;
+}

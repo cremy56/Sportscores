@@ -1,8 +1,15 @@
 // src/components/sportbuddy/BuddyAvatar.jsx
-// v1: chibi-cartoon avatar als gelaagde SVG (groot hoofd, grote glansogen,
-// schaduw/gradiënten, voetbaltenue). Bewust illustratief (GDD-beslissing):
-// vergroot de afstand tot echte lichamen. Identiek startlichaam voor iedereen;
-// gezicht/huid/haar zijn puur cosmetisch. Lichaamsevolutie (3 stadia): sessie 3.
+// v2: parametrische chibi-avatar die meegroeit met de leerling én met de buddy.
+//   • graad (1|2|3)      → lichaamsproporties: 1ste graad kinderlijk chibi,
+//                          2de graad langer, 3de graad jongvolwassen/atletisch
+//   • geslacht/lichaam   → 'm' | 'v' | 'neutraal' (schouder/heup-verhouding)
+//   • kracht (K-stat)    → schouderbreedte, armdikte en spierdefinitie groeien
+//                          beetje bij beetje mee (pas echt zichtbaar in 3de graad)
+//   • conditie           → 'fris' | 'top' (aura) | 'moe' | 'uitgeput' (houding,
+//                          wallen) — je ZIET detraining en overtraining
+//   • blessure           → verbandje op de arm
+// GDD-grens: evolutie is altijd atletischer/energieker of vermoeider —
+// nooit dikker of lelijker (geen lichaamskritiek-mechaniek).
 
 import { useId } from 'react';
 
@@ -10,19 +17,24 @@ export const HUID_TINTEN = ['#f6d7b0', '#e8b98a', '#c68863', '#8d5a3b'];
 export const HAAR_KLEUREN = ['#2d2a26', '#6b4a2b', '#b0813f', '#d9c169', '#a33b2e'];
 export const HAAR_STIJLEN = ['spikes', 'krullen', 'lang', 'kuif', 'kaal'];
 export const GEZICHTEN = ['blij', 'focus', 'ontspannen', 'guitig'];
+export const LICHAMEN = ['m', 'v', 'neutraal'];
 
-// Licht/schaduw-varianten per huidtint (zelfde volgorde als HUID_TINTEN)
 const HUID_PALET = [
   { licht: '#fdeccd', basis: '#f6d7b0', schaduw: '#e0b88b' },
   { licht: '#f4d3a9', basis: '#e8b98a', schaduw: '#cf9a66' },
   { licht: '#d9a37e', basis: '#c68863', schaduw: '#a56c4a' },
   { licht: '#a97350', basis: '#8d5a3b', schaduw: '#6e432b' },
 ];
-
-// Highlight per haarkleur (zelfde volgorde als HAAR_KLEUREN)
 const HAAR_HIGHLIGHT = ['#524c44', '#8a6339', '#c99a55', '#e9d78d', '#c05a48'];
 
-function Haar({ stijl, kleur, highlight, gradId }) {
+// Proporties per graad (voeten staan altijd op dezelfde grond, y≈274)
+const GRAAD_DIMS = {
+  1: { s: 1.0, hoofdY: 92, torsoTop: 152, torsoBot: 206, shortBot: 232, beenTop: 226, schouder: 30, heup: 33, armW: 14, spierSchouder: 1.5, spierArm: 0.5 },
+  2: { s: 0.86, hoofdY: 80, torsoTop: 132, torsoBot: 198, shortBot: 228, beenTop: 224, schouder: 33, heup: 32, armW: 13, spierSchouder: 5, spierArm: 2 },
+  3: { s: 0.74, hoofdY: 70, torsoTop: 112, torsoBot: 190, shortBot: 224, beenTop: 220, schouder: 37, heup: 30, armW: 12, spierSchouder: 9, spierArm: 4.5 },
+};
+
+function Haar({ stijl, highlight, gradId }) {
   switch (stijl) {
     case 'krullen':
       return (
@@ -70,16 +82,15 @@ function Haar({ stijl, kleur, highlight, gradId }) {
   }
 }
 
-function Mond({ variant }) {
+function Mond({ variant, moe }) {
+  if (moe) return <path d="M88 118 Q100 114 112 118" stroke="#8c4a32" strokeWidth="3.5" fill="none" strokeLinecap="round" />;
   switch (variant) {
     case 'focus':
       return <path d="M88 118 Q100 122 112 118" stroke="#8c4a32" strokeWidth="3.5" fill="none" strokeLinecap="round" />;
     case 'ontspannen':
       return <path d="M88 116 Q100 126 112 116" stroke="#8c4a32" strokeWidth="3.5" fill="none" strokeLinecap="round" />;
     case 'guitig':
-      return (
-        <path d="M86 114 Q100 130 116 112 Q104 122 86 114 Z" fill="#8c4a32" />
-      );
+      return <path d="M86 114 Q100 130 116 112 Q104 122 86 114 Z" fill="#8c4a32" />;
     case 'blij':
     default:
       return (
@@ -103,13 +114,11 @@ function Ogen({ variant, irisId }) {
   const rechterDicht = variant === 'guitig';
   return (
     <g>
-      {/* Linkeroog */}
       <ellipse cx="79" cy="92" rx="11" ry="13" fill="#fff" />
       <circle cx="80" cy="94" r="7.5" fill={`url(#${irisId})`} />
       <circle cx="80" cy="94" r="3.5" fill="#1c130e" />
       <circle cx="83" cy="90" r="2.6" fill="#fff" />
       <circle cx="77.5" cy="97" r="1.3" fill="#fff" opacity="0.9" />
-      {/* Rechteroog */}
       {rechterDicht ? (
         <path d="M112 92 Q121 86 130 92" stroke="#3a2f28" strokeWidth="4" fill="none" strokeLinecap="round" />
       ) : (
@@ -143,7 +152,12 @@ function Wenkbrauwen({ variant }) {
   );
 }
 
-export default function BuddyAvatar({ gezicht = 0, huid = 0, haar = 0, haarkleur = 0, className = '' }) {
+export default function BuddyAvatar({
+  gezicht = 0, huid = 0, haar = 0, haarkleur = 0,
+  graad = 1, lichaam = 'm', kracht = 10,
+  conditie = 'fris', blessure = false,
+  className = '',
+}) {
   const rawId = useId();
   const uid = rawId.replace(/[^a-zA-Z0-9]/g, '');
   const palet = HUID_PALET[huid] || HUID_PALET[0];
@@ -152,10 +166,37 @@ export default function BuddyAvatar({ gezicht = 0, huid = 0, haar = 0, haarkleur
   const haarStijl = HAAR_STIJLEN[haar] || HAAR_STIJLEN[0];
   const gezichtVariant = GEZICHTEN[gezicht] || GEZICHTEN[0];
 
+  const dims = GRAAD_DIMS[graad] || GRAAD_DIMS[1];
+  const K = Math.max(0, Math.min(100, kracht));
+
+  // Lichaamsvorm: geslacht/lichaamskeuze stuurt schouder/heup (vanaf 2de graad)
+  let schouder = dims.schouder;
+  let heup = dims.heup;
+  if (graad >= 2) {
+    if (lichaam === 'v') { schouder -= 4; heup += 3; }
+    if (lichaam === 'neutraal') { schouder -= 2; heup += 1; }
+  }
+  // Spiergroei: kracht verbreedt schouders en armen — per graad sterker
+  // (1ste graad amper: prepuberale krachtwinst is vooral neuraal)
+  schouder += (K / 100) * dims.spierSchouder;
+  const armW = dims.armW + (K / 100) * dims.spierArm;
+  const spierOpacity = graad === 1 ? 0 : Math.max(0, (K - 25) / 75) * (graad === 3 ? 0.85 : 0.4);
+
+  const moe = conditie === 'moe' || conditie === 'uitgeput';
+  const droop = conditie === 'uitgeput' ? 5 : moe ? 3 : 0;
+  const hoofdKantel = moe ? (conditie === 'uitgeput' ? -6 : -3) : 0;
+
   const huidGrad = `huid${uid}`;
   const haarGrad = `haar${uid}`;
   const shirtGrad = `shirt${uid}`;
   const irisGrad = `iris${uid}`;
+  const auraGrad = `aura${uid}`;
+
+  const tTop = dims.torsoTop + droop;
+  const tBot = dims.torsoBot;
+  const armY = tTop + 8;
+  const hoofdS = dims.s;
+  const hoofdY = dims.hoofdY + droop;
 
   return (
     <svg viewBox="0 0 200 300" className={className} role="img" aria-label="Jouw Sportbuddy">
@@ -178,20 +219,32 @@ export default function BuddyAvatar({ gezicht = 0, huid = 0, haar = 0, haarkleur
           <stop offset="0%" stopColor="#8a5a3a" />
           <stop offset="100%" stopColor="#4a2c18" />
         </radialGradient>
+        <radialGradient id={auraGrad} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+        </radialGradient>
       </defs>
+
+      {/* Topvorm-aura */}
+      {conditie === 'top' && <ellipse cx="100" cy="160" rx="88" ry="126" fill={`url(#${auraGrad})`} />}
 
       {/* Grondschaduw */}
       <ellipse cx="100" cy="284" rx="58" ry="9" fill="#000" opacity="0.10" />
 
-      {/* Benen + kousen + sneakers */}
+      {/* Benen + kousen + sneakers (voeten op vaste grond) */}
       <g>
-        <rect x="80" y="228" width="14" height="20" rx="6" fill={`url(#${huidGrad})`} />
-        <rect x="106" y="228" width="14" height="20" rx="6" fill={`url(#${huidGrad})`} />
+        <rect x="80" y={dims.beenTop} width="14" height={250 - dims.beenTop} rx="6" fill={`url(#${huidGrad})`} />
+        <rect x="106" y={dims.beenTop} width="14" height={250 - dims.beenTop} rx="6" fill={`url(#${huidGrad})`} />
+        {graad === 3 && (
+          <g stroke={palet.schaduw} strokeWidth="1.6" opacity={spierOpacity * 0.7} fill="none">
+            <path d={`M83 ${dims.beenTop + 8} Q87 ${dims.beenTop + 14} 84 ${dims.beenTop + 20}`} />
+            <path d={`M109 ${dims.beenTop + 8} Q113 ${dims.beenTop + 14} 110 ${dims.beenTop + 20}`} />
+          </g>
+        )}
         <rect x="79" y="244" width="16" height="20" rx="6" fill="#fff" />
         <rect x="105" y="244" width="16" height="20" rx="6" fill="#fff" />
         <rect x="79" y="248" width="16" height="4" fill="#7c3aed" />
         <rect x="105" y="248" width="16" height="4" fill="#7c3aed" />
-        {/* Sneakers */}
         <path d="M76 264 Q76 258 84 258 L94 258 Q98 262 98 268 Q98 274 92 274 L80 274 Q74 274 74 269 Z" fill="#f4f4f6" />
         <path d="M104 264 Q104 258 112 258 L122 258 Q126 262 126 268 Q126 274 120 274 L108 274 Q102 274 102 269 Z" fill="#f4f4f6" />
         <path d="M74 269 Q74 273 80 273 L92 273 Q97 273 97 268 L74 268 Z" fill="#7c3aed" />
@@ -201,43 +254,79 @@ export default function BuddyAvatar({ gezicht = 0, huid = 0, haar = 0, haarkleur
       </g>
 
       {/* Short */}
-      <path d="M72 200 L128 200 L132 232 Q116 238 102 232 L100 226 L98 232 Q84 238 68 232 Z" fill="#5f2bb8" />
-      <path d="M72 206 L68 230 M128 206 L132 230" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+      <path
+        d={`M${100 - heup + 2} ${tBot - 6} L${100 + heup - 2} ${tBot - 6} L${100 + heup + 3} ${dims.shortBot} Q116 ${dims.shortBot + 6} 102 ${dims.shortBot} L100 ${dims.shortBot - 6} L98 ${dims.shortBot} Q84 ${dims.shortBot + 6} ${100 - heup - 3} ${dims.shortBot} Z`}
+        fill="#5f2bb8"
+      />
+      <path d={`M${100 - heup + 2} ${tBot} L${100 - heup - 2} ${dims.shortBot - 2} M${100 + heup - 2} ${tBot} L${100 + heup + 2} ${dims.shortBot - 2}`} stroke="#fff" strokeWidth="3" strokeLinecap="round" />
 
-      {/* Armen + handen */}
-      <path d="M66 158 Q48 172 50 196" stroke={`url(#${huidGrad})`} strokeWidth="14" fill="none" strokeLinecap="round" />
-      <path d="M134 158 Q152 172 150 196" stroke={`url(#${huidGrad})`} strokeWidth="14" fill="none" strokeLinecap="round" />
-      <circle cx="50" cy="198" r="9" fill={`url(#${huidGrad})`} />
-      <circle cx="150" cy="198" r="9" fill={`url(#${huidGrad})`} />
+      {/* Armen + handen (+ spierlijnen bij hogere kracht) */}
+      <path d={`M${100 - schouder + 4} ${armY} Q${100 - schouder - 14} ${armY + 16} ${100 - schouder - 10} ${armY + 40}`} stroke={`url(#${huidGrad})`} strokeWidth={armW} fill="none" strokeLinecap="round" />
+      <path d={`M${100 + schouder - 4} ${armY} Q${100 + schouder + 14} ${armY + 16} ${100 + schouder + 10} ${armY + 40}`} stroke={`url(#${huidGrad})`} strokeWidth={armW} fill="none" strokeLinecap="round" />
+      <circle cx={100 - schouder - 10} cy={armY + 42} r={armW * 0.62} fill={`url(#${huidGrad})`} />
+      <circle cx={100 + schouder + 10} cy={armY + 42} r={armW * 0.62} fill={`url(#${huidGrad})`} />
+      {spierOpacity > 0 && (
+        <g stroke={palet.schaduw} strokeWidth="1.8" fill="none" opacity={spierOpacity}>
+          <path d={`M${100 - schouder - 9} ${armY + 12} Q${100 - schouder - 4} ${armY + 18} ${100 - schouder - 8} ${armY + 25}`} />
+          <path d={`M${100 + schouder + 9} ${armY + 12} Q${100 + schouder + 4} ${armY + 18} ${100 + schouder + 8} ${armY + 25}`} />
+        </g>
+      )}
 
       {/* Shirt (voetbaltenue) */}
-      <path d="M70 152 Q100 140 130 152 L136 206 Q100 216 64 206 Z" fill={`url(#${shirtGrad})`} />
-      <path d="M74 154 L70 202 M126 154 L130 202" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" opacity="0.9" />
-      <path d="M88 148 Q100 158 112 148 Q106 152 100 152 Q94 152 88 148 Z" fill="#fff" opacity="0.9" />
-      <circle cx="100" cy="184" r="10" fill="#fff" opacity="0.16" />
+      <path
+        d={`M${100 - schouder} ${tTop + 6} Q100 ${tTop - 6} ${100 + schouder} ${tTop + 6} L${100 + heup} ${tBot} Q100 ${tBot + 10} ${100 - heup} ${tBot} Z`}
+        fill={`url(#${shirtGrad})`}
+      />
+      <path d={`M${100 - schouder + 4} ${tTop + 8} L${100 - heup + 4} ${tBot - 2} M${100 + schouder - 4} ${tTop + 8} L${100 + heup - 4} ${tBot - 2}`} stroke="#fff" strokeWidth="3.5" strokeLinecap="round" opacity="0.9" />
+      <path d={`M${100 - 12} ${tTop + 2} Q100 ${tTop + 12} ${100 + 12} ${tTop + 2} Q106 ${tTop + 6} 100 ${tTop + 6} Q94 ${tTop + 6} ${100 - 12} ${tTop + 2} Z`} fill="#fff" opacity="0.9" />
+      {/* Spierdefinitie door het shirt (borst/schouders) — groeit met kracht */}
+      {spierOpacity > 0 && (
+        <g stroke="#3f1f80" strokeWidth="2" fill="none" opacity={spierOpacity * 0.8}>
+          <path d={`M${100 - schouder + 6} ${tTop + 10} Q${100 - schouder + 14} ${tTop + 4} ${100 - schouder + 20} ${tTop + 10}`} />
+          <path d={`M${100 + schouder - 6} ${tTop + 10} Q${100 + schouder - 14} ${tTop + 4} ${100 + schouder - 20} ${tTop + 10}`} />
+          <path d={`M92 ${tTop + 20} Q100 ${tTop + 25} 108 ${tTop + 20}`} />
+        </g>
+      )}
+      {graad === 3 && K > 60 && (
+        <g stroke="#3f1f80" strokeWidth="1.7" fill="none" opacity={spierOpacity * 0.6}>
+          <path d={`M100 ${tTop + 32} L100 ${tBot - 14}`} />
+          <path d={`M92 ${tTop + 40} L108 ${tTop + 40} M92 ${tTop + 50} L108 ${tTop + 50}`} />
+        </g>
+      )}
+
+      {/* Blessure: verbandje op de rechterarm */}
+      {blessure && (
+        <g transform={`rotate(28 ${100 + schouder + 6} ${armY + 20})`}>
+          <rect x={100 + schouder - 2} y={armY + 14} width={armW + 6} height="12" rx="3" fill="#fff" stroke="#d8d8e0" strokeWidth="1" />
+          <path d={`M${100 + schouder - 2} ${armY + 20} L${100 + schouder + armW + 4} ${armY + 20}`} stroke="#d8d8e0" strokeWidth="1" />
+        </g>
+      )}
 
       {/* Nek */}
-      <rect x="92" y="132" width="16" height="16" rx="6" fill={`url(#${huidGrad})`} />
+      <rect x="92" y={tTop - 14} width="16" height="18" rx="6" fill={`url(#${huidGrad})`} />
 
-      {/* Oren */}
-      <circle cx="45" cy="96" r="9" fill={`url(#${huidGrad})`} />
-      <circle cx="155" cy="96" r="9" fill={`url(#${huidGrad})`} />
-
-      {/* Hoofd */}
-      <ellipse cx="100" cy="92" rx="56" ry="52" fill={`url(#${huidGrad})`} />
-
-      {/* Blos */}
-      <ellipse cx="66" cy="108" rx="8" ry="5" fill="#e78a7a" opacity="0.45" />
-      <ellipse cx="134" cy="108" rx="8" ry="5" fill="#e78a7a" opacity="0.45" />
-
-      {/* Gezicht */}
-      <Wenkbrauwen variant={gezichtVariant} />
-      <Ogen variant={gezichtVariant} irisId={irisGrad} />
-      <path d="M97 102 Q100 106 103 102" stroke={palet.schaduw} strokeWidth="2.5" fill="none" strokeLinecap="round" />
-      <Mond variant={gezichtVariant} />
-
-      {/* Haar */}
-      <Haar stijl={haarStijl} kleur={haarBasis} highlight={haarLicht} gradId={haarGrad} />
+      {/* Hoofd (geschaald per graad, kantelt licht bij vermoeidheid) */}
+      <g transform={`translate(${100 - 100 * hoofdS} ${hoofdY - 92 * hoofdS}) scale(${hoofdS})`}>
+        <g transform={hoofdKantel ? `rotate(${hoofdKantel} 100 130)` : undefined}>
+          <circle cx="45" cy="96" r="9" fill={`url(#${huidGrad})`} />
+          <circle cx="155" cy="96" r="9" fill={`url(#${huidGrad})`} />
+          <ellipse cx="100" cy="92" rx="56" ry="52" fill={`url(#${huidGrad})`} />
+          <ellipse cx="66" cy="108" rx="8" ry="5" fill="#e78a7a" opacity="0.45" />
+          <ellipse cx="134" cy="108" rx="8" ry="5" fill="#e78a7a" opacity="0.45" />
+          <Wenkbrauwen variant={moe ? 'ontspannen' : gezichtVariant} />
+          <Ogen variant={gezichtVariant} irisId={irisGrad} />
+          {moe && (
+            <g stroke="#9a7a68" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity={conditie === 'uitgeput' ? 0.8 : 0.5}>
+              <path d="M71 106 Q79 110 87 106" />
+              <path d="M113 106 Q121 110 129 106" />
+            </g>
+          )}
+          {conditie === 'uitgeput' && <path d="M146 74 Q150 80 146 85 Q142 80 146 74 Z" fill="#7dd3fc" />}
+          <path d="M97 102 Q100 106 103 102" stroke={palet.schaduw} strokeWidth="2.5" fill="none" strokeLinecap="round" />
+          <Mond variant={gezichtVariant} moe={moe} />
+          <Haar stijl={haarStijl} highlight={haarLicht} gradId={haarGrad} />
+        </g>
+      </g>
 
       {/* Voetbal */}
       <g>

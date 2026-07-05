@@ -7,7 +7,10 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import BuddyAvatar, { HUID_TINTEN, HAAR_KLEUREN, HAAR_STIJLEN, GEZICHTEN } from './BuddyAvatar';
+import BuddyAvatar, { HUID_TINTEN, HAAR_KLEUREN, HAAR_STIJLEN, GEZICHTEN, LICHAMEN } from './BuddyAvatar';
+import { graadVanKlas, weergaveGeslacht } from '../../data/sportbuddy/sporten';
+
+const LICHAAM_LABELS = { m: 'Jongen', v: 'Meisje', neutraal: 'Neutraal' };
 
 function KeuzeRij({ label, aantal, waarde, onKies, renderOptie }) {
   return (
@@ -36,23 +39,29 @@ export default function AanmaakWizard({ profile, onAangemaakt }) {
   const [huid, setHuid] = useState(0);
   const [haar, setHaar] = useState(0);
   const [haarkleur, setHaarkleur] = useState(0);
+  const [lichaam, setLichaam] = useState('neutraal');
   const [bezig, setBezig] = useState(false);
 
   const naam = profile?.nickname || 'Jouw buddy';
+  // Graad + geslacht komen uit het profiel (avatar groeit mee met de leerling).
+  // Alleen bij geslacht 'X'/onbekend kiest de leerling zelf een lichaam.
+  const graad = graadVanKlas(profile?.klas);
+  const profielGeslacht = weergaveGeslacht(profile?.geslacht);
+  const toonLichaamKeuze = !profielGeslacht;
+  const previewLichaam = profielGeslacht || lichaam;
 
   const handleAanmaken = async () => {
     setBezig(true);
     try {
+      const avatar = { gezicht, huid, haar, haarkleur };
+      if (toonLichaamKeuze) avatar.lichaam = lichaam;
       const response = await fetch('/api/sportbuddy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${profile?._token}`,
         },
-        body: JSON.stringify({
-          action: 'create_buddy',
-          avatar: { gezicht, huid, haar, haarkleur },
-        }),
+        body: JSON.stringify({ action: 'create_buddy', avatar }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -76,11 +85,20 @@ export default function AanmaakWizard({ profile, onAangemaakt }) {
       </p>
       <div className="flex flex-col md:flex-row gap-8">
         <div className="w-48 mx-auto md:mx-0 flex-shrink-0">
-          <BuddyAvatar gezicht={gezicht} huid={huid} haar={haar} haarkleur={haarkleur} className="w-full" />
+          <BuddyAvatar gezicht={gezicht} huid={huid} haar={haar} haarkleur={haarkleur} graad={graad} lichaam={previewLichaam} className="w-full" />
           <div className="text-center text-lg font-bold text-purple-700 mt-2">{naam}</div>
           <p className="text-center text-xs text-gray-400">Je buddy draagt jouw nickname</p>
         </div>
         <div className="flex-grow">
+          {toonLichaamKeuze && (
+            <KeuzeRij
+              label="Lichaam"
+              aantal={LICHAMEN.length}
+              waarde={LICHAMEN.indexOf(lichaam)}
+              onKies={(i) => setLichaam(LICHAMEN[i])}
+              renderOptie={(i) => <span className="block px-2 py-1 text-xs font-medium text-gray-700">{LICHAAM_LABELS[LICHAMEN[i]]}</span>}
+            />
+          )}
           <KeuzeRij
             label="Huidtint"
             aantal={HUID_TINTEN.length}
