@@ -1,102 +1,251 @@
 // src/components/sportbuddy/BuddyAvatar.jsx
-// v0 (sessie 1): parametrische cartoon-avatar als gelaagde SVG.
-// Bewust illustratief/cartoon (GDD-beslissing): vergroot de afstand tot echte
-// lichamen. Identiek startlichaam voor iedereen; gezicht/huid/haar zijn puur
-// cosmetisch. Lichaamsevolutie (3 stadia) volgt in sessie 3.
+// v1: chibi-cartoon avatar als gelaagde SVG (groot hoofd, grote glansogen,
+// schaduw/gradiënten, voetbaltenue). Bewust illustratief (GDD-beslissing):
+// vergroot de afstand tot echte lichamen. Identiek startlichaam voor iedereen;
+// gezicht/huid/haar zijn puur cosmetisch. Lichaamsevolutie (3 stadia): sessie 3.
+
+import { useId } from 'react';
 
 export const HUID_TINTEN = ['#f6d7b0', '#e8b98a', '#c68863', '#8d5a3b'];
 export const HAAR_KLEUREN = ['#2d2a26', '#6b4a2b', '#b0813f', '#d9c169', '#a33b2e'];
-export const HAAR_STIJLEN = ['kort', 'krullen', 'lang', 'kuif', 'kaal'];
+export const HAAR_STIJLEN = ['spikes', 'krullen', 'lang', 'kuif', 'kaal'];
 export const GEZICHTEN = ['blij', 'focus', 'ontspannen', 'guitig'];
 
-function Haar({ stijl, kleur }) {
+// Licht/schaduw-varianten per huidtint (zelfde volgorde als HUID_TINTEN)
+const HUID_PALET = [
+  { licht: '#fdeccd', basis: '#f6d7b0', schaduw: '#e0b88b' },
+  { licht: '#f4d3a9', basis: '#e8b98a', schaduw: '#cf9a66' },
+  { licht: '#d9a37e', basis: '#c68863', schaduw: '#a56c4a' },
+  { licht: '#a97350', basis: '#8d5a3b', schaduw: '#6e432b' },
+];
+
+// Highlight per haarkleur (zelfde volgorde als HAAR_KLEUREN)
+const HAAR_HIGHLIGHT = ['#524c44', '#8a6339', '#c99a55', '#e9d78d', '#c05a48'];
+
+function Haar({ stijl, kleur, highlight, gradId }) {
   switch (stijl) {
     case 'krullen':
       return (
-        <g fill={kleur}>
-          <circle cx="38" cy="26" r="9" />
-          <circle cx="50" cy="21" r="10" />
-          <circle cx="62" cy="26" r="9" />
+        <g fill={`url(#${gradId})`}>
+          <circle cx="62" cy="52" r="17" />
+          <circle cx="82" cy="40" r="19" />
+          <circle cx="104" cy="36" r="20" />
+          <circle cx="126" cy="42" r="18" />
+          <circle cx="142" cy="56" r="15" />
         </g>
       );
     case 'lang':
       return (
-        <path
-          d="M30 30 Q50 8 70 30 L70 52 Q66 46 62 46 L62 30 Q50 22 38 30 L38 46 Q34 46 30 52 Z"
-          fill={kleur}
-        />
+        <g>
+          <path
+            d="M46 76 Q44 26 100 24 Q156 26 154 76 L154 116 Q146 104 142 96 L142 62 Q126 44 100 44 Q74 44 58 62 L58 96 Q54 104 46 116 Z"
+            fill={`url(#${gradId})`}
+          />
+          <path d="M64 40 Q84 28 112 32 Q96 38 82 46 Q72 44 64 40 Z" fill={highlight} opacity="0.5" />
+        </g>
       );
     case 'kuif':
-      return <path d="M34 30 Q40 10 58 14 Q70 17 66 30 Q50 20 34 30 Z" fill={kleur} />;
+      return (
+        <g>
+          <path
+            d="M52 72 Q50 40 82 30 Q74 20 88 16 Q112 8 132 24 Q152 38 148 72 Q128 46 100 44 Q72 44 52 72 Z"
+            fill={`url(#${gradId})`}
+          />
+          <path d="M88 20 Q108 12 126 26 Q110 22 94 26 Z" fill={highlight} opacity="0.55" />
+        </g>
+      );
     case 'kaal':
-      return null;
-    case 'kort':
+      return <path d="M62 56 Q80 40 100 40 Q120 40 138 56 Q120 48 100 48 Q80 48 62 56 Z" fill="#000" opacity="0.06" />;
+    case 'spikes':
     default:
-      return <path d="M32 30 Q50 12 68 30 Q50 24 32 30 Z" fill={kleur} />;
+      return (
+        <g>
+          <path
+            d="M50 74 Q48 52 60 44 L52 28 L70 38 L68 18 L84 34 L88 10 L100 32 L112 10 L118 34 L132 18 L130 38 L148 28 L140 44 Q152 52 150 74 Q128 48 100 46 Q72 48 50 74 Z"
+            fill={`url(#${gradId})`}
+          />
+          <path d="M84 26 L92 16 L98 28 Q90 26 84 26 Z" fill={highlight} opacity="0.6" />
+        </g>
+      );
   }
 }
 
-function Gezicht({ variant }) {
+function Mond({ variant }) {
   switch (variant) {
     case 'focus':
-      return (
-        <g>
-          <line x1="42" y1="34" x2="47" y2="36" stroke="#2d2a26" strokeWidth="2" strokeLinecap="round" />
-          <line x1="58" y1="34" x2="53" y2="36" stroke="#2d2a26" strokeWidth="2" strokeLinecap="round" />
-          <circle cx="44" cy="39" r="1.8" fill="#2d2a26" />
-          <circle cx="56" cy="39" r="1.8" fill="#2d2a26" />
-          <line x1="46" y1="47" x2="54" y2="47" stroke="#2d2a26" strokeWidth="2" strokeLinecap="round" />
-        </g>
-      );
+      return <path d="M88 118 Q100 122 112 118" stroke="#8c4a32" strokeWidth="3.5" fill="none" strokeLinecap="round" />;
     case 'ontspannen':
-      return (
-        <g>
-          <path d="M42 38 Q44 36 46 38" stroke="#2d2a26" strokeWidth="2" fill="none" strokeLinecap="round" />
-          <path d="M54 38 Q56 36 58 38" stroke="#2d2a26" strokeWidth="2" fill="none" strokeLinecap="round" />
-          <path d="M45 47 Q50 50 55 47" stroke="#2d2a26" strokeWidth="2" fill="none" strokeLinecap="round" />
-        </g>
-      );
+      return <path d="M88 116 Q100 126 112 116" stroke="#8c4a32" strokeWidth="3.5" fill="none" strokeLinecap="round" />;
     case 'guitig':
       return (
-        <g>
-          <circle cx="44" cy="38" r="1.8" fill="#2d2a26" />
-          <path d="M54 38 Q56 35 58 38" stroke="#2d2a26" strokeWidth="2" fill="none" strokeLinecap="round" />
-          <path d="M44 46 Q50 51 56 46" stroke="#2d2a26" strokeWidth="2" fill="none" strokeLinecap="round" />
-        </g>
+        <path d="M86 114 Q100 130 116 112 Q104 122 86 114 Z" fill="#8c4a32" />
       );
     case 'blij':
     default:
       return (
         <g>
-          <circle cx="44" cy="38" r="1.8" fill="#2d2a26" />
-          <circle cx="56" cy="38" r="1.8" fill="#2d2a26" />
-          <path d="M44 46 Q50 51 56 46" stroke="#2d2a26" strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path d="M84 112 Q100 132 116 112 Q100 122 84 112 Z" fill="#8c4a32" />
+          <path d="M92 119 Q100 124 108 119 Q100 121 92 119 Z" fill="#e78a7a" />
         </g>
       );
   }
 }
 
+function Ogen({ variant, irisId }) {
+  if (variant === 'ontspannen') {
+    return (
+      <g stroke="#3a2f28" strokeWidth="4" fill="none" strokeLinecap="round">
+        <path d="M70 92 Q79 84 88 92" />
+        <path d="M112 92 Q121 84 130 92" />
+      </g>
+    );
+  }
+  const rechterDicht = variant === 'guitig';
+  return (
+    <g>
+      {/* Linkeroog */}
+      <ellipse cx="79" cy="92" rx="11" ry="13" fill="#fff" />
+      <circle cx="80" cy="94" r="7.5" fill={`url(#${irisId})`} />
+      <circle cx="80" cy="94" r="3.5" fill="#1c130e" />
+      <circle cx="83" cy="90" r="2.6" fill="#fff" />
+      <circle cx="77.5" cy="97" r="1.3" fill="#fff" opacity="0.9" />
+      {/* Rechteroog */}
+      {rechterDicht ? (
+        <path d="M112 92 Q121 86 130 92" stroke="#3a2f28" strokeWidth="4" fill="none" strokeLinecap="round" />
+      ) : (
+        <g>
+          <ellipse cx="121" cy="92" rx="11" ry="13" fill="#fff" />
+          <circle cx="120" cy="94" r="7.5" fill={`url(#${irisId})`} />
+          <circle cx="120" cy="94" r="3.5" fill="#1c130e" />
+          <circle cx="123" cy="90" r="2.6" fill="#fff" />
+          <circle cx="117.5" cy="97" r="1.3" fill="#fff" opacity="0.9" />
+        </g>
+      )}
+    </g>
+  );
+}
+
+function Wenkbrauwen({ variant }) {
+  const stijl = { stroke: '#3a2f28', strokeWidth: 4, fill: 'none', strokeLinecap: 'round' };
+  if (variant === 'focus') {
+    return (
+      <g {...stijl}>
+        <path d="M68 76 Q78 74 88 79" />
+        <path d="M132 76 Q122 74 112 79" />
+      </g>
+    );
+  }
+  return (
+    <g {...stijl}>
+      <path d="M68 76 Q79 70 90 75" />
+      <path d="M110 75 Q121 70 132 76" />
+    </g>
+  );
+}
+
 export default function BuddyAvatar({ gezicht = 0, huid = 0, haar = 0, haarkleur = 0, className = '' }) {
-  const huidKleur = HUID_TINTEN[huid] || HUID_TINTEN[0];
+  const rawId = useId();
+  const uid = rawId.replace(/[^a-zA-Z0-9]/g, '');
+  const palet = HUID_PALET[huid] || HUID_PALET[0];
+  const haarBasis = HAAR_KLEUREN[haarkleur] || HAAR_KLEUREN[0];
+  const haarLicht = HAAR_HIGHLIGHT[haarkleur] || HAAR_HIGHLIGHT[0];
   const haarStijl = HAAR_STIJLEN[haar] || HAAR_STIJLEN[0];
-  const haarKleur = HAAR_KLEUREN[haarkleur] || HAAR_KLEUREN[0];
   const gezichtVariant = GEZICHTEN[gezicht] || GEZICHTEN[0];
 
+  const huidGrad = `huid${uid}`;
+  const haarGrad = `haar${uid}`;
+  const shirtGrad = `shirt${uid}`;
+  const irisGrad = `iris${uid}`;
+
   return (
-    <svg viewBox="0 0 100 140" className={className} role="img" aria-label="Jouw Sportbuddy">
-      {/* Lichaam — identiek startpunt voor iedereen (bewust: geen spiegel) */}
-      <path d="M35 70 Q50 62 65 70 L68 105 Q50 112 32 105 Z" fill="#7c3aed" />
-      <rect x="44" y="58" width="12" height="12" rx="4" fill={huidKleur} />
-      {/* Armen */}
-      <path d="M35 72 Q24 82 27 96" stroke={huidKleur} strokeWidth="8" fill="none" strokeLinecap="round" />
-      <path d="M65 72 Q76 82 73 96" stroke={huidKleur} strokeWidth="8" fill="none" strokeLinecap="round" />
-      {/* Benen */}
-      <path d="M42 106 L40 130" stroke="#374151" strokeWidth="9" strokeLinecap="round" />
-      <path d="M58 106 L60 130" stroke="#374151" strokeWidth="9" strokeLinecap="round" />
+    <svg viewBox="0 0 200 300" className={className} role="img" aria-label="Jouw Sportbuddy">
+      <defs>
+        <radialGradient id={huidGrad} cx="42%" cy="34%" r="75%">
+          <stop offset="0%" stopColor={palet.licht} />
+          <stop offset="62%" stopColor={palet.basis} />
+          <stop offset="100%" stopColor={palet.schaduw} />
+        </radialGradient>
+        <linearGradient id={haarGrad} x1="0" y1="0" x2="0.3" y2="1">
+          <stop offset="0%" stopColor={haarLicht} />
+          <stop offset="55%" stopColor={haarBasis} />
+        </linearGradient>
+        <linearGradient id={shirtGrad} x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0%" stopColor="#9d5cf0" />
+          <stop offset="60%" stopColor="#7c3aed" />
+          <stop offset="100%" stopColor="#5f2bb8" />
+        </linearGradient>
+        <radialGradient id={irisGrad} cx="35%" cy="35%" r="70%">
+          <stop offset="0%" stopColor="#8a5a3a" />
+          <stop offset="100%" stopColor="#4a2c18" />
+        </radialGradient>
+      </defs>
+
+      {/* Grondschaduw */}
+      <ellipse cx="100" cy="284" rx="58" ry="9" fill="#000" opacity="0.10" />
+
+      {/* Benen + kousen + sneakers */}
+      <g>
+        <rect x="80" y="228" width="14" height="20" rx="6" fill={`url(#${huidGrad})`} />
+        <rect x="106" y="228" width="14" height="20" rx="6" fill={`url(#${huidGrad})`} />
+        <rect x="79" y="244" width="16" height="20" rx="6" fill="#fff" />
+        <rect x="105" y="244" width="16" height="20" rx="6" fill="#fff" />
+        <rect x="79" y="248" width="16" height="4" fill="#7c3aed" />
+        <rect x="105" y="248" width="16" height="4" fill="#7c3aed" />
+        {/* Sneakers */}
+        <path d="M76 264 Q76 258 84 258 L94 258 Q98 262 98 268 Q98 274 92 274 L80 274 Q74 274 74 269 Z" fill="#f4f4f6" />
+        <path d="M104 264 Q104 258 112 258 L122 258 Q126 262 126 268 Q126 274 120 274 L108 274 Q102 274 102 269 Z" fill="#f4f4f6" />
+        <path d="M74 269 Q74 273 80 273 L92 273 Q97 273 97 268 L74 268 Z" fill="#7c3aed" />
+        <path d="M102 269 Q102 273 108 273 L120 273 Q125 273 125 268 L102 268 Z" fill="#7c3aed" />
+        <path d="M84 258 L90 266 M88 258 L94 265" stroke="#c9c9d4" strokeWidth="1.6" />
+        <path d="M112 258 L118 266 M116 258 L122 265" stroke="#c9c9d4" strokeWidth="1.6" />
+      </g>
+
+      {/* Short */}
+      <path d="M72 200 L128 200 L132 232 Q116 238 102 232 L100 226 L98 232 Q84 238 68 232 Z" fill="#5f2bb8" />
+      <path d="M72 206 L68 230 M128 206 L132 230" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+
+      {/* Armen + handen */}
+      <path d="M66 158 Q48 172 50 196" stroke={`url(#${huidGrad})`} strokeWidth="14" fill="none" strokeLinecap="round" />
+      <path d="M134 158 Q152 172 150 196" stroke={`url(#${huidGrad})`} strokeWidth="14" fill="none" strokeLinecap="round" />
+      <circle cx="50" cy="198" r="9" fill={`url(#${huidGrad})`} />
+      <circle cx="150" cy="198" r="9" fill={`url(#${huidGrad})`} />
+
+      {/* Shirt (voetbaltenue) */}
+      <path d="M70 152 Q100 140 130 152 L136 206 Q100 216 64 206 Z" fill={`url(#${shirtGrad})`} />
+      <path d="M74 154 L70 202 M126 154 L130 202" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" opacity="0.9" />
+      <path d="M88 148 Q100 158 112 148 Q106 152 100 152 Q94 152 88 148 Z" fill="#fff" opacity="0.9" />
+      <circle cx="100" cy="184" r="10" fill="#fff" opacity="0.16" />
+
+      {/* Nek */}
+      <rect x="92" y="132" width="16" height="16" rx="6" fill={`url(#${huidGrad})`} />
+
+      {/* Oren */}
+      <circle cx="45" cy="96" r="9" fill={`url(#${huidGrad})`} />
+      <circle cx="155" cy="96" r="9" fill={`url(#${huidGrad})`} />
+
       {/* Hoofd */}
-      <circle cx="50" cy="40" r="18" fill={huidKleur} />
-      <Haar stijl={haarStijl} kleur={haarKleur} />
-      <Gezicht variant={gezichtVariant} />
+      <ellipse cx="100" cy="92" rx="56" ry="52" fill={`url(#${huidGrad})`} />
+
+      {/* Blos */}
+      <ellipse cx="66" cy="108" rx="8" ry="5" fill="#e78a7a" opacity="0.45" />
+      <ellipse cx="134" cy="108" rx="8" ry="5" fill="#e78a7a" opacity="0.45" />
+
+      {/* Gezicht */}
+      <Wenkbrauwen variant={gezichtVariant} />
+      <Ogen variant={gezichtVariant} irisId={irisGrad} />
+      <path d="M97 102 Q100 106 103 102" stroke={palet.schaduw} strokeWidth="2.5" fill="none" strokeLinecap="round" />
+      <Mond variant={gezichtVariant} />
+
+      {/* Haar */}
+      <Haar stijl={haarStijl} kleur={haarBasis} highlight={haarLicht} gradId={haarGrad} />
+
+      {/* Voetbal */}
+      <g>
+        <circle cx="152" cy="262" r="16" fill="#fff" stroke="#d8d8e0" strokeWidth="1.5" />
+        <polygon points="152,254 159,259 156,267 148,267 145,259" fill="#2d2a26" />
+        <path d="M152 254 L152 246 M159 259 L167 257 M156 267 L161 274 M148 267 L143 274 M145 259 L137 257" stroke="#2d2a26" strokeWidth="1.6" />
+        <ellipse cx="146" cy="254" rx="5" ry="3" fill="#fff" opacity="0.7" />
+      </g>
     </svg>
   );
 }
