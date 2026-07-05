@@ -39,6 +39,12 @@ export default function SportbuddyModule() {
 
   useEffect(() => { haalVoortgang(); }, [haalVoortgang]);
 
+  // Bij navigatie naar een module altijd bovenaan de pagina starten
+  // (React Router behoudt standaard de scrollpositie van de vorige pagina)
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [moduleId]);
+
   // Onbekende of niet-beschikbare module → veilig terug
   useEffect(() => {
     if (!module || !module.beschikbaar) {

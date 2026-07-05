@@ -62,7 +62,7 @@ function HartMonitor({ bpm, actief = true }) {
 
 // ─── 1. Hartslagsimulator (live grafiek) ──────────────────────────────────────
 const NIVEAUS = [
-  { id: 'rust', label: 'Rust', f: 0.10 },
+  { id: 'rust', label: 'Rust', f: 0.05 },
   { id: 'licht', label: 'Licht', f: 0.55 },
   { id: 'matig', label: 'Matig', f: 0.65 },
   { id: 'intensief', label: 'Intensief', f: 0.78 },
@@ -77,6 +77,11 @@ function HartslagSimulator() {
   const [niveau, setNiveau] = useState(0);
   const [actief, setActief] = useState(true);
   const [buffer, setBuffer] = useState(() => Array(BUFFER).fill(65));
+  // "Piek-energie" voor grillige uitschieters (hartslagvariabiliteit):
+  // een piek ontstaat plots en ebt over enkele punten weg — zo krijgt de lijn
+  // het grillige karakter van een echte hartslagmeting.
+  const piekRef = useRef(0);
+  const faseRef = useRef(0);
 
   const max = 220 - leeftijd;
 
@@ -88,9 +93,17 @@ function HartslagSimulator() {
         // Doelhartslag volgens Karvonen bij het gekozen inspanningsniveau
         const doel = rustpols + NIVEAUS[niveau].f * reserve;
         const laatst = b[b.length - 1];
-        // Traag naar het doel toe bewegen + lichte natuurlijke variatie
-        const ruis = (Math.random() - 0.5) * 2.2;
-        let volgend = laatst + (doel - laatst) * 0.05 + ruis;
+
+        // Grillige dynamiek: trage golf + ruis + sporadische pieken die uitdoven
+        faseRef.current += 0.25;
+        const golf = Math.sin(faseRef.current) * 1.1;
+        const ruis = (Math.random() - 0.5) * 2.6;
+        piekRef.current *= 0.72;
+        if (Math.random() < 0.10) {
+          piekRef.current += (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 4);
+        }
+
+        let volgend = laatst + (doel - laatst) * 0.05 + golf + ruis + piekRef.current * 0.4;
         volgend = Math.max(38, Math.min(max + 3, volgend));
         return [...b.slice(1), volgend];
       });
@@ -507,12 +520,19 @@ export default function HartslagLab() {
       <Sectie
         tool={<HartslagSimulator />}
         info={(
-          <InfoKader titel="Hoe meet je je hartslag?">
-            <p><strong>Manueel:</strong> leg wijs- en middelvinger op de binnenkant van je pols (of naast je strottenhoofd), tel 15 seconden en doe × 4. Nooit met je duim — die heeft een eigen polsslag.</p>
-            <p><strong>Hartslagmeters:</strong> een borstband meet elektrisch en is het nauwkeurigst; horloges meten optisch aan de pols — handig, maar iets minder precies bij intensieve sport.</p>
-            <p><strong>Rustpols meten?</strong> Doe het 's ochtends vóór het opstaan — dan is hij het betrouwbaarst.</p>
-            <p className="pt-1 border-t border-indigo-100"><strong>In de simulator:</strong> je hart reageert hier binnen seconden — in het echt duurt het 1 à 2 minuten voor je hartslag zich instelt op een inspanning.</p>
-          </InfoKader>
+          <div className="flex flex-col gap-4 h-full">
+            <InfoKader titel="Hoe meet je je hartslag?">
+              <p><strong>Manueel:</strong> leg wijs- en middelvinger op de binnenkant van je pols (of naast je strottenhoofd), tel 15 seconden en doe × 4. Nooit met je duim — die heeft een eigen polsslag.</p>
+              <p><strong>Hartslagmeters:</strong> een borstband meet elektrisch en is het nauwkeurigst; horloges meten optisch aan de pols — handig, maar iets minder precies bij intensieve sport.</p>
+              <p><strong>Rustpols meten?</strong> Doe het 's ochtends vóór het opstaan — dan is hij het betrouwbaarst.</p>
+            </InfoKader>
+            <InfoKader titel="De Karvonen-formule">
+              <p>De simulator rekent zoals trainers: <strong>doelhartslag = rustpols + intensiteit% × (max − rustpols)</strong>. Dat verschil (max − rustpols) heet je <strong>hartslagreserve</strong>.</p>
+              <p>Voorbeeld (15 jaar, rustpols 65): bij 70% is het doel 65 + 0,70 × (205 − 65) = <strong>163 bpm</strong>.</p>
+              <p>Waarom beter dan gewoon %-van-max? Omdat je rustpols — dus je conditie — meetelt.</p>
+              <p>Probeer maar in de simulator: op <em>Rust</em> zie je de lijn duidelijk mee verschuiven met je rustpols, op <em>Maximaal</em> amper. Hoe dichter bij je maximum, hoe kleiner de rol van je rustpols — dat is exact wat de formule zegt.</p>
+            </InfoKader>
+          </div>
         )}
       />
       <Sectie
