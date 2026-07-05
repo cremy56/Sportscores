@@ -64,7 +64,8 @@ export default function SportbuddyModule() {
   const afgerond = voortgang?.afgerond;
 
   return (
-    <div className="min-h-screen bg-slate-50 -mx-4 -my-8 px-4 py-8">
+    <div className="relative">
+      <div className="fixed inset-0 bg-slate-50 -z-10" />
       <button
         type="button"
         onClick={() => navigate('/sportbuddy')}

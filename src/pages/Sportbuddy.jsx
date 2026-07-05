@@ -113,7 +113,8 @@ export default function Sportbuddy() {
 
   if (!echteBuddy) {
     return (
-      <div className="min-h-screen bg-slate-50 -mx-4 -my-8 px-4 py-8">
+      <div className="relative">
+      <div className="fixed inset-0 bg-slate-50 -z-10" />
         <PageHeader
           title="Sportbuddy"
           subtitle="Bouw een fictieve atleet op tot topsporter — en leer alles over training, voeding, herstel en mentale kracht."
@@ -141,7 +142,8 @@ export default function Sportbuddy() {
   else if (dagstaat.vorm >= 25) conditie = 'top';
 
   return (
-    <div className="min-h-screen bg-slate-50 -mx-4 -my-8 px-4 py-8">
+    <div className="relative">
+      <div className="fixed inset-0 bg-slate-50 -z-10" />
       <PageHeader
         title="Sportbuddy"
         subtitle={`${buddyNaam} · ${sport ? `${sport.emoji} ${sport.naam}` : ''} · dag ${buddy.seizoen?.dag ?? 1} van het seizoen · 🪙 ${buddy.coins ?? 0}`}
