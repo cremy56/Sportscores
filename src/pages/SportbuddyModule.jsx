@@ -20,6 +20,7 @@ export default function SportbuddyModule() {
   const module = getModule(moduleId);
   const [kennisOpen, setKennisOpen] = useState(false);
   const [voortgang, setVoortgang] = useState(null);
+  const [graad, setGraad] = useState(2);
   const [laden, setLaden] = useState(true);
 
   // Voortgang van deze module ophalen (via get_buddy)
@@ -29,6 +30,7 @@ export default function SportbuddyModule() {
       const result = await sportbuddyApi({ action: 'get_buddy' });
       if (result.buddy) {
         setVoortgang(result.buddy.kennis?.[moduleId] || null);
+        if (result.buddy.weergave?.graad) setGraad(result.buddy.weergave.graad);
       }
     } catch (error) {
       console.error('get_buddy (module) mislukt:', error.message);
@@ -49,10 +51,14 @@ export default function SportbuddyModule() {
   useEffect(() => {
     if (!module || !module.beschikbaar) {
       navigate('/sportbuddy', { replace: true });
+    } else if ((module.minGraad || 1) > graad) {
+      // Module niet bestemd voor deze graad → veilig terug
+      navigate('/sportbuddy', { replace: true });
     }
-  }, [module, navigate]);
+  }, [module, graad, navigate]);
 
   if (!module || !module.beschikbaar) return null;
+  if ((module.minGraad || 1) > graad) return null;
 
   const heeftTool = MODULES_MET_TOOL.includes(moduleId);
   const afgerond = voortgang?.afgerond;
@@ -74,7 +80,7 @@ export default function SportbuddyModule() {
 
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Interactieve tool */}
-        {heeftTool && <ModuleTool moduleId={moduleId} />}
+        {heeftTool && <ModuleTool moduleId={moduleId} graad={graad} />}
 
         {/* Kennis + quiz */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -106,6 +112,7 @@ export default function SportbuddyModule() {
         <KennisModule
           module={module}
           profile={profile}
+          graad={graad}
           onAfgerond={(result) => setVoortgang(result.kennis)}
           onClose={() => setKennisOpen(false)}
         />

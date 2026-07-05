@@ -4,7 +4,7 @@
 // Vervangt de kamer-indeling: platte tiles, één tik = één module.
 
 import { useNavigate } from 'react-router-dom';
-import { MODULES } from '../../data/sportbuddy/kennis';
+import { MODULES, modulesVoorGraad } from '../../data/sportbuddy/kennis';
 
 function Ring({ percent }) {
   const r = 15, c = 2 * Math.PI * r;
@@ -28,6 +28,7 @@ function voortgang(module, kennis) {
 }
 
 export default function ModuleTiles({ buddy }) {
+  const graad = buddy.weergave?.graad ?? 2;
   const navigate = useNavigate();
   const kennis = buddy.kennis || {};
 
@@ -36,7 +37,7 @@ export default function ModuleTiles({ buddy }) {
       <h3 className="font-bold text-gray-800 mb-1">Ontdek & leer</h3>
       <p className="text-xs text-gray-500 mb-4">Elke module heeft interactieve oefeningen en een quiz. Geslaagd = XP.</p>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        {MODULES.map((module) => {
+        {modulesVoorGraad(MODULES, graad).map((module) => {
           const percent = voortgang(module, kennis);
           const klikbaar = module.beschikbaar;
           return (

@@ -6,6 +6,26 @@
 // alleen voor de directe feedback in de UI; de handler hercontroleert.
 // Dekkingsmatrix: Hart/Fysiek/Energie → I.8 · Voeding → I.3/I.4 ·
 // Slaap → I.3/herstel · Mentaal → I.32-35 · Houding → I.5/I.6.
+//
+// GRAAD-DIFFERENTIATIE (GDD §4 / MVP-plan): niet alle inhoud is voor iedereen.
+//   • 1ste graad (minGraad 1): basis, herkennen, smiley-niveau
+//   • 2de graad (minGraad 2): + meters en korte uitleg / vergelijken (I.3)
+//   • 3de graad (minGraad 3): + diepe fysiologie (energiemetabolisme, lactaat,
+//                             supplementen, curves) — Sportwetenschappen
+// Een kaart/quizvraag zonder minGraad geldt vanaf graad 1. Een tool-sectie kan
+// datzelfde `minGraad`-veld dragen (zie de tools). De helpers hieronder filteren
+// op de graad van de leerling (afgeleid uit de klas, server-side meegestuurd).
+
+export function voorGraad(items, graad) {
+  return (items || []).filter((it) => (it.minGraad || 1) <= graad);
+}
+
+// Modules zichtbaar voor een bepaalde graad. Een module met `minGraad` is pas
+// vanaf die graad zichtbaar (bv. energiesystemen: enkel 2de + 3de graad —
+// energielevering is geen leerdoel in de 1ste graad).
+export function modulesVoorGraad(modules, graad) {
+  return (modules || []).filter((m) => (m.minGraad || 1) <= graad);
+}
 
 export const KAMERS = [
   { id: 'training', naam: 'De Zaal', emoji: '🏋️', kleur: 'from-orange-400 to-red-500',
@@ -57,14 +77,15 @@ export const MODULES = [
   // ══════════════════ KAMER: DE ZAAL (training) ══════════════════
   {
     id: 'energie', kamer: 'training', naam: 'Energiesystemen', emoji: '⚡',
-    eindterm: 'I.8', beschikbaar: true,
+    eindterm: 'I.8', beschikbaar: true, minGraad: 2,
     intro: 'Sprinten of een uur fietsen? Je lichaam schakelt tussen drie energiesystemen.',
     kaarten: [
-      { titel: 'Drie energiesystemen', tekst: 'Je spieren maken energie (ATP) via drie systemen: het ATP-PCr-systeem (direct en explosief, zonder zuurstof), de glycolyse (snel, zonder zuurstof, met lactaat) en het aerobe systeem (traag, mét zuurstof, bijna onuitputtelijk). Ze werken altijd samen.', bron: 'Leerplan Sportwetenschappen' },
-      { titel: 'ATP-PCr: direct & explosief', tekst: 'Voor een sprong, worp of korte sprint levert het ATP-PCr-systeem onmiddellijk energie uit creatinefosfaat in de spier. Geen zuurstof nodig, geen lactaat — maar de voorraad is na ongeveer 10 seconden op.', bron: 'Leerplan Sportwetenschappen' },
-      { titel: 'Glycolyse: snel, met lactaat', tekst: 'Voor intense inspanningen van 10 seconden tot 2 minuten springt de glycolyse bij: ze verbrandt koolhydraten zonder zuurstof. Daarbij ontstaat lactaat (melkzuur). Dat brandende gevoel in je benen bij een all-out 400m? Dat is dit systeem op volle toeren.', bron: 'Leerplan Sportwetenschappen' },
-      { titel: 'Aeroob: traag & onuitputtelijk', tekst: 'Bij duurinspanningen neemt na 1 à 2 minuten het aerobe systeem de bovenhand: het verbrandt vetten en koolhydraten mét zuurstof. Traag op gang, maar zuinig en bijna eindeloos — hierop steunt je uithouding.', bron: 'Leerplan Sportwetenschappen' },
-      { titel: 'Voetbal: een mengeling', tekst: 'Voetbal wisselt voortdurend: rustig traven (aeroob) met explosieve sprints en duels (ATP-PCr en glycolyse) ertussen. Daarom trainen voetballers zowel hun uithouding als hun explosiviteit — intervaltraining doet precies dat.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'Drie energiesystemen', minGraad: 2, tekst: 'Je spieren maken energie (ATP) via drie systemen: het ATP-PCr-systeem (direct en explosief, zonder zuurstof), de glycolyse (snel, zonder zuurstof, met lactaat) en het aerobe systeem (traag, mét zuurstof, bijna onuitputtelijk). Ze werken altijd samen.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'Explosief of duur?', minGraad: 1, tekst: 'Voor een korte, explosieve inspanning (sprint, sprong) gebruikt je lichaam een ander energiesysteem dan voor een lange duurinspanning (joggen, fietsen). Explosief put snel uit; duur hou je lang vol.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'ATP-PCr: direct & explosief', minGraad: 3, tekst: 'Voor een sprong, worp of korte sprint levert het ATP-PCr-systeem onmiddellijk energie uit creatinefosfaat in de spier. Geen zuurstof nodig, geen lactaat — maar de voorraad is na ongeveer 10 seconden op.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'Glycolyse: snel, met lactaat', minGraad: 3, tekst: 'Voor intense inspanningen van 10 seconden tot 2 minuten springt de glycolyse bij: ze verbrandt koolhydraten zonder zuurstof. Daarbij ontstaat lactaat (melkzuur). Dat brandende gevoel in je benen bij een all-out 400m? Dat is dit systeem op volle toeren.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'Aeroob: traag & onuitputtelijk', minGraad: 3, tekst: 'Bij duurinspanningen neemt na 1 à 2 minuten het aerobe systeem de bovenhand: het verbrandt vetten en koolhydraten mét zuurstof. Traag op gang, maar zuinig en bijna eindeloos — hierop steunt je uithouding.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'Voetbal: een mengeling', minGraad: 2, tekst: 'Voetbal wisselt voortdurend: rustig traven (aeroob) met explosieve sprints en duels (ATP-PCr en glycolyse) ertussen. Daarom trainen voetballers zowel hun uithouding als hun explosiviteit — intervaltraining doet precies dat.', bron: 'Leerplan Sportwetenschappen' },
     ],
     quiz: [
       { vraag: 'Hoeveel energiesystemen heeft je lichaam?', opties: ['Eén', 'Twee', 'Drie'], juist: 2 },
@@ -85,10 +106,11 @@ export const MODULES = [
     eindterm: 'I.3, I.4', beschikbaar: true,
     intro: 'Wat je eet, wordt wie je bent op het veld. Leer de bouwstoffen kennen.',
     kaarten: [
-      { titel: 'De voedingsdriehoek', tekst: 'Eet vooral uit de onderste, groene lagen: groenten, fruit, volle granen en water. Hoe hoger in de driehoek (bewerkte producten, snoep), hoe minder je lichaam ervan nodig heeft. "Regenboog op je bord" = variatie in voedingsstoffen.', bron: 'Gezond Leven' },
-      { titel: 'Koolhydraten: de brandstof', tekst: 'Volle granen, pasta, rijst en aardappelen leveren langdurige energie. Voor een sporter zijn ze de belangrijkste brandstof — zeker rond zware trainingen. Kies volkoren: die geeft trager en langer energie.', bron: 'Gezond Leven' },
-      { titel: 'Eiwitten: de bouwstenen', tekst: 'Eiwitten uit vlees, vis, eieren, bonen en noten herstellen en bouwen je spieren op. Na een krachttraining helpen ze je spieren sterker terug te komen. Wissel dierlijke en plantaardige bronnen af.', bron: 'Gezond Leven' },
-      { titel: 'Timing rond training', tekst: 'Vóór een zware inspanning kies je koolhydraten voor energie; erna een combinatie van koolhydraten en eiwitten voor herstel. Op een rustdag heeft je lichaam minder brandstof nodig — luister naar wat de dag vraagt.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'De voedingsdriehoek', minGraad: 1, tekst: 'Eet vooral uit de onderste, groene lagen: groenten, fruit, volle granen en water. Hoe hoger in de driehoek (bewerkte producten, snoep), hoe minder je lichaam ervan nodig heeft. "Regenboog op je bord" = variatie in voedingsstoffen.', bron: 'Gezond Leven' },
+      { titel: 'Koolhydraten: de brandstof', minGraad: 1, tekst: 'Volle granen, pasta, rijst en aardappelen leveren langdurige energie. Voor een sporter zijn ze de belangrijkste brandstof — zeker rond zware trainingen. Kies volkoren: die geeft trager en langer energie.', bron: 'Gezond Leven' },
+      { titel: 'Eiwitten: de bouwstenen', minGraad: 1, tekst: 'Eiwitten uit vlees, vis, eieren, bonen en noten herstellen en bouwen je spieren op. Na een krachttraining helpen ze je spieren sterker terug te komen. Wissel dierlijke en plantaardige bronnen af.', bron: 'Gezond Leven' },
+      { titel: 'Timing rond training', minGraad: 2, tekst: 'Vóór een zware inspanning kies je koolhydraten voor energie; erna een combinatie van koolhydraten en eiwitten voor herstel. Op een rustdag heeft je lichaam minder brandstof nodig — luister naar wat de dag vraagt.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'Supplementen: meestal overbodig', minGraad: 3, tekst: 'Met gevarieerde voeding heeft een jongere geen eiwitshakes of pillen nodig. Sommige supplementen werken bij volwassen topsporters, maar worden bij jongeren afgeraden — en ze zijn nauwelijks gecontroleerd, wat een dopingrisico geeft.', bron: 'Leerplan Sportwetenschappen' },
     ],
     quiz: [
       { vraag: 'Waaruit eet je volgens de voedingsdriehoek het meest?', opties: ['Snoep en frisdrank', 'Groenten, fruit, granen, water', 'Bewerkt vlees'], juist: 1 },
@@ -121,5 +143,5 @@ export function modulesVanKamer(kamerId) {
 
 // Welke modules hebben een eigen interactieve tool? (component gekoppeld in
 // ModuleTool.jsx). Modules zonder tool tonen enkel de kennisflow + quiz.
-export const MODULES_MET_TOOL = ['hart', 'energie'];
+export const MODULES_MET_TOOL = ['hart', 'energie', 'voeding'];
 
