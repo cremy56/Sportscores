@@ -117,3 +117,8 @@ export function getModule(id) {
 export function modulesVanKamer(kamerId) {
   return MODULES.filter((m) => m.kamer === kamerId);
 }
+
+// Welke modules hebben een eigen interactieve tool? (component gekoppeld in
+// ModuleTool.jsx). Modules zonder tool tonen enkel de kennisflow + quiz.
+export const MODULES_MET_TOOL = ['hart'];
+

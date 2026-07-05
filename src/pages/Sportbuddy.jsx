@@ -13,8 +13,8 @@ import AanmaakWizard from '../components/sportbuddy/AanmaakWizard';
 import BuddyAvatar from '../components/sportbuddy/BuddyAvatar';
 import VerzorgPaneel from '../components/sportbuddy/VerzorgPaneel';
 import EventModal from '../components/sportbuddy/EventModal';
-import StatusBalk from '../components/sportbuddy/StatusBalk';
-import Kamers from '../components/sportbuddy/Kamers';
+import { DagstaatBalken, KlusceHexagon } from '../components/sportbuddy/StatWidgets';
+import ModuleTiles from '../components/sportbuddy/ModuleTiles';
 import { getSport } from '../data/sportbuddy/sporten';
 
 const RISICO_BADGE = {
@@ -80,10 +80,6 @@ export default function Sportbuddy() {
 
   const handleEventResolved = (result) => {
     setBuddy(result.buddy);
-  };
-
-  const handleKennisAfgerond = (moduleId, result) => {
-    setBuddy((b) => (b ? { ...b, kennis: { ...(b.kennis || {}), [moduleId]: result.kennis } } : b));
   };
 
   const wisselRustperiode = async () => {
@@ -209,10 +205,10 @@ export default function Sportbuddy() {
         </div>
       )}
 
-      <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-6">
-        {/* Buddy-kaart */}
+      {/* Buddy centraal */}
+      <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center">
-          <div className={`w-36 transition-opacity ${opRust ? 'opacity-60' : ''}`}>
+          <div className={`w-44 sm:w-52 transition-opacity ${opRust ? 'opacity-60' : ''}`}>
             <BuddyAvatar
               gezicht={buddy.avatar?.gezicht}
               huid={buddy.avatar?.huid}
@@ -226,28 +222,38 @@ export default function Sportbuddy() {
               className="w-full"
             />
           </div>
-          <div className="text-lg font-bold text-purple-700 mt-2">{buddyNaam}</div>
+          <div className="text-xl font-bold text-purple-700 mt-2">{buddyNaam}</div>
           {sport && <div className="text-sm text-gray-500">{sport.emoji} {sport.naam}</div>}
-          {opRust && <div className="mt-2 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">🏝️ Op rustperiode</div>}
-          <span className={`mt-3 text-xs font-semibold border rounded-full px-3 py-1 ${risico.stijl}`}>{risico.tekst}</span>
-          <button
-            type="button"
-            disabled={rustBezig}
-            onClick={wisselRustperiode}
-            className="mt-4 text-xs font-semibold text-gray-500 border border-gray-300 rounded-xl px-3 py-1.5 hover:border-purple-400 disabled:opacity-40"
-          >
-            {opRust ? 'Rustperiode beëindigen' : 'Rustperiode starten (vakantie)'}
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+            {opRust && <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">🏝️ Op rustperiode</span>}
+            <span className={`text-xs font-semibold border rounded-full px-3 py-1 ${risico.stijl}`}>{risico.tekst}</span>
+            <button
+              type="button"
+              disabled={rustBezig}
+              onClick={wisselRustperiode}
+              className="text-xs font-semibold text-gray-500 border border-gray-300 rounded-full px-3 py-1 hover:border-purple-400 disabled:opacity-40"
+            >
+              {opRust ? 'Rustperiode beëindigen' : 'Rustperiode starten'}
+            </button>
+          </div>
         </div>
 
-        {/* Compacte statusbalk (hexagon + tikbare chips) */}
-        <div className="md:col-span-2">
-          <StatusBalk buddy={buddy} dagstaat={dagstaat} />
+        {/* Dagstaat (balkjes) + KLUSCE-hexagon */}
+        <div className="grid md:grid-cols-2 gap-6 mt-6">
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="font-bold text-gray-800 mb-4">Dagstaat</h3>
+            <DagstaatBalken buddy={buddy} dagstaat={dagstaat} />
+          </div>
+          <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center justify-center">
+            <h3 className="font-bold text-gray-800 mb-2 self-start">Fysieke kenmerken</h3>
+            <KlusceHexagon stats={buddy.stats} size={190} />
+            <p className="text-xs text-gray-400 mt-2 text-center">Kracht · Lenigheid · Uithouding · Snelheid · Coördinatie · Evenwicht</p>
+          </div>
         </div>
       </div>
 
       {/* Dagelijkse verzorging */}
-      <div className="max-w-5xl mx-auto mt-6">
+      <div className="max-w-4xl mx-auto mt-6">
         {opRust ? (
           <div className="bg-white rounded-2xl shadow-lg p-6 text-center text-sm text-gray-500">
             🏝️ Je buddy is op rustperiode — de klok staat stil. Beëindig de rustperiode om verder te spelen.
@@ -262,9 +268,9 @@ export default function Sportbuddy() {
         )}
       </div>
 
-      {/* Kamers (kennismodules) */}
-      <div className="max-w-5xl mx-auto mt-6">
-        <Kamers buddy={buddy} profile={profile} onKennisAfgerond={handleKennisAfgerond} />
+      {/* Module-tiles */}
+      <div className="max-w-4xl mx-auto mt-6">
+        <ModuleTiles buddy={buddy} />
         <p className="text-center text-xs text-gray-400 mt-6">
           🔒 Alles hier gaat over je fictieve buddy — nooit over jouw eigen gezondheid.
         </p>
