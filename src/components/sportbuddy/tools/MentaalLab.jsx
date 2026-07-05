@@ -15,6 +15,7 @@
 //   4. Hulpwijzer — waar vind je echte hulp (I.32/I.35).
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import ClutchShot from './ClutchShot';
 
 // ─── 1. Ademhalingstool (box breathing) ───────────────────────────────────────
 const FASES = [
@@ -344,6 +345,30 @@ export default function MentaalLab({ graad = 2 }) {
           )}
         />
       )}
+
+      {/* Toepassing: box breathing + Yerkes-Dodson samen in één sportmoment */}
+      <Sectie
+        tool={<ClutchShot graad={graad} />}
+        info={(
+          <div className="flex flex-col gap-4 h-full">
+            <InfoKader titel="Van paniek naar flow">
+              <p>Dit brengt alles samen: bij te veel spanning (Yerkes-Dodson, rode zone) faalt je fijne motoriek — je hand trilt, je richt mis.</p>
+              <p>Met <strong>box breathing</strong> zak je terug naar de optimale zone. Het vizier wordt stil, de worp lukt.</p>
+            </InfoKader>
+            {graad >= 3 ? (
+              <InfoKader titel="De biologie erachter">
+                <p>Spanning activeert je <strong>sympathisch zenuwstelsel</strong>: adrenaline, hoge hartslag, tunnelvisie — nuttig om te vechten of vluchten, maar rampzalig voor precisie.</p>
+                <p>Trage ademhaling stimuleert de <strong>nervus vagus</strong> en je <strong>parasympathisch zenuwstelsel</strong>: hartslag zakt, de fijne motoriek keert terug. Zo stuurt ademhaling rechtstreeks je prestatie.</p>
+              </InfoKader>
+            ) : (
+              <InfoKader titel="Waarom je hand trilt">
+                <p>Bij veel spanning maakt je lichaam adrenaline aan. Dat helpt om hard te lopen of te springen, maar maakt je handen net onrustig — slecht voor precies richten.</p>
+                <p>Rustig ademen draait dat terug: je hartslag zakt en je krijgt de controle over je bewegingen terug.</p>
+              </InfoKader>
+            )}
+          </div>
+        )}
+      />
 
       <Hulpwijzer />
     </div>
