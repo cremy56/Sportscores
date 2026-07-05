@@ -5,17 +5,19 @@
 
 import HartslagLab from './tools/HartslagLab';
 import EnergieLab from './tools/EnergieLab';
+import VoedingLab from './tools/VoedingLab';
 
 const TOOLS = {
   hart: HartslagLab,
   energie: EnergieLab,
+  voeding: VoedingLab,
   // voeding: Bordbouwer,   (volgende sessie)
   // energie: EnergieSorteerder,
   // slaap: SlaaptekortSimulator,
 };
 
-export default function ModuleTool({ moduleId }) {
+export default function ModuleTool({ moduleId, graad = 2 }) {
   const Tool = TOOLS[moduleId];
   if (!Tool) return null;
-  return <Tool />;
+  return <Tool graad={graad} />;
 }

@@ -15,6 +15,7 @@ import VerzorgPaneel from '../components/sportbuddy/VerzorgPaneel';
 import EventModal from '../components/sportbuddy/EventModal';
 import { DagstaatBalken, KlusceHexagon } from '../components/sportbuddy/StatWidgets';
 import ModuleTiles from '../components/sportbuddy/ModuleTiles';
+import SuperadminTestpaneel from '../components/sportbuddy/SuperadminTestpaneel';
 import { getSport } from '../data/sportbuddy/sporten';
 import { sportbuddyApi } from '../data/sportbuddy/api';
 
@@ -26,13 +27,14 @@ const RISICO_BADGE = {
 
 export default function Sportbuddy() {
   const { profile } = useOutletContext();
-  const [buddy, setBuddy] = useState(null);
+  const [echteBuddy, setBuddy] = useState(null);
   const [vandaagVerzorgd, setVandaagVerzorgd] = useState(false);
   const [meldingen, setMeldingen] = useState([]);
   const [context, setContext] = useState(null);
   const [statusbericht, setStatusbericht] = useState(null);
   const [event, setEvent] = useState(null);
   const [eventOpen, setEventOpen] = useState(false);
+  const [testOverride, setTestOverride] = useState(null);
   const [laden, setLaden] = useState(true);
   const [apiFout, setApiFout] = useState(null);
   const [rustBezig, setRustBezig] = useState(false);
@@ -109,7 +111,7 @@ export default function Sportbuddy() {
     );
   }
 
-  if (!buddy) {
+  if (!echteBuddy) {
     return (
       <div>
         <PageHeader
@@ -124,6 +126,8 @@ export default function Sportbuddy() {
     );
   }
 
+  // Superadmin-testoverride: puur visuele preview bovenop de echte buddy
+  const buddy = testOverride ? { ...echteBuddy, ...testOverride } : echteBuddy;
   const sport = getSport(buddy.sport);
   const buddyNaam = profile?.nickname || 'Jouw buddy';
   const dagstaat = buddy.dagstaat || { vorm: 0, rustpols: 52, blessurerisico: 'laag' };
@@ -264,6 +268,10 @@ export default function Sportbuddy() {
           🔒 Alles hier gaat over je fictieve buddy — nooit over jouw eigen gezondheid.
         </p>
       </div>
+
+      {profile?.rol === 'super-administrator' && (
+        <SuperadminTestpaneel buddy={echteBuddy} onOverride={setTestOverride} />
+      )}
 
       {event && eventOpen && (
         <EventModal

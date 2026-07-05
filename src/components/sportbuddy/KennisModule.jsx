@@ -6,8 +6,10 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { sportbuddyApi } from '../../data/sportbuddy/api';
+import { voorGraad } from '../../data/sportbuddy/kennis';
 
-export default function KennisModule({ module, profile, onAfgerond, onClose }) {
+export default function KennisModule({ module, profile, graad = 2, onAfgerond, onClose }) {
+  const kaarten = voorGraad(module.kaarten, graad);
   const [fase, setFase] = useState('intro'); // intro | kaart | quiz | uitslag
   const [kaartIndex, setKaartIndex] = useState(0);
   const [antwoorden, setAntwoorden] = useState(Array(module.quiz.length).fill(null));
@@ -38,7 +40,7 @@ export default function KennisModule({ module, profile, onAfgerond, onClose }) {
     }
   };
 
-  const kaart = module.kaarten[kaartIndex];
+  const kaart = kaarten[kaartIndex];
   const vraag = module.quiz[vraagIndex];
   const alleBeantwoord = antwoorden.every((a) => a !== null);
 
@@ -55,7 +57,7 @@ export default function KennisModule({ module, profile, onAfgerond, onClose }) {
           <div className="text-center py-6">
             <div className="text-5xl mb-4">{module.emoji}</div>
             <p className="text-gray-600 mb-2">{module.intro}</p>
-            <p className="text-xs text-gray-400 mb-6">{module.kaarten.length} kaartjes · quiz van {module.quiz.length} vragen · leerplandoel {module.eindterm}</p>
+            <p className="text-xs text-gray-400 mb-6">{kaarten.length} kaartjes · quiz van {module.quiz.length} vragen · leerplandoel {module.eindterm}</p>
             <button type="button" onClick={() => setFase('kaart')} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-xl font-bold">Start</button>
           </div>
         )}
@@ -64,7 +66,7 @@ export default function KennisModule({ module, profile, onAfgerond, onClose }) {
         {fase === 'kaart' && (
           <div>
             <div className="flex gap-1 mb-4">
-              {module.kaarten.map((_, i) => (
+              {kaarten.map((_, i) => (
                 <div key={i} className={`h-1.5 flex-grow rounded-full ${i <= kaartIndex ? 'bg-purple-500' : 'bg-gray-200'}`} />
               ))}
             </div>
@@ -75,7 +77,7 @@ export default function KennisModule({ module, profile, onAfgerond, onClose }) {
             </div>
             <div className="flex justify-between mt-5">
               <button type="button" onClick={() => kaartIndex > 0 ? setKaartIndex(kaartIndex - 1) : setFase('intro')} className="text-gray-500 font-semibold px-4 py-2">Terug</button>
-              {kaartIndex < module.kaarten.length - 1 ? (
+              {kaartIndex < kaarten.length - 1 ? (
                 <button type="button" onClick={() => setKaartIndex(kaartIndex + 1)} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-xl font-semibold">Volgende</button>
               ) : (
                 <button type="button" onClick={() => setFase('quiz')} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-xl font-semibold">Naar de quiz</button>
