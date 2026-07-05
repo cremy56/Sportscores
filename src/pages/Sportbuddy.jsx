@@ -163,19 +163,6 @@ export default function Sportbuddy() {
         subtitle={`${buddyNaam} · ${sport ? `${sport.emoji} ${sport.naam}` : ''} · dag ${buddy.seizoen?.dag ?? 1} van het seizoen · 🪙 ${buddy.coins ?? 0}`}
       />
 
-      {context && (
-        <div className="max-w-5xl mx-auto mb-4 flex flex-wrap items-center gap-3 text-sm">
-          <span className="bg-white shadow rounded-full px-4 py-2 font-semibold text-gray-700">
-            {context.weer?.emoji} {context.weer?.tempMax}°C · {context.weer?.label}
-          </span>
-          <span className="bg-white shadow rounded-full px-4 py-2 font-semibold text-gray-700">
-            {context.kalender?.matchdag
-              ? '🏟️ Vandaag: WEDSTRIJDDAG'
-              : `⚽ Wedstrijd over ${context.kalender?.dagenTotMatch} ${context.kalender?.dagenTotMatch === 1 ? 'dag' : 'dagen'} (zaterdag)`}
-          </span>
-        </div>
-      )}
-
       {statusbericht && (
         <div className="max-w-5xl mx-auto mb-4 bg-white border-l-4 border-purple-500 shadow rounded-xl px-4 py-3">
           <p className="text-sm text-gray-800">{statusbericht.tekst}</p>
@@ -205,10 +192,36 @@ export default function Sportbuddy() {
         </div>
       )}
 
-      {/* Buddy centraal */}
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center">
-          <div className={`w-44 sm:w-52 transition-opacity ${opRust ? 'opacity-60' : ''}`}>
+      {/* PC: 3 kolommen (fysiek | buddy | dagstaat) · smartphone: gestapeld op
+          dagprioriteit — buddy → dagstaat → verzorging → fysiek → tiles */}
+      <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-6 items-start">
+
+        {/* Kolom 1 (PC links · mobiel als 3de): fysieke kenmerken + badges */}
+        <div className="order-3 md:order-1 space-y-4">
+          <div className="bg-white rounded-2xl shadow-lg p-5 flex flex-col items-center">
+            <h3 className="font-bold text-gray-800 self-start mb-2">Fysieke kenmerken</h3>
+            <KlusceHexagon stats={buddy.stats} size={180} />
+            <p className="text-[11px] text-gray-400 mt-2 text-center">Kracht · Lenigheid · Uithouding · Snelheid · Coördinatie · Evenwicht</p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span className={`text-xs font-semibold border rounded-full px-3 py-1.5 bg-white ${risico.stijl}`}>{risico.tekst}</span>
+            <button
+              type="button"
+              disabled={rustBezig}
+              onClick={wisselRustperiode}
+              className="text-xs font-semibold text-gray-500 bg-white border border-gray-300 rounded-full px-3 py-1.5 hover:border-purple-400 disabled:opacity-40"
+            >
+              {opRust ? 'Rustperiode beëindigen' : 'Rustperiode starten'}
+            </button>
+          </div>
+        </div>
+
+        {/* Kolom 2 (PC midden · mobiel bovenaan): de buddy als held, zonder kader */}
+        <div className="order-1 md:order-2 flex flex-col items-center">
+          <div className="text-2xl font-bold text-purple-700 mb-1">{buddyNaam}</div>
+          {sport && <div className="text-sm text-gray-500 mb-1">{sport.emoji} {sport.naam}</div>}
+          {opRust && <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1 mb-1">🏝️ Op rustperiode</span>}
+          <div className={`w-48 sm:w-56 transition-opacity ${opRust ? 'opacity-60' : ''}`}>
             <BuddyAvatar
               gezicht={buddy.avatar?.gezicht}
               huid={buddy.avatar?.huid}
@@ -222,38 +235,35 @@ export default function Sportbuddy() {
               className="w-full"
             />
           </div>
-          <div className="text-xl font-bold text-purple-700 mt-2">{buddyNaam}</div>
-          {sport && <div className="text-sm text-gray-500">{sport.emoji} {sport.naam}</div>}
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
-            {opRust && <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">🏝️ Op rustperiode</span>}
-            <span className={`text-xs font-semibold border rounded-full px-3 py-1 ${risico.stijl}`}>{risico.tekst}</span>
-            <button
-              type="button"
-              disabled={rustBezig}
-              onClick={wisselRustperiode}
-              className="text-xs font-semibold text-gray-500 border border-gray-300 rounded-full px-3 py-1 hover:border-purple-400 disabled:opacity-40"
-            >
-              {opRust ? 'Rustperiode beëindigen' : 'Rustperiode starten'}
-            </button>
-          </div>
         </div>
 
-        {/* Dagstaat (balkjes) + KLUSCE-hexagon */}
-        <div className="grid md:grid-cols-2 gap-6 mt-6">
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h3 className="font-bold text-gray-800 mb-4">Dagstaat</h3>
+        {/* Kolom 3 (PC rechts · mobiel als 2de): dagstaat met weer, wedstrijd eronder */}
+        <div className="order-2 md:order-3 space-y-4">
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-800">Dagstaat</h3>
+              {context?.weer && (
+                <span className="text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-3 py-1">
+                  {context.weer.emoji} {context.weer.tempMax}°C · {context.weer.label}
+                </span>
+              )}
+            </div>
             <DagstaatBalken buddy={buddy} dagstaat={dagstaat} />
           </div>
-          <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center justify-center">
-            <h3 className="font-bold text-gray-800 mb-2 self-start">Fysieke kenmerken</h3>
-            <KlusceHexagon stats={buddy.stats} size={190} />
-            <p className="text-xs text-gray-400 mt-2 text-center">Kracht · Lenigheid · Uithouding · Snelheid · Coördinatie · Evenwicht</p>
-          </div>
+          {context?.kalender && (
+            <div className="flex justify-center">
+              <span className="text-xs font-semibold text-gray-600 bg-white shadow rounded-full px-4 py-2">
+                {context.kalender.matchdag
+                  ? '🏟️ Vandaag: WEDSTRIJDDAG'
+                  : `⚽ Wedstrijd over ${context.kalender.dagenTotMatch} ${context.kalender.dagenTotMatch === 1 ? 'dag' : 'dagen'} (zaterdag)`}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Dagelijkse verzorging */}
-      <div className="max-w-4xl mx-auto mt-6">
+      <div className="max-w-5xl mx-auto mt-6">
         {opRust ? (
           <div className="bg-white rounded-2xl shadow-lg p-6 text-center text-sm text-gray-500">
             🏝️ Je buddy is op rustperiode — de klok staat stil. Beëindig de rustperiode om verder te spelen.
@@ -269,7 +279,7 @@ export default function Sportbuddy() {
       </div>
 
       {/* Module-tiles */}
-      <div className="max-w-4xl mx-auto mt-6">
+      <div className="max-w-5xl mx-auto mt-6">
         <ModuleTiles buddy={buddy} />
         <p className="text-center text-xs text-gray-400 mt-6">
           🔒 Alles hier gaat over je fictieve buddy — nooit over jouw eigen gezondheid.
