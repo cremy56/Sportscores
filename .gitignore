@@ -72,3 +72,5 @@ serviceAccountKey.json
 
 serviceAccountKey.json
 *serviceaccount*.json
+functions/.env
+functions/.env.local
