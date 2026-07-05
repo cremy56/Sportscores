@@ -219,7 +219,6 @@ export default function Sportbuddy() {
         {/* Kolom 2 (PC midden · mobiel bovenaan): de buddy als held, zonder kader */}
         <div className="order-1 md:order-2 flex flex-col items-center">
           <div className="text-2xl font-bold text-purple-700 mb-1">{buddyNaam}</div>
-          {sport && <div className="text-sm text-gray-500 mb-1">{sport.emoji} {sport.naam}</div>}
           {opRust && <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1 mb-1">🏝️ Op rustperiode</span>}
           <div className={`w-48 sm:w-56 transition-opacity ${opRust ? 'opacity-60' : ''}`}>
             <BuddyAvatar

@@ -1,11 +1,12 @@
 // src/components/sportbuddy/tools/HartslagLab.jsx
-// Interactieve tool voor de Hart-module (eindterm I.8).
-// Datavrij: de leeftijd is een SCHUIF (geen invoer van de leerling zelf), en de
-// oefening gaat over gesimuleerde situaties, niet over de eigen hartslag.
-// Twee delen:
-//   1. Zonecalculator — schuif leeftijd + rustpols → zones (Karvonen), live.
-//   2. "Lees de hartslag" — geanimeerde bpm-teller bij een situatie; de leerling
-//      kiest de juiste zone en krijgt uitleg. Puur oefenen, niets opgeslagen.
+// Interactieve tool voor de module Hartfrequentie (eindterm I.8). Vier delen,
+// elk met een infokader ernaast (PC) of eronder (smartphone):
+//   1. Zonecalculator (Karvonen, schuiven)  + info: meetmethoden
+//   2. Tel de hartslag (manueel meten: 15 s tellen × 4)
+//   3. Lees de hartslag (zones interpreteren) + info: de praattest
+//   4. De RPE-schaal (Borg 1-10): info + inschattingsoefening
+// Datavrij: alles gaat over de buddy of gesimuleerde situaties — de leerling
+// meet of registreert niets van zichzelf.
 
 import { useState, useEffect, useRef } from 'react';
 
@@ -17,7 +18,6 @@ const ZONES = [
   { naam: 'Maximaal', kleur: '#b91c1c', min: 0.85, max: 1.01, uitleg: 'Korte pieken — niet lang vol te houden.' },
 ];
 
-// Karvonen: doelhartslag = rustpols + intensiteit × (max − rustpols)
 function zoneVanBpm(bpm, leeftijd, rustpols) {
   const max = 220 - leeftijd;
   const reserve = max - rustpols;
@@ -28,33 +28,39 @@ function zoneVanBpm(bpm, leeftijd, rustpols) {
   return ZONES[ZONES.length - 1];
 }
 
-const OEFENINGEN = [
-  { situatie: 'Je buddy zit rustig op de bank een film te kijken.', bpm: 70, verwacht: 'Rust' },
-  { situatie: 'Je buddy jogt op een tempo waarbij hij nog kan babbelen.', bpm: 155, verwacht: 'Matig' },
-  { situatie: 'Je buddy sprint de laatste 100 meter voluit naar de finish.', bpm: 195, verwacht: 'Maximaal' },
-  { situatie: 'Je buddy fietst stevig door, praten lukt nog net met moeite.', bpm: 175, verwacht: 'Intensief' },
-  { situatie: 'Je buddy wandelt stevig door om op te warmen.', bpm: 140, verwacht: 'Licht' },
-];
-
-// Geanimeerd hartje + bpm-teller
-function HartMonitor({ bpm }) {
-  const [klop, setKlop] = useState(false);
-  useEffect(() => {
-    const interval = 60000 / bpm;
-    const id = setInterval(() => setKlop((k) => !k), interval / 2);
-    return () => clearInterval(id);
-  }, [bpm]);
+// ─── Bouwstenen ───────────────────────────────────────────────────────────────
+function InfoKader({ titel, children }) {
   return (
-    <div className="flex items-center justify-center gap-3">
-      <span className={`text-4xl transition-transform duration-100 ${klop ? 'scale-125' : 'scale-100'}`}>❤️</span>
-      <div className="text-center">
-        <div className="text-3xl font-bold text-gray-800 tabular-nums">{bpm}</div>
-        <div className="text-xs text-gray-400 -mt-1">bpm</div>
-      </div>
+    <aside className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 h-fit">
+      <p className="text-xs font-bold text-indigo-700 mb-2">ℹ️ {titel}</p>
+      <div className="text-xs text-indigo-900 space-y-2">{children}</div>
+    </aside>
+  );
+}
+
+function Sectie({ tool, info }) {
+  return (
+    <div className="grid md:grid-cols-[1fr_260px] gap-4 items-start">
+      {tool}
+      {info}
     </div>
   );
 }
 
+function HartMonitor({ bpm, actief = true }) {
+  const [klop, setKlop] = useState(false);
+  useEffect(() => {
+    if (!actief) return undefined;
+    const interval = 60000 / bpm;
+    const id = setInterval(() => setKlop((k) => !k), interval / 2);
+    return () => clearInterval(id);
+  }, [bpm, actief]);
+  return (
+    <span className={`inline-block text-4xl transition-transform duration-100 ${klop && actief ? 'scale-125' : 'scale-100'}`}>❤️</span>
+  );
+}
+
+// ─── 1. Zonecalculator ────────────────────────────────────────────────────────
 function Zonecalculator() {
   const [leeftijd, setLeeftijd] = useState(15);
   const [rustpols, setRustpols] = useState(65);
@@ -63,7 +69,7 @@ function Zonecalculator() {
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6">
       <h3 className="font-bold text-gray-800 mb-1">Zonecalculator</h3>
-      <p className="text-xs text-gray-500 mb-4">Schuif en zie hoe de trainingszones verschuiven. Formule: maximale hartslag = 220 − leeftijd.</p>
+      <p className="text-xs text-gray-500 mb-4">Schuif en zie hoe de trainingszones verschuiven. Maximale hartslag ≈ 220 − leeftijd.</p>
 
       <div className="space-y-4 mb-5">
         <div>
@@ -102,6 +108,111 @@ function Zonecalculator() {
     </div>
   );
 }
+
+// ─── 2. Tel de hartslag (manueel meten) ───────────────────────────────────────
+const TEL_BPMS = [72, 96, 120, 144, 168];
+const TEL_DUUR = 15;
+
+function TelDeHartslag() {
+  const [fase, setFase] = useState('idle'); // idle | tellen | invullen | resultaat
+  const [bpm, setBpm] = useState(null);
+  const [seconden, setSeconden] = useState(TEL_DUUR);
+  const [geteld, setGeteld] = useState('');
+  const timerRef = useRef(null);
+
+  const start = () => {
+    const nieuweBpm = TEL_BPMS[Math.floor(Math.random() * TEL_BPMS.length)];
+    setBpm(nieuweBpm);
+    setSeconden(TEL_DUUR);
+    setGeteld('');
+    setFase('tellen');
+  };
+
+  useEffect(() => {
+    if (fase !== 'tellen') return undefined;
+    timerRef.current = setInterval(() => {
+      setSeconden((s) => {
+        if (s <= 1) {
+          clearInterval(timerRef.current);
+          setFase('invullen');
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [fase]);
+
+  const werkelijk = bpm;
+  const geraden = parseInt(geteld, 10) * 4;
+  const verschil = Number.isFinite(geraden) ? Math.abs(geraden - werkelijk) : null;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-6">
+      <h3 className="font-bold text-gray-800 mb-1">Tel de hartslag</h3>
+      <p className="text-xs text-gray-500 mb-4">Zo meet je manueel: tel de slagen gedurende 15 seconden en vermenigvuldig met 4. Oefen het hier op het hart van je buddy.</p>
+
+      {fase === 'idle' && (
+        <div className="text-center py-4">
+          <p className="text-sm text-gray-600 mb-4">Straks klopt het hart 15 seconden lang. Tel de kloppen — de teller staat verborgen!</p>
+          <button type="button" onClick={start} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-xl font-bold">Start de meting</button>
+        </div>
+      )}
+
+      {fase === 'tellen' && (
+        <div className="text-center py-4">
+          <HartMonitor bpm={bpm} />
+          <div className="text-3xl font-bold text-gray-800 tabular-nums mt-3">{seconden}<span className="text-sm font-normal text-gray-400"> s</span></div>
+          <p className="text-xs text-gray-400 mt-1">Tellen maar!</p>
+        </div>
+      )}
+
+      {fase === 'invullen' && (
+        <div className="text-center py-4">
+          <p className="text-sm font-semibold text-gray-700 mb-3">Hoeveel kloppen telde je in 15 seconden?</p>
+          <input
+            type="number" min="5" max="60" value={geteld}
+            onChange={(e) => setGeteld(e.target.value)}
+            className="w-24 text-center text-xl font-bold border-2 border-gray-200 rounded-xl px-3 py-2 focus:border-purple-500 focus:outline-none"
+          />
+          <div className="mt-4">
+            <button
+              type="button"
+              disabled={!geteld}
+              onClick={() => setFase('resultaat')}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-xl font-semibold disabled:opacity-40"
+            >
+              Bereken (× 4)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {fase === 'resultaat' && (
+        <div className="text-center py-4">
+          <div className="text-4xl mb-2">{verschil <= 8 ? '🎯' : '🔁'}</div>
+          <p className="text-sm text-gray-700 mb-1">Jij telde <strong>{geteld}</strong> kloppen → {geteld} × 4 = <strong>{geraden} bpm</strong></p>
+          <p className="text-sm text-gray-700 mb-3">Het hart klopte werkelijk op <strong>{werkelijk} bpm</strong>.</p>
+          <p className={`text-sm font-semibold mb-4 ${verschil <= 8 ? 'text-green-600' : 'text-amber-600'}`}>
+            {verschil <= 8
+              ? 'Uitstekend gemeten — minder dan 2 kloppen ernaast!'
+              : `Er zat ${verschil} bpm verschil op. Manueel meten vraagt oefening — probeer nog eens.`}
+          </p>
+          <button type="button" onClick={start} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-xl font-semibold">Nog een meting</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── 3. Lees de hartslag ──────────────────────────────────────────────────────
+const OEFENINGEN = [
+  { situatie: 'Je buddy zit rustig op de bank een film te kijken.', bpm: 70, verwacht: 'Rust' },
+  { situatie: 'Je buddy jogt op een tempo waarbij hij nog kan babbelen.', bpm: 155, verwacht: 'Matig' },
+  { situatie: 'Je buddy sprint de laatste 100 meter voluit naar de finish.', bpm: 195, verwacht: 'Maximaal' },
+  { situatie: 'Je buddy fietst stevig door, praten lukt nog net met moeite.', bpm: 175, verwacht: 'Intensief' },
+  { situatie: 'Je buddy wandelt stevig door om op te warmen.', bpm: 140, verwacht: 'Licht' },
+];
 
 function LeesDeHartslag() {
   const [index, setIndex] = useState(0);
@@ -145,10 +256,16 @@ function LeesDeHartslag() {
 
       <div className="bg-gray-50 rounded-xl p-5 mb-4">
         <p className="text-sm text-gray-600 mb-4">{oef.situatie}</p>
-        <HartMonitor bpm={oef.bpm} />
+        <div className="flex items-center justify-center gap-3">
+          <HartMonitor bpm={oef.bpm} />
+          <div className="text-center">
+            <div className="text-3xl font-bold text-gray-800 tabular-nums">{oef.bpm}</div>
+            <div className="text-xs text-gray-400 -mt-1">bpm</div>
+          </div>
+        </div>
       </div>
 
-      <p className="text-sm font-semibold text-gray-600 mb-2">In welke zone zit je buddy?</p>
+      <p className="text-sm font-semibold text-gray-600 mb-2">In welke zone zit je buddy? (15 jaar, rustpols 65)</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {ZONES.map((z) => {
           const isJuist = z.naam === oef.verwacht;
@@ -185,11 +302,149 @@ function LeesDeHartslag() {
   );
 }
 
+// ─── 4. De RPE-schaal (Borg 1-10) ─────────────────────────────────────────────
+const RPE_SCHAAL = [
+  { rpe: '1-2', label: 'Heel licht', omschrijving: 'Moeiteloos — je kunt zingen.' },
+  { rpe: '3-4', label: 'Licht', omschrijving: 'Vlot praten lukt makkelijk.' },
+  { rpe: '5-6', label: 'Matig', omschrijving: 'Praten in korte zinnen.' },
+  { rpe: '7-8', label: 'Zwaar', omschrijving: 'Hooguit enkele woorden.' },
+  { rpe: '9-10', label: 'Maximaal', omschrijving: 'Praten onmogelijk — alles geven.' },
+];
+
+const RPE_OEFENINGEN = [
+  { situatie: 'Je buddy jogt heel rustig uit na de training en kan er vlot bij vertellen.', min: 3, max: 4 },
+  { situatie: 'Stevige duurloop: je buddy antwoordt nog, maar enkel in korte zinnen.', min: 5, max: 6 },
+  { situatie: 'Intervalsprints: na elke sprint hangt je buddy over zijn knieën, praten lukt niet.', min: 9, max: 10 },
+  { situatie: 'Zware heuvelloop: je buddy perst er hooguit "ja" of "nee" uit.', min: 7, max: 8 },
+];
+
+function RpeOefening() {
+  const [index, setIndex] = useState(0);
+  const [waarde, setWaarde] = useState(5);
+  const [beoordeeld, setBeoordeeld] = useState(false);
+  const [score, setScore] = useState(0);
+  const [klaar, setKlaar] = useState(false);
+  const oef = RPE_OEFENINGEN[index];
+  const juist = waarde >= oef.min && waarde <= oef.max;
+
+  const beoordeel = () => {
+    setBeoordeeld(true);
+    if (juist) setScore((s) => s + 1);
+  };
+  const volgende = () => {
+    if (index < RPE_OEFENINGEN.length - 1) {
+      setIndex(index + 1); setWaarde(5); setBeoordeeld(false);
+    } else {
+      setKlaar(true);
+    }
+  };
+  const opnieuw = () => { setIndex(0); setWaarde(5); setBeoordeeld(false); setScore(0); setKlaar(false); };
+
+  if (klaar) {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
+        <div className="text-5xl mb-3">{score >= 3 ? '🎉' : '💪'}</div>
+        <p className="text-lg font-bold text-gray-800 mb-1">{score} / {RPE_OEFENINGEN.length} juist ingeschat</p>
+        <p className="text-sm text-gray-500 mb-5">Met de RPE-schaal kun je élke training doseren — ook zonder hartslagmeter.</p>
+        <button type="button" onClick={opnieuw} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-xl font-semibold">Opnieuw oefenen</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-6">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-gray-800">Schat de RPE in</h3>
+        <span className="text-xs text-gray-400">{index + 1} / {RPE_OEFENINGEN.length}</span>
+      </div>
+
+      <div className="bg-gray-50 rounded-xl p-4 mb-4">
+        <p className="text-sm text-gray-600">{oef.situatie}</p>
+      </div>
+
+      <div className="flex justify-between text-sm font-semibold text-gray-600 mb-1">
+        <span>Hoe zwaar voelt dit? (RPE)</span>
+        <span className="text-purple-700 text-lg tabular-nums">{waarde}</span>
+      </div>
+      <input
+        type="range" min="1" max="10" value={waarde}
+        disabled={beoordeeld}
+        onChange={(e) => setWaarde(+e.target.value)}
+        className="w-full accent-purple-600"
+      />
+      <div className="flex justify-between text-[10px] text-gray-400 mb-4">
+        <span>1 · heel licht</span><span>5 · matig</span><span>10 · maximaal</span>
+      </div>
+
+      {!beoordeeld ? (
+        <div className="flex justify-end">
+          <button type="button" onClick={beoordeel} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-xl font-semibold">Controleer</button>
+        </div>
+      ) : (
+        <div>
+          <div className={`rounded-xl p-3 text-sm ${juist ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-800'}`}>
+            {juist ? '✅ Goed ingeschat! ' : `❌ Deze inspanning hoort bij RPE ${oef.min}-${oef.max}. `}
+            Het praatgevoel is je kompas: hoe minder woorden er nog uit kunnen, hoe hoger de RPE.
+          </div>
+          <div className="flex justify-end mt-3">
+            <button type="button" onClick={volgende} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-xl font-semibold">
+              {index < RPE_OEFENINGEN.length - 1 ? 'Volgende' : 'Bekijk resultaat'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Samenstelling ────────────────────────────────────────────────────────────
 export default function HartslagLab() {
   return (
     <div className="space-y-6">
-      <Zonecalculator />
-      <LeesDeHartslag />
+      <Sectie
+        tool={<Zonecalculator />}
+        info={(
+          <InfoKader titel="Hoe meet je je hartslag?">
+            <p><strong>Manueel:</strong> leg wijs- en middelvinger op de binnenkant van je pols (of naast je strottenhoofd), tel 15 seconden en doe × 4. Nooit met je duim — die heeft een eigen polsslag.</p>
+            <p><strong>Hartslagmeters:</strong> een borstband meet elektrisch en is het nauwkeurigst; horloges meten optisch aan de pols — handig, maar iets minder precies bij intensieve sport.</p>
+            <p><strong>Rustpols meten?</strong> Doe het 's ochtends vóór het opstaan — dan is hij het betrouwbaarst.</p>
+          </InfoKader>
+        )}
+      />
+      <Sectie
+        tool={<TelDeHartslag />}
+        info={(
+          <InfoKader titel="Waarom 15 seconden × 4?">
+            <p>Een volle minuut tellen is nauwkeuriger, maar duurt lang en je verliest snel de tel. 15 seconden tellen en × 4 is de klassieke sportmethode: snel én betrouwbaar genoeg.</p>
+            <p>Eén klop verkeerd geteld = 4 bpm verschil in je resultaat. Daarom: goed focussen!</p>
+          </InfoKader>
+        )}
+      />
+      <Sectie
+        tool={<LeesDeHartslag />}
+        info={(
+          <InfoKader titel="De praattest">
+            <p>Geen meter bij de hand? Je stem verraadt je zone: kun je vlot praten → licht. Korte zinnen → matig. Enkele woorden → intensief. Geen woord meer → maximaal.</p>
+            <p>Zo koppel je wat je <em>voelt</em> aan wat de cijfers zeggen.</p>
+          </InfoKader>
+        )}
+      />
+      <Sectie
+        tool={<RpeOefening />}
+        info={(
+          <InfoKader titel="De RPE-schaal (Borg)">
+            <p>RPE = Rate of Perceived Exertion: hoe zwaar een inspanning <em>voelt</em>, op een schaal van 1 tot 10. Trainers gebruiken RPE om trainingen te doseren — het werkt overal, zonder apparaat.</p>
+            <div className="space-y-1 pt-1">
+              {RPE_SCHAAL.map((r) => (
+                <div key={r.rpe} className="flex gap-2">
+                  <span className="font-bold w-8 shrink-0">{r.rpe}</span>
+                  <span><strong>{r.label}</strong> — {r.omschrijving}</span>
+                </div>
+              ))}
+            </div>
+          </InfoKader>
+        )}
+      />
     </div>
   );
 }

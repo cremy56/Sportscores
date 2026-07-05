@@ -21,7 +21,7 @@ export const KAMERS = [
 export const MODULES = [
   // ══════════════════ KAMER: DE RUSTKAMER (herstel) ══════════════════
   {
-    id: 'hart', kamer: 'herstel', naam: 'Hart & hartslag', emoji: '❤️',
+    id: 'hart', kamer: 'herstel', naam: 'Hartfrequentie', emoji: '❤️',
     eindterm: 'I.8', beschikbaar: true,
     intro: 'Je hart is de motor van elke sporter. Leer zijn taal lezen.',
     kaarten: [
