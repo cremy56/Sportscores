@@ -6,11 +6,13 @@
 import HartslagLab from './tools/HartslagLab';
 import EnergieLab from './tools/EnergieLab';
 import VoedingLab from './tools/VoedingLab';
+import MentaalLab from './tools/MentaalLab';
 
 const TOOLS = {
   hart: HartslagLab,
   energie: EnergieLab,
   voeding: VoedingLab,
+  mentaal: MentaalLab,
   // voeding: Bordbouwer,   (volgende sessie)
   // energie: EnergieSorteerder,
   // slaap: SlaaptekortSimulator,

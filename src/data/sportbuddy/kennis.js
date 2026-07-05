@@ -122,9 +122,22 @@ export const MODULES = [
   // ══════════════════ KAMER: DE COACHRUIMTE (mentaal) ══════════════════
   {
     id: 'mentaal', kamer: 'mentaal', naam: 'Mentale kracht', emoji: '🧠',
-    eindterm: 'I.32-35', beschikbaar: false,
-    intro: 'Binnenkort: omgaan met spanning, ademhalingsroutines en waar je hulp vindt.',
-    kaarten: [], quiz: [],
+    eindterm: 'I.32-35, I.17', beschikbaar: true,
+    intro: 'Sport speelt zich ook tussen de oren af. Leer omgaan met spanning, winst en verlies.',
+    kaarten: [
+      { titel: 'Spanning hoort erbij', minGraad: 1, tekst: 'Voor een wedstrijd zenuwachtig zijn is normaal — zelfs toppers hebben dat. Een beetje spanning maakt je scherp. Het wordt pas een probleem als de spanning zo groot wordt dat je verkrampt.', bron: 'Sportpsychologie' },
+      { titel: 'Ademen om te ontspannen', minGraad: 1, tekst: 'Bij spanning gaat je ademhaling vanzelf sneller. Door bewust traag en diep te ademen, kalmeer je je lichaam: je hartslag zakt en je wordt rustiger. Vlak voor een start of strafschop helpt dat om je focus terug te vinden.', bron: 'Sportpsychologie' },
+      { titel: 'Winnen én verliezen', minGraad: 1, tekst: 'Verlies hoort bij sport. Wie een fout maakt en ervan leert, wordt beter; wie anderen de schuld geeft, blijft steken. En winnen doe je met respect voor de tegenstander — dat is sportieve wilsontplooiing.', bron: 'Leerplan Beweging & Sport' },
+      { titel: 'Spanning reguleren', minGraad: 2, tekst: 'Te weinig spanning maakt je slap, te veel verlamt je. De kunst is om je spanning te sturen: jezelf opladen als je te vlak bent, of ademhalen en een vaste routine gebruiken als je te gespannen bent. Dit kun je trainen, net als een spier.', bron: 'Sportpsychologie' },
+      { titel: 'De wet van Yerkes-Dodson', minGraad: 3, tekst: 'Al in 1908 beschreven Yerkes en Dodson dat prestatie en spanning een omgekeerde U vormen: prestatie stijgt met spanning tot een optimum en daalt daarna weer. Fijne, complexe taken vragen minder spanning; grove krachttaken verdragen er meer.', bron: 'Yerkes & Dodson (1908)' },
+      { titel: 'Waar vind je hulp?', minGraad: 1, tekst: 'Als het niet meer over je buddy gaat maar over jezelf, is hulp vragen geen zwakte. Je CLB, Awel (102), 1712 en de Zelfmoordlijn (1813) staan klaar. Weten waar je terechtkunt, is zelf al een sterke vaardigheid.', bron: 'CLB / Hulpwijzer' },
+    ],
+    quiz: [
+      { vraag: 'Is een beetje spanning voor een wedstrijd normaal?', opties: ['Ja, het maakt je scherp', 'Nee, dat is altijd slecht'], juist: 0 },
+      { vraag: 'Wat helpt om te ontspannen bij te veel spanning?', opties: ['Sneller ademen', 'Traag en diep ademen'], juist: 1 },
+      { vraag: 'Wat is de sportieve reactie op een verlies?', opties: ['Anderen de schuld geven', 'Eruit leren voor de volgende keer'], juist: 1 },
+      { vraag: 'Waar kun je terecht als je ergens mee zit?', opties: ['Bij niemand', 'Bij het CLB, Awel of 1813'], juist: 1 },
+    ],
   },
   {
     id: 'houding', kamer: 'mentaal', naam: 'Houding & rug', emoji: '🧍',
@@ -143,5 +156,5 @@ export function modulesVanKamer(kamerId) {
 
 // Welke modules hebben een eigen interactieve tool? (component gekoppeld in
 // ModuleTool.jsx). Modules zonder tool tonen enkel de kennisflow + quiz.
-export const MODULES_MET_TOOL = ['hart', 'energie', 'voeding'];
+export const MODULES_MET_TOOL = ['hart', 'energie', 'voeding', 'mentaal'];
 
