@@ -35,6 +35,12 @@ export default function ClutchShot({ graad = 2 }) {
   const ademRef = useRef(null);
   const wiebelRef = useRef(null);
   const vasthoudenRef = useRef(false);
+  const statusRef = useRef('klaar');
+  const cycliRef = useRef(0);
+
+  // Houd refs synchroon met de state zodat event-handlers de actuele waarde zien
+  useEffect(() => { statusRef.current = status; }, [status]);
+  useEffect(() => { cycliRef.current = cycli; }, [cycli]);
 
   const gevorderd = graad >= 3;
 
@@ -72,11 +78,24 @@ export default function ClutchShot({ graad = 2 }) {
     if (status === 'ademen' && cycli >= NODIG_CYCLI) {
       clearInterval(ademRef.current);
       clearInterval(wiebelRef.current);
+      statusRef.current = 'klaar-om-te-werpen'; // meteen, zodat loslaten het ziet
       setStatus('klaar-om-te-werpen');
     }
   }, [cycli, status]);
 
-  // Worp-animatie: bal reist ~900ms naar de ring, daarna swish
+  // Globale loslaat-listener: vangt muisknop/vinger loslaten óók buiten het
+  // speelveld op, en werkt betrouwbaar ongeacht welk element het event kreeg.
+  useEffect(() => {
+    const opLos = () => laatLos();
+    window.addEventListener('mouseup', opLos);
+    window.addEventListener('touchend', opLos);
+    return () => {
+      window.removeEventListener('mouseup', opLos);
+      window.removeEventListener('touchend', opLos);
+    };
+  }, []);
+
+  // Worp-animatie: bal reist ~950ms naar de ring, daarna swish
   useEffect(() => {
     if (status !== 'werpen') return undefined;
     const id = setTimeout(() => setStatus('swish'), 950);
@@ -86,25 +105,28 @@ export default function ClutchShot({ graad = 2 }) {
   // Bal ingedrukt → start of hervat de ademhaling
   const grijpBal = (e) => {
     e.preventDefault();
-    if (status === 'swish') return;
-    if (status === 'klaar' || status === 'mis') {
+    if (statusRef.current === 'swish' || statusRef.current === 'werpen') return;
+    if (statusRef.current === 'klaar' || statusRef.current === 'mis') {
       setStress(START_STRESS); setFaseIndex(0); setFaseSec(0); setCycli(0);
+      cycliRef.current = 0;
     }
     vasthoudenRef.current = true;
+    statusRef.current = 'ademen'; // meteen, vóór de re-render
     setStatus('ademen');
   };
 
-  // Loslaten
+  // Loslaten — leest de actuele status/cycli uit refs (geen stale closure)
   const laatLos = () => {
     if (!vasthoudenRef.current) return;
     vasthoudenRef.current = false;
+    const huidigeStatus = statusRef.current;
     // Klaar om te werpen → de bal vliegt!
-    if (status === 'klaar-om-te-werpen') {
+    if (huidigeStatus === 'klaar-om-te-werpen') {
       setStatus('werpen');
       return;
     }
     // Nog bezig met ademen → te vroeg losgelaten → mis
-    if (status === 'ademen' && cycli < NODIG_CYCLI) {
+    if (huidigeStatus === 'ademen' && cycliRef.current < NODIG_CYCLI) {
       clearInterval(ademRef.current);
       clearInterval(wiebelRef.current);
       setStatus('mis');
@@ -162,9 +184,6 @@ export default function ClutchShot({ graad = 2 }) {
           background: 'linear-gradient(180deg,#1e293b 0%,#3b4a63 60%,#5a4632 60%,#6b5340 100%)',
           transform: `translate(${(Math.random() - 0.5) * shake}px, ${(Math.random() - 0.5) * shake}px)`,
         }}
-        onMouseUp={laatLos}
-        onMouseLeave={laatLos}
-        onTouchEnd={laatLos}
       >
         {/* Tribune-stippen */}
         <div className="absolute inset-x-0 top-0 h-1/4 opacity-30"
