@@ -105,12 +105,13 @@ export default function Sportbuddy() {
   }
 
   const sport = getSport(buddy.sport);
+  const buddyNaam = profile?.nickname || 'Jouw buddy';
 
   return (
     <div>
       <PageHeader
         title="Sportbuddy"
-        subtitle={`${buddy.naam_atleet} · ${sport ? `${sport.emoji} ${sport.naam}` : ''} · dag ${buddy.seizoen?.dag ?? 1} van het seizoen`}
+        subtitle={`${buddyNaam} · ${sport ? `${sport.emoji} ${sport.naam}` : ''} · dag ${buddy.seizoen?.dag ?? 1} van het seizoen`}
       />
       <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-6">
         {/* Buddy-kaart */}
@@ -124,7 +125,7 @@ export default function Sportbuddy() {
               className="w-full"
             />
           </div>
-          <div className="text-lg font-bold text-purple-700 mt-2">{buddy.naam_atleet}</div>
+          <div className="text-lg font-bold text-purple-700 mt-2">{buddyNaam}</div>
           {sport && <div className="text-sm text-gray-500">{sport.emoji} {sport.naam}</div>}
         </div>
 

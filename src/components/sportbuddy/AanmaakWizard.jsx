@@ -1,14 +1,15 @@
 // src/components/sportbuddy/AanmaakWizard.jsx
-// Aanmaakflow Sportbuddy (sessie 1): sportkeuze → uiterlijk → naam → bevestigen.
+// Aanmaakflow Sportbuddy (sessie 1): sportkeuze → uiterlijk → bevestigen.
 // Alle input is een GESLOTEN keuze (indices) — geen vrije tekst (GDD §8).
+// De buddy draagt de nickname van de leerling (bestaat al in het profiel;
+// we slaan géén naam op in het buddy-document).
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import BuddyAvatar, { HUID_TINTEN, HAAR_KLEUREN, HAAR_STIJLEN, GEZICHTEN } from './BuddyAvatar';
 import { SPORTEN } from '../../data/sportbuddy/sporten';
-import { genereerNaamIndices, naamVanIndices } from '../../data/sportbuddy/namen';
 
-const STAPPEN = ['Sport', 'Uiterlijk', 'Naam'];
+const STAPPEN = ['Sport', 'Uiterlijk'];
 
 function KeuzeRij({ label, aantal, waarde, onKies, renderOptie }) {
   return (
@@ -39,10 +40,9 @@ export default function AanmaakWizard({ profile, onAangemaakt }) {
   const [huid, setHuid] = useState(0);
   const [haar, setHaar] = useState(0);
   const [haarkleur, setHaarkleur] = useState(0);
-  const [naamIndices, setNaamIndices] = useState(genereerNaamIndices());
   const [bezig, setBezig] = useState(false);
 
-  const naam = naamVanIndices(naamIndices);
+  const naam = profile?.nickname || 'Jouw buddy';
 
   const handleAanmaken = async () => {
     if (!sport) return;
@@ -58,7 +58,6 @@ export default function AanmaakWizard({ profile, onAangemaakt }) {
           action: 'create_buddy',
           sport,
           avatar: { gezicht, huid, haar, haarkleur },
-          naam: naamIndices,
         }),
       });
       const result = await response.json();
@@ -153,6 +152,8 @@ export default function AanmaakWizard({ profile, onAangemaakt }) {
           <div className="flex flex-col md:flex-row gap-8">
             <div className="w-40 mx-auto md:mx-0 flex-shrink-0">
               <BuddyAvatar gezicht={gezicht} huid={huid} haar={haar} haarkleur={haarkleur} className="w-full" />
+              <div className="text-center text-lg font-bold text-purple-700 mt-2">{naam}</div>
+              <p className="text-center text-xs text-gray-400">Je buddy draagt jouw nickname</p>
             </div>
             <div className="flex-grow">
               <KeuzeRij
@@ -187,41 +188,6 @@ export default function AanmaakWizard({ profile, onAangemaakt }) {
           </div>
           <div className="flex justify-between mt-6">
             <button type="button" onClick={() => setStap(0)} className="text-gray-500 font-semibold px-4 py-2">
-              Terug
-            </button>
-            <button
-              type="button"
-              onClick={() => setStap(2)}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-xl font-semibold"
-            >
-              Volgende
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* STAP 3 — Naam + bevestigen */}
-      {stap === 2 && (
-        <div>
-          <h2 className="text-xl font-bold text-gray-800 mb-1">Geef je buddy een naam</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            De naam komt uit de naamgenerator. Niet tevreden? Gooi opnieuw!
-          </p>
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-32">
-              <BuddyAvatar gezicht={gezicht} huid={huid} haar={haar} haarkleur={haarkleur} className="w-full" />
-            </div>
-            <div className="text-2xl font-bold text-purple-700">{naam}</div>
-            <button
-              type="button"
-              onClick={() => setNaamIndices(genereerNaamIndices())}
-              className="text-sm font-semibold text-gray-600 border border-gray-300 rounded-xl px-4 py-2 hover:border-purple-400"
-            >
-              🎲 Nieuwe naam
-            </button>
-          </div>
-          <div className="flex justify-between mt-8">
-            <button type="button" onClick={() => setStap(1)} className="text-gray-500 font-semibold px-4 py-2">
               Terug
             </button>
             <button
