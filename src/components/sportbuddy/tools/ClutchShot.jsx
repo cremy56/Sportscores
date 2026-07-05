@@ -95,10 +95,17 @@ export default function ClutchShot({ graad = 2 }) {
     };
   }, []);
 
-  // Worp-animatie: bal reist ~950ms naar de ring, daarna swish
+  // Worp-animatie: raak reist ~950ms naar de ring, daarna swish
   useEffect(() => {
     if (status !== 'werpen') return undefined;
     const id = setTimeout(() => setStatus('swish'), 950);
+    return () => clearTimeout(id);
+  }, [status]);
+
+  // Misworp-animatie: bal vertrekt, ketst af, daarna de mis-boodschap
+  useEffect(() => {
+    if (status !== 'mis-worp') return undefined;
+    const id = setTimeout(() => setStatus('mis'), 1050);
     return () => clearTimeout(id);
   }, [status]);
 
@@ -120,16 +127,18 @@ export default function ClutchShot({ graad = 2 }) {
     if (!vasthoudenRef.current) return;
     vasthoudenRef.current = false;
     const huidigeStatus = statusRef.current;
-    // Klaar om te werpen → de bal vliegt!
+    // Klaar om te werpen → de bal vliegt raak!
     if (huidigeStatus === 'klaar-om-te-werpen') {
+      statusRef.current = 'werpen';
       setStatus('werpen');
       return;
     }
-    // Nog bezig met ademen → te vroeg losgelaten → mis
+    // Nog bezig met ademen → te vroeg → de bal vertrekt maar mist
     if (huidigeStatus === 'ademen' && cycliRef.current < NODIG_CYCLI) {
       clearInterval(ademRef.current);
       clearInterval(wiebelRef.current);
-      setStatus('mis');
+      statusRef.current = 'mis-worp';
+      setStatus('mis-worp');
     }
   };
 
@@ -148,6 +157,8 @@ export default function ClutchShot({ graad = 2 }) {
   const wiebelX = Math.sin(tick * 0.9) * wiebelAmp;
   const wiebelY = Math.cos(tick * 1.3) * wiebelAmp * 0.7;
   const vizierStil = status === 'swish' || status === 'werpen' || klaarOmTeWerpen;
+  // Afketsrichting bij een misworp: de kant waar het vizier het laatst heen wees
+  const misNaarLinks = wiebelX < 0;
 
   const zone = stress > 70 ? { kleur: '#ef4444', label: gevorderd ? 'Sympathisch dominant' : 'Overprikkeld' }
     : stress > 40 ? { kleur: '#f59e0b', label: 'Overgangsfase' }
@@ -167,13 +178,29 @@ export default function ClutchShot({ graad = 2 }) {
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6">
       <style>{`
-        @keyframes clutchWorp {
+        @keyframes clutchRaak {
           0%   { bottom: 12px; transform: translateX(-50%) scale(1);    }
-          55%  { bottom: 68%;  transform: translateX(-50%) scale(0.72); }
-          80%  { bottom: 58%;  transform: translateX(-50%) scale(0.6);  }
-          100% { bottom: 52%;  transform: translateX(-50%) scale(0.55); }
+          55%  { bottom: 60%;  transform: translateX(-50%) scale(0.82); }
+          78%  { bottom: 50%;  transform: translateX(-50%) scale(0.72); }
+          100% { bottom: 44%;  transform: translateX(-50%) scale(0.68); }
         }
-        .clutch-worp { animation: clutchWorp 0.95s cubic-bezier(0.25,0.6,0.4,1) forwards; }
+        .clutch-raak { animation: clutchRaak 0.95s cubic-bezier(0.25,0.6,0.4,1) forwards; }
+
+        @keyframes clutchMisLinks {
+          0%   { bottom: 12px; left: 50%; transform: translateX(-50%) scale(1) rotate(0deg);    }
+          50%  { bottom: 58%;  left: 46%; transform: translateX(-50%) scale(0.8) rotate(120deg); }
+          62%  { bottom: 52%;  left: 40%; transform: translateX(-50%) scale(0.76) rotate(180deg); }
+          100% { bottom: 4%;   left: 24%; transform: translateX(-50%) scale(0.9) rotate(400deg); }
+        }
+        .clutch-mis-links { animation: clutchMisLinks 1.05s cubic-bezier(0.3,0.5,0.6,1) forwards; }
+
+        @keyframes clutchMisRechts {
+          0%   { bottom: 12px; left: 50%; transform: translateX(-50%) scale(1) rotate(0deg);     }
+          50%  { bottom: 58%;  left: 54%; transform: translateX(-50%) scale(0.8) rotate(-120deg); }
+          62%  { bottom: 52%;  left: 60%; transform: translateX(-50%) scale(0.76) rotate(-180deg); }
+          100% { bottom: 4%;   left: 76%; transform: translateX(-50%) scale(0.9) rotate(-400deg); }
+        }
+        .clutch-mis-rechts { animation: clutchMisRechts 1.05s cubic-bezier(0.3,0.5,0.6,1) forwards; }
       `}</style>
       <h3 className="font-bold text-gray-800 mb-1">De "clutch shot"</h3>
       <p className="text-xs text-gray-500 mb-4">Laatste seconden, gelijkspel, jij mag de beslissende vrije worp nemen. Druk op de bal en <strong>houd vast</strong> tot je ademhaling je gekalmeerd heeft. Laat je te vroeg los, dan trilt je hand nog — en mis je.</p>
@@ -265,9 +292,15 @@ export default function ClutchShot({ graad = 2 }) {
           </button>
         )}
 
-        {/* Vliegende bal tijdens de worp: parabool van onder naar de ring */}
-        {status === 'werpen' && (
-          <div className="absolute left-1/2 w-14 h-14 -translate-x-1/2 clutch-worp" aria-hidden="true">
+        {/* Vliegende bal: raak (naar de ring) of mis (afketsen) */}
+        {(status === 'werpen' || status === 'mis-worp') && (
+          <div
+            className={`absolute left-1/2 w-20 h-20 -translate-x-1/2 ${
+              status === 'werpen' ? 'clutch-raak' : (misNaarLinks ? 'clutch-mis-links' : 'clutch-mis-rechts')
+            }`}
+            style={{ bottom: 12 }}
+            aria-hidden="true"
+          >
             <Basketbal />
           </div>
         )}
@@ -303,6 +336,9 @@ export default function ClutchShot({ graad = 2 }) {
       )}
       {status === 'werpen' && (
         <p className="text-center text-xs text-gray-500">De bal is onderweg…</p>
+      )}
+      {status === 'mis-worp' && (
+        <p className="text-center text-xs text-gray-500">De bal wankelt op de ring…</p>
       )}
       {status === 'mis' && (
         <div className="bg-red-50 text-red-800 rounded-xl p-3 text-sm">
