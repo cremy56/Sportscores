@@ -13,44 +13,9 @@ import AanmaakWizard from '../components/sportbuddy/AanmaakWizard';
 import BuddyAvatar from '../components/sportbuddy/BuddyAvatar';
 import VerzorgPaneel from '../components/sportbuddy/VerzorgPaneel';
 import EventModal from '../components/sportbuddy/EventModal';
-import { getSport, STATS } from '../data/sportbuddy/sporten';
-
-function StatBalk({ label, waarde, kleur = 'from-purple-500 to-blue-500' }) {
-  return (
-    <div>
-      <div className="flex justify-between text-xs font-semibold text-gray-600 mb-1">
-        <span>{label}</span>
-        <span>{Math.round(waarde)}</span>
-      </div>
-      <div className="w-full bg-gray-100 rounded-full h-2">
-        <div
-          className={`bg-gradient-to-r ${kleur} h-2 rounded-full transition-all duration-500`}
-          style={{ width: `${Math.max(2, Math.min(100, waarde))}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function VormMeter({ vorm }) {
-  // vorm loopt van -50 tot +50 → schaal naar 0-100 voor de balk
-  const positie = ((vorm + 50) / 100) * 100;
-  const kleur = vorm >= 10 ? 'text-green-600' : vorm <= -10 ? 'text-red-600' : 'text-amber-600';
-  return (
-    <div>
-      <div className="flex justify-between text-xs font-semibold text-gray-600 mb-1">
-        <span>Vorm</span>
-        <span className={kleur}>{vorm > 0 ? `+${vorm}` : vorm}</span>
-      </div>
-      <div className="relative w-full bg-gradient-to-r from-red-200 via-amber-100 to-green-200 rounded-full h-2">
-        <div
-          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-gray-800 rounded-full border-2 border-white shadow"
-          style={{ left: `calc(${Math.max(2, Math.min(98, positie))}% - 6px)` }}
-        />
-      </div>
-    </div>
-  );
-}
+import StatusBalk from '../components/sportbuddy/StatusBalk';
+import Kamers from '../components/sportbuddy/Kamers';
+import { getSport } from '../data/sportbuddy/sporten';
 
 const RISICO_BADGE = {
   laag: { tekst: 'Blessurerisico: laag', stijl: 'bg-green-50 text-green-700 border-green-200' },
@@ -115,6 +80,10 @@ export default function Sportbuddy() {
 
   const handleEventResolved = (result) => {
     setBuddy(result.buddy);
+  };
+
+  const handleKennisAfgerond = (moduleId, result) => {
+    setBuddy((b) => (b ? { ...b, kennis: { ...(b.kennis || {}), [moduleId]: result.kennis } } : b));
   };
 
   const wisselRustperiode = async () => {
@@ -271,32 +240,9 @@ export default function Sportbuddy() {
           </button>
         </div>
 
-        {/* Dagstaat */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="font-bold text-gray-800 mb-4">Dagstaat</h3>
-          <div className="space-y-3">
-            <VormMeter vorm={dagstaat.vorm} />
-            <StatBalk label="Fitheid" waarde={buddy.fitheid ?? 0} kleur="from-green-400 to-green-600" />
-            <StatBalk label="Vermoeidheid" waarde={buddy.vermoeidheid ?? 0} kleur="from-amber-400 to-red-500" />
-            <StatBalk label="Stress" waarde={buddy.stress ?? 0} kleur="from-blue-400 to-indigo-600" />
-            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 mt-2">
-              <span className="text-xs font-semibold text-gray-600">❤️ Rustpols buddy</span>
-              <span className="text-lg font-bold text-gray-800">{dagstaat.rustpols} <span className="text-xs font-normal text-gray-400">bpm</span></span>
-            </div>
-            <p className="text-xs text-gray-400">
-              Vermoeid of gestrest? Dan ligt de rustpols hoger — net als bij echte sporters (autonoom herstel).
-            </p>
-          </div>
-        </div>
-
-        {/* KLUSCE-stats */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="font-bold text-gray-800 mb-4">Fysieke kenmerken</h3>
-          <div className="space-y-3">
-            {STATS.map((s) => (
-              <StatBalk key={s.key} label={s.label} waarde={buddy.stats?.[s.key] ?? 0} />
-            ))}
-          </div>
+        {/* Compacte statusbalk (hexagon + tikbare chips) */}
+        <div className="md:col-span-2">
+          <StatusBalk buddy={buddy} dagstaat={dagstaat} />
         </div>
       </div>
 
@@ -314,6 +260,11 @@ export default function Sportbuddy() {
             onVerzorgd={handleVerzorgd}
           />
         )}
+      </div>
+
+      {/* Kamers (kennismodules) */}
+      <div className="max-w-5xl mx-auto mt-6">
+        <Kamers buddy={buddy} profile={profile} onKennisAfgerond={handleKennisAfgerond} />
         <p className="text-center text-xs text-gray-400 mt-6">
           🔒 Alles hier gaat over je fictieve buddy — nooit over jouw eigen gezondheid.
         </p>
