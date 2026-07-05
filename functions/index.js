@@ -13,6 +13,5 @@ module.exports = {
   ...require('./src/auth-functions'),
   ...require('./src/archive-functions'),
   ...require('./src/sportlab-functions'),
-  ...require('./src/cleanup-functions'),
-  ...require('./src/migration-functions') 
+  ...require('./src/cleanup-functions')
 };
