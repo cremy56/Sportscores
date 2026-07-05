@@ -1,7 +1,7 @@
 // src/components/sportbuddy/tools/HartslagLab.jsx
 // Interactieve tool voor de module Hartfrequentie (eindterm I.8). Vier delen,
 // elk met een infokader ernaast (PC) of eronder (smartphone):
-//   1. Zonecalculator (Karvonen, schuiven)  + info: meetmethoden
+//   1. Hartslagsimulator (live grafiek: inspanning/leeftijd/rustpols) + info: meetmethoden
 //   2. Tel de hartslag (manueel meten: 15 s tellen × 4)
 //   3. Lees de hartslag (zones interpreteren) + info: de praattest
 //   4. De RPE-schaal (Borg 1-10): info + inschattingsoefening
@@ -31,16 +31,16 @@ function zoneVanBpm(bpm, leeftijd, rustpols) {
 // ─── Bouwstenen ───────────────────────────────────────────────────────────────
 function InfoKader({ titel, children }) {
   return (
-    <aside className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 h-fit">
+    <aside className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 h-full">
       <p className="text-xs font-bold text-indigo-700 mb-2">ℹ️ {titel}</p>
-      <div className="text-xs text-indigo-900 space-y-2">{children}</div>
+      <div className="text-xs text-indigo-900 space-y-2 leading-relaxed">{children}</div>
     </aside>
   );
 }
 
 function Sectie({ tool, info }) {
   return (
-    <div className="grid md:grid-cols-[1fr_260px] gap-4 items-start">
+    <div className="grid lg:grid-cols-[1fr_340px] gap-4 items-stretch">
       {tool}
       {info}
     </div>
@@ -60,23 +60,146 @@ function HartMonitor({ bpm, actief = true }) {
   );
 }
 
-// ─── 1. Zonecalculator ────────────────────────────────────────────────────────
-function Zonecalculator() {
+// ─── 1. Hartslagsimulator (live grafiek) ──────────────────────────────────────
+const NIVEAUS = [
+  { id: 'rust', label: 'Rust', f: 0.10 },
+  { id: 'licht', label: 'Licht', f: 0.55 },
+  { id: 'matig', label: 'Matig', f: 0.65 },
+  { id: 'intensief', label: 'Intensief', f: 0.78 },
+  { id: 'maximaal', label: 'Maximaal', f: 0.93 },
+];
+const BUFFER = 140;   // aantal punten in beeld (~14 s geschiedenis)
+const TICK_MS = 100;
+
+function HartslagSimulator() {
   const [leeftijd, setLeeftijd] = useState(15);
   const [rustpols, setRustpols] = useState(65);
+  const [niveau, setNiveau] = useState(0);
+  const [actief, setActief] = useState(true);
+  const [buffer, setBuffer] = useState(() => Array(BUFFER).fill(65));
+
   const max = 220 - leeftijd;
+
+  useEffect(() => {
+    if (!actief) return undefined;
+    const id = setInterval(() => {
+      setBuffer((b) => {
+        const reserve = max - rustpols;
+        // Doelhartslag volgens Karvonen bij het gekozen inspanningsniveau
+        const doel = rustpols + NIVEAUS[niveau].f * reserve;
+        const laatst = b[b.length - 1];
+        // Traag naar het doel toe bewegen + lichte natuurlijke variatie
+        const ruis = (Math.random() - 0.5) * 2.2;
+        let volgend = laatst + (doel - laatst) * 0.05 + ruis;
+        volgend = Math.max(38, Math.min(max + 3, volgend));
+        return [...b.slice(1), volgend];
+      });
+    }, TICK_MS);
+    return () => clearInterval(id);
+  }, [actief, niveau, leeftijd, rustpols, max]);
+
+  const reset = () => {
+    setBuffer(Array(BUFFER).fill(rustpols));
+    setNiveau(0);
+    setActief(true);
+  };
+
+  const huidig = Math.round(buffer[buffer.length - 1]);
+  const zone = zoneVanBpm(huidig, leeftijd, rustpols);
+
+  // ── SVG-grafiek ──
+  const W = 620, H = 260, LINKS = 40, BOVEN = 12, ONDER = 8;
+  const yVan = (bpm) => BOVEN + (1 - (bpm - 30) / (225 - 30)) * (H - BOVEN - ONDER);
+  const xVan = (i) => LINKS + (i / (BUFFER - 1)) * (W - LINKS - 6);
+  const lijn = buffer.map((bpm, i) => `${xVan(i).toFixed(1)},${yVan(bpm).toFixed(1)}`).join(' ');
+  const vlak = `${LINKS},${yVan(30)} ${lijn} ${xVan(BUFFER - 1)},${yVan(30)}`;
+  const yTicks = [40, 80, 120, 160, 200];
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6">
-      <h3 className="font-bold text-gray-800 mb-1">Zonecalculator</h3>
-      <p className="text-xs text-gray-500 mb-4">Schuif en zie hoe de trainingszones verschuiven. Maximale hartslag ≈ 220 − leeftijd.</p>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-bold text-gray-800">Hartslagsimulator</h3>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setActief(!actief)}
+            className="text-sm font-bold bg-gray-100 hover:bg-gray-200 rounded-full w-9 h-9"
+            aria-label={actief ? 'Pauzeer' : 'Speel af'}
+          >
+            {actief ? '⏸' : '▶'}
+          </button>
+          <button
+            type="button"
+            onClick={reset}
+            className="text-sm font-bold bg-gray-100 hover:bg-gray-200 rounded-full w-9 h-9"
+            aria-label="Reset"
+          >
+            ↺
+          </button>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 mb-4">Verhoog de inspanning en zie de hartslag klimmen. Verander leeftijd of rustpols en zie de lijnen mee verschuiven.</p>
 
-      <div className="space-y-4 mb-5">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+        {/* Raster */}
+        {yTicks.map((t) => (
+          <g key={t}>
+            <line x1={LINKS} y1={yVan(t)} x2={W - 6} y2={yVan(t)} stroke="#f1f5f9" strokeWidth="1" />
+            <text x={LINKS - 6} y={yVan(t)} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="#94a3b8">{t}</text>
+          </g>
+        ))}
+        {/* Theoretisch maximum (220 − leeftijd) */}
+        <line x1={LINKS} y1={yVan(max)} x2={W - 6} y2={yVan(max)} stroke="#22c55e" strokeWidth="1.5" strokeDasharray="6 4" />
+        <text x={W - 10} y={yVan(max) - 5} textAnchor="end" fontSize="10" fontWeight="700" fill="#16a34a">Theoretisch max · {max} bpm</text>
+        {/* Rustpols */}
+        <line x1={LINKS} y1={yVan(rustpols)} x2={W - 6} y2={yVan(rustpols)} stroke="#94a3b8" strokeWidth="1.2" strokeDasharray="3 4" />
+        <text x={W - 10} y={yVan(rustpols) + 12} textAnchor="end" fontSize="10" fill="#64748b">Rustpols · {rustpols} bpm</text>
+        {/* Hartslaglijn */}
+        <polygon points={vlak} fill="#7c3aed" opacity="0.08" />
+        <polyline points={lijn} fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinejoin="round" />
+        <circle cx={xVan(BUFFER - 1)} cy={yVan(buffer[BUFFER - 1])} r="5" fill={zone.kleur} stroke="#fff" strokeWidth="2" />
+      </svg>
+
+      {/* Live-cijfers */}
+      <div className="grid grid-cols-3 gap-3 mt-3 mb-4 text-center">
+        <div className="bg-gray-50 rounded-xl py-2">
+          <div className="text-xl font-bold text-gray-800 tabular-nums">{huidig}</div>
+          <div className="text-[10px] text-gray-400">huidige hartslag</div>
+        </div>
+        <div className="bg-gray-50 rounded-xl py-2">
+          <div className="text-xl font-bold" style={{ color: zone.kleur }}>{zone.naam}</div>
+          <div className="text-[10px] text-gray-400">huidige zone</div>
+        </div>
+        <div className="bg-gray-50 rounded-xl py-2">
+          <div className="text-xl font-bold text-gray-800 tabular-nums">{max}</div>
+          <div className="text-[10px] text-gray-400">max hartslag</div>
+        </div>
+      </div>
+
+      {/* Inspanningsniveau */}
+      <p className="text-sm font-semibold text-gray-600 mb-2">Inspanningsniveau</p>
+      <div className="grid grid-cols-5 gap-1.5 mb-5">
+        {NIVEAUS.map((n, i) => (
+          <button
+            key={n.id}
+            type="button"
+            onClick={() => setNiveau(i)}
+            className={`px-1 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${
+              niveau === i ? 'border-purple-600 bg-purple-50 text-purple-800' : 'border-gray-200 text-gray-600 hover:border-purple-300'
+            }`}
+          >
+            {n.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Schuiven */}
+      <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
         <div>
           <div className="flex justify-between text-sm font-semibold text-gray-600 mb-1">
             <span>Leeftijd</span><span>{leeftijd} jaar</span>
           </div>
-          <input type="range" min="10" max="18" value={leeftijd} onChange={(e) => setLeeftijd(+e.target.value)} className="w-full accent-purple-600" />
+          <input type="range" min="10" max="60" value={leeftijd} onChange={(e) => setLeeftijd(+e.target.value)} className="w-full accent-purple-600" />
         </div>
         <div>
           <div className="flex justify-between text-sm font-semibold text-gray-600 mb-1">
@@ -84,26 +207,6 @@ function Zonecalculator() {
           </div>
           <input type="range" min="40" max="90" value={rustpols} onChange={(e) => setRustpols(+e.target.value)} className="w-full accent-purple-600" />
         </div>
-      </div>
-
-      <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2 mb-4">
-        <span className="text-sm text-gray-600">Maximale hartslag</span>
-        <span className="text-lg font-bold text-gray-800">{max} bpm</span>
-      </div>
-
-      <div className="space-y-1.5">
-        {ZONES.map((z) => {
-          const van = Math.round(rustpols + z.min * (max - rustpols));
-          const tot = Math.round(rustpols + Math.min(z.max, 1) * (max - rustpols));
-          return (
-            <div key={z.naam} className="flex items-center gap-3">
-              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: z.kleur }} />
-              <span className="text-sm font-semibold text-gray-700 w-20 shrink-0">{z.naam}</span>
-              <span className="text-sm text-gray-500 tabular-nums w-24 shrink-0">{van}–{tot} bpm</span>
-              <span className="text-xs text-gray-400 hidden sm:block truncate">{z.uitleg}</span>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
@@ -402,12 +505,13 @@ export default function HartslagLab() {
   return (
     <div className="space-y-6">
       <Sectie
-        tool={<Zonecalculator />}
+        tool={<HartslagSimulator />}
         info={(
           <InfoKader titel="Hoe meet je je hartslag?">
             <p><strong>Manueel:</strong> leg wijs- en middelvinger op de binnenkant van je pols (of naast je strottenhoofd), tel 15 seconden en doe × 4. Nooit met je duim — die heeft een eigen polsslag.</p>
             <p><strong>Hartslagmeters:</strong> een borstband meet elektrisch en is het nauwkeurigst; horloges meten optisch aan de pols — handig, maar iets minder precies bij intensieve sport.</p>
             <p><strong>Rustpols meten?</strong> Doe het 's ochtends vóór het opstaan — dan is hij het betrouwbaarst.</p>
+            <p className="pt-1 border-t border-indigo-100"><strong>In de simulator:</strong> je hart reageert hier binnen seconden — in het echt duurt het 1 à 2 minuten voor je hartslag zich instelt op een inspanning.</p>
           </InfoKader>
         )}
       />
