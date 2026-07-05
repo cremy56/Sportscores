@@ -58,18 +58,19 @@ export const MODULES = [
   {
     id: 'energie', kamer: 'training', naam: 'Energiesystemen', emoji: '⚡',
     eindterm: 'I.8', beschikbaar: true,
-    intro: 'Sprinten of een uur fietsen? Je lichaam kiest telkens een andere energiebron.',
+    intro: 'Sprinten of een uur fietsen? Je lichaam schakelt tussen drie energiesystemen.',
     kaarten: [
-      { titel: 'Twee soorten energie', tekst: 'Je spieren maken energie op twee manieren: mét zuurstof (aeroob) voor lange, rustige inspanningen, en zónder zuurstof (anaeroob) voor korte, explosieve inspanningen. Elke sport mengt beide.', bron: 'Leerplan Sportwetenschappen' },
-      { titel: 'Het aerobe systeem', tekst: 'Bij duurinspanningen — joggen, fietsen, een wedstrijd uitlopen — werkt je lichaam aeroob. Het verbrandt vetten en koolhydraten mét zuurstof. Traag maar bijna onuitputtelijk: hierop steunt je uithouding.', bron: 'Leerplan Sportwetenschappen' },
-      { titel: 'Het anaerobe systeem', tekst: 'Voor een sprint of een sprong heb je onmiddellijk veel energie nodig. Dan werkt je lichaam anaeroob, zonder zuurstof. Krachtig maar kort: na enkele tientallen seconden is de voorraad op en ontstaat er melkzuur.', bron: 'Leerplan Sportwetenschappen' },
-      { titel: 'Voetbal: een mengeling', tekst: 'Voetbal wisselt voortdurend: rustig traven (aeroob) afgewisseld met korte sprints en duels (anaeroob). Daarom trainen voetballers zowel hun uithouding als hun explosiviteit — intervaltraining doet net dat.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'Drie energiesystemen', tekst: 'Je spieren maken energie (ATP) via drie systemen: het ATP-PCr-systeem (direct en explosief, zonder zuurstof), de glycolyse (snel, zonder zuurstof, met lactaat) en het aerobe systeem (traag, mét zuurstof, bijna onuitputtelijk). Ze werken altijd samen.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'ATP-PCr: direct & explosief', tekst: 'Voor een sprong, worp of korte sprint levert het ATP-PCr-systeem onmiddellijk energie uit creatinefosfaat in de spier. Geen zuurstof nodig, geen lactaat — maar de voorraad is na ongeveer 10 seconden op.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'Glycolyse: snel, met lactaat', tekst: 'Voor intense inspanningen van 10 seconden tot 2 minuten springt de glycolyse bij: ze verbrandt koolhydraten zonder zuurstof. Daarbij ontstaat lactaat (melkzuur). Dat brandende gevoel in je benen bij een all-out 400m? Dat is dit systeem op volle toeren.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'Aeroob: traag & onuitputtelijk', tekst: 'Bij duurinspanningen neemt na 1 à 2 minuten het aerobe systeem de bovenhand: het verbrandt vetten en koolhydraten mét zuurstof. Traag op gang, maar zuinig en bijna eindeloos — hierop steunt je uithouding.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'Voetbal: een mengeling', tekst: 'Voetbal wisselt voortdurend: rustig traven (aeroob) met explosieve sprints en duels (ATP-PCr en glycolyse) ertussen. Daarom trainen voetballers zowel hun uithouding als hun explosiviteit — intervaltraining doet precies dat.', bron: 'Leerplan Sportwetenschappen' },
     ],
     quiz: [
-      { vraag: 'Welk systeem gebruik je voor een lange duurloop?', opties: ['Aeroob (mét zuurstof)', 'Anaeroob (zonder zuurstof)'], juist: 0 },
-      { vraag: 'Wat ontstaat er bij langdurige anaerobe inspanning?', opties: ['Zuurstof', 'Melkzuur', 'Vet'], juist: 1 },
-      { vraag: 'Waarom traint een voetballer beide systemen?', opties: ['Voetbal mengt duur en sprints', 'Alleen voor de show', 'Dat hoeft niet'], juist: 0 },
-      { vraag: 'Welke training combineert rustig en explosief?', opties: ['Enkel wandelen', 'Intervaltraining', 'Stilstaan'], juist: 1 },
+      { vraag: 'Hoeveel energiesystemen heeft je lichaam?', opties: ['Eén', 'Twee', 'Drie'], juist: 2 },
+      { vraag: 'Welk systeem levert energie voor een korte, maximale sprong?', opties: ['ATP-PCr', 'Aeroob'], juist: 0 },
+      { vraag: 'Bij welk systeem ontstaat lactaat?', opties: ['Het aerobe systeem', 'De glycolyse'], juist: 1 },
+      { vraag: 'Welk systeem neemt de bovenhand bij een lange duurloop?', opties: ['ATP-PCr', 'Aeroob'], juist: 1 },
     ],
   },
   {
@@ -120,5 +121,5 @@ export function modulesVanKamer(kamerId) {
 
 // Welke modules hebben een eigen interactieve tool? (component gekoppeld in
 // ModuleTool.jsx). Modules zonder tool tonen enkel de kennisflow + quiz.
-export const MODULES_MET_TOOL = ['hart'];
+export const MODULES_MET_TOOL = ['hart', 'energie'];
 
