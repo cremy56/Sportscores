@@ -34,6 +34,7 @@ import EHBOMonitor from './pages/EHBOMonitor';
 import Instellingen from './pages/Instellingen';
 import AlgemeenInstellingen from './pages/AlgemeenInstellingen';
 import SportLab from './pages/SportLab';
+import Sportbuddy from './pages/Sportbuddy';
 
 function DynamicHomepage({ schoolSettings }) {
   if (schoolSettings?.sportdashboardAsHomepage) {
@@ -245,6 +246,9 @@ function App() {
                 {/* EHBO — eigen pagina, los van de (gesloopte) welzijnsmodule */}
                 <Route path="/ehbo" element={<EHBODetail />} />
                 <Route path="/sportlab" element={<SportLab />} />
+
+                {/* Sportbuddy — Gezondheid 2.0, datavrij by design (fictieve atleet) */}
+                <Route path="/sportbuddy" element={<Sportbuddy />} />
 
                 {/* EHBO Monitor — leerkrachtdashboard, opvolger van Welzijnsmonitor */}
                 <Route path="/ehbo-monitor" element={<EHBOMonitor />} />

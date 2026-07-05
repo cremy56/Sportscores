@@ -33,6 +33,8 @@ export default function ProtectedRoute({ profile, school, activeRole }) {
     '/gezondheid': ['leerling', 'administrator', 'super-administrator'],
     // EHBO staat los van welzijn — altijd toegankelijk voor leerlingen
     '/ehbo': ['leerling', 'administrator', 'super-administrator'],
+    // Sportbuddy — leerling-spel (fictieve atleet); admins voor test/impersonatie
+    '/sportbuddy': ['leerling', 'administrator', 'super-administrator'],
     '/welzijnsmonitor': ['leerkracht', 'administrator', 'super-administrator'],
     '/groepsbeheer': ['leerkracht', 'administrator', 'super-administrator'],
     '/groep': ['leerkracht', 'administrator', 'super-administrator'],

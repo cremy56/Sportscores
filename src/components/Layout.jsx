@@ -427,6 +427,7 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
     '/evolutie': evolutieLinkText,
     '/groeiplan': groeiplanLinkText,
     '/ehbo': 'EHBO',
+    '/sportbuddy': 'Sportbuddy',
     '/ehbo-monitor': 'EHBO Monitor',
     '/groepsbeheer': 'Groepsbeheer',
     '/sporttesten': 'Sporttesten',
@@ -483,6 +484,10 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
 
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/ehbo" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>EHBO</NavLink></li>
+            )}
+            {/* Sportbuddy — leerling-spel (Gezondheid 2.0, datavrij) */}
+            {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
+              <li><NavLink to="/sportbuddy" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Sportbuddy</NavLink></li>
             )}
             {/* SportLab — leerlingen én leerkrachten */}
             {(activeRole === 'leerling' || isTeacherOrAdmin) && (
@@ -550,6 +555,10 @@ export default function Layout({ profile, school, selectedStudent, setSelectedSt
 
             {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
               <li><NavLink to="/ehbo" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>EHBO</NavLink></li>
+            )}
+            {/* Sportbuddy — leerling-spel (Gezondheid 2.0, datavrij) */}
+            {(activeRole === 'leerling' || activeRole === 'super-administrator') && (
+              <li><NavLink to="/sportbuddy" className={({ isActive }) => (isActive ? activeLinkStyle : inactiveLinkStyle)}>Sportbuddy</NavLink></li>
             )}
             {/* SportLab — leerlingen én leerkrachten */}
             {(activeRole === 'leerling' || isTeacherOrAdmin) && (
