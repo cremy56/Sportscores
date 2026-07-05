@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { sportbuddyApi } from '../../data/sportbuddy/api';
 import BuddyAvatar, { HUID_TINTEN, HAAR_KLEUREN, HAAR_STIJLEN, GEZICHTEN, LICHAMEN } from './BuddyAvatar';
 import { graadVanKlas, weergaveGeslacht } from '../../data/sportbuddy/sporten';
 
@@ -55,18 +56,7 @@ export default function AanmaakWizard({ profile, onAangemaakt }) {
     try {
       const avatar = { gezicht, huid, haar, haarkleur };
       if (toonLichaamKeuze) avatar.lichaam = lichaam;
-      const response = await fetch('/api/sportbuddy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${profile?._token}`,
-        },
-        body: JSON.stringify({ action: 'create_buddy', avatar }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Buddy aanmaken mislukt');
-      }
+      const result = await sportbuddyApi({ action: 'create_buddy', avatar });
       toast.success(`${naam} staat klaar!`);
       onAangemaakt(result.buddy);
     } catch (error) {

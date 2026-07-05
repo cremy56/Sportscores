@@ -10,6 +10,7 @@ import PageHeader from '../components/PageHeader';
 import KennisModule from '../components/sportbuddy/KennisModule';
 import ModuleTool from '../components/sportbuddy/ModuleTool';
 import { getModule, MODULES_MET_TOOL } from '../data/sportbuddy/kennis';
+import { sportbuddyApi } from '../data/sportbuddy/api';
 
 export default function SportbuddyModule() {
   const { moduleId } = useParams();
@@ -23,15 +24,10 @@ export default function SportbuddyModule() {
 
   // Voortgang van deze module ophalen (via get_buddy)
   const haalVoortgang = useCallback(async () => {
-    if (!profile?._token || !module) { setLaden(false); return; }
+    if (!module) { setLaden(false); return; }
     try {
-      const response = await fetch('/api/sportbuddy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${profile._token}` },
-        body: JSON.stringify({ action: 'get_buddy' }),
-      });
-      const result = await response.json();
-      if (response.ok && result.buddy) {
+      const result = await sportbuddyApi({ action: 'get_buddy' });
+      if (result.buddy) {
         setVoortgang(result.buddy.kennis?.[moduleId] || null);
       }
     } catch (error) {
@@ -39,7 +35,7 @@ export default function SportbuddyModule() {
     } finally {
       setLaden(false);
     }
-  }, [profile?._token, module, moduleId]);
+  }, [module, moduleId]);
 
   useEffect(() => { haalVoortgang(); }, [haalVoortgang]);
 

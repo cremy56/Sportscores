@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { sportbuddyApi } from '../../data/sportbuddy/api';
 
 export default function KennisModule({ module, profile, onAfgerond, onClose }) {
   const [fase, setFase] = useState('intro'); // intro | kaart | quiz | uitslag
@@ -23,16 +24,7 @@ export default function KennisModule({ module, profile, onAfgerond, onClose }) {
   const verstuur = async () => {
     setBezig(true);
     try {
-      const response = await fetch('/api/sportbuddy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${profile?._token}`,
-        },
-        body: JSON.stringify({ action: 'complete_kennis', module_id: module.id, antwoorden }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Quiz verwerken mislukt');
+      const result = await sportbuddyApi({ action: 'complete_kennis', module_id: module.id, antwoorden });
       setUitslag(result);
       setFase('uitslag');
       if (result.beloning.xp > 0) toast.success(`+${result.beloning.xp} XP!`);

@@ -16,6 +16,7 @@ import EventModal from '../components/sportbuddy/EventModal';
 import { DagstaatBalken, KlusceHexagon } from '../components/sportbuddy/StatWidgets';
 import ModuleTiles from '../components/sportbuddy/ModuleTiles';
 import { getSport } from '../data/sportbuddy/sporten';
+import { sportbuddyApi } from '../data/sportbuddy/api';
 
 const RISICO_BADGE = {
   laag: { tekst: 'Blessurerisico: laag', stijl: 'bg-green-50 text-green-700 border-green-200' },
@@ -37,22 +38,10 @@ export default function Sportbuddy() {
   const [rustBezig, setRustBezig] = useState(false);
 
   const haalBuddy = useCallback(async () => {
-    if (!profile?._token) return;
     setLaden(true);
     setApiFout(null);
     try {
-      const response = await fetch('/api/sportbuddy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${profile._token}`,
-        },
-        body: JSON.stringify({ action: 'get_buddy' }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Kon je Sportbuddy niet ophalen');
-      }
+      const result = await sportbuddyApi({ action: 'get_buddy' });
       setBuddy(result.buddy || null);
       setVandaagVerzorgd(!!result.vandaag_verzorgd);
       setMeldingen(result.meldingen || []);
@@ -66,7 +55,7 @@ export default function Sportbuddy() {
     } finally {
       setLaden(false);
     }
-  }, [profile?._token]);
+  }, []);
 
   useEffect(() => {
     haalBuddy();
@@ -85,16 +74,7 @@ export default function Sportbuddy() {
   const wisselRustperiode = async () => {
     setRustBezig(true);
     try {
-      const response = await fetch('/api/sportbuddy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${profile._token}`,
-        },
-        body: JSON.stringify({ action: 'zet_rustperiode', actief: !buddy?.seizoen?.rustperiode }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Rustperiode wijzigen mislukt');
+      const result = await sportbuddyApi({ action: 'zet_rustperiode', actief: !buddy?.seizoen?.rustperiode });
       setBuddy(result.buddy);
       setMeldingen(result.meldingen || []);
       toast.success(result.buddy?.seizoen?.rustperiode ? 'Rustperiode gestart 🏝️' : 'Rustperiode beëindigd');

@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { sportbuddyApi } from '../../data/sportbuddy/api';
 
 const HULPLIJNEN = [
   { naam: 'CLB van je school', info: 'via het secretariaat of je klastitularis' },
@@ -21,16 +22,7 @@ export default function EventModal({ event, profile, onResolved, onClose }) {
   const kies = async (keuzeId) => {
     setBezig(true);
     try {
-      const response = await fetch('/api/sportbuddy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${profile?._token}`,
-        },
-        body: JSON.stringify({ action: 'resolve_event', event_id: event.id, keuze_id: keuzeId }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Event verwerken mislukt');
+      const result = await sportbuddyApi({ action: 'resolve_event', event_id: event.id, keuze_id: keuzeId });
       toast.success(`+${result.beloning.xp} XP!`);
       setResultaat(result);
       onResolved(result);

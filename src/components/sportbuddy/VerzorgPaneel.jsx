@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { sportbuddyApi } from '../../data/sportbuddy/api';
 import { VERZORGING_SECTIES } from '../../data/sportbuddy/verzorging';
 
 export default function VerzorgPaneel({ profile, vandaagVerzorgd, laatsteKeuzes, onVerzorgd }) {
@@ -16,18 +17,7 @@ export default function VerzorgPaneel({ profile, vandaagVerzorgd, laatsteKeuzes,
   const handleVerzorg = async () => {
     setBezig(true);
     try {
-      const response = await fetch('/api/sportbuddy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${profile?._token}`,
-        },
-        body: JSON.stringify({ action: 'verzorg_dag', keuzes }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Verzorging mislukt');
-      }
+      const result = await sportbuddyApi({ action: 'verzorg_dag', keuzes });
       toast.success(`+${result.beloning.xp} XP en +${result.beloning.coins} coin!`);
       onVerzorgd(result);
     } catch (error) {
