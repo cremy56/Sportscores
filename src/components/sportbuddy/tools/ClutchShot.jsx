@@ -1,13 +1,14 @@
 // src/components/sportbuddy/tools/ClutchShot.jsx
 // "Clutch Shot"-simulator voor de Mentaal-module: de beslissende vrije worp.
-// Toont hoe het zenuwstelsel de fijne motoriek stuurt, en hoe box breathing de
-// controle terugbrengt. Eén centrale variabele `stress` (0-100) stuurt alles:
-// beeldtrilling, hartslag, vizier-wiebel, Yerkes-Dodson-marker en of de worp lukt.
+// Interactie: druk op de BAL en HOUD vast. Zolang je vasthoudt, loopt de
+// ademhaling en zakt je spanning. Laat je te vroeg los → je mist (je hand was
+// nog niet stil). Hou je vol tot beide ademcycli klaar zijn → swish.
 //
-// Datavrij: alles gaat over de fictieve speler en algemene fysiologie, niets over
-// de leerling. Graad-differentiatie (prop `graad`): vanaf graad 3 verschijnen de
-// vaktermen (sympathisch/parasympathisch zenuwstelsel, nervus vagus); daaronder
-// dezelfde ervaring in eenvoudiger taal.
+// Eén centrale variabele `stress` (0-100) stuurt beeldtrilling, hartslag,
+// vizier-wiebel, Yerkes-Dodson-marker en of de worp lukt.
+//
+// Datavrij + graad-differentiatie (prop `graad`): vaktermen (sympathisch/
+// parasympathisch zenuwstelsel, nervus vagus) verschijnen vanaf graad 3.
 
 import { useState, useEffect, useRef } from 'react';
 
@@ -20,36 +21,35 @@ const FASES = [
 const START_STRESS = 90;
 const NODIG_CYCLI = 2;
 
-// Hartslag afgeleid van stress: ~85 bpm (rust) tot ~165 bpm (paniek)
 const bpmVan = (stress) => Math.round(85 + (stress / 100) * 80);
-
-// Yerkes-Dodson-prestatie voor de mini-curve (omgekeerde U rond 50% arousal)
 const prestatieVan = (arousal) => 100 * Math.exp(-Math.pow(arousal - 50, 2) / (2 * 26 * 26));
 
 export default function ClutchShot({ graad = 2 }) {
-  const [status, setStatus] = useState('klaar'); // klaar | stress | ademen | flow | mis | swish
+  // klaar | ademen | mis | swish
+  const [status, setStatus] = useState('klaar');
   const [stress, setStress] = useState(START_STRESS);
   const [faseIndex, setFaseIndex] = useState(0);
   const [faseSec, setFaseSec] = useState(0);
   const [cycli, setCycli] = useState(0);
-  const [tick, setTick] = useState(0); // voor de vizier-wiebel-animatie
+  const [tick, setTick] = useState(0);
   const ademRef = useRef(null);
   const wiebelRef = useRef(null);
+  const vasthoudenRef = useRef(false);
 
   const gevorderd = graad >= 3;
 
-  // Vizier-wiebel: een sinus-animatie met amplitude ~ stress (jouw spec)
+  // Vizier-wiebel-animatie zolang scenario loopt
   useEffect(() => {
-    if (status === 'klaar' || status === 'swish') return undefined;
+    if (status !== 'ademen') return undefined;
     wiebelRef.current = setInterval(() => setTick((t) => t + 1), 60);
     return () => clearInterval(wiebelRef.current);
   }, [status]);
 
-  // Box breathing-lus: elke seconde zakt de stress, na elke seconde van een fase
+  // Ademhalingslus — draait zolang status 'ademen' is (= bal ingedrukt)
   useEffect(() => {
     if (status !== 'ademen') return undefined;
     ademRef.current = setInterval(() => {
-      setStress((s) => Math.max(0, s - 2)); // −2 per seconde (jouw spec)
+      setStress((s) => Math.max(0, s - 2));
       setFaseSec((sec) => {
         const fase = FASES[faseIndex];
         if (sec + 1 >= fase.duur) {
@@ -66,79 +66,121 @@ export default function ClutchShot({ graad = 2 }) {
     return () => clearInterval(ademRef.current);
   }, [status, faseIndex]);
 
-  // Na genoeg cycli → flow
+  // Genoeg cycli volgehouden → klaar om te werpen (vizier stil, bal gloeit).
+  // De bal vliegt pas als de speler LOSLAAT.
   useEffect(() => {
     if (status === 'ademen' && cycli >= NODIG_CYCLI) {
       clearInterval(ademRef.current);
-      setStatus('flow');
+      clearInterval(wiebelRef.current);
+      setStatus('klaar-om-te-werpen');
     }
   }, [cycli, status]);
 
-  const startScenario = () => {
-    setStress(START_STRESS); setFaseIndex(0); setFaseSec(0); setCycli(0);
-    setStatus('stress');
+  // Worp-animatie: bal reist ~900ms naar de ring, daarna swish
+  useEffect(() => {
+    if (status !== 'werpen') return undefined;
+    const id = setTimeout(() => setStatus('swish'), 950);
+    return () => clearTimeout(id);
+  }, [status]);
+
+  // Bal ingedrukt → start of hervat de ademhaling
+  const grijpBal = (e) => {
+    e.preventDefault();
+    if (status === 'swish') return;
+    if (status === 'klaar' || status === 'mis') {
+      setStress(START_STRESS); setFaseIndex(0); setFaseSec(0); setCycli(0);
+    }
+    vasthoudenRef.current = true;
+    setStatus('ademen');
   };
-  const startAdem = () => { setFaseIndex(0); setFaseSec(0); setCycli(0); setStatus('ademen'); };
-  const probeerWorp = () => {
-    // Onder stress 40 lukt de worp (jouw spec); anders mis
-    if (stress < 40) setStatus('swish');
-    else setStatus('mis');
+
+  // Loslaten
+  const laatLos = () => {
+    if (!vasthoudenRef.current) return;
+    vasthoudenRef.current = false;
+    // Klaar om te werpen → de bal vliegt!
+    if (status === 'klaar-om-te-werpen') {
+      setStatus('werpen');
+      return;
+    }
+    // Nog bezig met ademen → te vroeg losgelaten → mis
+    if (status === 'ademen' && cycli < NODIG_CYCLI) {
+      clearInterval(ademRef.current);
+      clearInterval(wiebelRef.current);
+      setStatus('mis');
+    }
   };
-  const reset = () => { setStress(START_STRESS); setStatus('klaar'); setFaseIndex(0); setFaseSec(0); setCycli(0); };
+
+  const reset = () => {
+    vasthoudenRef.current = false;
+    setStress(START_STRESS); setStatus('klaar'); setFaseIndex(0); setFaseSec(0); setCycli(0);
+  };
 
   // Afgeleide visuele waarden
-  const bpm = status === 'flow' || status === 'swish' ? 85 : bpmVan(stress);
-  const shake = status === 'ademen' || status === 'stress' ? (stress / 100) * 6 : 0;
-  const blur = status === 'stress' ? 3 : status === 'ademen' ? (stress / 100) * 2.5 : 0;
-  const wiebelAmp = (stress / 100) * 26; // px afwijking van het vizier
+  const klaarOmTeWerpen = status === 'klaar-om-te-werpen';
+  const bpm = (status === 'swish' || status === 'werpen' || klaarOmTeWerpen) ? 85 : bpmVan(stress);
+  const bezig = status === 'ademen';
+  const shake = bezig ? (stress / 100) * 6 : 0;
+  const blur = status === 'mis' ? 0 : bezig ? (stress / 100) * 2.5 : status === 'klaar' ? 2.5 : 0;
+  const wiebelAmp = bezig ? (stress / 100) * 26 : status === 'klaar' ? 22 : 0;
   const wiebelX = Math.sin(tick * 0.9) * wiebelAmp;
   const wiebelY = Math.cos(tick * 1.3) * wiebelAmp * 0.7;
-  const vizierStil = status === 'flow' || status === 'swish';
+  const vizierStil = status === 'swish' || status === 'werpen' || klaarOmTeWerpen;
 
-  // Zone-tekst (met/zonder vaktermen)
   const zone = stress > 70 ? { kleur: '#ef4444', label: gevorderd ? 'Sympathisch dominant' : 'Overprikkeld' }
     : stress > 40 ? { kleur: '#f59e0b', label: 'Overgangsfase' }
     : { kleur: '#22c55e', label: gevorderd ? 'Parasympathisch actief' : 'Rustig & scherp' };
 
   // Mini Yerkes-Dodson-curve
-  const W = 120, H = 70;
+  const CW = 120, CH = 70;
   const curve = Array.from({ length: 31 }, (_, i) => {
     const a = i * (100 / 30);
-    return `${(6 + (a / 100) * (W - 12)).toFixed(1)},${(6 + (1 - prestatieVan(a) / 100) * (H - 18)).toFixed(1)}`;
+    return `${(6 + (a / 100) * (CW - 12)).toFixed(1)},${(6 + (1 - prestatieVan(a) / 100) * (CH - 18)).toFixed(1)}`;
   }).join(' ');
-  const markerX = 6 + (stress / 100) * (W - 12);
-  const markerY = 6 + (1 - prestatieVan(stress) / 100) * (H - 18);
+  const markerX = 6 + (stress / 100) * (CW - 12);
+  const markerY = 6 + (1 - prestatieVan(stress) / 100) * (CH - 18);
 
   const fase = FASES[faseIndex];
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6">
+      <style>{`
+        @keyframes clutchWorp {
+          0%   { bottom: 12px; transform: translateX(-50%) scale(1);    }
+          55%  { bottom: 68%;  transform: translateX(-50%) scale(0.72); }
+          80%  { bottom: 58%;  transform: translateX(-50%) scale(0.6);  }
+          100% { bottom: 52%;  transform: translateX(-50%) scale(0.55); }
+        }
+        .clutch-worp { animation: clutchWorp 0.95s cubic-bezier(0.25,0.6,0.4,1) forwards; }
+      `}</style>
       <h3 className="font-bold text-gray-800 mb-1">De "clutch shot"</h3>
-      <p className="text-xs text-gray-500 mb-4">Laatste seconden, gelijkspel, jij mag de beslissende vrije worp nemen. Voel hoe spanning je richten saboteert — en hoe ademhaling de controle teruggeeft.</p>
+      <p className="text-xs text-gray-500 mb-4">Laatste seconden, gelijkspel, jij mag de beslissende vrije worp nemen. Druk op de bal en <strong>houd vast</strong> tot je ademhaling je gekalmeerd heeft. Laat je te vroeg los, dan trilt je hand nog — en mis je.</p>
 
       {/* Het speelveld */}
       <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden select-none"
         style={{
-          background: 'linear-gradient(180deg,#1e293b 0%,#334155 55%,#7c5a3a 55%,#8b6844 100%)',
+          background: 'linear-gradient(180deg,#1e293b 0%,#3b4a63 60%,#5a4632 60%,#6b5340 100%)',
           transform: `translate(${(Math.random() - 0.5) * shake}px, ${(Math.random() - 0.5) * shake}px)`,
-          filter: blur ? `blur(${blur}px)` : 'none',
-          transition: status === 'flow' ? 'filter 1.2s ease' : 'none',
-        }}>
+        }}
+        onMouseUp={laatLos}
+        onMouseLeave={laatLos}
+        onTouchEnd={laatLos}
+      >
+        {/* Tribune-stippen */}
+        <div className="absolute inset-x-0 top-0 h-1/4 opacity-30"
+          style={{ backgroundImage: 'radial-gradient(circle, #94a3b8 1px, transparent 1px)', backgroundSize: '11px 11px' }} />
 
-        {/* Tribune-stippen (publiek) */}
-        <div className="absolute inset-x-0 top-0 h-1/3 opacity-40"
-          style={{ backgroundImage: 'radial-gradient(circle, #94a3b8 1px, transparent 1px)', backgroundSize: '10px 10px' }} />
+        {/* Wazige laag (tunnelvisie) — apart zodat de bal scherp blijft */}
+        <div className="absolute inset-0 pointer-events-none" style={{ backdropFilter: blur ? `blur(${blur}px)` : 'none', WebkitBackdropFilter: blur ? `blur(${blur}px)` : 'none', transition: status === 'swish' ? 'backdrop-filter 1.2s ease' : 'none' }} />
 
-        {/* Basketbalring */}
-        <div className="absolute left-1/2 top-[38%] -translate-x-1/2 -translate-y-1/2">
-          <div className="w-28 h-28 rounded-full border-4 border-orange-500/40" />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-4 rounded-full border-4 border-orange-500"
-            style={{ boxShadow: vizierStil ? '0 0 16px #f97316' : 'none' }} />
+        {/* Basketbalring + bord (realistischer SVG) */}
+        <div className="absolute left-1/2 top-[34%] -translate-x-1/2 -translate-y-1/2 w-[55%]">
+          <BasketRing highlight={vizierStil} />
         </div>
 
-        {/* Vizier (crosshair) — wiebelt met de stress */}
-        <div className="absolute left-1/2 top-[36%] -translate-x-1/2 -translate-y-1/2"
-          style={{ transform: `translate(calc(-50% + ${vizierStil ? 0 : wiebelX}px), calc(-50% + ${vizierStil ? 0 : wiebelY}px))`, transition: vizierStil ? 'transform 0.6s ease' : 'none' }}>
+        {/* Vizier op de ring */}
+        <div className="absolute left-1/2 top-[40%] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+          style={{ transform: `translate(calc(-50% + ${wiebelX}px), calc(-50% + ${wiebelY}px))`, transition: vizierStil ? 'transform 0.6s ease' : 'none' }}>
           <div className="relative w-12 h-12">
             <div className="absolute inset-0 rounded-full border-2" style={{ borderColor: vizierStil ? '#22c55e' : '#ef4444' }} />
             <div className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2" style={{ backgroundColor: vizierStil ? '#22c55e' : '#ef4444' }} />
@@ -146,42 +188,72 @@ export default function ClutchShot({ graad = 2 }) {
           </div>
         </div>
 
-        {/* HUD: hartslag linksboven */}
+        {/* HUD: hartslag */}
         <div className="absolute top-2 left-2 bg-black/50 rounded-lg px-2.5 py-1 backdrop-blur-sm">
           <div className="flex items-center gap-1.5">
-            <span className={status !== 'flow' && status !== 'swish' && status !== 'klaar' ? 'animate-pulse' : ''} style={{ color: zone.kleur }}>♥</span>
+            <span className={bezig ? 'animate-pulse' : ''} style={{ color: zone.kleur }}>♥</span>
             <span className="text-white font-bold text-sm tabular-nums">{bpm}</span>
             <span className="text-white/50 text-[10px]">bpm</span>
           </div>
         </div>
 
-        {/* HUD: mini Yerkes-Dodson rechtsboven */}
+        {/* HUD: mini Yerkes-Dodson */}
         <div className="absolute top-2 right-2 bg-black/50 rounded-lg p-1 backdrop-blur-sm">
-          <svg width={W} height={H}>
+          <svg width={CW} height={CH}>
             <polyline points={curve} fill="none" stroke="#a78bfa" strokeWidth="1.5" />
             <circle cx={markerX} cy={markerY} r="4" fill={zone.kleur} stroke="#fff" strokeWidth="1.5" />
-            <text x={W / 2} y={H - 2} textAnchor="middle" fontSize="7" fill="#cbd5e1">spanning → prestatie</text>
+            <text x={CW / 2} y={CH - 2} textAnchor="middle" fontSize="7" fill="#cbd5e1">spanning → prestatie</text>
           </svg>
         </div>
 
-        {/* De ademhalings-box (alleen tijdens ademen) */}
-        {status === 'ademen' && (
-          <div className="absolute inset-0 flex items-center justify-center">
+        {/* Ademhalings-box (tijdens vasthouden) */}
+        {bezig && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="relative w-40 h-40">
               <div className="absolute inset-0 border-2 border-white/30 rounded-lg" />
-              {/* Lichtkogel langs de rand */}
               <div className="absolute w-3 h-3 rounded-full bg-white shadow-[0_0_12px_#fff] transition-all duration-1000 ease-linear"
                 style={boxKogelPositie(faseIndex, faseSec)} />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-white font-bold" style={{ color: fase.kleur }}>{fase.label}</span>
                 <span className="text-white text-2xl font-bold tabular-nums">{fase.duur - faseSec}</span>
-                <span className="text-white/60 text-[10px] mt-1">cyclus {Math.min(cycli + 1, NODIG_CYCLI)}/{NODIG_CYCLI}</span>
+                <span className="text-white/60 text-[10px] mt-1">cyclus {Math.min(cycli + 1, NODIG_CYCLI)}/{NODIG_CYCLI} · blijf vasthouden</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Flow-swish overlay */}
+        {/* De bal — ingedrukt houden. Tijdens 'werpen' verdwijnt hij (vliegt). */}
+        {(status === 'klaar' || status === 'ademen' || status === 'mis' || klaarOmTeWerpen) && (
+          <button
+            type="button"
+            onMouseDown={grijpBal}
+            onTouchStart={grijpBal}
+            className="absolute left-1/2 bottom-3 -translate-x-1/2 w-20 h-20 rounded-full touch-none cursor-pointer active:scale-95 transition-transform"
+            style={{ filter: (bezig || klaarOmTeWerpen) ? 'drop-shadow(0 0 10px rgba(255,255,255,0.4))' : 'none' }}
+            aria-label="Houd de bal vast"
+          >
+            <Basketbal />
+            {status === 'klaar' && (
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold text-white bg-black/60 rounded-full px-2 py-0.5">
+                druk & houd vast
+              </span>
+            )}
+            {klaarOmTeWerpen && (
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold text-white bg-green-600/80 rounded-full px-2 py-0.5">
+                laat los om te werpen!
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Vliegende bal tijdens de worp: parabool van onder naar de ring */}
+        {status === 'werpen' && (
+          <div className="absolute left-1/2 w-14 h-14 -translate-x-1/2 clutch-worp" aria-hidden="true">
+            <Basketbal />
+          </div>
+        )}
+
+        {/* Swish */}
         {status === 'swish' && (
           <div className="absolute inset-0 flex items-center justify-center bg-green-500/10">
             <span className="text-4xl font-black text-green-300 drop-shadow-lg">SWISH ✓</span>
@@ -200,52 +272,26 @@ export default function ClutchShot({ graad = 2 }) {
         </div>
       </div>
 
-      {/* Interactie per fase */}
+      {/* Feedback per status */}
       {status === 'klaar' && (
-        <button type="button" onClick={startScenario} className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white py-3 rounded-xl font-bold">
-          🏀 Neem de vrije worp
-        </button>
+        <p className="text-center text-xs text-gray-500">Druk op de bal en houd de knop (of je vinger) ingedrukt.</p>
       )}
-
-      {status === 'stress' && (
-        <div className="space-y-2">
-          <button type="button" onClick={probeerWorp} className="w-full border-2 border-gray-300 text-gray-600 py-2.5 rounded-xl font-semibold">
-            Werp nu (probeer maar…)
-          </button>
-          <button type="button" onClick={startAdem} className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-bold">
-            {gevorderd ? 'Activeer parasympathisch zenuwstelsel' : 'Word rustig met ademhaling'}
-          </button>
-        </div>
-      )}
-
-      {status === 'mis' && (
-        <div className="space-y-3">
-          <div className="bg-red-50 text-red-800 rounded-xl p-3 text-sm">
-            <strong>Mis!</strong> {gevorderd
-              ? 'Je sympathisch zenuwstelsel staat in overdrive. Door te veel adrenaline faalt je fijne motoriek. Neem de controle terug via je ademhaling.'
-              : 'Je lichaam staat in overdrive: te gespannen om precies te richten. Word eerst rustig via je ademhaling.'}
-          </div>
-          <button type="button" onClick={startAdem} className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-bold">
-            {gevorderd ? 'Activeer parasympathisch zenuwstelsel' : 'Word rustig met ademhaling'}
-          </button>
-        </div>
-      )}
-
       {status === 'ademen' && (
-        <p className="text-center text-xs text-gray-500">Volg de box: adem mee met de lichtkogel. Je spanning zakt met elke seconde.</p>
+        <p className="text-center text-xs text-gray-500">Blijf vasthouden en adem mee met de lichtkogel. Je spanning zakt met elke seconde.</p>
       )}
-
-      {status === 'flow' && (
-        <div className="space-y-3">
-          <div className="bg-green-50 text-green-800 rounded-xl p-3 text-sm">
-            Je bent in de <strong>optimale zone</strong>. Het vizier staat stil op de ring. Nu is het moment.
-          </div>
-          <button type="button" onClick={probeerWorp} className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-xl font-bold">
-            🎯 Werp nu
-          </button>
+      {klaarOmTeWerpen && (
+        <p className="text-center text-sm font-semibold text-green-700">Je bent kalm en scherp — <strong>laat nu los</strong> om te werpen!</p>
+      )}
+      {status === 'werpen' && (
+        <p className="text-center text-xs text-gray-500">De bal is onderweg…</p>
+      )}
+      {status === 'mis' && (
+        <div className="bg-red-50 text-red-800 rounded-xl p-3 text-sm">
+          <strong>Te vroeg losgelaten — mis!</strong> {gevorderd
+            ? 'Je sympathisch zenuwstelsel stond nog in overdrive; door de adrenaline was je fijne motoriek nog niet hersteld. Pak de bal opnieuw en hou vol tot het einde.'
+            : 'Je hand trilde nog van de spanning. Pak de bal opnieuw en hou vol tot je ademhaling helemaal klaar is.'}
         </div>
       )}
-
       {status === 'swish' && (
         <div className="space-y-3">
           <div className="bg-emerald-50 text-emerald-900 rounded-xl p-3 text-sm">
@@ -262,11 +308,9 @@ export default function ClutchShot({ graad = 2 }) {
   );
 }
 
-// Positie van de lichtkogel langs de rand van de box, per fase + seconde.
-// in = bovenrand (L→R), vast1 = rechterrand (T→B), uit = onderrand (R→L),
-// vast2 = linkerrand (B→T). Waarden in % van de box.
+// Lichtkogel langs de rand van de box, per fase + seconde.
 function boxKogelPositie(faseIndex, sec) {
-  const t = sec / 4; // 0..1 binnen de fase
+  const t = sec / 4;
   switch (faseIndex) {
     case 0: return { top: '-6px', left: `calc(${t * 100}% - 6px)` };
     case 1: return { left: 'calc(100% - 6px)', top: `calc(${t * 100}% - 6px)` };
@@ -274,4 +318,59 @@ function boxKogelPositie(faseIndex, sec) {
     case 3: return { left: '-6px', top: `calc(${(1 - t) * 100}% - 6px)` };
     default: return { top: '-6px', left: '-6px' };
   }
+}
+
+// ─── Realistische basketbalring met bord + net (SVG) ──────────────────────────
+function BasketRing({ highlight }) {
+  return (
+    <svg viewBox="0 0 200 170" className="w-full" xmlns="http://www.w3.org/2000/svg">
+      {/* Bord */}
+      <rect x="18" y="6" width="164" height="104" rx="8" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="3" />
+      <rect x="70" y="40" width="60" height="44" rx="3" fill="none" stroke="#e2603a" strokeWidth="3" />
+      {/* Ophangplaatje */}
+      <rect x="92" y="108" width="16" height="10" fill="#e2603a" />
+      {/* Ring (ellips) */}
+      <ellipse cx="100" cy="120" rx="46" ry="11" fill="none" stroke="#e2603a" strokeWidth="5"
+        style={{ filter: highlight ? 'drop-shadow(0 0 8px #f97316)' : 'none' }} />
+      {/* Net — verticale en gekruiste lijnen die naar onder toelopen */}
+      <g stroke="#f1a58c" strokeWidth="1.6" fill="none" opacity="0.9">
+        {Array.from({ length: 9 }).map((_, i) => {
+          const a = (i / 8) * Math.PI;
+          const x1 = 100 + Math.cos(a) * 46;
+          const x2 = 100 + Math.cos(a) * 20;
+          return <line key={`v${i}`} x1={x1.toFixed(1)} y1="126" x2={x2.toFixed(1)} y2="164" />;
+        })}
+        {/* Kruisdraden */}
+        <path d="M58,140 L100,150 L142,140" />
+        <path d="M64,152 L100,160 L136,152" />
+        <path d="M80,128 L100,138 L120,128" />
+      </g>
+    </svg>
+  );
+}
+
+// ─── Realistische basketbal (SVG met lijnen + glans) ──────────────────────────
+function Basketbal() {
+  return (
+    <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="balGlans" cx="38%" cy="32%" r="72%">
+          <stop offset="0%" stopColor="#f0a868" />
+          <stop offset="45%" stopColor="#d9772e" />
+          <stop offset="100%" stopColor="#a84e18" />
+        </radialGradient>
+      </defs>
+      <circle cx="50" cy="50" r="46" fill="url(#balGlans)" stroke="#7c3a12" strokeWidth="1.5" />
+      {/* Lijnen */}
+      <g stroke="#4a2410" strokeWidth="2" fill="none">
+        <line x1="50" y1="4" x2="50" y2="96" />
+        <path d="M8,32 Q50,50 92,32" />
+        <path d="M8,68 Q50,50 92,68" />
+        <path d="M24,7 Q40,50 24,93" />
+        <path d="M76,7 Q60,50 76,93" />
+      </g>
+      {/* Glanshighlight */}
+      <ellipse cx="36" cy="30" rx="12" ry="8" fill="#ffffff" opacity="0.22" />
+    </svg>
+  );
 }
