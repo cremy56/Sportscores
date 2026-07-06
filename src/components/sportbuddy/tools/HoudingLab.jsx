@@ -2,16 +2,16 @@
 // Tool voor de module Houding & rug. Leerplan:
 //   • 1ste graad (BV1_01.02.01): ergonomie toepassen — zitten, staan, heffen,
 //     tillen, verplaatsen.
-//   • I.5: statische én dynamische lichaamshouding beoordelen met ergonomie.
-//   • I.6: technieken van manutentie, staan, zitten en rughygiëne toepassen.
+//   • BV1_01.02.01: ergonomie — zitten, staan, heffen, tillen, verplaatsen.
+//   • BV2_01.02.01 / BV3_01.07: ergonomie in hogere graden, rughygiëne, core-stability.
 //
 // Datavrij: houdingen van de fictieve buddy en herkenbare situaties, nooit een
 // beoordeling van het lichaam van de leerling. Graad-differentiatie via `graad`.
 //
 // Delen:
 //   1. Til-simulator: kies een tiltechniek → zie de belasting op de onderrug.
-//   2. Houdingchecker: goede vs. foute zit/sta/gamer-houding herkennen (I.5).
-//   3. Ergonomie-oefening: juiste richtlijn kiezen per situatie (I.6).
+//   2. Houdingchecker: goede vs. foute zit/sta/gamer-houding herkennen (BV1_01.02.01).
+//   3. Ergonomie-oefening: juiste richtlijn kiezen per situatie (BV1_01.02.01).
 //   4. De wervelkolom (3de graad): waarom een neutrale rug beschermt.
 
 import { useState } from 'react';
@@ -407,7 +407,7 @@ export default function HoudingLab({ graad = 2 }) {
             </InfoKader>
             <InfoKader titel="Til-regels (manutentie)">
               <p>1. Ga dicht bij de last staan. 2. Zak door je knieën, hou je rug recht. 3. Span je buikspieren aan. 4. Til met je benen. 5. Draai met je voeten, niet met je rug. 6. Te zwaar? Vraag hulp of til in delen.</p>
-              <p className="pt-1 border-t border-indigo-100 text-indigo-400">Leerplan: BV1_01.02.01 (heffen, tillen) · I.6 (manutentie).</p>
+              <p className="pt-1 border-t border-indigo-100 text-indigo-400">Leerplan: BV1_01.02.01 (heffen, tillen, verplaatsen).</p>
             </InfoKader>
           </div>
         )}

@@ -1,5 +1,5 @@
 // src/components/sportbuddy/tools/EnergieLab.jsx
-// Interactieve tool voor de module Energiesystemen (eindterm I.8 + trainingsleer
+// Interactieve tool voor de module Energiesystemen (WD3_13.01.06 energiemetabolisme + trainingsleer
 // Sportwetenschappen). Datavrij: alles gaat over de fysiologie en gesimuleerde
 // voorbeelden, nooit over de leerling zelf.
 //

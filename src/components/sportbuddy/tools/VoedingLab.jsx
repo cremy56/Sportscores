@@ -1,11 +1,11 @@
 // src/components/sportbuddy/tools/VoedingLab.jsx
-// Interactieve tool voor de module Voeding (eindterm I.3, I.4).
+// Interactieve tool voor de module Voeding (BO1_07.03 · WD2_13.01.06 · WD3_13.01.06).
 // Datavrij: alles gaat over een gesimuleerd sportersbord en algemene principes,
 // nooit over wat de leerling zelf eet (geen dagboek, geen invoer over het eigen
 // lichaam of eetgedrag — bewust, i.v.m. eetstoornis-gevoeligheid).
 //
 // Graad-differentiatie (via prop `graad`):
-//   • graad 1-2: Bordbouwer + hydratatie (basis voedingsdriehoek, I.3/I.4)
+//   • graad 1-2: Bordbouwer + hydratatie (basis voedingsdriehoek, BO1_07.03)
 //   • graad 3  : + supplementen-fabelquiz (Sportwetenschappen)
 //
 // Delen:

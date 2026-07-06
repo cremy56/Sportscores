@@ -1,5 +1,5 @@
 // src/components/sportbuddy/tools/HartslagLab.jsx
-// Interactieve tool voor de module Hartfrequentie (eindterm I.8). Vier delen,
+// Interactieve tool voor de module Hartfrequentie (BV2_01.04.01 · BV3_01.04). Vier delen,
 // elk met een infokader ernaast (PC) of eronder (smartphone):
 //   1. Hartslagsimulator (live grafiek: inspanning/leeftijd/rustpols) + info: meetmethoden
 //   2. Tel de hartslag (manueel meten: 15 s tellen × 4)

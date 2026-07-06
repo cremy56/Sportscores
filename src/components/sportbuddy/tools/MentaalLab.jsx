@@ -1,18 +1,18 @@
 // src/components/sportbuddy/tools/MentaalLab.jsx
-// Interactieve tool voor de module Mentale kracht (I.32-35, I.17; 1ste graad
+// Interactieve tool voor de module Mentale kracht (BV1_01.02.04 hulp · BV3_01.02.02 mentaal welbevinden; 1ste graad
 // 1.15-1.19). Datavrij: alles gaat over het fictieve personage en algemene
 // principes — geen stemming loggen, geen invoer over de leerling zelf (dit was
 // het DPO-gevoeligste punt; opgelost door niets te bewaren).
 //
 // Graad-differentiatie (prop `graad`):
-//   • 1-2: ademhalingstool + winst/verlies + Hulpwijzer (I.32-35, I.17)
-//   • 3  : + Yerkes-Dodson-simulator (spanning↔prestatie, prestatiedruk — I.2/I.3)
+//   • 1-2: ademhalingstool + winst/verlies + Hulpwijzer (BV1_01.02.04 · BV1_01.09 fair-play)
+//   • 3  : + Yerkes-Dodson-simulator (spanning↔prestatie, prestatiedruk — BV3_01.02.02)
 //
 // Delen:
 //   1. Ademhalingstool (box breathing 4-4-4-4) — live, niets bewaard.
-//   2. Omgaan met winst & verlies — sportieve reacties herkennen (I.17).
+//   2. Omgaan met winst & verlies — sportieve reacties herkennen (BV1_01.09 fair-play).
 //   3. Yerkes-Dodson-simulator (3de graad) — de omgekeerde U van spanning.
-//   4. Hulpwijzer — waar vind je echte hulp (I.32/I.35).
+//   4. Hulpwijzer — waar vind je echte hulp (BV1_01.02.04 · BV2_01.02.03).
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import ClutchShot from './ClutchShot';
@@ -93,7 +93,7 @@ function Ademtool() {
   );
 }
 
-// ─── 2. Omgaan met winst & verlies (I.17) ─────────────────────────────────────
+// ─── 2. Omgaan met winst & verlies (BV1_01.09 fair-play) ──────────────────────
 const SITUATIES = [
   {
     situatie: 'Je buddy verliest een belangrijke wedstrijd door een eigen fout.',
