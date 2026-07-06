@@ -153,14 +153,14 @@ export const MODULES = [
   },
   {
     id: 'houding', kamer: 'mentaal', naam: 'Houding & rug', emoji: '🧍',
-    eindterm: 'I.5, I.6', beschikbaar: true,
+    eindterm: 'BV1_01.02.01 · I.5 · I.6', beschikbaar: true,
     intro: 'Goed tillen, gezond zitten en je rug beschermen — vaardigheden voor het leven.',
     kaarten: [
-      { titel: 'Til met je benen', minGraad: 1, tekst: 'Zak door de knieën, hou je rug recht en de last dicht tegen je lichaam. Je benen zijn veel sterker dan je rug. Tillen met een gebogen rug zet enorme druk op je onderrug en kan een hernia veroorzaken.', bron: 'Ergonomie / manutentie' },
-      { titel: 'Statisch en dynamisch', minGraad: 1, tekst: 'Je houding telt zowel als je stilzit of -staat (statisch) als wanneer je beweegt, tilt of draait (dynamisch). Een goede houding in beide situaties beschermt je rug en nek.', bron: 'Leerplan (I.5)' },
-      { titel: 'Pas op voor "tech neck"', minGraad: 1, tekst: 'Urenlang met je hoofd voorover naar een laag scherm (smartphone, gamen) belast je nek zwaar. Hou je toestel omhoog, wissel regelmatig van houding en neem pauzes.', bron: 'Ergonomie' },
-      { titel: 'Draai met je voeten', minGraad: 2, tekst: 'Moet je een last verplaatsen én van richting veranderen? Draai dan met je voeten, niet door je romp te wringen. Zo blijft je wervelkolom recht en beschermd. Te zwaar? Vraag hulp of til in delen.', bron: 'Manutentie' },
-      { titel: 'De neutrale wervelkolom', minGraad: 3, tekst: 'Je ruggengraat heeft drie natuurlijke krommingen (een dubbele S). In die neutrale stand verdeelt hij de druk gelijk over de tussenwervelschijven. Sterke core-spieren houden je rug in die stand — daarom is core-stability zo belangrijk.', bron: 'Anatomie / trainingsleer' },
+      { titel: 'Til met je benen', minGraad: 1, tekst: 'Zak door de knieën, hou je rug recht en de last dicht tegen je lichaam. Je benen zijn veel sterker dan je rug. Tillen met een gebogen rug zet enorme druk op je onderrug en kan een hernia veroorzaken.', bron: 'BV1_01.02.01 · I.6 (manutentie)' },
+      { titel: 'Statisch en dynamisch', minGraad: 1, tekst: 'Je houding telt zowel als je stilzit of -staat (statisch) als wanneer je beweegt, tilt of draait (dynamisch). Een goede houding in beide situaties beschermt je rug en nek.', bron: 'I.5 (statische/dynamische houding)' },
+      { titel: 'Pas op voor "tech neck"', minGraad: 1, tekst: 'Urenlang met je hoofd voorover naar een laag scherm (smartphone, gamen) belast je nek zwaar. Hou je toestel omhoog, wissel regelmatig van houding en neem pauzes.', bron: 'BV1_01.02.01 (zitten) · I.5' },
+      { titel: 'Draai met je voeten', minGraad: 2, tekst: 'Moet je een last verplaatsen én van richting veranderen? Draai dan met je voeten, niet door je romp te wringen. Zo blijft je wervelkolom recht en beschermd. Te zwaar? Vraag hulp of til in delen.', bron: 'BV1_01.02.01 (verplaatsen) · I.6' },
+      { titel: 'De neutrale wervelkolom', minGraad: 3, tekst: 'Je ruggengraat heeft drie natuurlijke krommingen (een dubbele S). In die neutrale stand verdeelt hij de druk gelijk over de tussenwervelschijven. Sterke core-spieren houden je rug in die stand — daarom is core-stability zo belangrijk.', bron: 'I.6 (rughygiëne) · core-stability (I.8)' },
     ],
     quiz: [
       { vraag: 'Hoe til je een zware doos van de grond?', opties: ['Door de knieën, rug recht', 'Vooroverbuigen met gestrekte benen'], juist: 0 },

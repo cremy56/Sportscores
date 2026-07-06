@@ -77,7 +77,7 @@ function TilSimulator() {
 
       {/* Zijaanzicht van de tilhouding (SVG) */}
       <div className="bg-gray-50 rounded-2xl p-4 mb-4 flex justify-center">
-        <TilFiguur techniek={techniek} kleur={t.kleur} />
+        <TilFiguur techniek={techniek} gewicht={gewicht} kleur={t.kleur} />
       </div>
 
       {/* Gewicht-slider */}
@@ -105,29 +105,52 @@ function TilSimulator() {
   );
 }
 
-// Eenvoudig zijaanzicht-figuurtje per tiltechniek
-function TilFiguur({ techniek, kleur }) {
-  // Drie poses: gebogen rug / half / door de knieën met rechte rug
-  const poses = {
-    rug: { rug: 'M60,40 Q70,70 110,78', benen: 'M60,40 L58,120 M58,120 L52,150', last: [112, 80] },
-    half: { rug: 'M60,40 Q64,68 92,84', benen: 'M60,40 L56,110 L70,120 M56,110 L44,140', last: [96, 88] },
-    knie: { rug: 'M60,42 L64,92', benen: 'M64,92 L48,116 L64,132 M64,92 L82,116 L72,140', last: [56, 104] },
-  };
-  const p = poses[techniek];
+// Fatsoenlijke zijaanzicht-figuur: gevuld lichaam, doos schaalt met het gewicht.
+function TilFiguur({ techniek, gewicht, kleur }) {
+  const doosZ = 18 + (gewicht / 30) * 34; // 18..52 px, groeit met het gewicht
+  const W = 220, H = 240, grond = 210;
+  const huid = '#f0c9a8', huidD = '#d9a877', kledij = '#4f6bed', kledijD = '#3a52c4';
+
+  if (techniek === 'knie') {
+    // GOED: door de knieën, rug recht, doos dicht tegen het lichaam
+    const dx = 110, dy = 150 - doosZ / 2;
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} width="200" height="220">
+        <line x1="20" y1={grond} x2={W - 20} y2={grond} stroke="#cbd5e1" strokeWidth="3" />
+        <ellipse cx="78" cy={grond - 4} rx="16" ry="6" fill={huidD} />
+        <ellipse cx="120" cy={grond - 4} rx="16" ry="6" fill={huidD} />
+        <path d="M96,150 L128,150 L124,178 L112,178 Z" fill={kledij} />
+        <path d={`M112,176 L124,176 L122,${grond - 6} L110,${grond - 6} Z`} fill={kledijD} />
+        <path d="M96,150 L88,178 L78,178 L88,150 Z" fill={kledijD} />
+        <path d={`M84,176 L94,178 L86,${grond - 6} L76,${grond - 6} Z`} fill={kledij} />
+        <circle cx="108" cy="150" r="15" fill={kledijD} />
+        <path d="M98,150 L118,150 L114,86 L102,86 Z" fill={kledij} />
+        <path d="M108,146 L108,88" fill="none" stroke={kleur} strokeWidth="4" strokeLinecap="round" />
+        <circle cx="108" cy="72" r="15" fill={huid} />
+        <path d="M104,96 L96,132" stroke={huid} strokeWidth="9" strokeLinecap="round" />
+        <path d="M116,96 L124,132" stroke={huid} strokeWidth="9" strokeLinecap="round" />
+        <rect x={dx - doosZ / 2} y={dy} width={doosZ} height={doosZ} rx="3" fill="#b45309" stroke="#7c3a12" strokeWidth="2" />
+        <text x={dx} y={dy + doosZ / 2 + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff">{gewicht}</text>
+        <line x1="108" y1="140" x2={dx} y2={dy + doosZ / 2} stroke={kleur} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.4" />
+      </svg>
+    );
+  }
+  // SLECHT (rug/half): vooroverbuigen, rug bol, doos ver vooraan
+  const bol = techniek === 'rug' ? 1 : 0.6; // half = minder extreem
+  const dx = techniek === 'rug' ? 176 : 158, dy = 178 - doosZ / 2;
   return (
-    <svg viewBox="0 0 160 170" width="180" height="180">
-      {/* grond */}
-      <line x1="10" y1="160" x2="150" y2="160" stroke="#cbd5e1" strokeWidth="2" />
-      {/* hoofd */}
-      <circle cx="60" cy="30" r="10" fill={kleur} opacity="0.85" />
-      {/* rug */}
-      <path d={p.rug} fill="none" stroke={kleur} strokeWidth="5" strokeLinecap="round" />
-      {/* benen */}
-      <path d={p.benen} fill="none" stroke="#64748b" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-      {/* last */}
-      <rect x={p.last[0] - 12} y={p.last[1] - 12} width="24" height="24" rx="4" fill="#a16207" />
-      {/* hefboom-indicatie: lijn van onderrug naar last */}
-      <line x1="60" y1={techniek === 'knie' ? 92 : 60} x2={p.last[0]} y2={p.last[1]} stroke={kleur} strokeWidth="1.5" strokeDasharray="4 3" opacity="0.6" />
+    <svg viewBox={`0 0 ${W} ${H}`} width="200" height="220">
+      <line x1="20" y1={grond} x2={W - 20} y2={grond} stroke="#cbd5e1" strokeWidth="3" />
+      <ellipse cx="70" cy={grond - 4} rx="16" ry="6" fill={huidD} />
+      <path d={`M62,${grond - 6} L66,120 L78,120 L74,${grond - 6} Z`} fill={kledij} />
+      <circle cx="72" cy="118" r="14" fill={kledijD} />
+      <path d={`M72,104 Q120,${96 + (1 - bol) * 8} 160,104 L158,120 Q118,${116 + (1 - bol) * 6} 74,124 Z`} fill={kledij} />
+      <path d={`M74,110 Q118,${90 + (1 - bol) * 16} 156,108`} fill="none" stroke={kleur} strokeWidth="4" strokeLinecap="round" />
+      <circle cx="168" cy="112" r="15" fill={huid} />
+      <path d="M150,110 L170,150" stroke={huid} strokeWidth="9" strokeLinecap="round" />
+      <rect x={dx - doosZ / 2} y={dy} width={doosZ} height={doosZ} rx="3" fill="#b45309" stroke="#7c3a12" strokeWidth="2" />
+      <text x={dx} y={dy + doosZ / 2 + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff">{gewicht}</text>
+      <line x1="80" y1="112" x2={dx} y2={dy + doosZ / 2} stroke={kleur} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.5" />
     </svg>
   );
 }
@@ -306,6 +329,42 @@ function ErgonomieOefening() {
   );
 }
 
+// Anatomische wervelkolom in één stand: gestapelde wervels langs de curve.
+function WervelKolom({ type, kleur, label }) {
+  const topY = 20, botY = 180, x0 = 50, n = 18;
+  const offset = (t) => {
+    if (type === 'neutraal') return 8 * Math.sin(t * Math.PI * 2.1);
+    if (type === 'bol') return 26 * Math.sin(t * Math.PI * 0.85);
+    return -6 + 22 * Math.pow(t, 2) * Math.sin(t * Math.PI); // hol
+  };
+  const wervels = Array.from({ length: n }, (_, i) => {
+    const t = i / (n - 1);
+    const y = topY + t * (botY - topY);
+    const x = x0 + offset(t);
+    const bw = 11 + t * 7;
+    let vk = '#e2e8f0';
+    if (type === 'bol' && t > 0.25 && t < 0.75) vk = '#fca5a5';
+    if (type === 'hol' && t > 0.6) vk = '#fcd34d';
+    if (type === 'neutraal') vk = '#bbf7d0';
+    return { x, y, bw, vk };
+  });
+  const pad = Array.from({ length: n + 1 }, (_, i) => {
+    const t = i / n; const y = topY + t * (botY - topY); const x = x0 + offset(t);
+    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  return (
+    <svg viewBox="0 0 100 205" width="100" height="205" className="mx-auto">
+      <circle cx={x0 + offset(0)} cy={topY - 6} r="13" fill="#f0c9a8" />
+      {wervels.map((w, i) => (
+        <rect key={i} x={w.x - w.bw / 2} y={w.y - 4} width={w.bw} height="7" rx="2" fill={w.vk} stroke="#94a3b8" strokeWidth="0.8" />
+      ))}
+      <path d={pad} fill="none" stroke={kleur} strokeWidth="2.5" opacity="0.7" />
+      <text x={x0} y="200" textAnchor="middle" fontSize="12" fontWeight="700" fill={kleur}>{label}</text>
+    </svg>
+  );
+}
+
 // ─── Infokaders ───────────────────────────────────────────────────────────────
 function InfoKader({ titel, children }) {
   return (
@@ -337,6 +396,7 @@ export default function HoudingLab({ graad = 2 }) {
             </InfoKader>
             <InfoKader titel="Til-regels (manutentie)">
               <p>1. Ga dicht bij de last staan. 2. Zak door je knieën, hou je rug recht. 3. Span je buikspieren aan. 4. Til met je benen. 5. Draai met je voeten, niet met je rug. 6. Te zwaar? Vraag hulp of til in delen.</p>
+              <p className="pt-1 border-t border-indigo-100 text-indigo-400">Leerplan: BV1_01.02.01 (heffen, tillen) · I.6 (manutentie).</p>
             </InfoKader>
           </div>
         )}
@@ -373,18 +433,15 @@ export default function HoudingLab({ graad = 2 }) {
               <p className="text-xs text-gray-500 mb-4">Je ruggengraat heeft van nature drie krommingen (een dubbele S). In die "neutrale" stand vangt hij schokken het best op.</p>
               <div className="grid grid-cols-3 gap-3 text-center text-sm">
                 <div className="bg-red-50 rounded-xl p-3">
-                  <div className="text-2xl mb-1">🙇</div>
-                  <p className="font-semibold text-red-700">Bol (kyfose)</p>
-                  <p className="text-xs text-gray-500 mt-1">rug rondt, druk op tussenwervelschijven vooraan</p>
+                  <WervelKolom type="bol" kleur="#ef4444" label="Bol (kyfose)" />
+                  <p className="text-xs text-gray-500 mt-1">rug rondt, druk op de tussenwervelschijven vooraan</p>
                 </div>
                 <div className="bg-green-50 rounded-xl p-3">
-                  <div className="text-2xl mb-1">🧍</div>
-                  <p className="font-semibold text-green-700">Neutraal</p>
-                  <p className="text-xs text-gray-500 mt-1">natuurlijke krommingen, druk gelijk verdeeld</p>
+                  <WervelKolom type="neutraal" kleur="#22c55e" label="Neutraal" />
+                  <p className="text-xs text-gray-500 mt-1">natuurlijke dubbele S, druk gelijk verdeeld</p>
                 </div>
                 <div className="bg-amber-50 rounded-xl p-3">
-                  <div className="text-2xl mb-1">🏃</div>
-                  <p className="font-semibold text-amber-700">Hol (lordose)</p>
+                  <WervelKolom type="hol" kleur="#f59e0b" label="Hol (lordose)" />
                   <p className="text-xs text-gray-500 mt-1">onderrug te hol, druk op de facetgewrichten</p>
                 </div>
               </div>
