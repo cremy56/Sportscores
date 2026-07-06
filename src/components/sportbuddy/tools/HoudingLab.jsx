@@ -105,52 +105,47 @@ function TilSimulator() {
   );
 }
 
-// Fatsoenlijke zijaanzicht-figuur: gevuld lichaam, doos schaalt met het gewicht.
+// Zijaanzicht-tilfiguur met echt buigende gewrichten per techniek.
 function TilFiguur({ techniek, gewicht, kleur }) {
-  const doosZ = 18 + (gewicht / 30) * 34; // 18..52 px, groeit met het gewicht
-  const W = 220, H = 240, grond = 210;
-  const huid = '#f0c9a8', huidD = '#d9a877', kledij = '#4f6bed', kledijD = '#3a52c4';
+  const W = 240, H = 250, grond = 220;
+  const huid = '#eab98f', huidD = '#cf9d6f', kledij = '#3f5fd6', kledijD = '#2f47a8', schoen = '#334155';
+  const doosZ = 20 + (gewicht / 30) * 36; // groeit met het gewicht
 
-  if (techniek === 'knie') {
-    // GOED: door de knieën, rug recht, doos dicht tegen het lichaam
-    const dx = 110, dy = 150 - doosZ / 2;
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} width="200" height="220">
-        <line x1="20" y1={grond} x2={W - 20} y2={grond} stroke="#cbd5e1" strokeWidth="3" />
-        <ellipse cx="78" cy={grond - 4} rx="16" ry="6" fill={huidD} />
-        <ellipse cx="120" cy={grond - 4} rx="16" ry="6" fill={huidD} />
-        <path d="M96,150 L128,150 L124,178 L112,178 Z" fill={kledij} />
-        <path d={`M112,176 L124,176 L122,${grond - 6} L110,${grond - 6} Z`} fill={kledijD} />
-        <path d="M96,150 L88,178 L78,178 L88,150 Z" fill={kledijD} />
-        <path d={`M84,176 L94,178 L86,${grond - 6} L76,${grond - 6} Z`} fill={kledij} />
-        <circle cx="108" cy="150" r="15" fill={kledijD} />
-        <path d="M98,150 L118,150 L114,86 L102,86 Z" fill={kledij} />
-        <path d="M108,146 L108,88" fill="none" stroke={kleur} strokeWidth="4" strokeLinecap="round" />
-        <circle cx="108" cy="72" r="15" fill={huid} />
-        <path d="M104,96 L96,132" stroke={huid} strokeWidth="9" strokeLinecap="round" />
-        <path d="M116,96 L124,132" stroke={huid} strokeWidth="9" strokeLinecap="round" />
-        <rect x={dx - doosZ / 2} y={dy} width={doosZ} height={doosZ} rx="3" fill="#b45309" stroke="#7c3a12" strokeWidth="2" />
-        <text x={dx} y={dy + doosZ / 2 + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff">{gewicht}</text>
-        <line x1="108" y1="140" x2={dx} y2={dy + doosZ / 2} stroke={kleur} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.4" />
-      </svg>
-    );
+  // Gewrichtspunten per techniek (enkel, knie, heup, schouder, hoofd, hand)
+  let J;
+  if (techniek === 'rug') {
+    J = { enkel: [78, grond - 8], knie: [80, grond - 62], heup: [84, 110], schouder: [150, 104], hoofd: [172, 100], hand: [176, 150], rugBol: true };
+  } else if (techniek === 'half') {
+    J = { enkel: [80, grond - 8], knie: [104, grond - 70], heup: [88, 120], schouder: [128, 88], hoofd: [146, 78], hand: [132, 140], rugBol: true, rugMinder: true };
+  } else {
+    J = { enkel: [84, grond - 8], knie: [128, grond - 92], heup: [92, 148], schouder: [96, 86], hoofd: [96, 62], hand: [120, 138], rugBol: false };
   }
-  // SLECHT (rug/half): vooroverbuigen, rug bol, doos ver vooraan
-  const bol = techniek === 'rug' ? 1 : 0.6; // half = minder extreem
-  const dx = techniek === 'rug' ? 176 : 158, dy = 178 - doosZ / 2;
+  const [ex, ey] = J.enkel, [kx, ky] = J.knie, [hx, hy] = J.heup, [sx, sy] = J.schouder, [hox, hoy] = J.hoofd, [hax, hay] = J.hand;
+  const L = (x1, y1, x2, y2, w, kl) => <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={kl} strokeWidth={w} strokeLinecap="round" />;
+  const dx = hax, dy = hay + doosZ / 2 - 4;
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="200" height="220">
+    <svg viewBox={`0 0 ${W} ${H}`} width="210" height="220">
       <line x1="20" y1={grond} x2={W - 20} y2={grond} stroke="#cbd5e1" strokeWidth="3" />
-      <ellipse cx="70" cy={grond - 4} rx="16" ry="6" fill={huidD} />
-      <path d={`M62,${grond - 6} L66,120 L78,120 L74,${grond - 6} Z`} fill={kledij} />
-      <circle cx="72" cy="118" r="14" fill={kledijD} />
-      <path d={`M72,104 Q120,${96 + (1 - bol) * 8} 160,104 L158,120 Q118,${116 + (1 - bol) * 6} 74,124 Z`} fill={kledij} />
-      <path d={`M74,110 Q118,${90 + (1 - bol) * 16} 156,108`} fill="none" stroke={kleur} strokeWidth="4" strokeLinecap="round" />
-      <circle cx="168" cy="112" r="15" fill={huid} />
-      <path d="M150,110 L170,150" stroke={huid} strokeWidth="9" strokeLinecap="round" />
-      <rect x={dx - doosZ / 2} y={dy} width={doosZ} height={doosZ} rx="3" fill="#b45309" stroke="#7c3a12" strokeWidth="2" />
-      <text x={dx} y={dy + doosZ / 2 + 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff">{gewicht}</text>
-      <line x1="80" y1="112" x2={dx} y2={dy + doosZ / 2} stroke={kleur} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.5" />
+      <ellipse cx={ex + 6} cy={grond - 4} rx="17" ry="6" fill={schoen} />
+      {L(ex, ey, kx, ky, 13, kledijD)}
+      {L(kx, ky, hx, hy, 14, kledij)}
+      <circle cx={kx} cy={ky} r="7" fill={kledijD} />
+      <circle cx={hx} cy={hy} r="11" fill={kledijD} />
+      {L(hx, hy, sx, sy, 17, kledij)}
+      {J.rugBol ? (
+        <path d={`M${hx},${hy - 4} Q${(hx + sx) / 2},${(hy + sy) / 2 - (J.rugMinder ? 10 : 18)} ${sx},${sy}`} fill="none" stroke={kleur} strokeWidth="4" strokeLinecap="round" />
+      ) : (
+        <path d={`M${hx},${hy - 4} L${sx},${sy}`} fill="none" stroke={kleur} strokeWidth="4" strokeLinecap="round" />
+      )}
+      <circle cx={sx} cy={sy} r="8" fill={kledijD} />
+      {L(sx, sy, hox, hoy, 6, huidD)}
+      <circle cx={hox} cy={hoy} r="14" fill={huid} />
+      {L(sx, sy, hax, hay, 10, huid)}
+      <rect x={dx - doosZ / 2} y={dy - doosZ / 2} width={doosZ} height={doosZ} rx="3" fill="#b45309" stroke="#7c3a12" strokeWidth="2" />
+      <path d={`M${dx - doosZ / 2},${dy - doosZ / 2} L${dx},${dy - doosZ / 2 - 4} L${dx + doosZ / 2},${dy - doosZ / 2}`} fill="none" stroke="#7c3a12" strokeWidth="1.5" />
+      <text x={dx} y={dy + 4} textAnchor="middle" fontSize="12" fontWeight="700" fill="#fff">{gewicht}</text>
+      <line x1={hx} y1={hy - 4} x2={dx} y2={dy} stroke={kleur} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.45" />
     </svg>
   );
 }
@@ -329,38 +324,54 @@ function ErgonomieOefening() {
   );
 }
 
-// Anatomische wervelkolom in één stand: gestapelde wervels langs de curve.
-function WervelKolom({ type, kleur, label }) {
-  const topY = 20, botY = 180, x0 = 50, n = 18;
-  const offset = (t) => {
-    if (type === 'neutraal') return 8 * Math.sin(t * Math.PI * 2.1);
-    if (type === 'bol') return 26 * Math.sin(t * Math.PI * 0.85);
-    return -6 + 22 * Math.pow(t, 2) * Math.sin(t * Math.PI); // hol
+// Anatomische wervelkolom in zijaanzicht: schedel + wervels langs de natuurlijke
+// curve, afwijkende krommingen in rood (in de stijl van medische illustraties).
+function Schedel({ cx, cy }) {
+  return (
+    <g>
+      <path d={`M${cx + 2},${cy - 19} C${cx + 15},${cy - 19} ${cx + 21},${cy - 8} ${cx + 20},${cy + 1} C${cx + 19},${cy + 7} ${cx + 15},${cy + 9} ${cx + 13},${cy + 11} C${cx + 13},${cy + 15} ${cx + 10},${cy + 18} ${cx + 5},${cy + 19} L${cx + 2},${cy + 22} L${cx - 4},${cy + 21} L${cx - 3},${cy + 16} C${cx - 12},${cy + 15} ${cx - 19},${cy + 6} ${cx - 19},${cy - 4} C${cx - 19},${cy - 14} ${cx - 10},${cy - 19} ${cx + 2},${cy - 19} Z`}
+        fill="#f8fafc" stroke="#5b6b82" strokeWidth="1.6" />
+      <ellipse cx={cx - 9} cy={cy - 1} rx="3.2" ry="3.8" fill="#cbd5e1" stroke="#5b6b82" strokeWidth="0.8" />
+      <path d={`M${cx - 13},${cy + 4} l3,4 l-2,1 z`} fill="#94a3b8" />
+      <path d={`M${cx - 3},${cy + 16} C${cx - 9},${cy + 22} ${cx - 16},${cy + 22} ${cx - 15},${cy + 13}`} fill="none" stroke="#5b6b82" strokeWidth="1.3" />
+      <line x1={cx - 13} y1={cy + 13} x2={cx - 4} y2={cy + 15} stroke="#94a3b8" strokeWidth="1" />
+    </g>
+  );
+}
+
+function WervelKolom({ type, label }) {
+  const topY = 54, botY = 200, x0 = 56, n = 26;
+  const off = (t) => {
+    const base = 6.5 * Math.sin(t * Math.PI * 1.85 + 0.35);
+    if (type === 'kyfose') return base + 32 * Math.sin(Math.min(1, t * 1.15) * Math.PI) * (t < 0.62 ? 1 : 0.35);
+    if (type === 'lordose') return base - 30 * Math.pow(Math.max(0, t - 0.42), 1.25) * Math.sin(t * Math.PI * 0.95);
+    return base;
   };
+  const rood = (t) => (type === 'kyfose' ? t > 0.1 && t < 0.64 : type === 'lordose' ? t > 0.48 && t < 0.86 : false);
+  const labelKleur = type === 'normaal' ? '#475569' : '#b81f34';
+
   const wervels = Array.from({ length: n }, (_, i) => {
     const t = i / (n - 1);
     const y = topY + t * (botY - topY);
-    const x = x0 + offset(t);
-    const bw = 11 + t * 7;
-    let vk = '#e2e8f0';
-    if (type === 'bol' && t > 0.25 && t < 0.75) vk = '#fca5a5';
-    if (type === 'hol' && t > 0.6) vk = '#fcd34d';
-    if (type === 'neutraal') vk = '#bbf7d0';
-    return { x, y, bw, vk };
+    const x = x0 + off(t);
+    const w = 7.5 + t * 6.5, h = ((botY - topY) / n) * 0.68;
+    const isR = rood(t);
+    const ang = (off(t + 0.02) - off(t)) * 4;
+    return { x, y, w, h, isR, ang, t };
   });
-  const pad = Array.from({ length: n + 1 }, (_, i) => {
-    const t = i / n; const y = topY + t * (botY - topY); const x = x0 + offset(t);
-    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
 
   return (
-    <svg viewBox="0 0 100 205" width="100" height="205" className="mx-auto">
-      <circle cx={x0 + offset(0)} cy={topY - 6} r="13" fill="#f0c9a8" />
-      {wervels.map((w, i) => (
-        <rect key={i} x={w.x - w.bw / 2} y={w.y - 4} width={w.bw} height="7" rx="2" fill={w.vk} stroke="#94a3b8" strokeWidth="0.8" />
+    <svg viewBox="0 0 112 224" width="100" height="200" className="mx-auto">
+      <Schedel cx={x0 + off(0) - 3} cy={topY - 19} />
+      {wervels.map((v, i) => (
+        <g key={i} transform={`translate(${v.x},${v.y}) rotate(${v.ang})`}>
+          <rect x={-v.w / 2} y={-v.h / 2} width={v.w} height={v.h} rx="2.8"
+            fill={v.isR ? '#e8384f' : '#ffffff'} stroke={v.isR ? '#b81f34' : '#7c8aa0'} strokeWidth="1.3" />
+          <path d={`M${v.w / 2 - 1},0 l${5 + v.t * 2.5},-1.2 l0,3.2 z`}
+            fill={v.isR ? '#e8384f' : '#ffffff'} stroke={v.isR ? '#b81f34' : '#7c8aa0'} strokeWidth="1" />
+        </g>
       ))}
-      <path d={pad} fill="none" stroke={kleur} strokeWidth="2.5" opacity="0.7" />
-      <text x={x0} y="200" textAnchor="middle" fontSize="12" fontWeight="700" fill={kleur}>{label}</text>
+      <text x={x0} y="220" textAnchor="middle" fontSize="12" fontWeight="700" fill={labelKleur}>{label}</text>
     </svg>
   );
 }
@@ -433,15 +444,15 @@ export default function HoudingLab({ graad = 2 }) {
               <p className="text-xs text-gray-500 mb-4">Je ruggengraat heeft van nature drie krommingen (een dubbele S). In die "neutrale" stand vangt hij schokken het best op.</p>
               <div className="grid grid-cols-3 gap-3 text-center text-sm">
                 <div className="bg-red-50 rounded-xl p-3">
-                  <WervelKolom type="bol" kleur="#ef4444" label="Bol (kyfose)" />
+                  <WervelKolom type="kyfose" label="Bol (kyfose)" />
                   <p className="text-xs text-gray-500 mt-1">rug rondt, druk op de tussenwervelschijven vooraan</p>
                 </div>
                 <div className="bg-green-50 rounded-xl p-3">
-                  <WervelKolom type="neutraal" kleur="#22c55e" label="Neutraal" />
+                  <WervelKolom type="normaal" label="Neutraal" />
                   <p className="text-xs text-gray-500 mt-1">natuurlijke dubbele S, druk gelijk verdeeld</p>
                 </div>
                 <div className="bg-amber-50 rounded-xl p-3">
-                  <WervelKolom type="hol" kleur="#f59e0b" label="Hol (lordose)" />
+                  <WervelKolom type="lordose" label="Hol (lordose)" />
                   <p className="text-xs text-gray-500 mt-1">onderrug te hol, druk op de facetgewrichten</p>
                 </div>
               </div>
