@@ -5,7 +5,7 @@
 // XP-toekenning (quiz) gebeurt SERVER-SIDE — de correcte antwoorden hier zijn
 // alleen voor de directe feedback in de UI; de handler hercontroleert.
 // Dekkingsmatrix (GO!-codes): Hart → BV2_01.04.01/BV3_01.04 · Fysiek → BV_01.06 ·
-// Energie → WD3_13.01.06 · Voeding → BO1_07.03/WD_13 · Slaap → BO1_07.03/WD3_13.01.05 ·
+// Energie → WD2_13.01.04/WD3_13.01.06 · Voeding → BO1_07.03/WD_13 · Slaap → BO1_07.03/WD3_13.01.05 ·
 // Mentaal → BV_01.02 (hulp/welbevinden) · Houding → BV1_01.02.01 (ergonomie).
 //
 // GRAAD-DIFFERENTIATIE (GDD §4 / MVP-plan): niet alle inhoud is voor iedereen.
@@ -78,7 +78,7 @@ export const MODULES = [
   // ══════════════════ KAMER: DE ZAAL (training) ══════════════════
   {
     id: 'energie', kamer: 'training', naam: 'Energiesystemen', emoji: '⚡',
-    eindterm: 'WD3_13.01.06', beschikbaar: true, minGraad: 2,
+    eindterm: 'WD2_13.01.04 · WD3_13.01.06', beschikbaar: true, minGraad: 2,
     intro: 'Sprinten of een uur fietsen? Je lichaam schakelt tussen drie energiesystemen.',
     kaarten: [
       { titel: 'Drie energiesystemen', minGraad: 2, tekst: 'Je spieren maken energie (ATP) via drie systemen: het ATP-PCr-systeem (direct en explosief, zonder zuurstof), de glycolyse (snel, zonder zuurstof, met lactaat) en het aerobe systeem (traag, mét zuurstof, bijna onuitputtelijk). Ze werken altijd samen.', bron: 'Leerplan Sportwetenschappen' },
