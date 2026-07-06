@@ -180,5 +180,5 @@ export function modulesVanKamer(kamerId) {
 
 // Welke modules hebben een eigen interactieve tool? (component gekoppeld in
 // ModuleTool.jsx). Modules zonder tool tonen enkel de kennisflow + quiz.
-export const MODULES_MET_TOOL = ['hart', 'energie', 'voeding', 'mentaal', 'fysiek', 'houding'];
+export const MODULES_MET_TOOL = ['hart', 'slaap', 'energie', 'voeding', 'mentaal', 'fysiek', 'houding'];
 
