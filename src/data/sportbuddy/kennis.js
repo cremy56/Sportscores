@@ -4,12 +4,13 @@
 // Inhoud geoogst uit OOGST_KENNISLAGEN_SPORTBUDDY.md; per kaart een bron.
 // XP-toekenning (quiz) gebeurt SERVER-SIDE — de correcte antwoorden hier zijn
 // alleen voor de directe feedback in de UI; de handler hercontroleert.
-// Dekkingsmatrix: Hart/Fysiek/Energie → I.8 · Voeding → I.3/I.4 ·
-// Slaap → I.3/herstel · Mentaal → I.32-35 · Houding → I.5/I.6.
+// Dekkingsmatrix (GO!-codes): Hart → BV2_01.04.01/BV3_01.04 · Fysiek → BV_01.06 ·
+// Energie → WD3_13.01.06 · Voeding → BO1_07.03/WD_13 · Slaap → BO1_07.03/WD3_13.01.05 ·
+// Mentaal → BV_01.02 (hulp/welbevinden) · Houding → BV1_01.02.01 (ergonomie).
 //
 // GRAAD-DIFFERENTIATIE (GDD §4 / MVP-plan): niet alle inhoud is voor iedereen.
 //   • 1ste graad (minGraad 1): basis, herkennen, smiley-niveau
-//   • 2de graad (minGraad 2): + meters en korte uitleg / vergelijken (I.3)
+//   • 2de graad (minGraad 2): + meters en korte uitleg / vergelijken met richtlijnen
 //   • 3de graad (minGraad 3): + diepe fysiologie (energiemetabolisme, lactaat,
 //                             supplementen, curves) — Sportwetenschappen
 // Een kaart/quizvraag zonder minGraad geldt vanaf graad 1. Een tool-sectie kan
@@ -42,7 +43,7 @@ export const MODULES = [
   // ══════════════════ KAMER: DE RUSTKAMER (herstel) ══════════════════
   {
     id: 'hart', kamer: 'herstel', naam: 'Hartfrequentie', emoji: '❤️',
-    eindterm: 'I.8', beschikbaar: true,
+    eindterm: 'BV2_01.04.01 · BV3_01.04', beschikbaar: true,
     intro: 'Je hart is de motor van elke sporter. Leer zijn taal lezen.',
     kaarten: [
       { titel: 'De rustpols', tekst: 'Je rustpols is je hartslag in volledige rust. Een lágere rustpols betekent meestal een betere conditie: het hart pompt per slag meer bloed rond. Topsporters zitten vaak tussen 40 en 60 slagen per minuut.', bron: 'Gezond Sporten Vlaanderen' },
@@ -59,7 +60,7 @@ export const MODULES = [
   },
   {
     id: 'slaap', kamer: 'herstel', naam: 'Slaap & herstel', emoji: '😴',
-    eindterm: 'I.3', beschikbaar: true,
+    eindterm: 'BO1_07.03 · BV2_01.02.01 · WD3_13.01.05', beschikbaar: true,
     intro: 'Je wordt niet sterker tíjdens de training, maar erna — vooral in je slaap.',
     kaarten: [
       { titel: 'Hoeveel slaap?', tekst: 'Tieners hebben 8 tot 10 uur slaap per nacht nodig — meer dan volwassenen. Tijdens de slaap verwerken je hersenen wat je leerde en herstelt je lichaam van de dag.', bron: 'Gezond Leven' },
@@ -77,7 +78,7 @@ export const MODULES = [
   // ══════════════════ KAMER: DE ZAAL (training) ══════════════════
   {
     id: 'energie', kamer: 'training', naam: 'Energiesystemen', emoji: '⚡',
-    eindterm: 'I.8', beschikbaar: true, minGraad: 2,
+    eindterm: 'WD3_13.01.06', beschikbaar: true, minGraad: 2,
     intro: 'Sprinten of een uur fietsen? Je lichaam schakelt tussen drie energiesystemen.',
     kaarten: [
       { titel: 'Drie energiesystemen', minGraad: 2, tekst: 'Je spieren maken energie (ATP) via drie systemen: het ATP-PCr-systeem (direct en explosief, zonder zuurstof), de glycolyse (snel, zonder zuurstof, met lactaat) en het aerobe systeem (traag, mét zuurstof, bijna onuitputtelijk). Ze werken altijd samen.', bron: 'Leerplan Sportwetenschappen' },
@@ -96,7 +97,7 @@ export const MODULES = [
   },
   {
     id: 'fysiek', kamer: 'training', naam: 'Fysieke kenmerken', emoji: '💪',
-    eindterm: 'BV_01.05/06 (KLUSCE)', beschikbaar: true,
+    eindterm: 'BV1_01.06 · BV2_01.06 · BV3_01.06', beschikbaar: true,
     intro: 'Kracht, lenigheid, uithouding, snelheid, coördinatie en evenwicht — je zes fysieke kenmerken.',
     kaarten: [
       { titel: 'De zes KLUSCE-kenmerken', minGraad: 1, tekst: 'Je fysieke kunnen bestaat uit zes basiskenmerken: Kracht, Lenigheid, Uithouding, Snelheid, Coördinatie en Evenwicht — samen KLUSCE. Elke sport vraagt een eigen mix ervan.', bron: 'Leerplan Beweging & Sport' },
@@ -115,7 +116,7 @@ export const MODULES = [
   // ══════════════════ KAMER: DE KEUKEN (voeding) ══════════════════
   {
     id: 'voeding', kamer: 'voeding', naam: 'Voeding voor de sporter', emoji: '🍽️',
-    eindterm: 'I.3, I.4', beschikbaar: true,
+    eindterm: 'BO1_07.03 · WD2_13.01.06 · WD3_13.01.06', beschikbaar: true,
     intro: 'Wat je eet, wordt wie je bent op het veld. Leer de bouwstoffen kennen.',
     kaarten: [
       { titel: 'De voedingsdriehoek', minGraad: 1, tekst: 'Eet vooral uit de onderste, groene lagen: groenten, fruit, volle granen en water. Hoe hoger in de driehoek (bewerkte producten, snoep), hoe minder je lichaam ervan nodig heeft. "Regenboog op je bord" = variatie in voedingsstoffen.', bron: 'Gezond Leven' },
@@ -134,7 +135,7 @@ export const MODULES = [
   // ══════════════════ KAMER: DE COACHRUIMTE (mentaal) ══════════════════
   {
     id: 'mentaal', kamer: 'mentaal', naam: 'Mentale kracht', emoji: '🧠',
-    eindterm: 'I.32-35, I.17', beschikbaar: true,
+    eindterm: 'BV1_01.02.04 · BV2_01.02.03 · BV3_01.02.02', beschikbaar: true,
     intro: 'Sport speelt zich ook tussen de oren af. Leer omgaan met spanning, winst en verlies.',
     kaarten: [
       { titel: 'Spanning hoort erbij', minGraad: 1, tekst: 'Voor een wedstrijd zenuwachtig zijn is normaal — zelfs toppers hebben dat. Een beetje spanning maakt je scherp. Het wordt pas een probleem als de spanning zo groot wordt dat je verkrampt.', bron: 'Sportpsychologie' },
@@ -153,14 +154,14 @@ export const MODULES = [
   },
   {
     id: 'houding', kamer: 'mentaal', naam: 'Houding & rug', emoji: '🧍',
-    eindterm: 'BV1_01.02.01 · I.5 · I.6', beschikbaar: true,
+    eindterm: 'BV1_01.02.01 · BV2_01.02.01', beschikbaar: true,
     intro: 'Goed tillen, gezond zitten en je rug beschermen — vaardigheden voor het leven.',
     kaarten: [
-      { titel: 'Til met je benen', minGraad: 1, tekst: 'Zak door de knieën, hou je rug recht en de last dicht tegen je lichaam. Je benen zijn veel sterker dan je rug. Tillen met een gebogen rug zet enorme druk op je onderrug en kan een hernia veroorzaken.', bron: 'BV1_01.02.01 · I.6 (manutentie)' },
-      { titel: 'Statisch en dynamisch', minGraad: 1, tekst: 'Je houding telt zowel als je stilzit of -staat (statisch) als wanneer je beweegt, tilt of draait (dynamisch). Een goede houding in beide situaties beschermt je rug en nek.', bron: 'I.5 (statische/dynamische houding)' },
-      { titel: 'Pas op voor "tech neck"', minGraad: 1, tekst: 'Urenlang met je hoofd voorover naar een laag scherm (smartphone, gamen) belast je nek zwaar. Hou je toestel omhoog, wissel regelmatig van houding en neem pauzes.', bron: 'BV1_01.02.01 (zitten) · I.5' },
-      { titel: 'Draai met je voeten', minGraad: 2, tekst: 'Moet je een last verplaatsen én van richting veranderen? Draai dan met je voeten, niet door je romp te wringen. Zo blijft je wervelkolom recht en beschermd. Te zwaar? Vraag hulp of til in delen.', bron: 'BV1_01.02.01 (verplaatsen) · I.6' },
-      { titel: 'De neutrale wervelkolom', minGraad: 3, tekst: 'Je ruggengraat heeft drie natuurlijke krommingen (een dubbele S). In die neutrale stand verdeelt hij de druk gelijk over de tussenwervelschijven. Sterke core-spieren houden je rug in die stand — daarom is core-stability zo belangrijk.', bron: 'I.6 (rughygiëne) · core-stability (I.8)' },
+      { titel: 'Til met je benen', minGraad: 1, tekst: 'Zak door de knieën, hou je rug recht en de last dicht tegen je lichaam. Je benen zijn veel sterker dan je rug. Tillen met een gebogen rug zet enorme druk op je onderrug en kan een hernia veroorzaken.', bron: 'BV1_01.02.01 (heffen, tillen)' },
+      { titel: 'Statisch en dynamisch', minGraad: 1, tekst: 'Je houding telt zowel als je stilzit of -staat (statisch) als wanneer je beweegt, tilt of draait (dynamisch). Een goede houding in beide situaties beschermt je rug en nek.', bron: 'BV1_01.02.01 (zitten, staan)' },
+      { titel: 'Pas op voor "tech neck"', minGraad: 1, tekst: 'Urenlang met je hoofd voorover naar een laag scherm (smartphone, gamen) belast je nek zwaar. Hou je toestel omhoog, wissel regelmatig van houding en neem pauzes.', bron: 'BV1_01.02.01 (zitten)' },
+      { titel: 'Draai met je voeten', minGraad: 2, tekst: 'Moet je een last verplaatsen én van richting veranderen? Draai dan met je voeten, niet door je romp te wringen. Zo blijft je wervelkolom recht en beschermd. Te zwaar? Vraag hulp of til in delen.', bron: 'BV1_01.02.01 (verplaatsen)' },
+      { titel: 'De neutrale wervelkolom', minGraad: 3, tekst: 'Je ruggengraat heeft drie natuurlijke krommingen (een dubbele S). In die neutrale stand verdeelt hij de druk gelijk over de tussenwervelschijven. Sterke core-spieren houden je rug in die stand — daarom is core-stability zo belangrijk.', bron: 'BV2_01.09 (core-stability) · BV3_01.07 (ergonomie)' },
     ],
     quiz: [
       { vraag: 'Hoe til je een zware doos van de grond?', opties: ['Door de knieën, rug recht', 'Vooroverbuigen met gestrekte benen'], juist: 0 },

@@ -18,11 +18,15 @@
 //   BV2_01.04.02 (2de gr.) · WD3_13.01.05 / WD3_13.02.04 "vormen van herstel"
 //   & BV3_01.02.01 beoordelen met wetenschappelijke inzichten (3de gr.).
 //
-// MARKER: SLAAPLAB_TOOL_V1
+// MARKER: SLAAPLAB_TOOL_V2
 
 import { useMemo, useState } from 'react';
 
-const NORM = { min: 8, max: 10, streef: 9 }; // tiener-slaapnorm (uur/nacht)
+// Tiener-slaapnorm (13-18 j.): AASM/Sleep Research Society-consensus (2016) =
+// 8-10 u per nacht voor optimale gezondheid; ondergrens 7 u, bovengrens 11 u.
+// De meeste tieners halen de norm feitelijk niet — de band is een streefdoel,
+// geen "normaal gemiddelde".
+const NORM = { min: 8, max: 10, streef: 9, absMin: 7, absMax: 11 };
 const DAGEN = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
 
 // Herstelvormen voor de 3de-graads-weging ("vormen van herstel", WD3_13.01.05)
@@ -41,7 +45,7 @@ const HERSTELVORMEN = [
 
 export default function SlaapLab({ graad = 2, buddy }) {
   const naam = buddy?.naam || 'je buddy';
-  const [nachten, setNachten] = useState([9, 8, 7, 6, 7, 9, 8]);
+  const [nachten, setNachten] = useState([9, 8.5, 8, 7, 8, 9, 8.5]);
 
   const gemiddeld = useMemo(
     () => nachten.reduce((a, b) => a + b, 0) / nachten.length,
@@ -53,9 +57,10 @@ export default function SlaapLab({ graad = 2, buddy }) {
     [nachten],
   );
 
-  // Transparant, richtingvast model (dezelfde slaaptekort-modifier als de engine)
-  const herstel = Math.max(20, 100 - Math.round(schuld * 7));       // % herstelcapaciteit
-  const rustpols = Math.min(7, Math.round(schuld * 0.9));           // + bpm
+  // Transparant, richtingvast model (illustratief; helling gekalibreerd zodat
+  // een week op de norm 100% herstel geeft en een week ~1u eronder ~65%).
+  const herstel = Math.max(20, 100 - Math.round(schuld * 5));       // % herstelcapaciteit
+  const rustpols = Math.min(7, Math.round(schuld * 0.9));           // + bpm (band 2-7 uit Hartmodule)
   const reactie = Math.round(schuld * 4);                           // + ms
   const blessure = Math.min(70, 8 + Math.round(schuld * 5));        // % kans
 
@@ -90,7 +95,7 @@ export default function SlaapLab({ graad = 2, buddy }) {
           <label key={i} className="flex items-center gap-3">
             <span className="w-8 text-sm font-medium text-gray-500">{DAGEN[i]}</span>
             <input
-              type="range" min="4" max="12" step="0.5" value={u}
+              type="range" min="5" max="11" step="0.5" value={u}
               onChange={(e) => zetNacht(i, e.target.value)}
               className="flex-grow accent-indigo-500"
               aria-label={`Uren slaap ${DAGEN[i]}`}
@@ -106,7 +111,7 @@ export default function SlaapLab({ graad = 2, buddy }) {
         <div className="flex-grow w-full space-y-3">
           <Balk label="Gemiddelde slaap" waarde={`${gemiddeld.toFixed(1)} u`} pct={Math.min(100, (gemiddeld / NORM.max) * 100)} kleur="bg-indigo-500" />
           <Balk label="Herstelcapaciteit" waarde={`${herstel}%`} pct={herstel} kleur="bg-sky-500" />
-          <p className="text-xs text-gray-400">Richtlijn voor jouw leeftijd: {NORM.min}–{NORM.max} u per nacht.</p>
+          <p className="text-xs text-gray-400">Richtlijn voor jouw leeftijd: {NORM.min}–{NORM.max} u per nacht (AASM). Dit is een streefdoel — de meeste tieners halen het niet, dus zit je eronder, dan ben je niet abnormaal.</p>
         </div>
       </div>
 
@@ -122,6 +127,11 @@ export default function SlaapLab({ graad = 2, buddy }) {
         {graad >= 2 && <Meter label="Rustpols" waarde={`+${rustpols} bpm`} slecht={rustpols >= 4} />}
         <Meter label="Blessurekans" waarde={`${blessure}%`} slecht={blessure > 25} />
       </div>
+      <p className="text-xs text-gray-400 -mt-2">
+        De richting van deze gevolgen is wetenschappelijk onderbouwd (slaaptekort → hogere rustpols,
+        tragere reactietijd, meer blessures). De exacte getallen zijn modelmatig, ter illustratie —
+        geen individuele voorspelling.
+      </p>
 
       {/* Wetenschapskaart — register verschilt per graad */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-gray-700">
