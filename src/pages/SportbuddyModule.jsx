@@ -21,6 +21,7 @@ export default function SportbuddyModule() {
   const [kennisOpen, setKennisOpen] = useState(false);
   const [voortgang, setVoortgang] = useState(null);
   const [graad, setGraad] = useState(2);
+  const [buddy, setBuddy] = useState(null);
   const [laden, setLaden] = useState(true);
 
   // Voortgang van deze module ophalen (via get_buddy)
@@ -29,6 +30,7 @@ export default function SportbuddyModule() {
     try {
       const result = await sportbuddyApi({ action: 'get_buddy' });
       if (result.buddy) {
+        setBuddy(result.buddy);
         setVoortgang(result.buddy.kennis?.[moduleId] || null);
         if (result.buddy.weergave?.graad) setGraad(result.buddy.weergave.graad);
       }
@@ -81,7 +83,7 @@ export default function SportbuddyModule() {
 
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Interactieve tool */}
-        {heeftTool && <ModuleTool moduleId={moduleId} graad={graad} />}
+        {heeftTool && <ModuleTool moduleId={moduleId} graad={graad} buddy={buddy} />}
 
         {/* Kennis + quiz */}
         <div className="bg-white rounded-2xl shadow-lg p-6">

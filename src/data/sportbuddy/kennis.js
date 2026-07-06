@@ -95,10 +95,22 @@ export const MODULES = [
     ],
   },
   {
-    id: 'fysiek', kamer: 'training', naam: 'Fysiek & KLUSCE', emoji: '💪',
-    eindterm: 'I.7, I.8, I.11', beschikbaar: false,
-    intro: 'Binnenkort: je zes fysieke kenmerken, bewegingsnormen en doelen stellen.',
-    kaarten: [], quiz: [],
+    id: 'fysiek', kamer: 'training', naam: 'Fysieke kenmerken', emoji: '💪',
+    eindterm: 'BV_01.05/06 (KLUSCE)', beschikbaar: true,
+    intro: 'Kracht, lenigheid, uithouding, snelheid, coördinatie en evenwicht — je zes fysieke kenmerken.',
+    kaarten: [
+      { titel: 'De zes KLUSCE-kenmerken', minGraad: 1, tekst: 'Je fysieke kunnen bestaat uit zes basiskenmerken: Kracht, Lenigheid, Uithouding, Snelheid, Coördinatie en Evenwicht — samen KLUSCE. Elke sport vraagt een eigen mix ervan.', bron: 'Leerplan Beweging & Sport' },
+      { titel: 'Elk sport zijn mix', minGraad: 1, tekst: 'Een turner heeft veel lenigheid en evenwicht nodig, een sprinter vooral snelheid en kracht, een langeafstandsloper uithouding. Geen enkele sporter scoort overal maximaal — het gaat om de juiste combinatie voor jouw sport.', bron: 'Leerplan Beweging & Sport' },
+      { titel: 'Je beweegprofiel lezen', minGraad: 2, tekst: 'In een radardiagram zie je je zes kenmerken in één oogopslag. De vorm toont je sterktes en groeikansen. Zo kun je je fysieke capaciteiten verklaren en gericht bijsturen.', bron: 'Leerplan Sportwetenschappen' },
+      { titel: 'Trainbaar of aangeboren?', minGraad: 3, tekst: 'Uithouding en kracht zijn sterk trainbaar; snelheid is deels aangeboren (je spiervezeltype). Coördinatie leer je het best jong, kracht komt sterk op met de puberteit. Talent en training tellen samen.', bron: 'Trainingsleer' },
+      { titel: 'Kenmerken ontwikkelen', minGraad: 3, tekst: 'Elk kenmerk vraagt eigen training: kracht via weerstand, uithouding via duurinspanning, lenigheid via rekken, coördinatie via gevarieerde beweging. Door je zwakkere kenmerken te trainen, onderbouw je bewust je beweegvoorkeuren.', bron: 'Leerplan Sportwetenschappen' },
+    ],
+    quiz: [
+      { vraag: 'Waar staat KLUSCE voor?', opties: ['Zes fysieke basiskenmerken', 'Een sportmerk'], juist: 0 },
+      { vraag: 'Welk kenmerk heeft een langeafstandsloper vooral nodig?', opties: ['Uithouding', 'Lenigheid'], juist: 0 },
+      { vraag: 'Welk kenmerk is deels aangeboren?', opties: ['Uithouding', 'Snelheid'], juist: 1 },
+      { vraag: 'Waarom is een beweegprofiel nuttig?', opties: ['Om gericht te trainen', 'Nergens voor'], juist: 0 },
+    ],
   },
   // ══════════════════ KAMER: DE KEUKEN (voeding) ══════════════════
   {
@@ -156,5 +168,5 @@ export function modulesVanKamer(kamerId) {
 
 // Welke modules hebben een eigen interactieve tool? (component gekoppeld in
 // ModuleTool.jsx). Modules zonder tool tonen enkel de kennisflow + quiz.
-export const MODULES_MET_TOOL = ['hart', 'energie', 'voeding', 'mentaal'];
+export const MODULES_MET_TOOL = ['hart', 'energie', 'voeding', 'mentaal', 'fysiek'];
 

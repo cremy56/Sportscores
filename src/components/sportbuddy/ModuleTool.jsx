@@ -7,19 +7,18 @@ import HartslagLab from './tools/HartslagLab';
 import EnergieLab from './tools/EnergieLab';
 import VoedingLab from './tools/VoedingLab';
 import MentaalLab from './tools/MentaalLab';
+import FysiekLab from './tools/FysiekLab';
 
 const TOOLS = {
   hart: HartslagLab,
   energie: EnergieLab,
   voeding: VoedingLab,
   mentaal: MentaalLab,
-  // voeding: Bordbouwer,   (volgende sessie)
-  // energie: EnergieSorteerder,
-  // slaap: SlaaptekortSimulator,
+  fysiek: FysiekLab,
 };
 
-export default function ModuleTool({ moduleId, graad = 2 }) {
+export default function ModuleTool({ moduleId, graad = 2, buddy }) {
   const Tool = TOOLS[moduleId];
   if (!Tool) return null;
-  return <Tool graad={graad} />;
+  return <Tool graad={graad} buddy={buddy} />;
 }
