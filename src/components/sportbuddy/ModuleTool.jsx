@@ -8,6 +8,7 @@ import EnergieLab from './tools/EnergieLab';
 import VoedingLab from './tools/VoedingLab';
 import MentaalLab from './tools/MentaalLab';
 import FysiekLab from './tools/FysiekLab';
+import HoudingLab from './tools/HoudingLab';
 
 const TOOLS = {
   hart: HartslagLab,
@@ -15,6 +16,7 @@ const TOOLS = {
   voeding: VoedingLab,
   mentaal: MentaalLab,
   fysiek: FysiekLab,
+  houding: HoudingLab,
 };
 
 export default function ModuleTool({ moduleId, graad = 2, buddy }) {
