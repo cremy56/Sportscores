@@ -28,7 +28,7 @@ const ACHTERGROND = "";
 const SPRITE_BASE = "/sparring/"; // sprite-sheets in /public/sparring/blauw|rood/
 const SPRITE_DEFS = {
   idle:        { file: "idle.png",        frames: 11, fps: 12, loop: true },
-  walk:        { file: "walk.png",        frames: 8,  fps: 12, loop: true },
+  walk:        { file: "walk.png",        frames: 11, fps: 14, loop: true },
   slag:        { file: "jab.png",         frames: 8,  fps: 20, loop: false },
   slag_hoog:   { file: "jab_hoog.png",    frames: 8,  fps: 20, loop: false },
   slag_mid:    { file: "jab_mid.png",     frames: 8,  fps: 20, loop: false },
