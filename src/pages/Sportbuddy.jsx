@@ -6,7 +6,7 @@
 // persoonlijk gezondheidsgegeven verwerkt. De kamers (tiles) volgen in sessie 3+.
 
 import { useState, useEffect, useCallback } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/PageHeader';
 import AanmaakWizard from '../components/sportbuddy/AanmaakWizard';
@@ -27,6 +27,7 @@ const RISICO_BADGE = {
 
 export default function Sportbuddy() {
   const { profile } = useOutletContext();
+  const navigate = useNavigate();
   const [echteBuddy, setBuddy] = useState(null);
   const [vandaagVerzorgd, setVandaagVerzorgd] = useState(false);
   const [meldingen, setMeldingen] = useState([]);
@@ -144,6 +145,13 @@ export default function Sportbuddy() {
   return (
     <div className="relative">
       <div className="fixed inset-0 bg-slate-50 -z-10" />
+      <button
+        type="button"
+        onClick={() => navigate('/sportbuddy/gameday')}
+        className="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 bg-gradient-to-r from-rose-500 to-orange-500 text-white text-sm font-bold rounded-full px-4 py-2 shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+      >
+        🥊 Gameday
+      </button>
       <PageHeader
         title="Sportbuddy"
         subtitle={`${buddyNaam} · ${sport ? `${sport.emoji} ${sport.naam}` : ''} · dag ${buddy.seizoen?.dag ?? 1} van het seizoen · 🪙 ${buddy.coins ?? 0}`}
