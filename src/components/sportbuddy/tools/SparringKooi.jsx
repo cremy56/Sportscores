@@ -38,7 +38,7 @@ const SPRITE_DEFS = {
   schop_mid:   { file: "kick_mid.png",    frames: 12, fps: 18, loop: false },
   schop_laag:  { file: "kick_laag.png",   frames: 10, fps: 20, loop: false },
   uppercut:    { file: "uppercut.png",    frames: 12, fps: 20, loop: false },
-  hoofdstoot:  { file: "hoofdstoot.png",  frames: 8,  fps: 20, loop: false },
+  hoofdstoot:  { file: "hoofdstoot.png",  frames: 15, fps: 22, loop: false },
   blok:        { file: "blok.png",        frames: 4,  fps: 12, loop: false },
   blok_hoog:   { file: "blok_hoog.png",   frames: 4,  fps: 12, loop: false },
   blok_mid:    { file: "blok_mid.png",    frames: 4,  fps: 12, loop: false },
