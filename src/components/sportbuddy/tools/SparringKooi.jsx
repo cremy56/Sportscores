@@ -43,7 +43,7 @@ const SPRITE_DEFS = {
   blok_hoog:   { file: "blok_hoog.png",   frames: 4,  fps: 12, loop: false },
   blok_mid:    { file: "blok_mid.png",    frames: 4,  fps: 12, loop: false },
   blok_laag:   { file: "blok_laag.png",   frames: 4,  fps: 12, loop: false },
-  stagger:     { file: "stagger.png",     frames: 6,  fps: 12, loop: false },
+  stagger:     { file: "stagger.png",     frames: 11, fps: 16, loop: false },
   dash:        { file: "dash.png",        frames: 6,  fps: 18, loop: false },
   sprong:      { file: "sprong.png",      frames: 13, fps: 14, loop: false },
 };
