@@ -45,7 +45,7 @@ const SPRITE_DEFS = {
   blok_laag:   { file: "blok_laag.png",   frames: 4,  fps: 12, loop: false },
   stagger:     { file: "stagger.png",     frames: 6,  fps: 12, loop: false },
   dash:        { file: "dash.png",        frames: 6,  fps: 18, loop: false },
-  sprong:      { file: "sprong.png",      frames: 8,  fps: 12, loop: false },
+  sprong:      { file: "sprong.png",      frames: 13, fps: 14, loop: false },
 };
 const SPRITE_HOOGTE = 118;                       // doelhoogte van de avatar in wereld-pixels
 const _spriteCache = {};                         // "team/naam" -> Image | "laden" | "mist"
