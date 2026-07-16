@@ -45,7 +45,7 @@ const SPRITE_DEFS = {
   blok_laag:   { file: "blok_laag.png",   frames: 4,  fps: 12, loop: false },
   stagger:     { file: "stagger.png",     frames: 11, fps: 16, loop: false },
   dash:        { file: "dash.png",        frames: 6,  fps: 18, loop: false },
-  sprong:      { file: "sprong.png",      frames: 13, fps: 14, loop: false },
+  sprong:      { file: "sprong.png",      frames: 13, fps: 14, loop: false, ankerH: 439 },
 };
 const SPRITE_HOOGTE = 118;                       // doelhoogte van de avatar in wereld-pixels
 const _spriteCache = {};                         // "team/naam" -> Image | "laden" | "mist"
@@ -94,6 +94,7 @@ const BLOCK_BALANS = 18, SCHAMP_BALANS = 8;
 const STAGGER_HIT = 0.42, STAGGER_GUARD = 0.8, STAGGER_SCHAMP = 0.2;
 const HIT_ATP = 8, LACTAAT_SLAG = 4, LACTAAT_SCHOP = 7, LACTAAT_DECAY = 4;
 const KNOCKBACK = 60;                         // ruimte na een treffer (tegen hoek-vastzitten)
+const WALK_STAP_PX = 150;                     // wereld-px die 1 walk-cyclus (11 fr) aflegt; hoger=trager voetentempo. Stel bij tot voeten niet glijden
 /* sprong (z-as): boog met horizontale snelheid -> je vliegt echt over de tegenstander */
 const JUMP_PCR = 20, JUMP_GLYC = 10, JUMP_VZ = 520, GRAV = 1150, OVER_Z = 52, JUMP_HOR = 340;
 /* vrije combo: tijdens de recovery opnieuw slaan/schoppen rijgt de volgende hit eraan */
@@ -396,7 +397,10 @@ export default function SparringKooi() {
 
     gs.fighters.forEach((f) => {
       f.dashCd = Math.max(0, f.dashCd - dt); f.iframe = Math.max(0, f.iframe - dt); f.openT = Math.max(0, f.openT - dt);
-      const an = animNaam(f); if (an !== f.animNaam) { f.animNaam = an; f.animT = 0; } else f.animT += dt;
+      const an = animNaam(f);
+      if (an !== f.animNaam) { f.animNaam = an; f.animT = 0; }
+      else if (an === "walk") f.animT += (Math.abs(f.vx) / WALK_STAP_PX) * dt;   // foot-lock: cyclus volgt afstand, geen glijden
+      else f.animT += dt;
       if (f.comboT > 0) f.comboT -= dt;
       f.comboCharge = clamp(f.comboCharge + dt / COMBO_RECHARGE, 0, 1);   // signature-combo laadt op
       // sprong / z-as
@@ -886,10 +890,12 @@ function tekenVechterSprite(ctx, f) {
     const basis = naam.split("_")[0];
     if (SPRITE_DEFS[basis]) { naam = basis; d = SPRITE_DEFS[basis]; img = spriteVan(f.team, basis); }
   }
-  if (!img) return false;
+  if (!img) { naam = "idle"; d = SPRITE_DEFS.idle; img = spriteVan(f.team, "idle"); }   // geen vector-flits meer: val terug op idle
+  if (!img) return false;                                // vangnet: alleen als zelfs idle nog laadt
   const fw = img.width / d.frames, fh = img.height;
   const idx = d.loop ? Math.floor(f.animT * d.fps) % d.frames : Math.min(Math.floor(f.animT * d.fps), d.frames - 1);
-  const sc = SPRITE_HOOGTE / fh, dw = fw * sc, dh = SPRITE_HOOGTE;
+  const ankerH = d.ankerH || fh;                         // sheets met sprongboog schalen op sta-pose ipv framehoogte
+  const sc = SPRITE_HOOGTE / ankerH, dw = fw * sc, dh = fh * sc;
   ctx.save(); ctx.translate(f.x, GROUND - f.z); ctx.scale(f.facing, 1);
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(img, idx * fw, 0, fw, fh, -dw / 2, -dh, dw, dh);
