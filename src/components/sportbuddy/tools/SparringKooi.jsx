@@ -28,7 +28,7 @@ const ACHTERGROND = "";
 const SPRITE_BASE = "/sparring/"; // sprite-sheets in /public/sparring/blauw|rood/
 const SPRITE_DEFS = {
   idle:        { file: "idle.png",        frames: 11, fps: 12, loop: true },
-  walk:        { file: "walk.png",        frames: 11, fps: 14, loop: true },
+  walk:        { file: "walk.png",        frames: 10, fps: 14, loop: true },
   slag:        { file: "jab.png",         frames: 9,  fps: 18, loop: false },
   slag_hoog:   { file: "jab_hoog.png",    frames: 8,  fps: 20, loop: false },
   slag_mid:    { file: "jab_mid.png",     frames: 8,  fps: 20, loop: false },
@@ -94,7 +94,7 @@ const BLOCK_BALANS = 18, SCHAMP_BALANS = 8;
 const STAGGER_HIT = 0.42, STAGGER_GUARD = 0.8, STAGGER_SCHAMP = 0.2;
 const HIT_ATP = 8, LACTAAT_SLAG = 4, LACTAAT_SCHOP = 7, LACTAAT_DECAY = 4;
 const KNOCKBACK = 60;                         // ruimte na een treffer (tegen hoek-vastzitten)
-const WALK_STAP_PX = 150;                     // wereld-px die 1 walk-cyclus (11 fr) aflegt; hoger=trager voetentempo. Stel bij tot voeten niet glijden
+const WALK_STAP_PX = 201;                     // gemeten uit sheet: 144 wereld-px netto pas per cyclus (10 fr, 2 stappen). hoger=trager voetentempo
 /* sprong (z-as): boog met horizontale snelheid -> je vliegt echt over de tegenstander */
 const JUMP_PCR = 20, JUMP_GLYC = 10, JUMP_VZ = 520, GRAV = 1150, OVER_Z = 52, JUMP_HOR = 340;
 /* vrije combo: tijdens de recovery opnieuw slaan/schoppen rijgt de volgende hit eraan */
