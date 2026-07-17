@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { SPRITE_DEFS, SPRITE_HOOGTE, spriteVan, overlaySheet, sorteerUitrusting } from "../../../data/sportbuddy/sprites";
+import { SPRITE_DEFS, SPRITE_HOOGTE, spriteVan, overlaySheet, sorteerUitrusting, getinteMannequin, huidHex } from "../../../data/sportbuddy/sprites";
 
 /*
   SPARRING KOOI — fase A prototype v2 (SportScores · Sportbuddy) — werktitel
@@ -162,7 +162,7 @@ const ETEN = [
 export default function SparringKooi({ buddy = null, graad: graadProp = null } = {}) {
   // buddy-koppeling: neem look/stats/graad uit de Sportbuddy zodra aanwezig; anders standalone-defaults (menu/test)
   const buddyStats = buddy?.stats && ["K","L","U","S","C","E"].every((k) => k in buddy.stats) ? buddy.stats : null;
-  const buddyOutfit = buddy?.avatar ? { gi: "#2e6cb5", huid: buddy.avatar.huid || "#f2d3b0", haar: buddy.avatar.haarkleur || buddy.avatar.haar || "#2b2119", uitrusting: buddy.uitrusting || [] } : null;
+  const buddyOutfit = buddy?.avatar ? { gi: "#2e6cb5", huid: huidHex(buddy.avatar.huid), haar: buddy.avatar.haarkleur || buddy.avatar.haar || "#2b2119", uitrusting: buddy.uitrusting || [] } : null;
 
   const [screen, setScreen] = useState("menu");
   const [graad, setGraad] = useState(graadProp ?? buddy?.weergave?.graad ?? 2);
@@ -865,7 +865,11 @@ function tekenVechterSprite(ctx, f) {
   const sc = SPRITE_HOOGTE / ankerH, dw = fw * sc, dh = fh * sc;
   ctx.save(); ctx.translate(f.x, GROUND - f.z); ctx.scale(f.facing, 1);
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(img, idx * fw, 0, fw, fh, -dw / 2, -dh, dw, dh);
+  // huidtint: als de buddy een huidskleur heeft, teken de getinte mannequin (gecachet); anders de neutrale sheet
+  const huid = f.look && f.look.huid;
+  const getint = getinteMannequin(f.team, naam, huid);
+  const bron = getint || img;
+  ctx.drawImage(bron, idx * fw, 0, fw, fh, -dw / 2, -dh, dw, dh);
   // overlay-lagen (kleding/hoofd/gezicht/accessoires): zelfde frame, zelfde transform -> bewegen mee
   if (f.uitrusting && f.uitrusting.length) {
     for (const itemKey of f.uitrusting) {                 // f.uitrusting is al op laag gesorteerd (achter -> voor)

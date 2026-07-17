@@ -13,11 +13,12 @@
 // Datavrij: puur cosmetische weergave van het fictieve personage.
 
 import { useRef, useEffect } from 'react';
-import { SPRITE_BASE, SPRITE_DEFS, spriteVan, overlaySheet, sorteerUitrusting } from '../../data/sportbuddy/sprites';
+import { SPRITE_BASE, SPRITE_DEFS, spriteVan, overlaySheet, sorteerUitrusting, getinteMannequin, huidHex, HUID_TINTEN } from '../../data/sportbuddy/sprites';
 
-// Keuzelijsten voor de AanmaakWizard (voorheen hier geëxporteerd; behouden zodat
-// bestaande imports blijven werken). Puur cosmetische opties voor het fictieve personage.
-export const HUID_TINTEN = ['#f6d7b0', '#e8b98a', '#c68863', '#8d5a3b'];
+// Keuzelijsten voor de AanmaakWizard. HUID_TINTEN komt nu uit de gedeelde sprites-module
+// (zodat game, avatar en wizard exact dezelfde tinten gebruiken) en wordt hier
+// doorge-exporteerd zodat bestaande imports blijven werken.
+export { HUID_TINTEN };
 export const HAAR_KLEUREN = ['#2d2a26', '#6b4a2b', '#b0813f', '#d9c169', '#a33b2e'];
 export const HAAR_STIJLEN = ['spikes', 'krullen', 'lang', 'kuif', 'kaal'];
 export const GEZICHTEN = ['blij', 'focus', 'ontspannen', 'guitig'];
@@ -91,8 +92,9 @@ export default function BuddyAvatar({
       ctx.globalAlpha = alpha;
       if (filter !== 'none' && 'filter' in ctx) ctx.filter = filter;
       ctx.imageSmoothingEnabled = true;
-      // mannequin
-      ctx.drawImage(img, idx * fw, 0, fw, fh, cx - dw / 2, grond - dh, dw, dh);
+      // mannequin, getint naar de gekozen huidskleur (gecachet); val terug op neutrale sheet
+      const getint = getinteMannequin('blauw', 'idle', huidHex(huid));
+      ctx.drawImage(getint || img, idx * fw, 0, fw, fh, cx - dw / 2, grond - dh, dw, dh);
       // overlay-lagen (kleding/gezicht/haar zodra shop-items bestaan) — zelfde frame/transform
       for (const key of items) {
         const ov = overlaySheet(key, 'idle');

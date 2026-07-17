@@ -11,6 +11,15 @@
 export const SPRITE_BASE = "/sparring/";
 export const SPRITE_HOOGTE = 118;                // doelhoogte van de avatar in wereld-pixels
 
+// Huidtinten (index -> hex). Gedeeld door wizard, game en avatar zodat de gekozen
+// huidskleur overal identiek getint wordt. Accepteert al een hex? dan ongewijzigd terug.
+export const HUID_TINTEN = ['#f0c8a8', '#d4a373', '#a5744f', '#6b4a35'];
+export function huidHex(v) {
+  if (typeof v === "string" && v.startsWith("#")) return v;    // al een hex
+  const i = Number(v);
+  return HUID_TINTEN[Number.isInteger(i) ? i : 0] || HUID_TINTEN[0];
+}
+
 export const SPRITE_DEFS = {
   idle:        { file: "idle.png",        frames: 11, fps: 12, loop: true },
   walk:        { file: "walk.png",        frames: 10, fps: 14, loop: true },
@@ -51,6 +60,69 @@ export function laadSheet(url) {
 export function spriteVan(team, naam) {
   if (!SPRITE_BASE || !SPRITE_DEFS[naam]) return null;
   return laadSheet(SPRITE_BASE + team + "/" + SPRITE_DEFS[naam].file);
+}
+
+/* ===== HUIDTINT-LAAG =====
+   De mannequin is neutraal (blauwgroen). Elke buddy krijgt zijn eigen huidskleur
+   via een luminantie-remap: de helderheid (= 3D-schaduw) van de mannequin wordt
+   hergebruikt, de kleur wordt vervangen door een huid-gradient (donker->licht).
+   Resultaat wordt per (naam + huidHex) éénmalig naar een offscreen canvas gebakken
+   en gecachet, zodat de tint niet elke frame herberekend wordt. Geen extra sheets. */
+const _huidCache = {};                            // "naam|hex|team" -> canvas | "bezig"
+
+function hexNaarGradient(hex) {
+  const h = (hex || "#d4a373").replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  const donker = [Math.round(r * 0.55), Math.round(g * 0.52), Math.round(b * 0.50)];
+  const licht = [Math.min(255, Math.round(r * 1.30 + 30)), Math.min(255, Math.round(g * 1.28 + 28)), Math.min(255, Math.round(b * 1.25 + 25))];
+  return { donker, licht };
+}
+
+// Geeft een getint canvas terug (of null als de bron-sheet nog laadt / geen tint gevraagd).
+// huidHex leeg/undefined => geen tint (retourneert null, teken dan gewoon de bron-sheet).
+export function getinteMannequin(team, naam, huidHex) {
+  if (!huidHex) return null;
+  if (typeof document === "undefined") return null;   // SSR-veilig
+  const key = naam + "|" + huidHex + "|" + team;
+  const c = _huidCache[key];
+  if (c && c !== "bezig") return c;
+  if (c === "bezig") return null;
+
+  const img = spriteVan(team, naam);
+  if (!img) return null;                               // bron laadt nog -> volgende frame opnieuw
+
+  _huidCache[key] = "bezig";
+  const cv = document.createElement("canvas");
+  cv.width = img.width; cv.height = img.height;
+  const cx = cv.getContext("2d");
+  cx.drawImage(img, 0, 0);
+  let data;
+  try { data = cx.getImageData(0, 0, cv.width, cv.height); }
+  catch (e) { _huidCache[key] = null; return null; }   // getImageData kan falen (CORS); val terug op ongetint
+  const px = data.data;
+
+  // luminantie-range van de mannequin bepalen (voor stretch)
+  let lmin = 255, lmax = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] < 40) continue;
+    const l = 0.3 * px[i] + 0.5 * px[i + 1] + 0.2 * px[i + 2];
+    if (l < lmin) lmin = l; if (l > lmax) lmax = l;
+  }
+  const span = Math.max(1, lmax - lmin);
+  const { donker, licht } = hexNaarGradient(huidHex);
+
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] < 40) continue;
+    let ln = (0.3 * px[i] + 0.5 * px[i + 1] + 0.2 * px[i + 2] - lmin) / span;
+    ln = Math.pow(Math.min(1, Math.max(0, ln)), 0.85);  // gamma: highlights lichten op
+    px[i]     = donker[0] + (licht[0] - donker[0]) * ln;
+    px[i + 1] = donker[1] + (licht[1] - donker[1]) * ln;
+    px[i + 2] = donker[2] + (licht[2] - donker[2]) * ln;
+    // alpha ongemoeid -> zachte randen behouden
+  }
+  cx.putImageData(data, 0, 0);
+  _huidCache[key] = cv;
+  return cv;
 }
 
 /* ===== OVERLAY-LAAG (kleding, hoofd, gezicht, accessoires - shop-items) =====
