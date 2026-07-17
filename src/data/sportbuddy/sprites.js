@@ -13,7 +13,7 @@ export const SPRITE_HOOGTE = 118;                // doelhoogte van de avatar in 
 
 // Huidtinten (index -> hex). Gedeeld door wizard, game en avatar zodat de gekozen
 // huidskleur overal identiek getint wordt. Accepteert al een hex? dan ongewijzigd terug.
-export const HUID_TINTEN = ['#f0c8a8', '#d4a373', '#a5744f', '#6b4a35'];
+export const HUID_TINTEN = ['#e8b98a', '#d4a373', '#a5744f', '#7a5238'];
 export function huidHex(v) {
   if (typeof v === "string" && v.startsWith("#")) return v;    // al een hex
   const i = Number(v);
@@ -73,8 +73,8 @@ const _huidCache = {};                            // "naam|hex|team" -> canvas |
 function hexNaarGradient(hex) {
   const h = (hex || "#d4a373").replace("#", "");
   const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
-  const donker = [Math.round(r * 0.55), Math.round(g * 0.52), Math.round(b * 0.50)];
-  const licht = [Math.min(255, Math.round(r * 1.30 + 30)), Math.min(255, Math.round(g * 1.28 + 28)), Math.min(255, Math.round(b * 1.25 + 25))];
+  const donker = [Math.round(r * 0.60), Math.round(g * 0.56), Math.round(b * 0.53)];
+  const licht = [Math.min(255, Math.round(r * 1.14 + 6)), Math.min(255, Math.round(g * 1.11 + 6)), Math.min(255, Math.round(b * 1.08 + 6))];
   return { donker, licht };
 }
 
@@ -114,7 +114,7 @@ export function getinteMannequin(team, naam, huidHex) {
   for (let i = 0; i < px.length; i += 4) {
     if (px[i + 3] < 40) continue;
     let ln = (0.3 * px[i] + 0.5 * px[i + 1] + 0.2 * px[i + 2] - lmin) / span;
-    ln = Math.pow(Math.min(1, Math.max(0, ln)), 0.85);  // gamma: highlights lichten op
+    ln = Math.pow(Math.min(1, Math.max(0, ln)), 1.05);  // lichte gamma; highlight blijft getemperd (geen bleek)
     px[i]     = donker[0] + (licht[0] - donker[0]) * ln;
     px[i + 1] = donker[1] + (licht[1] - donker[1]) * ln;
     px[i + 2] = donker[2] + (licht[2] - donker[2]) * ln;
