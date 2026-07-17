@@ -80,10 +80,13 @@ function spriteVan(team, naam) {
    'laag' bepaalt de tekenvolgorde: hoger = meer vooraan. De shop vult dit object. */
 const OVERLAY_BASE = SPRITE_BASE + "overlay/";
 const OVERLAY_ITEMS = {
-  // voorbeeld-structuur (nog geen echte sheets); shop voegt hier items toe:
+  // TEST-ITEM (tijdelijk, voor pijplijn-validatie): alleen walk-overlay bestaat,
+  // dus de band verschijnt enkel tijdens lopen en beweegt mee. Verwijder na de test.
+  testband: { map: "testband", laag: 30 },
+  // shop-items komen hier (voorbeeld-structuur):
   // gi_boks_rood:   { map: "gi_boks_rood",   laag: 20 },
-  // hoofdband_wit:  { map: "hoofdband_wit",  laag: 60 },
   // gezicht_type1:  { map: "gezicht_type1",  laag: 50 },
+  // hoofdband_wit:  { map: "hoofdband_wit",  laag: 60 },
 };
 // overlay-sheet voor een item + animatie ophalen (zelfde bestandsnaam als de mannequin-sheet)
 function overlaySheet(itemKey, naam) {
@@ -269,7 +272,8 @@ export default function SparringKooi({ buddy = null, graad: graadProp = null } =
     const dp = buddyNaarParams(b.stats, b.verzorging);
     dp.plafond *= b.plafondMod; dp.herstelMult *= b.herstelMod;   // zwakte inbakken (bv. Stormram loopt leeg)
     const humanTeam = Math.random() < 0.5 ? "blauw" : "rood";
-    const hLook = buildLook(stats, verzorging, graad, outfit);
+    const testOutfit = { ...outfit, uitrusting: [...(outfit.uitrusting || []), "testband"] };   // TEST: band op speler; verwijder na pijplijn-test
+    const hLook = buildLook(stats, verzorging, graad, testOutfit);
     const dLook = buildLook(b.stats, b.verzorging, graad, { gi: b.kleur || "#b04848", huid: "#e0b98f", haar: "#171c26" });
     gsRef.current = verseState(humanTeam, buddyNaarParams(stats, verzorging), dp, graad, b, { ...tuning }, hLook, dLook);
     setResult(null); setPauze(false); setScreen("playing");
