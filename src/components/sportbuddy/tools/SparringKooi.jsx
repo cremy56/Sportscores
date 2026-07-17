@@ -196,14 +196,18 @@ const ETEN = [
   { id: "adem", txt: "😮‍💨 Ademhaling", uitleg: "ATP-PCr + rust", eff: { pcr: 34, lactaat: -40, aer: 15 } },
 ];
 
-export default function SparringKooi() {
+export default function SparringKooi({ buddy = null, graad: graadProp = null } = {}) {
+  // buddy-koppeling: neem look/stats/graad uit de Sportbuddy zodra aanwezig; anders standalone-defaults (menu/test)
+  const buddyStats = buddy?.stats && ["K","L","U","S","C","E"].every((k) => k in buddy.stats) ? buddy.stats : null;
+  const buddyOutfit = buddy?.avatar ? { gi: "#2e6cb5", huid: buddy.avatar.huid || "#f2d3b0", haar: buddy.avatar.haarkleur || buddy.avatar.haar || "#2b2119" } : null;
+
   const [screen, setScreen] = useState("menu");
-  const [graad, setGraad] = useState(2);
+  const [graad, setGraad] = useState(graadProp ?? buddy?.weergave?.graad ?? 2);
   const [boss, setBoss] = useState("stormram");
   const [verzorging, setVerzorging] = useState(70);
   const [toonStats, setToonStats] = useState(false);
   const [toonTuning, setToonTuning] = useState(false);
-  const [stats, setStats] = useState({ K: 60, L: 60, U: 60, S: 60, C: 60, E: 60 });
+  const [stats, setStats] = useState(buddyStats ?? { K: 60, L: 60, U: 60, S: 60, C: 60, E: 60 });
   const [tuning, setTuning] = useState({ tempoKost: 1, staggerDuur: 1, aiScherpte: 40 });
   const [reducedMotion, setReducedMotion] = useState(false);
   const [colorblind, setColorblind] = useState(false);
@@ -212,7 +216,7 @@ export default function SparringKooi() {
   const [pauze, setPauze] = useState(false);
   const [gegeten, setGegeten] = useState({});
   const [comboReeks, setComboReeks] = useState([...DEFAULT_COMBO]);
-  const [outfit, setOutfit] = useState({ gi: "#2e6cb5", huid: "#f2d3b0", haar: "#2b2119" });
+  const [outfit, setOutfit] = useState(buddyOutfit ?? { gi: "#2e6cb5", huid: "#f2d3b0", haar: "#2b2119" });
 
   const canvasRef = useRef(null), gsRef = useRef(null), rafRef = useRef(0);
   const keysRef = useRef({}), actRef = useRef({ slag: false, schop: false, dash: false, sprong: false, special: false });
