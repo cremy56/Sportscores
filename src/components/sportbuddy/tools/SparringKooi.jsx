@@ -48,20 +48,49 @@ const SPRITE_DEFS = {
   sprong:      { file: "sprong.png",      frames: 13, fps: 14, loop: false, ankerH: 439 },
 };
 const SPRITE_HOOGTE = 118;                       // doelhoogte van de avatar in wereld-pixels
-const _spriteCache = {};                         // "team/naam" -> Image | "laden" | "mist"
-function spriteVan(team, naam) {
-  if (!SPRITE_BASE || !SPRITE_DEFS[naam]) return null;
-  const key = team + "/" + naam;
-  const c = _spriteCache[key];
+const _spriteCache = {};                         // cache-key (url) -> Image | "laden" | "mist"
+// generieke sheet-loader: cachet elke URL. Basis-mannequin en overlays gebruiken dezelfde weg.
+function laadSheet(url) {
+  const c = _spriteCache[url];
   if (c instanceof Image) return c;
   if (c === undefined) {
-    _spriteCache[key] = "laden";
+    _spriteCache[url] = "laden";
     const im = new Image();
-    im.onload = () => { _spriteCache[key] = im; };
-    im.onerror = () => { _spriteCache[key] = "mist"; };
-    im.src = SPRITE_BASE + team + "/" + SPRITE_DEFS[naam].file;
+    im.onload = () => { _spriteCache[url] = im; };
+    im.onerror = () => { _spriteCache[url] = "mist"; };
+    im.src = url;
   }
   return null;
+}
+function spriteVan(team, naam) {
+  if (!SPRITE_BASE || !SPRITE_DEFS[naam]) return null;
+  return laadSheet(SPRITE_BASE + team + "/" + SPRITE_DEFS[naam].file);
+}
+
+/* ===== OVERLAY-LAAG (kleding, hoofd, gezicht, accessoires — shop-items) =====
+   Elk item = een map met overlay-sheets die 1-op-1 dezelfde naam/frames/timing
+   hebben als de mannequin-sheets (walk.png = 10 fr, idle.png = 11 fr, ...).
+   ASSET-EIS: een overlay-sheet MOET exact dezelfde afmetingen (breedte×hoogte en
+   dus frame-breedte) hebben als de mannequin-sheet met dezelfde naam, anders
+   wordt de overlay uitgerekt en loopt hij uit de pas. Render de overlay op net
+   hetzelfde skelet/dezelfde camera als de mannequin en trim op dezelfde bbox.
+   Ze worden met exact dezelfde transform over de mannequin getekend, dus ze
+   bewegen automatisch mee. Ontbreekt een overlay-sheet voor een animatie, dan
+   wordt die laag voor dat ene frame simpelweg overgeslagen (geen crash).
+   'laag' bepaalt de tekenvolgorde: hoger = meer vooraan. De shop vult dit object. */
+const OVERLAY_BASE = SPRITE_BASE + "overlay/";
+const OVERLAY_ITEMS = {
+  // voorbeeld-structuur (nog geen echte sheets); shop voegt hier items toe:
+  // gi_boks_rood:   { map: "gi_boks_rood",   laag: 20 },
+  // hoofdband_wit:  { map: "hoofdband_wit",  laag: 60 },
+  // gezicht_type1:  { map: "gezicht_type1",  laag: 50 },
+};
+// overlay-sheet voor een item + animatie ophalen (zelfde bestandsnaam als de mannequin-sheet)
+function overlaySheet(itemKey, naam) {
+  const item = OVERLAY_ITEMS[itemKey];
+  const def = SPRITE_DEFS[naam];
+  if (!item || !def) return null;
+  return laadSheet(OVERLAY_BASE + item.map + "/" + def.file);
 }
 /* welke animatie hoort bij de huidige toestand */
 function animNaam(f) {
@@ -137,8 +166,12 @@ function shade(hex, amt) { const n = parseInt(hex.slice(1), 16); const r = clamp
 function buildLook(stats, verzorging, graad, outfit) {
   const n = (v) => clamp(v / 100, 0, 1);
   const K = n(stats.K), U = n(stats.U);
+  // uitrusting = actieve overlay-items (shop). Sorteer op laag zodat ze in de juiste volgorde tekenen.
+  const uitrusting = (outfit.uitrusting || [])
+    .filter((k) => OVERLAY_ITEMS[k])
+    .sort((a, b) => (OVERLAY_ITEMS[a].laag || 0) - (OVERLAY_ITEMS[b].laag || 0));
   return {
-    outfit: outfit.gi, huid: outfit.huid, haar: outfit.haar,
+    outfit: outfit.gi, huid: outfit.huid, haar: outfit.haar, uitrusting,
     schaal: graad === 1 ? 0.88 : graad === 2 ? 0.95 : 1,   // leeftijd -> lichaamslengte
     spier: 0.85 + K * 0.4,                                  // kracht -> dikte ledematen
     schBr: 10 + K * 4.5,                                    // kracht -> schouderbreedte
@@ -158,7 +191,7 @@ function krachtFactor(f) {
 
 function nieuweVechter(team, x, params, isHuman, look) {
   return {
-    team, x, params, isHuman, isAI: !isHuman, look, vx: 0, facing: team === "blauw" ? 1 : -1,
+    team, x, params, isHuman, isAI: !isHuman, look, uitrusting: look?.uitrusting || [], vx: 0, facing: team === "blauw" ? 1 : -1,
     z: 0, vz: 0, onGround: true,
     pcr: params.plafond, glyc: params.plafond, aer: 100, lactaat: 0, balans: 100, conditie: 100, ghost: 100,
     state: "idle", phase: "", phaseT: 0, blockEl: 0, windupEl: 0, dashCd: 0, iframe: 0, dashDir: 1, openT: 0,
@@ -199,7 +232,7 @@ const ETEN = [
 export default function SparringKooi({ buddy = null, graad: graadProp = null } = {}) {
   // buddy-koppeling: neem look/stats/graad uit de Sportbuddy zodra aanwezig; anders standalone-defaults (menu/test)
   const buddyStats = buddy?.stats && ["K","L","U","S","C","E"].every((k) => k in buddy.stats) ? buddy.stats : null;
-  const buddyOutfit = buddy?.avatar ? { gi: "#2e6cb5", huid: buddy.avatar.huid || "#f2d3b0", haar: buddy.avatar.haarkleur || buddy.avatar.haar || "#2b2119" } : null;
+  const buddyOutfit = buddy?.avatar ? { gi: "#2e6cb5", huid: buddy.avatar.huid || "#f2d3b0", haar: buddy.avatar.haarkleur || buddy.avatar.haar || "#2b2119", uitrusting: buddy.uitrusting || [] } : null;
 
   const [screen, setScreen] = useState("menu");
   const [graad, setGraad] = useState(graadProp ?? buddy?.weergave?.graad ?? 2);
@@ -903,6 +936,15 @@ function tekenVechterSprite(ctx, f) {
   ctx.save(); ctx.translate(f.x, GROUND - f.z); ctx.scale(f.facing, 1);
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(img, idx * fw, 0, fw, fh, -dw / 2, -dh, dw, dh);
+  // overlay-lagen (kleding/hoofd/gezicht/accessoires): zelfde frame, zelfde transform -> bewegen mee
+  if (f.uitrusting && f.uitrusting.length) {
+    for (const itemKey of f.uitrusting) {                 // f.uitrusting is al op laag gesorteerd (achter -> voor)
+      const ov = overlaySheet(itemKey, naam);             // zelfde 'naam' (resolved) als de mannequin
+      if (!ov) continue;                                  // sheet ontbreekt of laadt nog -> laag overslaan
+      const ofw = ov.width / d.frames;                    // overlay deelt framecount met de mannequin-sheet
+      ctx.drawImage(ov, idx * ofw, 0, ofw, ov.height, -dw / 2, -dh, dw, dh);
+    }
+  }
   ctx.restore();
   return true;
 }
