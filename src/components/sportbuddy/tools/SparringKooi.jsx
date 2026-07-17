@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { SPRITE_DEFS, SPRITE_HOOGTE, spriteVan, overlaySheet, sorteerUitrusting } from "../../../data/sportbuddy/sprites";
 
 /*
   SPARRING KOOI — fase A prototype v2 (SportScores · Sportbuddy) — werktitel
@@ -20,81 +21,9 @@ import React, { useState, useRef, useEffect } from "react";
 */
 const ACHTERGROND = "";
 
-/* ===== SPRITE-LAAG (route naar echte gamekwaliteit) =====
-   Zet SPRITE_BASE op bv. "/sparring/" en drop per team sprite-sheets in
-   /public/sparring/blauw/ en /public/sparring/rood/ (zie ASSET_PIPELINE_SPARRING.md).
-   Elke sheet = horizontale strip: frames naast elkaar, voeten onderaan, avatar gecentreerd.
-   Ontbreekt een sheet, dan valt die animatie automatisch terug op de vector-tekening. */
-const SPRITE_BASE = "/sparring/"; // sprite-sheets in /public/sparring/blauw|rood/
-const SPRITE_DEFS = {
-  idle:        { file: "idle.png",        frames: 11, fps: 12, loop: true },
-  walk:        { file: "walk.png",        frames: 10, fps: 14, loop: true },
-  slag:        { file: "jab.png",         frames: 9,  fps: 18, loop: false },
-  slag_hoog:   { file: "jab_hoog.png",    frames: 8,  fps: 20, loop: false },
-  slag_mid:    { file: "jab_mid.png",     frames: 8,  fps: 20, loop: false },
-  slag_laag:   { file: "jab_laag.png",    frames: 8,  fps: 20, loop: false },
-  schop:       { file: "kick_mid.png",    frames: 12, fps: 18, loop: false },
-  schop_hoog:  { file: "kick_hoog.png",   frames: 10, fps: 20, loop: false },
-  schop_mid:   { file: "kick_mid.png",    frames: 12, fps: 18, loop: false },
-  schop_laag:  { file: "kick_laag.png",   frames: 10, fps: 20, loop: false },
-  uppercut:    { file: "uppercut.png",    frames: 12, fps: 20, loop: false },
-  hoofdstoot:  { file: "hoofdstoot.png",  frames: 15, fps: 22, loop: false },
-  blok:        { file: "blok.png",        frames: 4,  fps: 12, loop: false },
-  blok_hoog:   { file: "blok_hoog.png",   frames: 4,  fps: 12, loop: false },
-  blok_mid:    { file: "blok_mid.png",    frames: 4,  fps: 12, loop: false },
-  blok_laag:   { file: "blok_laag.png",   frames: 4,  fps: 12, loop: false },
-  stagger:     { file: "stagger.png",     frames: 11, fps: 16, loop: false },
-  dash:        { file: "dash.png",        frames: 6,  fps: 18, loop: false },
-  sprong:      { file: "sprong.png",      frames: 13, fps: 14, loop: false, ankerH: 439 },
-};
-const SPRITE_HOOGTE = 118;                       // doelhoogte van de avatar in wereld-pixels
-const _spriteCache = {};                         // cache-key (url) -> Image | "laden" | "mist"
-// generieke sheet-loader: cachet elke URL. Basis-mannequin en overlays gebruiken dezelfde weg.
-function laadSheet(url) {
-  const c = _spriteCache[url];
-  if (c instanceof Image) return c;
-  if (c === undefined) {
-    _spriteCache[url] = "laden";
-    const im = new Image();
-    im.onload = () => { _spriteCache[url] = im; };
-    im.onerror = () => { _spriteCache[url] = "mist"; };
-    im.src = url;
-  }
-  return null;
-}
-function spriteVan(team, naam) {
-  if (!SPRITE_BASE || !SPRITE_DEFS[naam]) return null;
-  return laadSheet(SPRITE_BASE + team + "/" + SPRITE_DEFS[naam].file);
-}
-
-/* ===== OVERLAY-LAAG (kleding, hoofd, gezicht, accessoires — shop-items) =====
-   Elk item = een map met overlay-sheets die 1-op-1 dezelfde naam/frames/timing
-   hebben als de mannequin-sheets (walk.png = 10 fr, idle.png = 11 fr, ...).
-   ASSET-EIS: een overlay-sheet MOET exact dezelfde afmetingen (breedte×hoogte en
-   dus frame-breedte) hebben als de mannequin-sheet met dezelfde naam, anders
-   wordt de overlay uitgerekt en loopt hij uit de pas. Render de overlay op net
-   hetzelfde skelet/dezelfde camera als de mannequin en trim op dezelfde bbox.
-   Ze worden met exact dezelfde transform over de mannequin getekend, dus ze
-   bewegen automatisch mee. Ontbreekt een overlay-sheet voor een animatie, dan
-   wordt die laag voor dat ene frame simpelweg overgeslagen (geen crash).
-   'laag' bepaalt de tekenvolgorde: hoger = meer vooraan. De shop vult dit object. */
-const OVERLAY_BASE = SPRITE_BASE + "overlay/";
-const OVERLAY_ITEMS = {
-  // TEST-ITEM (tijdelijk, voor pijplijn-validatie): alleen walk-overlay bestaat,
-  // dus de band verschijnt enkel tijdens lopen en beweegt mee. Verwijder na de test.
-  testband: { map: "testband", laag: 30 },
-  // shop-items komen hier (voorbeeld-structuur):
-  // gi_boks_rood:   { map: "gi_boks_rood",   laag: 20 },
-  // gezicht_type1:  { map: "gezicht_type1",  laag: 50 },
-  // hoofdband_wit:  { map: "hoofdband_wit",  laag: 60 },
-};
-// overlay-sheet voor een item + animatie ophalen (zelfde bestandsnaam als de mannequin-sheet)
-function overlaySheet(itemKey, naam) {
-  const item = OVERLAY_ITEMS[itemKey];
-  const def = SPRITE_DEFS[naam];
-  if (!item || !def) return null;
-  return laadSheet(OVERLAY_BASE + item.map + "/" + def.file);
-}
+/* ===== SPRITE- & OVERLAY-LAAG =====
+   Definities + loaders staan gedeeld in data/sportbuddy/sprites.js, zodat de
+   game en de BuddyAvatar (hoofdpagina) exact dezelfde look en shop-items delen. */
 /* welke animatie hoort bij de huidige toestand */
 function animNaam(f) {
   const hNaam = (h) => (h === HOOG ? "hoog" : h === LAAG ? "laag" : "mid");
@@ -170,9 +99,7 @@ function buildLook(stats, verzorging, graad, outfit) {
   const n = (v) => clamp(v / 100, 0, 1);
   const K = n(stats.K), U = n(stats.U);
   // uitrusting = actieve overlay-items (shop). Sorteer op laag zodat ze in de juiste volgorde tekenen.
-  const uitrusting = (outfit.uitrusting || [])
-    .filter((k) => OVERLAY_ITEMS[k])
-    .sort((a, b) => (OVERLAY_ITEMS[a].laag || 0) - (OVERLAY_ITEMS[b].laag || 0));
+  const uitrusting = sorteerUitrusting(outfit.uitrusting);
   return {
     outfit: outfit.gi, huid: outfit.huid, haar: outfit.haar, uitrusting,
     schaal: graad === 1 ? 0.88 : graad === 2 ? 0.95 : 1,   // leeftijd -> lichaamslengte
@@ -272,8 +199,7 @@ export default function SparringKooi({ buddy = null, graad: graadProp = null } =
     const dp = buddyNaarParams(b.stats, b.verzorging);
     dp.plafond *= b.plafondMod; dp.herstelMult *= b.herstelMod;   // zwakte inbakken (bv. Stormram loopt leeg)
     const humanTeam = Math.random() < 0.5 ? "blauw" : "rood";
-    const testOutfit = { ...outfit, uitrusting: [...(outfit.uitrusting || []), "testband"] };   // TEST: band op speler; verwijder na pijplijn-test
-    const hLook = buildLook(stats, verzorging, graad, testOutfit);
+    const hLook = buildLook(stats, verzorging, graad, outfit);
     const dLook = buildLook(b.stats, b.verzorging, graad, { gi: b.kleur || "#b04848", huid: "#e0b98f", haar: "#171c26" });
     gsRef.current = verseState(humanTeam, buddyNaarParams(stats, verzorging), dp, graad, b, { ...tuning }, hLook, dLook);
     setResult(null); setPauze(false); setScreen("playing");

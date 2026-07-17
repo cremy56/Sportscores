@@ -225,6 +225,7 @@ export default function Sportbuddy() {
               kracht={buddy.stats?.K ?? 10}
               conditie={conditie}
               blessure={!!buddy.gezondheid?.blessure}
+              uitrusting={buddy.uitrusting || []}
               className="w-full"
             />
           </div>
