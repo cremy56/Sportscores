@@ -15,6 +15,14 @@
 import { useRef, useEffect } from 'react';
 import { SPRITE_BASE, SPRITE_DEFS, spriteVan, overlaySheet, sorteerUitrusting } from '../../data/sportbuddy/sprites';
 
+// Keuzelijsten voor de AanmaakWizard (voorheen hier geëxporteerd; behouden zodat
+// bestaande imports blijven werken). Puur cosmetische opties voor het fictieve personage.
+export const HUID_TINTEN = ['#f6d7b0', '#e8b98a', '#c68863', '#8d5a3b'];
+export const HAAR_KLEUREN = ['#2d2a26', '#6b4a2b', '#b0813f', '#d9c169', '#a33b2e'];
+export const HAAR_STIJLEN = ['spikes', 'krullen', 'lang', 'kuif', 'kaal'];
+export const GEZICHTEN = ['blij', 'focus', 'ontspannen', 'guitig'];
+export const LICHAMEN = ['m', 'v', 'neutraal'];
+
 const GRAAD_SCHAAL = { 1: 0.88, 2: 0.95, 3: 1 };
 
 export default function BuddyAvatar({
