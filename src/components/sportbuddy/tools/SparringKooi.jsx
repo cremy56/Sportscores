@@ -199,8 +199,9 @@ export default function SparringKooi({ buddy = null, graad: graadProp = null } =
     const dp = buddyNaarParams(b.stats, b.verzorging);
     dp.plafond *= b.plafondMod; dp.herstelMult *= b.herstelMod;   // zwakte inbakken (bv. Stormram loopt leeg)
     const humanTeam = Math.random() < 0.5 ? "blauw" : "rood";
-    const hLook = buildLook(stats, verzorging, graad, outfit);
-    const dLook = buildLook(b.stats, b.verzorging, graad, { gi: b.kleur || "#b04848", huid: "#e0b98f", haar: "#171c26" });
+    // helm = vaste team-marker in de kooi (blauw vs rood), naast eventuele shop-items
+    const hLook = buildLook(stats, verzorging, graad, { ...outfit, uitrusting: [...(outfit.uitrusting || []), "helm"] });
+    const dLook = buildLook(b.stats, b.verzorging, graad, { gi: b.kleur || "#b04848", huid: "#e0b98f", haar: "#171c26", uitrusting: ["helm"] });
     gsRef.current = verseState(humanTeam, buddyNaarParams(stats, verzorging), dp, graad, b, { ...tuning }, hLook, dLook);
     setResult(null); setPauze(false); setScreen("playing");
   };
@@ -873,7 +874,7 @@ function tekenVechterSprite(ctx, f) {
   // overlay-lagen (kleding/hoofd/gezicht/accessoires): zelfde frame, zelfde transform -> bewegen mee
   if (f.uitrusting && f.uitrusting.length) {
     for (const itemKey of f.uitrusting) {                 // f.uitrusting is al op laag gesorteerd (achter -> voor)
-      const ov = overlaySheet(itemKey, naam);             // zelfde 'naam' (resolved) als de mannequin
+      const ov = overlaySheet(itemKey, naam, f.team);     // zelfde 'naam' (resolved); team voor helm/handschoen-kleur
       if (!ov) continue;                                  // sheet ontbreekt of laadt nog -> laag overslaan
       const ofw = ov.width / d.frames;                    // overlay deelt framecount met de mannequin-sheet
       ctx.drawImage(ov, idx * ofw, 0, ofw, ov.height, -dw / 2, -dh, dw, dh);

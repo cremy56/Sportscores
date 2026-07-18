@@ -138,17 +138,22 @@ export function getinteMannequin(team, naam, huidHex) {
    'laag' bepaalt de tekenvolgorde: hoger = meer vooraan. De shop vult dit object. */
 export const OVERLAY_BASE = SPRITE_BASE + "overlay/";
 export const OVERLAY_ITEMS = {
+  // Hoofdbescherming: draagt de teamkleur (blauw/rood). perTeam=true -> map wordt
+  // "helm/blauw" of "helm/rood", afhankelijk van de vechter.
+  helm: { map: "helm", laag: 60, perTeam: true },
   // shop-items komen hier (voorbeeld-structuur):
   // gi_boks_rood:   { map: "gi_boks_rood",   laag: 20 },
   // gezicht_type1:  { map: "gezicht_type1",  laag: 50 },
-  // hoofdband_wit:  { map: "hoofdband_wit",  laag: 60 },
+  // handschoen:     { map: "handschoen",     laag: 70, perTeam: true },
 };
-// overlay-sheet voor een item + animatie ophalen (zelfde bestandsnaam als de mannequin-sheet)
-export function overlaySheet(itemKey, naam) {
+// overlay-sheet voor een item + animatie ophalen (zelfde bestandsnaam als de mannequin-sheet).
+// team is nodig voor perTeam-items (helm, handschoenen dragen de teamkleur).
+export function overlaySheet(itemKey, naam, team) {
   const item = OVERLAY_ITEMS[itemKey];
   const def = SPRITE_DEFS[naam];
   if (!item || !def) return null;
-  return laadSheet(OVERLAY_BASE + item.map + "/" + def.file);
+  const map = item.perTeam ? item.map + "/" + (team || "blauw") : item.map;
+  return laadSheet(OVERLAY_BASE + map + "/" + def.file);
 }
 
 // uitrusting (item-sleutels) sorteren op tekenlaag: achter -> voor

@@ -97,7 +97,7 @@ export default function BuddyAvatar({
       ctx.drawImage(getint || img, idx * fw, 0, fw, fh, cx - dw / 2, grond - dh, dw, dh);
       // overlay-lagen (kleding/gezicht/haar zodra shop-items bestaan) — zelfde frame/transform
       for (const key of items) {
-        const ov = overlaySheet(key, 'idle');
+        const ov = overlaySheet(key, 'idle', 'blauw');
         if (!ov) continue;
         const ofw = ov.width / def.frames;
         ctx.drawImage(ov, idx * ofw, 0, ofw, ov.height, cx - dw / 2, grond - dh, dw, dh);
