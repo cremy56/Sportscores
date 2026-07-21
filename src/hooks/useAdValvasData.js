@@ -4,7 +4,7 @@
 // feed. Houdt alle netwerk- en intervalzorgen uit de presentatielaag.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { auth } from '../firebase';
+import { apiCall } from '../utils/api';
 import { fetchLiveSportsData } from '../utils/sportNewsFeed.js';
 import { DATA_REFRESH_MS, FEED_REFRESH_MS } from '../data/adValvasConfig.js';
 
@@ -29,30 +29,30 @@ export function useAdValvasData(profile) {
   // netjes kan worden afgebroken bij unmount.
   const feedControllerRef = useRef(null);
 
-  // Haalt de dashboarddata op met een VERSE Firebase ID-token.
-  // Firebase-tokens verlopen na ~1 uur; een ad valvas-scherm draait dagen
-  // aan een stuk. profile._token (1x gelezen bij mount) liep daardoor af.
-  // getIdToken() ververst automatisch wanneer nodig.
-  const fetchDashboardData = useCallback(async (signal) => {
+  // apiCall() kent geen AbortSignal, dus bewaken we met een vlag dat we niet
+  // meer in state schrijven nadat de component ontkoppeld is.
+  const gemonteerdRef = useRef(true);
+  useEffect(() => {
+    gemonteerdRef.current = true;
+    return () => { gemonteerdRef.current = false; };
+  }, []);
+
+  // Dashboarddata via de centrale apiCall()-helper (projectregel: nooit
+  // profile._token of eigen fetch). apiCall haalt per call een vers token,
+  // doet bij 401 één geforceerde refresh + retry, en toont bij 429 een toast.
+  // Dat vers-token-gedrag is precies wat dit scherm nodig heeft: het draait
+  // dagenlang aan een stuk en een token verloopt na ~1 uur.
+  const fetchDashboardData = useCallback(async () => {
     if (!schoolId) {
       setLoading(false);
       return;
     }
     try {
-      const user = auth.currentUser;
-      if (!user) throw new Error('Geen gebruiker ingelogd.');
-      const token = await user.getIdToken();
-
-      const response = await fetch('/api/content', {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
-        signal
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Kon dashboard data niet laden');
-      }
+      // stil: true → geen 429-toast op een scherm dat publiek in de gang
+      // hangt; de poll van 15 min zit ruim onder de leeslimiet (120/60s),
+      // dus een 429 hier is hoe dan ook uitzonderlijk.
+      const data = await apiCall('/api/content', null, { method: 'GET', stil: true });
+      if (!gemonteerdRef.current) return;
 
       setTestHighscores(data.testHighscores || []);
       setMededelingenData(data.mededelingen || []);
@@ -60,13 +60,13 @@ export function useAdValvasData(profile) {
       setActiveTests(data.activeTests || []);
       setDataError(false);
     } catch (error) {
-      if (error.name === 'AbortError') return;
+      if (!gemonteerdRef.current) return;
       // Technisch detail blijft in de console; het ad valvas-scherm hangt
       // publiek in de gang, dus GEEN servermeldingen/stacktraces in de UI.
       console.error('Error fetching AdValvas data:', error);
       setDataError(true);
     } finally {
-      setLoading(false);
+      if (gemonteerdRef.current) setLoading(false);
     }
   }, [schoolId]);
 
@@ -100,18 +100,11 @@ export function useAdValvasData(profile) {
       setLoading(false);
       return;
     }
-    const controller = new AbortController();
     setLoading(true);
-    fetchDashboardData(controller.signal);
+    fetchDashboardData();
 
-    const dataInterval = setInterval(() => {
-      fetchDashboardData(controller.signal);
-    }, DATA_REFRESH_MS);
-
-    return () => {
-      controller.abort();
-      clearInterval(dataInterval);
-    };
+    const dataInterval = setInterval(fetchDashboardData, DATA_REFRESH_MS);
+    return () => clearInterval(dataInterval);
   }, [schoolId, fetchDashboardData]);
 
   // Sportnieuwsfeed: initieel + elk uur.

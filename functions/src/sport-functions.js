@@ -1,12 +1,70 @@
 const {onRequest} = require('firebase-functions/v2/https');
 
 // ==============================================
-// PRIVATE SPORT NEWS PROXY
+// PUBLIEKE SPORT NEWS PROXY (getSportNews)
 // ==============================================
+// Dit is een van de twee bewust publieke https-endpoints. Zonder auth-check
+// betekent dat: iedereen die de URL kent kan hem aanroepen. Beschermingen
+// (jul 2026):
+//   1. CORS beperkt tot eigen domeinen  → weert browser-misbruik
+//   2. Server-side cache (CACHE_TTL_MS) → 1 externe fetch-ronde per venster,
+//      ongeacht het aantal bezoekers. Dit is de belangrijkste maatregel:
+//      zonder cache haalde ELKE aanroep 4 externe RSS-feeds op.
+//   3. In-memory rate limit per gehasht IP → begrenst hameren per bron
+//   4. maxInstances → harde bovengrens op kosten bij een floodpoging
+//   5. Payload-begrenzing (titel/omschrijving/aantal) → een gekaapte of
+//      ontspoorde RSS-bron kan het ad valvas-scherm niet volgooien
+//
+// LET OP: de cache en de rate-limitteller leven per instance (in-memory).
+// Met maxInstances=3 betekent dat maximaal 3 fetch-rondes per venster.
+// Bewuste keuze: geen Redis-afhankelijkheid in een publieke cloudfunctie.
 
-// Private proxy voor sport nieuws - vermijdt CORS issues
+const crypto = require('crypto');
+
+const CACHE_TTL_MS = 5 * 60 * 1000;      // 5 min — matcht de Cache-Control
+const RL_VENSTER_MS = 60 * 1000;         // rate-limit venster
+const RL_MAX_PER_IP = 20;                // max verzoeken per IP per venster
+const MAX_TITEL_LENGTE = 200;            // begrenst wat op het scherm past
+const MAX_OMSCHRIJVING = 200;
+const MAX_ITEMS = 25;
+
+// ─── Server-side cache ───────────────────────────────────────────────────────
+let cacheData = null;
+let cacheTijd = 0;
+
+// ─── Eenvoudige in-memory rate limit (per gehasht IP) ────────────────────────
+// IP's zijn persoonsgegevens: nooit ruw bijhouden. We hashen ze en bewaren
+// enkel een teller die vanzelf verloopt.
+const rlMap = new Map();
+
+function hashIp(ip) {
+  return crypto.createHash('sha256').update(String(ip)).digest('hex').substring(0, 16);
+}
+
+function rateLimitOverschreden(req) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || req.socket?.remoteAddress || 'onbekend';
+  const key = hashIp(ip);
+  const nu = Date.now();
+
+  // Opruimen van verlopen entries (houdt de Map klein)
+  if (rlMap.size > 1000) {
+    for (const [k, v] of rlMap) {
+      if (nu - v.start > RL_VENSTER_MS) rlMap.delete(k);
+    }
+  }
+
+  const entry = rlMap.get(key);
+  if (!entry || nu - entry.start > RL_VENSTER_MS) {
+    rlMap.set(key, { start: nu, aantal: 1 });
+    return false;
+  }
+  entry.aantal += 1;
+  return entry.aantal > RL_MAX_PER_IP;
+}
+
 exports.getSportNews = onRequest({
-  // Geef de lijst direct aan de ingebouwde CORS-handler van Firebase
+  // Ingebouwde CORS-handler van Firebase: enkel eigen domeinen.
   cors: [
     'https://sportscores-app.firebaseapp.com',
     'https://sportscores-app.web.app',
@@ -14,22 +72,42 @@ exports.getSportNews = onRequest({
     'http://localhost:5173',
     'https://www.sportscores.be'
   ],
-  region: 'europe-west1'
+  region: 'europe-west1',
+  // Harde bovengrens op kosten: zonder dit kan een floodpoging de functie
+  // ongelimiteerd laten opschalen.
+  maxInstances: 3,
+  timeoutSeconds: 30,
+  memory: '256MiB'
 }, async (req, res) => {
-  // De handmatige check is nu niet meer nodig, Firebase regelt alles.
-  // VERWIJDER de regels hieronder:
-  // const allowedOrigins = [ ... ];
-  // const origin = req.headers.origin;
-  // if (allowedOrigins.includes(origin)) {
-  //   res.set('Access-Control-Allow-Origin', origin);
-  // }
-  
-  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Methods', 'GET');
   res.set('Access-Control-Allow-Headers', 'Content-Type');
-  res.set('Cache-Control', 'public, max-age=300'); // 5 minuten cache
-  
+  res.set('Cache-Control', 'public, max-age=300'); // 5 minuten browser-cache
+
   if (req.method === 'OPTIONS') {
     res.status(200).send('');
+    return;
+  }
+
+  // Alleen GET: dit endpoint leest enkel.
+  if (req.method !== 'GET') {
+    res.set('Allow', 'GET');
+    res.status(405).json({ success: false, error: 'Methode niet toegestaan' });
+    return;
+  }
+
+  if (rateLimitOverschreden(req)) {
+    res.set('Retry-After', '60');
+    res.status(429).json({
+      success: false,
+      error: 'Te veel verzoeken. Probeer het over een minuutje opnieuw.',
+      news: []
+    });
+    return;
+  }
+
+  // Cache-hit: geen enkele externe fetch nodig.
+  if (cacheData && (Date.now() - cacheTijd) < CACHE_TTL_MS) {
+    res.status(200).json({ ...cacheData, cached: true });
     return;
   }
 
@@ -98,7 +176,7 @@ exports.getSportNews = onRequest({
     const uniqueNews = removeDuplicateNews(sportNews);
     const sortedNews = uniqueNews
       .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
-      .slice(0, 25);
+      .slice(0, MAX_ITEMS);
 
     // Fallback als geen nieuws
     if (sortedNews.length === 0) {
@@ -110,15 +188,30 @@ exports.getSportNews = onRequest({
       });
     }
 
-    res.status(200).json({
+    const payload = {
       success: true,
       news: sortedNews,
       totalFetched: allNews.length,
       timestamp: new Date().toISOString()
-    });
+    };
+
+    // Cache vullen: volgende bezoekers binnen CACHE_TTL_MS raken de externe
+    // feeds niet meer aan.
+    cacheData = payload;
+    cacheTijd = Date.now();
+
+    res.status(200).json(payload);
 
   } catch (error) {
     console.error('Sport nieuws proxy fout:', error);
+
+    // Liever verouderd nieuws dan een leeg scherm in de gang: als er nog een
+    // (verlopen) cache is, serveren we die met een 200.
+    if (cacheData) {
+      res.status(200).json({ ...cacheData, cached: true, stale: true });
+      return;
+    }
+
     res.status(500).json({
       success: false,
       error: 'Fout bij ophalen sport nieuws',
@@ -159,12 +252,19 @@ function parseRSSFeed(xmlText, sourceName) {
         const description = (descMatch?.[1] || descMatch?.[2] || '').trim();
         
         if (title && pubDate) {
+          const datum = new Date(pubDate);
+          // Ongeldige pubDate zou 'Invalid Date' opleveren en later de
+          // sortering en de 24u-filter stukmaken.
+          if (isNaN(datum.getTime())) continue;
+
           items.push({
-            title: formatNewsTitle(title),
+            // Titels worden begrensd: een ontspoorde of gekaapte bron mag
+            // het ad valvas-scherm niet volgooien.
+            title: formatNewsTitle(title).slice(0, MAX_TITEL_LENGTE),
             source: sourceName,
-            publishedAt: new Date(pubDate).toISOString(),
-            url: link,
-            description: stripHtml(description).slice(0, 200)
+            publishedAt: datum.toISOString(),
+            url: veiligeUrl(link),
+            description: stripHtml(description).slice(0, MAX_OMSCHRIJVING)
           });
         }
       }
@@ -175,6 +275,20 @@ function parseRSSFeed(xmlText, sourceName) {
   } catch (error) {
     console.error(`RSS parsing fout voor ${sourceName}:`, error);
     return [];
+  }
+}
+
+// Alleen http(s)-links doorlaten. De url wordt vandaag niet gerenderd, maar
+// als dat ooit gebeurt mag een feed geen javascript:- of data:-URI kunnen
+// binnensmokkelen.
+function veiligeUrl(url) {
+  if (!url) return '';
+  try {
+    const geparsed = new URL(url);
+    if (geparsed.protocol !== 'http:' && geparsed.protocol !== 'https:') return '';
+    return geparsed.toString().slice(0, 500);
+  } catch {
+    return '';
   }
 }
 
