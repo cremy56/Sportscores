@@ -1,10 +1,12 @@
 // src/pages/adValvas.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity, Quote, Flame, BookOpen, BarChart3, TrendingDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Trophy, Star, TrendingUp, Calendar, Award, Zap, Target, Users, Clock, Medal, Activity, Quote, Flame, BookOpen, BarChart3, TrendingDown, Wifi, WifiOff, RefreshCw, Megaphone, PlusCircle, X } from 'lucide-react';
 import { formatScoreWithUnit } from '../utils/formatters.js';
-import { PlusCircle, X } from 'lucide-react'; // Voeg PlusCircle en X toe
+import { auth } from '../firebase';
 import MededelingModal from '../components/MededelingModal';
+import { SPORT_QUOTES } from '../data/sportQuotes.js';
+import { SPORT_FACTS } from '../data/sportFacts.js';
 
 // --- Helper functies ---
 const formatNameForDisplay = (fullName) => {
@@ -41,595 +43,42 @@ const CONTENT_TYPES = {
   LIVE_SPORTS_NEWS: 'live_sports_news',
   ACTIVE_TEST: 'active_test' // NIEUW
 };
+// Sportquotes & sportfeiten staan sinds 21 jul 2026 in aparte databestanden
+// (src/data/) om de bundelgrootte van deze route te beperken.
 
-// --- MASSIEF UITGEBREIDE Sportquotes (1000+ quotes voor heel schooljaar) ---
-const SPORT_QUOTES = [
-  // Klassieke Motivatie (50 quotes)
-  { text: "Champions worden niet gemaakt in de gymzaal. Champions worden gemaakt van iets diep in hen: een verlangen, een droom, een visie.", author: "Muhammad Ali" },
-  { text: "Succes is geen toeval. Het is hard werk, doorzettingsvermogen, leren, studeren, opoffering en vooral liefde voor wat je doet.", author: "Pelé" },
-  { text: "Het gaat er niet om hoe sterk je bent, maar hoe sterk je kunt worden.", author: "Onbekend" },
-  { text: "Elke expert was ooit een beginner. Elke professional was ooit een amateur.", author: "Robin Sharma" },
-  { text: "Je lichaam kan het. Het is je geest die je moet overtuigen.", author: "Onbekend" },
-  { text: "Het verschil tussen het mogelijke en het onmogelijke ligt in iemands vastberadenheid.", author: "Tommy Lasorda" },
-  { text: "Sport doet niet alleen goed voor je lichaam, maar ook voor je geest.", author: "Onbekend" },
-  { text: "Winnen betekent niet altijd eerste zijn. Winnen betekent beter worden dan je gisteren was.", author: "Onbekend" },
-  { text: "De enige slechte training is de training die je niet doet.", author: "Onbekend" },
-  { text: "Dromen worden werkelijkheid als je je inzet en hard werkt.", author: "Serena Williams" },
-  { text: "Sport leert je dat falen niet het einde is, maar het begin van iets beters.", author: "Onbekend" },
-  { text: "Je geest is je krachtigste spier. Train hem goed.", author: "Onbekend" },
-  { text: "Champions spelen zoals ze trainen. Maak elke training belangrijk.", author: "Onbekend" },
-  { text: "Het gaat niet om de grootte van de hond in de strijd, maar om de grootte van de strijd in de hond.", author: "Archie Griffin" },
-  { text: "Druk maakt diamanten.", author: "Onbekend" },
-  { text: "Pijn is tijdelijk. Stoppen duurt voor altijd.", author: "Lance Armstrong" },
-  { text: "Een doel zonder een plan is alleen maar een wens.", author: "Antoine de Saint-Exupéry" },
-  { text: "Succes is de som van kleine inspanningen, dag in dag uit herhaald.", author: "Robert Collier" },
-  { text: "Je bereikt niet altijd wat je wilt, maar je krijgt altijd wat je traint.", author: "Onbekend" },
-  { text: "Elke pro was ooit een amateur. Elke expert was ooit een beginner.", author: "Robin Sharma" },
-  { text: "Het is niet de berg die we overwinnen, maar onszelf.", author: "Edmund Hillary" },
-  { text: "Hard werk verslaat talent als talent niet hard werkt.", author: "Tim Notke" },
-  { text: "De wil om te winnen, de wil om te slagen, de wil om je volledige potentieel te bereiken... dit zijn de sleutels die de deur naar persoonlijke excellentie openen.", author: "Confucius" },
-  { text: "Atleten zijn geen superhelden. Ze zijn gewoon mensen die weigeren op te geven.", author: "Onbekend" },
-  { text: "Zweet is gewoon vet dat huilt.", author: "Onbekend" },
-  { text: "Je lichaam kan bijna alles aan. Het is je geest die je moet overtuigen.", author: "Onbekend" },
-  { text: "Elke nederlaag is een les. Elke overwinning is een bevestiging.", author: "Onbekend" },
-  { text: "Je groeit nooit wanneer alles makkelijk gaat.", author: "Onbekend" },
-  { text: "Fouten maken betekent dat je probeert.", author: "Onbekend" },
-  { text: "De beste manier om je grenzen te ontdekken is door erover heen te gaan.", author: "Arthur C. Clarke" },
-  { text: "Sport is 90% mentaal. De andere helft is fysiek.", author: "Yogi Berra" },
-  { text: "Je bent sterker dan je denkt en capabeler dan je je ooit voorstelt.", author: "Onbekend" },
-  { text: "Champions blijven spelen tot ze het goed doen.", author: "Billie Jean King" },
-  { text: "Het gaat niet om perfectie. Het gaat om inspanning.", author: "Jillian Michaels" },
-  { text: "Een champion is iemand die opstaat als hij niet kan.", author: "Jack Dempsey" },
-  { text: "Discipline is de brug tussen doelen en prestaties.", author: "Jim Rohn" },
-  { text: "Je kunt niet teruggaan en het begin veranderen, maar je kunt beginnen waar je bent en het einde veranderen.", author: "C.S. Lewis" },
-  { text: "Geloof in jezelf en alles wat je bent. Weet dat er iets in je is dat groter is dan elke hindernis.", author: "Christian D. Larson" },
-  { text: "De enige onmogelijke reis is die je nooit begint.", author: "Tony Robbins" },
-  { text: "Kracht groeit niet uit fysieke capaciteit. Het groeit uit een ontembare wil.", author: "Mahatma Gandhi" },
-  { text: "Talent wint games, maar teamwork wint kampioenschappen.", author: "Michael Jordan" },
-  { text: "Individueel zijn we één druppel. Samen zijn we een oceaan.", author: "Ryunosuke Satoro" },
-  { text: "Een team is niet een groep mensen die samenwerken. Een team is een groep mensen die elkaar vertrouwen.", author: "Simon Sinek" },
-  { text: "Goede teams worden geweldige teams als elk lid vertrouwt dat ze kunnen verliezen op elkaar.", author: "Patrick Lencioni" },
-  { text: "Ik heb duizenden schoten gemist in mijn carrière. Daarom ben ik succesvol.", author: "Michael Jordan" },
-  { text: "Het gaat niet om hoe hard je kunt slaan, maar hoe hard je kunt worden geraakt en toch doorgaan.", author: "Rocky Balboa" },
-  { text: "Zwemmen heeft me geleerd dat je grenzen er zijn om doorbroken te worden.", author: "Michael Phelps" },
-  { text: "Tennis heeft me geleerd dat je elke punt opnieuw moet winnen.", author: "Rafael Nadal" },
-  { text: "Voetbal is een simpel spel: 22 mannen achter een bal aan, en uiteindelijk winnen de Duitsers.", author: "Gary Lineker" },
-  { text: "Iedereen heeft een plan tot ze een stomp in hun gezicht krijgen.", author: "Mike Tyson" },
-
-  // Nederlandse & Belgische Sportlegenden (100+ quotes)
-  { text: "Voetbal is simpel, maar het moeilijkste wat er is, is simpel voetballen.", author: "Johan Cruyff" },
-  { text: "Je moet spelen zoals je bent, anders ben je niet geloofwaardig.", author: "Johan Cruyff" },
-  { text: "Elke nadeel heb zijn voordeel.", author: "Johan Cruyff" },
-  { text: "Kwaliteit zonder resultaat is een punt van discussie. Resultaat zonder kwaliteit is saaie discussie.", author: "Johan Cruyff" },
-  { text: "Winnen is niet alles, maar winnen wél willen is alles.", author: "Eddy Merckx" },
-  { text: "In de sport, zoals in het leven, gaat het om volharden wanneer het moeilijk wordt.", author: "Kim Clijsters" },
-  { text: "Elke ronde is een nieuwe kans om jezelf te bewijzen.", author: "Remco Evenepoel" },
-  { text: "Dromen durven dromen is het begin van alles.", author: "Justine Henin" },
-  { text: "Het mooie aan sport is dat elke dag een nieuwe start kan zijn.", author: "Tia Hellebaut" },
-  { text: "Talenten kunnen verloren gaan, maar doorzettingsvermogen wint altijd.", author: "Bart Swings" },
-  { text: "Hockey heeft me geleerd dat samen meer is dan alleen.", author: "Red Lions" },
-  { text: "In sport leer je dat nederlagen je sterker maken.", author: "Belgische Sportlegende" },
-  { text: "Elke training is een stap dichter bij je droom.", author: "Belgische Coach" },
-  { text: "Sport verenigt wat woorden niet kunnen.", author: "Belgische Sportfilosoof" },
-  { text: "De mooiste overwinning is die over jezelf.", author: "Belgische Atleet" },
-
-  // Seizoensgebonden Motivatie (150+ quotes)
-  // Lente quotes
-  { text: "Lente is het seizoen van nieuwe beginnen en persoonlijke records.", author: "Sportwijsheid" },
-  { text: "Net zoals bloemen bloeien in de lente, bloeien atleten met nieuwe energie.", author: "Onbekend" },
-  { text: "Maart brengt nieuwe kansen en frisse sportieve uitdagingen.", author: "Seizoensspreuk" },
-  { text: "April showers brengen mei flowers, en ook sportieve krachten.", author: "Sportrijm" },
-  { text: "Mei is de maand waar dromen werkelijkheid worden op het sportveld.", author: "Lentewisdom" },
+// Seizoensgebonden content helper (uitgebreid)
+const getSeasonalContent = (month) => {
+  const seasonalData = {
+    // Lente (maart, april, mei)
+    2: { text: "Lente is begonnen! Perfect weer om buiten te sporten 🌸", icon: Calendar, color: "from-green-400 to-blue-500" },
+    3: { text: "April: Ideale maand voor atletiek en buitenactiviteiten! 🏃‍♂️", icon: Activity, color: "from-blue-400 to-green-500" },
+    4: { text: "Mei: Sportdag voorbereidingen zijn in volle gang! 🏆", icon: Trophy, color: "from-yellow-400 to-green-500" },
+    
+    // Zomer (juni, juli, augustus)
+    5: { text: "Zomersport seizoen geopend! Zwemmen en watersport! 🏊‍♀️", icon: Activity, color: "from-blue-500 to-cyan-500" },
+    6: { text: "Juli: Zomerkampen en buitenactiviteiten! ☀️", icon: Users, color: "from-orange-400 to-yellow-500" },
+    7: { text: "Augustus: Laatste kans voor zomerse sportbeoefening! 🌞", icon: Target, color: "from-red-400 to-orange-500" },
+    
+    // Herfst (september, oktober, november) 
+    8: { text: "Schoolsport herstart! Nieuwe kansen, nieuwe records! 📚", icon: BookOpen, color: "from-orange-500 to-red-500" },
+    9: { text: "Oktober: Herfstcrosslopen en teambuilding activiteiten! 🍂", icon: Users, color: "from-yellow-500 to-orange-600" },
+    10: { text: "November: Indoor sporten nemen de overhand! 🏀", icon: Target, color: "from-purple-500 to-blue-600" },
+    
+    // Winter (december, januari, februari)
+    11: { text: "December: Winterse uitdagingen en conditieopbouw! ❄️", icon: Zap, color: "from-blue-600 to-purple-600" },
+    0: { text: "Januari: Nieuwe jaar, nieuwe sportdoelen! 🎯", icon: Target, color: "from-indigo-500 to-purple-600" },
+    1: { text: "Februari: Opbouw naar lente sportactiviteiten! 💪", icon: TrendingUp, color: "from-purple-600 to-pink-600" }
+  };
   
-  // Zomer quotes
-  { text: "Zomer is het seizoen waar grenzen worden verlegd en records worden gebroken.", author: "Zomerathleet" },
-  { text: "Lange dagen, sterke prestaties - zomer brengt het beste in sporters naar boven.", author: "Zomercoach" },
-  { text: "Juni energie, juli kracht, augustus triomf.", author: "Zomerwijsheid" },
-  { text: "Zwemmen in de zomer is poëzie in beweging.", author: "Aquatisch Filosoof" },
-  { text: "Zomer olympiërs worden geboren uit winter voorbereiding.", author: "Seizoenstraining" },
-  
-  // Herfst quotes
-  { text: "Herfst leert ons dat verandering mooi kan zijn, ook in sport.", author: "Herfstatleet" },
-  { text: "September brengt nieuwe schoolrecords en frisse sportmotivatie.", author: "Schoolsport" },
-  { text: "Oktober kleuren zijn net zo divers als onze sporttalenten.", author: "Herfstwijsheid" },
-  { text: "November uitdagingen bereiden ons voor op winterse kracht.", author: "Seizoensvoorbereiding" },
-  { text: "Herfstbladeren vallen, maar onze sportprestaties stijgen.", author: "Herfstmotivatie" },
-  
-  // Winter quotes
-  { text: "Winter test je kracht, lente toont je groei.", author: "Winteratleet" },
-  { text: "December discipline zorgt voor januari doorbraken.", author: "Wintertraining" },
-  { text: "Koude dagen, warme harten, sterke prestaties.", author: "Winterwijsheid" },
-  { text: "Februari is de maand waar winterse doorzetting beloond wordt.", author: "Eindwinter" },
-  { text: "Sneeuw smelt, maar echte sporters smelten nooit weg.", author: "Wintervolharding" },
+  return seasonalData[month] || null;
+};
 
-  // Sportspecifieke Quotes (200+ quotes)
-  // Voetbal
-  { text: "Voetbal begint met één bal en elf dromen.", author: "Voetbalfilosoof" },
-  { text: "Een goal is een moment, een match is een verhaal.", author: "Voetbalverteller" },
-  { text: "Passes verbinden niet alleen spelers, maar ook harten.", author: "Voetbalpoëet" },
-  { text: "Defenders beschermen meer dan alleen het doel - ze bewaken dromen.", author: "Defensieve Wisdom" },
-  { text: "Een keeper redt niet alleen ballen, maar ook hoop.", author: "Doelwachter Filosofie" },
-  
-  // Basketball  
-  { text: "Elke driepunter begint met geloof in jezelf.", author: "Basketball Sage" },
-  { text: "De mand is hoog, maar dromen reiken verder.", author: "Basket Filosoof" },
-  { text: "Dribbelen is ritme, schieten is muziek.", author: "Basketball Poëet" },
-  { text: "Een assist is een geschenk aan een teamgenoot.", author: "Teamwork Wijsheid" },
-  { text: "Rebounds zijn tweede kansen in sportvorm.", author: "Second Chance Filosofie" },
-  
-  // Zwemmen
-  { text: "Water draagt niet alleen je lichaam, maar ook je ambities.", author: "Zwemfilosoof" },
-  { text: "Elke slag is een stap dichter bij de overkant.", author: "Zwempoëet" },
-  { text: "In water vind je rust en kracht tegelijkertijd.", author: "Aquatische Wijsheid" },
-  { text: "Chlorine is de geur van vastberadenheid.", author: "Zwembad Filosofie" },
-  { text: "Zwemmers tellen niet lengtes, ze tellen dromen.", author: "Pool Wisdom" },
-  
-  // Atletiek
-  { text: "Elke meter die je rent, rent je naar jezelf toe.", author: "Hardloopfilosoof" },
-  { text: "Sprinten is explosie, marathon is meditatie.", author: "Loop Wijsheid" },
-  { text: "Speerwerpen is het gooien van hoop in de toekomst.", author: "Werpfilosofie" },
-  { text: "Hoogspringen is het overwinnen van de zwaartekracht en twijfel.", author: "Spring Motivatie" },
-  { text: "De finishlijn is niet het einde, maar een nieuw begin.", author: "Finish Filosofie" },
-  
-  // Tennis
-  { text: "Elke serve is een nieuwe kans om te schitteren.", author: "Tennis Wijsheid" },
-  { text: "Love in tennis betekent niets, maar alles in toewijding.", author: "Court Filosofie" },
-  { text: "Een rally is een gesprek tussen rackets.", author: "Tennis Poëet" },
-  { text: "Ace serves komen uit ace mentaliteit.", author: "Service Filosofie" },
-  { text: "Backhand shots vereisen fronthand moed.", author: "Tennis Courage" },
-  
-  // Wielrennen  
-  { text: "Elke pedaalslag brengt je dichter bij je bestemming.", author: "Fietsfilosoof" },
-  { text: "Bergen zijn niet obstakels, maar kansen om te stijgen.", author: "Klim Wijsheid" },
-  { text: "De ketting verbindt niet alleen wielen, maar ook dromen met realiteit.", author: "Fiets Poëet" },
-  { text: "Tegenwind maakt je sterker, meewind maakt je sneller.", author: "Wind Wijsheid" },
-  { text: "Elke kilometer is een verhaal dat je wielen vertellen.", author: "Cycling Stories" },
-  
-  // Hockey
-  { text: "Een stick is een verlengstuk van je intenties.", author: "Hockey Filosoof" },
-  { text: "Teamwork op het hockey veld is zoals een symfonie.", author: "Hockey Harmonie" },
-  { text: "Elke corner is een kans om geschiedenis te schrijven.", author: "Corner Wijsheid" },
-  { text: "Defense wins games, but offense wins hearts.", author: "Hockey Strategy" },
-  { text: "Het veld is canvas, de stick is je penseel.", author: "Hockey Art" },
-
-  // Mentale Kracht & Mindset (150+ quotes)
-  { text: "Je geest is de krachtcentrale van elke sportprestatie.", author: "Sports Psychology" },
-  { text: "Mentale training is net zo belangrijk als fysieke training.", author: "Mind Coach" },
-  { text: "Visualisatie is repetitie voor je geest.", author: "Mental Trainer" },
-  { text: "Concentratie is de kunst van volledig aanwezig zijn.", author: "Focus Guru" },
-  { text: "Zelfvertrouwen is de beste uitrusting die je kunt dragen.", author: "Confidence Coach" },
-  { text: "Angst voor falen is de enige echte faal.", author: "Fear Fighter" },
-  { text: "Mindfulness in sport is kracht in beweging.", author: "Mindful Athlete" },
-  { text: "Je ademhaling is je anker in sportieve stormen.", author: "Breath Master" },
-  { text: "Positieve gedachten creëren positieve resultaten.", author: "Positive Thinker" },
-  { text: "Mentale veerkracht is de ultieme superkracht.", author: "Resilience Expert" },
-  { text: "Je innerlijke stem bepaalt je buitenste prestatie.", author: "Inner Voice Coach" },
-  { text: "Stress is energie die wacht om gekanaliseerd te worden.", author: "Stress Master" },
-  { text: "Focus is niet wat je ziet, maar wat je voelt.", author: "Focus Filosoof" },
-  { text: "Mentale voorbereiding is de sleutel tot fysieke prestatie.", author: "Prep Master" },
-  { text: "Je mindset bepaalt je resultaat meer dan je skillset.", author: "Mindset Guru" },
-
-  // Teamwork & Leiderschap (100+ quotes)
-  { text: "Leiders worden niet geboren, ze worden gevormd door sport.", author: "Leadership Coach" },
-  { text: "Een kapitein leidt niet door te schreeuwen, maar door te inspireren.", author: "Captain's Wisdom" },
-  { text: "Teamwork is de geheime saus van elke kampioensteam.", author: "Team Builder" },
-  { text: "Communicatie op het veld wint meer games dan talent alleen.", author: "Communication Expert" },
-  { text: "Een sterk team tilt zwakke momenten op.", author: "Team Strength" },
-  { text: "Vertrouwen in je teamgenoten is vertrouwen in jezelf.", author: "Trust Builder" },
-  { text: "Leiderschap is serveren, niet heersen.", author: "Servant Leader" },
-  { text: "De beste teams zijn families die samen dromen.", author: "Team Family" },
-  { text: "Samen zijn we sterker, apart zijn we kwetsbaar.", author: "Unity Power" },
-  { text: "Een team is geen groep individuen, maar één gedeelde geest.", author: "Collective Mind" },
-
-  // Doorzettingsvermogen & Volharding (100+ quotes)
-  { text: "Volharding is talent in vermomming.", author: "Persistence Master" },
-  { text: "Elke stap vooruit is een overwinning op gisteren.", author: "Progress Keeper" },
-  { text: "Doorzetten is de kunst van niet opgeven.", author: "Never Quit Coach" },
-  { text: "Consistent zijn verslaat perfect zijn.", author: "Consistency King" },
-  { text: "Kleine stappen elke dag leiden tot grote sprongen later.", author: "Daily Progress" },
-  { text: "Uithouding is kracht vermenigvuldigd met tijd.", author: "Endurance Equation" },
-  { text: "Je laatste poging kan je eerste overwinning zijn.", author: "Final Effort" },
-  { text: "Volhardende druppels maken het diepste gat.", author: "Persistence Proverb" },
-  { text: "Doorzettingsvermogen is de moeder van alle prestaties.", author: "Achievement Mother" },
-  { text: "Don't wish for it, work for it!", authors: "Gareth Price en Dave Evans" },
-  { text: "Elke dag dat je niet opgeeft, win je.", author: "Daily Victory" },
-
-  // Jongerenspecifieke Motivatie (100+ quotes)
-  { text: "Jouw leeftijd is geen beperking, maar je superkracht.", author: "Youth Power" },
-  { text: "Jonge dromen hebben de kracht om de wereld te veranderen.", author: "Dream Changer" },
-  { text: "School sport legt de fundamenten voor levenslessonen.", author: "School Sports Wisdom" },
-  { text: "Elke PE les is een kans om jezelf te overtreffen.", author: "PE Excellence" },
-  { text: "Schoolteams zijn waar levenslange vriendschappen geboren worden.", author: "School Team Bonds" },
-  { text: "Jong talent gecombineerd met harde training = onbeperkte mogelijkheden.", author: "Youth Potential" },
-  { text: "Sportdagen op school zijn de highlights van het jaar.", author: "Sports Day Magic" },
-  { text: "Klasgenoten die samen sporten, groeien samen.", author: "Class Unity" },
-  { text: "Elke schoolrecord begint met een leerling die durft te dromen.", author: "School Record Dreamer" },
-  { text: "PE leraren zijn de architecten van sportieve dromen.", author: "PE Teacher Honor" },
-
-  // Seizoen Specifieke Motivatie (100+ quotes per seizoen)
-  // September - Nieuw Schooljaar
-  { text: "September brengt nieuwe kansen en verse sportmotivatie.", author: "New Year Energy" },
-  { text: "Het nieuwe schooljaar is een leeg boek klaar om gevuld te worden met prestaties.", author: "Fresh Start" },
-  { text: "September goals worden december victories.", author: "Goal Setting" },
-  { text: "Nieuwe semester, nieuwe jij, nieuwe records.", author: "Renewal Power" },
-  { text: "Herfst energie voedt winter voorbereiding.", author: "Seasonal Prep" },
-  
-  // December - Jaar Afsluiting
-  { text: "December reflectie toont januari richting.", author: "Year Reflection" },
-  { text: "Het jaar eindigt, maar jouw sportreizen gaat door.", author: "Continuous Journey" },
-  { text: "Kerstmis brengt rust, nieuwjaar brengt doelen.", author: "Holiday Transition" },
-  { text: "December prestaties zijn cadeautjes aan jezelf.", author: "Self Gift" },
-  { text: "Winter pauze is zomer voorbereiding.", author: "Rest Preparation" },
-
-  // Inspirerende Sportfiguren Quotes (100+ quotes)
-  { text: "Zoals Serena zegt: 'Ik speel om te winnen, niet om te participeren.'", author: "Serena Williams" },
-  { text: "Michael Jordan bewees dat falen de sleutel tot succes is.", author: "MJ Wisdom" },
-  { text: "Usain Bolt toonde dat snelheid begint in je hoofd.", author: "Lightning Bolt" },
-  { text: "Lionel Messi bewijst dat magie en hard werk hand in hand gaan.", author: "Messi Magic" },
-  { text: "Cristiano Ronaldo toont dat toewijding talent kan overwinnen.", author: "CR7 Dedication" },
-  { text: "Simone Biles demonstreert dat grenzen er zijn om doorbroken te worden.", author: "Gymnastics Greatness" },
-  { text: "Tom Brady bewijst dat leeftijd slechts een cijfer is.", author: "Ageless Champion" },
-  { text: "Kobe Bryant's mentaliteit: 'Mamba mentality betekent nooit opgeven.'", author: "Mamba Mentality" },
-  { text: "Venus Williams toont dat pioniers hun eigen pad creëren.", author: "Pioneer Spirit" },
-  { text: "LeBron James demonstreert dat leiderschap gedeeld wordt.", author: "King's Leadership" },
-
-  // Dagelijkse Motivatie (365+ quotes - één voor elke dag)
-  { text: "Vandaag is de dag om je grenzen te verleggen.", author: "Daily Motivation 1" },
-  { text: "Elke zonsopgang brengt nieuwe sportieve mogelijkheden.", author: "Daily Motivation 2" },
-  { text: "Je lichaam kan meer dan je geest denkt.", author: "Daily Motivation 3" },
-  { text: "Vandaag train je voor een betere morgen.", author: "Daily Motivation 4" },
-  { text: "Kleine vooruitgang is nog steeds vooruitgang.", author: "Daily Motivation 5" },
-  // ... (continue tot 365 voor elke dag van het jaar)
-];
-
-// --- MASSIEF UITGEBREIDE Sport Feiten (2000+ feiten voor heel schooljaar) ---
-const SPORT_FACTS = [
-  // Basis Gezondheidsvoordelen (100 feiten)
-  "Wist je dat 30 minuten sporten per dag je risico op hartziekte met 40% vermindert?",
-  "Sport verbetert je geheugen en concentratie door meer zuurstof naar je hersenen te sturen.",
-  "Regelmatig bewegen kan je levensverwachting met gemiddeld 7 jaar verlengen.",
-  "Sport helpt bij het produceren van endorfines, de natuurlijke 'gelukshormonen' van je lichaam.",
-  "Je spieren hebben 48-72 uur nodig om volledig te herstellen na intensieve training.",
-  "Sport kan je slaapkwaliteit met tot 65% verbeteren.",
-  "10.000 stappen per dag kan je risico op diabetes type 2 halveren.",
-  "Sport verhoogt je zelfvertrouwen en vermindert stress en angst.",
-  "Kinderen die sporten presteren gemiddeld 15% beter op school.",
-  "Sport in teamverband verbetert je sociale vaardigheden en samenwerking.",
-  "Regelmatige beweging versterkt je immuunsysteem met 25%.",
-  "Sport verhoogt je energieniveau gedurende de hele dag.",
-  "Zwemmen is een van de weinige sporten die alle spiergroepen traint.",
-  "Lachen tijdens sport verbrandt extra calorieën.",
-  "Sport helpt bij het reguleren van je natuurlijke slaap-waak cyclus.",
-  "Groene omgevingen tijdens sport verdubbelen de mentale voordelen.",
-  "Sport reduceert het risico op depressie met 30%.",
-  "Teamsporten verbeteren empathie en sociale vaardigheden.",
-  "Sport verhoogt de productie van groeihormonen.",
-  "Regelmatige beweging verbetert je posture en vermindert rugpijn.",
-
-  // Fysiologie & Wetenschappelijke Feiten (200 feiten)
-  "Het menselijke hart kan tot 220 slagen per minuut bereiken tijdens extreme inspanning.",
-  "Je skeletspieren maken 40-50% van je lichaamsgewicht uit.",
-  "Een getrainde atleet kan tot 6 liter zuurstof per minuut opnemen.",
-  "Je lichaam verbrandt nog 24 uur na intensieve training extra calorieën.",
-  "Zweten begint pas na 15-20 minuten sporten om je lichaam af te koelen.",
-  "Je reactietijd verbetert met 15% door regelmatig sporten.",
-  "Sport vergroot je longcapaciteit met tot 25%.",
-  "Krachttraining verhoogt je botdichtheid en voorkomt osteoporose.",
-  "Je evenwichtsgevoel verbetert aanzienlijk door regelmatige sportseoefening.",
-  "Sport versterkt je immuunsysteem en vermindert het risiko op verkoudheid.",
-  "Je hersenen gebruiken 20% van je energie tijdens sport.",
-  "Lachen verbrandt ongeveer evenveel calorieën als 10-15 minuten fietsen.",
-  "Sport verhoogt de productie van BDNF, een eiwit dat hersencellen beschermt.",
-  "Regelmatige oefening kan je biologische leeftijd met 9 jaar verlagen.",
-  "Sport verbetert je insulinegevoeligheid gedurende 48 uur na training.",
-  "Je spieren kunnen tot 3x hun eigen gewicht optillen.",
-  "Sport stimuleert de groei van nieuwe hersencellen (neurogenese).",
-  "Intervaltraining is 9x effectiever dan gewone cardio voor vetverbranding.",
-  "Je lichaam produceert meer testosteron direct na krachttraining.",
-  "Sport verhoogt je dopamine levels, wat je motivatie verbetert.",
-  "Zwemmen gebruikt meer spiergroepen dan elke andere sport.",
-  "Je hart wordt sterker en efficiënter door regelmatige cardio.",
-  "Sport verhoogt je HDL (goed) cholesterol en verlaagt LDL (slecht).",
-  "Flexibiliteit training kan je gewrichtsmobiliteit met 40% verbeteren.",
-  "Sport verhoogt je VO2 max - je lichaam's vermogen om zuurstof te gebruiken.",
-  "Krachttraining verhoogt je metabolisme tot 72 uur na de training.",
-  "Sport verbetert je balans en coördinatie aanzienlijk.",
-  "Regelmatige beweging verlaagt je rustpols.",
-  "Sport verhoogt de dichtheid van mitochondria in je cellen (energiecentrales).",
-
-  // Historische Sportfeiten (150 feiten)
-  "De Olympische Spelen bestaan al meer dan 2700 jaar.",
-  "Voetbal wordt gespeeld door meer dan 250 miljoen mensen wereldwijd.",
-  "De marathon is gebaseerd op de legende van een Griekse boodschapper die 42km rende.",
-  "Basketball werd uitgevonden in 1891 door Dr. James Naismith.",
-  "Tennis ontstond in Frankrijk in de 12e eeuw als 'jeu de paume'.",
-  "De eerste moderne Olympische Spelen waren in 1896 in Athene.",
-  "Wielrennen was een van de eerste sporten in de moderne Olympische Spelen.",
-  "Zwemmen als georganiseerde sport bestaat al sinds de oude Egyptenaren.",
-  "Golf werd voor het eerst gespeeld in Schotland in de 15e eeuw.",
-  "Rugby ontstond in 1823 toen William Webb Ellis de bal oppakte tijdens voetbal.",
-  "De eerste voetbalclub werd opgericht in 1857 in Sheffield, Engeland.",
-  "Volleybal werd uitgevonden in 1895 als alternatief voor basketball.",
-  "Badminton ontwikkelde zich uit het oude Griekse spel 'battledore'.",
-  "Tafeltennis ontstond in Engeland als 'parlor tennis'.",
-  "Handbal werd ontwikkeld in Duitsland aan het begin van de 20e eeuw.",
-  "American football evolueerde uit rugby in de late 19e eeuw.",
-  "Hockey wordt gespeeld sinds de oude beschavingen van Egypte.",
-  "Atletiek is de oorspronkelijkste vorm van georganiseerde sport.",
-  "Zwemmen werd pas in 1896 een olympische sport.",
-  "Skiën is meer dan 5000 jaar oud en ontstond in Scandinavië.",
-
-  // Belgische Sportgeschiedenis (100 feiten)
-  "België heeft meer dan 150 olympische medailles gewonnen sinds 1900.",
-  "Eddy Merckx wordt universeel beschouwd als de beste wielrenner aller tijden.",
-  "België was een van de eerste landen met een professionele voetbalcompetitie (1895).",
-  "Justine Henin en Kim Clijsters domineerden het wereldtennis begin jaren 2000.",
-  "De Ronde van Vlaanderen is een van de vijf monumenten van het wielrennen.",
-  "België bereikte de halve finales op het WK 2018 en werd derde.",
-  "Tia Hellebaut won België's eerste atletiek olympische goud sinds 1948.",
-  "Red Lions werden wereldkampioen hockey in 2018.",
-  "België heeft 5 verschillende Tour de France winnaars voortgebracht.",
-  "De Belgische voetbalcompetitie is een van de oudste ter wereld.",
-  "Memorial Van Damme is een van de meest prestigieuze atletiekmeeting.",
-  "België organiseerde de Olympische Spelen van 1920 in Antwerpen.",
-  "Rode Duivels stonden #1 op de FIFA ranking van 2015-2019.",
-  "België heeft een rijke traditie in cyclocross en BMX.",
-  "Red Panthers (vrouwenhockey) zijn ook wereldtop.",
-  "België produceerde vele wielrenlegenden: Merckx, De Vlaeminck, Museeuw.",
-  "Jupiler Pro League teams presteren goed in Europese competities.",
-  "België heeft sterke tradities in duivensport en motorsport.",
-  "Spa-Francorchamps is een van de meest iconische Formule 1 circuits.",
-  "België organiseerde het EK voetbal 2000 samen met Nederland.",
-
-  // Prestaties & Records (200 feiten)
-  "Usain Bolt's wereldrecord 100m is 9.58 seconden (2009).",
-  "Het marathonworldrecord staat op 2:01:09 (Eliud Kipchoge, 2018).",
-  "Michael Phelps won 23 olympische goudmedailles.",
-  "Serena Williams won 23 Grand Slam titels in het tennis.",
-  "Cristiano Ronaldo scoorde meer dan 800 carrièredoelpunten.",
-  "Lionel Messi won 7 Ballon d'Or awards.",
-  "Kareem Abdul-Jabbar scoorde 38,387 punten in de NBA.",
-  "Wayne Gretzky heeft 2,857 punten in de NHL.",
-  "Steffi Graf won de Golden Slam in 1988 (alle Grand Slams + Olympisch goud).",
-  "Michael Jordan won 6 NBA kampioenschappen met Chicago Bulls.",
-  "Pele scoorde meer dan 1000 carrièredoelpunten.",
-  "Babe Ruth sloeg 714 homeruns in zijn MLB carrière.",
-  "Muhammad Ali was 3x wereldkampioen zwaargewicht boksen.",
-  "Tiger Woods won 15 major golf toernooien.",
-  "Roger Federer won 20 Grand Slam titels.",
-  "LeBron James is de all-time scoring leader van de NBA.",
-  "Tom Brady won 7 Super Bowl titels.",
-  "Simone Biles heeft 32 wereldkampioenschap en olympische medailles.",
-  "Katie Ledecky houdt wereldrecords van 400m tot 1500m vrije slag.",
-  "Novak Djokovic heeft meer dan 350 weken #1 gestaan in tennis.",
-
-  // Sport & Technologie (150 feiten)
-  "Moderne hardloopschoenen kunnen je prestaties met 4% verbeteren.",
-  "GPS-tracking in sport kan je training tot op de meter nauwkeurig meten.",
-  "Hartslagmeters helpen sporters in de optimale trainingszone blijven.",
-  "Video-analyse kan technieksfouten identificeren die het blote oog mist.",
-  "Sportvoeding kan je uithoudingsvermogen met 10-15% verhogen.",
-  "Compressiekleding verbetert de bloedstroom en versnelt herstel.",
-  "Carbon fiber materialen maken uitrusting lichter en sterker.",
-  "Biomechanische analyse voorkomt blessures en optimaliseert beweging.",
-  "Hoogtekamers simuleren training op 2000+ meter hoogte.",
-  "Smart watches kunnen slaapkwaliteit en herstel nauwkeurig monitoren.",
-  "Virtual reality wordt gebruikt voor mentale training van atleten.",
-  "3D motion capture helpt bij het analyseren van sporttechnieken.",
-  "Kryotherapie (-110°C) wordt gebruikt voor sneller herstel.",
-  "Elektrische stimulatie helpt bij spieractivatie en recovery.",
-  "Drones worden gebruikt voor tactische analyse in teamsporten.",
-  "AI kan blessurerisico's voorspellen op basis van bewegingspatronen.",
-  "Smart ballen meten snelheid, spin en impact nauwkeurig.",
-  "Underwater treadmills combineren cardio met gewichtloosheid.",
-  "Biometrische monitoring geeft real-time feedback over prestaties.",
-  "Sportapps motiveren miljarden mensen wereldwijd om actief te blijven.",
-
-  // Voeding & Sport (200 feiten)
-  "Sporters hebben 1.5-2x meer eiwit nodig dan niet-actieve mensen.",
-  "Je lichaam heeft binnen 30 minuten na sport koolhydraten nodig voor optimaal herstel.",
-  "Dehydratie van slechts 2% vermindert je sportprestaties al met 15%.",
-  "Bananen bevatten perfecte natuurlijke suikers voor pre-workout energie.",
-  "Cafeïne kan je sportprestaties en focus met 3-5% verbeteren.",
-  "Sporters moeten 150-200% meer water drinken dan gemiddelde mensen.",
-  "Rode bieten verbeteren uithoudingsvermogen door nitraten die bloedstroom verbeteren.",
-  "Chocolademelk heeft de ideale koolhydraat-eiwit ratio voor post-workout recovery.",
-  "Omega-3 vetzuren verminderen ontstekingen na intensieve training.",
-  "Timing van maaltijden is cruciaal voor optimale energielevels tijdens sport.",
-  "Creatine kan explosieve kracht met 15% verhogen.",
-  "Antioxidanten in bessen helpen bij het herstel van spierweefsel.",
-  "Magnesium voorkomt spierkrampen tijdens lange duurinspanningen.",
-  "Ijzer is essentieel voor zuurstoftransport naar werkende spieren.",
-  "Koolhydraten zijn de primaire brandstof voor high-intensity sporten.",
-  "Proteïne binnen 2 uur na training maximaliseert spiereiwitaanmaak.",
-  "Elektrolyten (natrium, kalium) zijn cruciaal bij transpiratie.",
-  "Quinoa is een complete proteïnebron voor vegetarische sporters.",
-  "Groene thee bevat antioxidanten die herstel versnellen.",
-  "Watermeloen helpt bij hydratatie en heeft natuurlijke anti-inflammatoire eigenschappen.",
-
-  // Mentale Aspecten van Sport (200 feiten)
-  "95% van sportprestaties wordt bepaald door mentale factoren.",
-  "Visualisatie kan je prestaties meetbaar verbeteren met 13%.",
-  "Sport vermindert de productie van cortisol (stresshormoon) met 25%.",
-  "Meditatie verbetert focus en concentratie tijdens competitieve sporten.",
-  "Positieve zelfpraat verhoogt je uithoudingsvermogen met 18%.",
-  "Sport vergroot je zelfvertrouwen in alle levensbereiken aanzienlijk.",
-  "Teamsporten ontwikkelen cruciale leiderschap en communicatievaardigheden.",
-  "Sport leert je effectief omgaan met druk en teleurstelling.",
-  "Routines en rituelen kunnen sportprestaties met 12% verbeteren.",
-  "Sport helpt bij het ontwikkelen van doorzettingsvermogen en mentale weerbaarheid.",
-  "Ademhalingstechnieken kunnen prestaties onder druk verbeteren.",
-  "Flow state tijdens sport verhoogt prestaties en plezier exponentieel.",
-  "Mindfulness training verbetert reactietijd en beslissingssnelheid.",
-  "Zelfvertrouwen is de #1 voorspeller van sportief succes.",
-  "Angstmanagement technieken zijn essentieel voor topsport.",
-  "Motivatie kan intrinsiek (plezier) of extrinsiek (beloningen) zijn.",
-  "Goal setting verhoogt de kans op succes met 42%.",
-  "Mentale training is net zo belangrijk als fysieke conditie.",
-  "Concentratie is een vaardigheid die getraind kan worden.",
-  "Sport psychologie wordt standaard gebruikt door professionele teams.",
-
-  // Sport en Leeftijd (150 feiten)
-  "Kinderen die sporten hebben hun hele leven sterkere botten.",
-  "Sport vanaf jonge leeftijd verbetert motorische vaardigheden permanent.",
-  "Ouderen die sporten hebben 50% minder kans op vallen en breuken.",
-  "Sport vertraagt het cognitieve verouderingsproces van hersenen aanzienlijk.",
-  "60-plussers die regelmatig sporten hebben meer energie dan inactieve 30-ers.",
-  "Sport beschermt significant tegen dementie en Alzheimer.",
-  "Zwangere vrouwen die sporten hebben doorgaans gemakkelijker bevallingen.",
-  "Sport tijdens de puberteit is cruciaal voor optimale fysieke ontwikkeling.",
-  "Sportende senioren leven gemiddeld 3-5 jaar langer.",
-  "Het is letterlijk nooit te laat om met sporten te beginnen - zelfs na 80.",
-  "Kinderen moeten minimaal 60 minuten per dag actief zijn.",
-  "Sport helpt tieners bij het ontwikkelen van een positief lichaamsbeeld.",
-  "Ouderen behouden spiermassa beter door regelmatige krachttraining.",
-  "Vroege specialisatie in één sport kan leiden tot burnout bij kinderen.",
-  "Multi-sport participatie ontwikkelt atletischer allround bewegingsvaardigheden.",
-  "Sport verbetert academische prestaties van kinderen en tieners.",
-  "Ouderen die sporten hebben betere balans en coördinatie.",
-  "Kindersport moet altijd plezier en participatie boven competitie stellen.",
-  "Sport helpt bij het ontwikkelen van sociale vaardigheden op alle leeftijden.",
-  "Masters sporters (40+) breken regelmatig leeftijdsgebonden records.",
-
-  // Blessurepreventie & Herstel (150 feiten)
-  "Een goede warming-up van 10-15 minuten vermindert blessurerisico met 50%.",
-  "Cooling-down na sport versnelt lactaat clearance en herstel.",
-  "Dynamisch rekken voor sport is effectiever dan statisch rekken.",
-  "Voldoende slaap (7-9 uur) is cruciaal voor optimaal sportherstel.",
-  "Afwisseling in training voorkomt overbelasting van specifieke spieren.",
-  "Luisteren naar je lichaam voorkomt 80% van alle sportblessures.",
-  "IJsbaden (10-15°C) na sport verminderen ontstekingen en spierpijn.",
-  "Sportmassage verbetert doorbloeding en versnelt herstel merkbaar.",
-  "Cross-training vermindert het risico op overbelastingsblessures aanzienlijk.",
-  "Sterke kernspieren voorkomen 60% van alle rug- en knieblessures.",
-  "Adequate hydratatie voorkomt hitteblessures en spierkrampen.",
-  "Progressieve belasting voorkomt acute en chronische blessures.",
-  "Correcte schoenen zijn essentieel voor gewricht- en spiergezondheid.",
-  "Functionele bewegingsscreening kan blessurerisico's identificeren.",
-  "Recovery is net zo belangrijk als de training zelf.",
-  "Stretching na sport wanneer spieren warm zijn is het meest effectief.",
-  "Actieve recovery (lichte beweging) is beter dan complete rust.",
-  "Stress management vermindert blessurerisico significant.",
-  "Adequate voeding ondersteunt weefselreparatie en -groei.",
-  "Professionele begeleiding vermindert blessurerisico bij beginners.",
-
-  // Sociale Aspecten van Sport (200 feiten)
-  "Sport creëert vriendschappen die statistisch gezien een leven lang meegaan.",
-  "Teamsporten leren kinderen effectief samenwerken en compromissen sluiten.",
-  "Sport doorbreekt sociale, culturele en economische barrières universeel.",
-  "Vrijwilligerswerk in sport geeft meetbare voldoening en gemeenschapsverbinding.",
-  "Sportevenementen brengen diverse gemeenschappen samen rond gedeelde passie.",
-  "Sport bevordert respect, fair play en ethisch gedrag.",
-  "Inclusieve sportprogramma's geven iedereen gelijke kansen om mee te doen.",
-  "Sport leert effectief omgaan met diversiteit en verschillende achtergronden.",
-  "Mentoring in sport ontwikkelt natuurlijke leiderschapsvaardigheden.",
-  "Sportclubs vormen vaak het sociale hart van lokale gemeenschappen.",
-  "Sport verbindt generaties door gedeelde ervaringen en verhalen.",
-  "Internationale sport promoot vrede en wederzijds begrip.",
-  "Sport geeft jongeren positieve rolmodellen en inspiratie.",
-  "Gemeenschapssporten verminderen criminaliteit en antisociaal gedrag.",
-  "Sport events genereren economische voordelen voor lokale gemeenschappen.",
-  "Vrouwensport inspireert gendersoosheid en emancipatie wereldwijd.",
-  "Parasport toont dat beperkingen geen barrières hoeven te zijn.",
-  "Sport diplomatie wordt gebruikt voor internationale betrekkingen.",
-  "Lokale sportclubs bieden sociale netwerken en ondersteuning.",
-  "Sport celebreert culturele diversiteit en multiculturalisme.",
-
-  // Moderne Sporttrends (100 feiten)
-  "E-sports groeit exponentieel en wordt officieel erkend als echte sport.",
-  "Functional fitness wordt steeds populairder dan traditionele gym training.",
-  "HIIT (High Intensity Interval Training) maximaliseert resultaten in minimale tijd.",
-  "Wearable technologie revolutioneert hoe we sportprestaties monitoren.",
-  "Virtual reality maakt sporttraining realistischer en toegankelijker.",
-  "Online sportcommunities verbinden sporters wereldwijd via digitale platforms.",
-  "Micro-workouts van 7-10 minuten kunnen meetbaar effectief zijn.",
-  "Mindfulness en meditatie worden geïntegreerd in moderne sporttraining.",
-  "Duurzaamheid speelt een steeds belangrijkere rol in sportuitrusting.",
-  "Home fitness explodeerde tijdens COVID en blijft populair.",
-  "CrossFit combineerde verschillende disciplines tot nieuwe trainingsvorm.",
-  "Obstacle course racing (OCR) werd mainstream fitnessuitdaging.",
-  "Yoga en Pilates worden erkend als serieuze conditioneringsvormen.",
-  "Outdoor fitness bootcamps winnen populariteit boven indoor gyms.",
-  "Sportapps en fitness trackers motiveren miljarden mensen dagelijks.",
-  "Group fitness classes creëren sociale verbindingen tijdens trainen.",
-  "Recovery-focused training krijgt evenveel aandacht als intense workouts.",
-  "Plant-based nutrition wordt geaccepteerd door topsporters.",
-  "Biohacking optimaliseert sportprestaties door data en technologie.",
-  "Adaptive sports maken sport toegankelijk voor mensen met beperkingen.",
-
-  // Seizoensgebonden Sportfeiten (200 feiten - per seizoen)
-  // Lente Feiten
-  "Lente is het ideale seizoen om outdoor sporten te hervatten na de winter.",
-  "Pollen kunnen prestaties van sporters met allergieën beïnvloeden in de lente.",
-  "Lengte van dagen in lente verhoogt natuurlijke vitamine D productie.",
-  "Lente training bereidt het lichaam voor op zomer intensieve activiteiten.",
-  "Vogelgeluiden tijdens outdoor lente sporten verbeteren mentale gezondheid.",
-  
-  // Zomer Feiten  
-  "Zomer dehydratatie is de #1 prestatiehemmer bij buitensporten.",
-  "Vroege ochtend training in zomer vermijdt hittestress effectief.",
-  "Zwemmen is de perfecte zomer cardio zonder oververhitting.",
-  "Zomer fruit geeft natuurlijke elektrolyten en hydratatie.",
-  "UV bescherming is essentieel voor buitensporters in zomer.",
-  
-  // Herfst Feiten
-  "Herfst temperaturen zijn ideaal voor duursporten als hardlopen.",
-  "Bladeren raken maakt outdoor sporten uitdagender qua grip.",
-  "Herfst is seizoen voor mentale voorbereiding op winter indoor training.",
-  "Korter wordende dagen vereisen aanpassingen in trainingsschema's.",
-  "Herfst oogst geeft sporters seizoensgebonden voedingsopties.",
-  
-  // Winter Feiten
-  "Winter training in koude verbetert brown fat activatie en metabolisme.",
-  "Wintersporten ontwikkelen unieke balans en coördinatievaardigheden.",
-  "Indoor air quality beïnvloedt winter sportprestaties significant.",
-  "Winter blues kunnen impact hebben op sportmotivatie en prestaties.",
-  "Vitamine D supplementen zijn cruciaal voor wintersporters.",
-
-  // Unieke & Verrassende Sportfeiten (300 feiten)
-  "Ping-pong werd oorspronkelijk gespeeld met champagne kurken als ballen.",
-  "Golf ballen hebben gemiddeld 336 dimples voor optimale aerodynamica.",
-  "Een basketbal match heeft eigenlijk maar 12 minuten echte speeltijd.",
-  "Marathonlopers verliezen gemiddeld 6% van hun lichaamsgewicht tijdens de race.",
-  "Zwemmers in Olympische zwembaden zwemmen in perfect geheated water van 25-28°C.",
-  "Tennis balls worden onder druk bewaard om hun bounce te behouden.",
-  "Voetballers lopen gemiddeld 7 mijl (11km) tijdens een 90-minuten match.",
-  "Een honkbal vliegt sneller dan 100 mph maar de batter heeft 0.4 seconden om te beslissen.",
-  "Surfers kunnen golven van 30+ meter hoog berijden in extreme omstandigheden.",
-  "Boksers kunnen punches leveren met een kracht van 1300+ pounds per square inch.",
-  "Gymnasts ervaren tot 14G krachten tijdens hun routines.",
-  "Skiërs kunnen snelheden van 150+ mph bereiken bij speed skiing.",
-  "Een gemiddelde NBA speler springt 28 inch (71cm) hoog verticaal.",
-  "Wielrenners in de Tour de France verbranden 6000+ calorieën per dag.",
-  "IJshockeypucks bereiken snelheden van 100+ mph tijdens slapshots.",
-  "Korfbal werd uitgevonden door een Nederlandse schoolmeester in 1902.",
-  "Lacrosse is Noord-Amerika's oudste sport, gespeeld door inheemse volken.",
-  "Cricket matches kunnen 5 dagen duren in de Test format.",
-  "Badminton shuttlecocks kunnen snelheden van 200+ mph bereiken.",
-  "Waterpolo werd oorspronkelijk gespeeld op barels in rivieren en meren.",
-  
-  // Motiverende Statistieken (200 feiten)
-  "90% van mensen die regelmatig sporten rapporteren hoger geluk en levensvoldoening.",
-  "Kinderen die sporten hebben 40% minder kans op obesitas als volwassene.",
-  "Sport participatie verhoogt school betrokkenheid met 15% gemiddeld.",
-  "Teamsporten verbeteren communicatievaardigheden meetbaar in alle levensbereiken.",
-  "Regelmatige sporters hebben 23% lager risico op vroegstijdige dood.",
-  "Sport verhoogt productiviteit op werk/school met gemiddeld 12%.",
-  "Atleten ontwikkelen 25% betere probleemoplossende vaardigheden.",
-  "Sport participatie correleert sterk met leiderschap in latere carrières.",
-  "Regelmatige beweging vermindert doktersbezoeken met 30%.",
-  "Sporters hebben gemiddeld hogere inkomens gedurende hun carrière.",
-  "Sport verhoogt frustratie tolerantie en stress management significant.",
-  "Teamsporten leren conflictoplossing beter dan classroom education.",
-  "Sport participatie voorspelt academisch succes sterker dan IQ alleen.",
-  "Regelmatige sporters rapporteren 40% betere slaapkwaliteit.",
-  "Sport verhoogt concentratie span met gemiddeld 20 minuten.",
-  "Atleten tonen meer empathie en sociale intelligentie.",
-  "Sport participle correleert met lagere criminaliteitscijfers in gemeenschappen.",
-  "Regelmatige beweging verhoogt creativiteit en innovatief denken.",
-  "Sport teamleden ontwikkelen sterkere netwerken en sociale verbindingen.",
-  "Fysieke activiteit verhoogt academische test scores meetbaar."
-];
+// --- Interval-instellingen (in ms) ---
+// Comment en code liepen hier uiteen; nu één bron van waarheid.
+const DATA_REFRESH_MS = 15 * 60 * 1000;   // dashboarddata: elke 15 minuten
+const FEED_REFRESH_MS = 60 * 60 * 1000;   // sportnieuwsfeed: elk uur
+const SLIDE_INTERVAL_MS = 8 * 1000;       // content wisselt elke 8 seconden
+const NEWS_TICKER_MS = 40 * 1000;         // nieuwsticker: elke 40 seconden
 
 // --- GEAVANCEERDE Live Sport News & Feed API ---
 class LiveSportsFeedAPI {
@@ -679,7 +128,6 @@ export default function AdValvas() {
   const [liveFeedAPI] = useState(() => new LiveSportsFeedAPI());
   const [feedLoading, setFeedLoading] = useState(true);
   const [lastFeedRefresh, setLastFeedRefresh] = useState(null);
-  const [usedContentIndices, setUsedContentIndices] = useState([]);
   const [feedStatus, setFeedStatus] = useState('connecting');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [breakingNewsItems, setBreakingNewsItems] = useState([]);
@@ -687,58 +135,84 @@ const [activeTests, setActiveTests] = useState([]);
 const [contentPattern, setContentPattern] = useState([]); // Alternerend patroon
 const [patternIndex, setPatternIndex] = useState(0);
 const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
- const [mededelingenData, setMededelingenData] = useState([]);
+  const [mededelingenData, setMededelingenData] = useState([]);
+  const [dataError, setDataError] = useState(null);
+  // Teller die per contentgeneratie ophoogt: geeft stabiele React-keys binnen
+  // één generatie (Date.now() per item forceerde een volledige remount).
+  const generatieRef = useRef(0);
 
- useEffect(() => {
+  // Haalt de dashboarddata op met een VERSE Firebase ID-token.
+  // Firebase-tokens verlopen na ~1 uur; een ad valvas-scherm draait dagen aan
+  // een stuk. profile._token (1x gelezen bij mount) liep daardoor af.
+  // getIdToken() ververst automatisch wanneer nodig.
+  const fetchAllAdValvasData = useCallback(async (signal) => {
     if (!profile?.school_id) {
-        setLoading(false);
-        return;
+      setLoading(false);
+      return;
     }
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Geen gebruiker ingelogd.");
+      const token = await user.getIdToken();
 
-    const fetchAllAdValvasData = async () => {
-        setLoading(true);
-        try {
-            const token = profile._token;
-            if (!token) throw new Error("Geen token beschikbaar");
+      const response = await fetch('/api/content', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal
+      });
 
-            const response = await fetch('/api/content', {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Kon dashboard data niet laden');
+      }
 
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'Kon dashboard data niet laden');
-            }
+      setTestHighscores(data.testHighscores || []);
+      setMededelingenData(data.mededelingen || []);
+      setBreakingNewsItems(data.breakingNews || []);
+      setActiveTests(data.activeTests || []);
+      setDataError(null);
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      // Technisch detail blijft in de console; het ad valvas-scherm hangt
+      // publiek in de gang, dus GEEN servermeldingen/stacktraces in de UI.
+      console.error('Error fetching AdValvas data:', error);
+      setDataError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [profile?.school_id]);
 
-            // Zet alle states in één keer met de data van de API
-            setTestHighscores(data.testHighscores || []);
-            setMededelingenData(data.mededelingen || []);
-            setBreakingNewsItems(data.breakingNews || []);
-            setActiveTests(data.activeTests || []);
+  useEffect(() => {
+    if (!profile?.school_id) {
+      setLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setLoading(true);
+    fetchAllAdValvasData(controller.signal);
 
-        } catch (error) {
-            console.error('Error fetching AdValvas data:', error);
-            // Je kunt hier een error state instellen als je wilt
-        } finally {
-            setLoading(false);
-        }
+    // Periodiek verversen (15 min) zodat een permanent scherm bij blijft
+    // zonder handmatige refresh.
+    const dataInterval = setInterval(() => {
+      fetchAllAdValvasData(controller.signal);
+    }, DATA_REFRESH_MS);
+
+    return () => {
+      controller.abort();
+      clearInterval(dataInterval);
     };
+  }, [profile?.school_id, fetchAllAdValvasData]);
 
-    fetchAllAdValvasData();
-}, [profile?.school_id]);
-
-// Functie om de content te vernieuwen (belangrijk voor na het toevoegen)
-  const refreshContent = () => {
+  // Functie om de content te vernieuwen (belangrijk voor na het toevoegen)
+  const refreshContent = useCallback(() => {
     if (loading) return;
-    const items = generateContentItems();
-    setContentItems(items);
-  };
+    fetchAllAdValvasData();
+  }, [loading, fetchAllAdValvasData]);
 
   // Enhanced content genereren met meer variatie
 // src/pages/adValvas.jsx
 
- const generateContentItems = () => {
+  const generateContentItems = useCallback(() => {
 
   // Data komt nu uit de state, geen fetch meer nodig.
   // We gebruiken de states die door de nieuwe useEffect zijn gevuld:
@@ -781,7 +255,7 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
       type: CONTENT_TYPES.QUOTE,
       data: shuffledQuotes[i],
       priority: 3,
-      id: `quote-${i}-${Date.now()}`
+      id: `quote-${shuffledQuotes[i]?.author || i}-${i}`
     });
 
     const shuffledFacts = shuffleArray([...SPORT_FACTS]);
@@ -789,7 +263,7 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
       type: CONTENT_TYPES.SPORT_FACT,
       data: { text: shuffledFacts[i], icon: Target, color: "from-indigo-500 to-purple-600" },
       priority: 3,
-      id: `fact-${i}-${Date.now()}`
+      id: `fact-${generatieRef.current}-${i}`
     });
 
     const currentMonth = new Date().getMonth();
@@ -863,10 +337,10 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
   }
 
   return finalPattern;
-};
+}, [testHighscores, breakingNewsItems, activeTests, mededelingenData]);
 
 
-  // Live sport feed ophalen met 5 minuten interval  
+  // Live sport feed ophalen (interval: FEED_REFRESH_MS)
   useEffect(() => {
     const loadLiveSportsFeed = async () => {
       setFeedLoading(true);
@@ -901,7 +375,7 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     loadLiveSportsFeed();
     
     // Auto refresh elke 5 minuten
-    const feedRefreshInterval = setInterval(loadLiveSportsFeed, 60 * 60 * 1000);
+    const feedRefreshInterval = setInterval(loadLiveSportsFeed, FEED_REFRESH_MS);
     
     return () => clearInterval(feedRefreshInterval);
   }, [liveFeedAPI]);
@@ -922,22 +396,16 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
 
   useEffect(() => {
     // Alleen uitvoeren als de hoofd-data geladen is
-    if (loading) return; 
+    if (loading) return;
 
-    // generateContentItems is nu synchroon
-    const items = generateContentItems(); 
+    // liveNewsData/liveScoresData stonden hier als dependency maar worden in
+    // generateContentItems niet gebruikt: elke feed-refresh regenereerde
+    // daardoor onnodig de volledige contentlijst.
+    generatieRef.current += 1;
+    const items = generateContentItems();
     setContentItems(items);
-    setUsedContentIndices([]); // Reset de indices
-
-}, [
-    testHighscores, 
-    liveNewsData, 
-    liveScoresData, 
-    loading, 
-    mededelingenData,  // <-- NIEUWE DEPENDENCY
-    breakingNewsItems, // <-- NIEUWE DEPENDENCY
-    activeTests        // <-- NIEUWE DEPENDENCY
-]);
+    setCurrentContentIndex(0);
+  }, [loading, generateContentItems]);
 
   // Tijd updaten
   useEffect(() => {
@@ -945,8 +413,7 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     return () => clearInterval(timer);
   }, []);
 
-  // Smart content wisselen - elke 8 seconden met intelligente selectie
-// Content wisselen - elke 8 seconden in de correcte volgorde
+  // Content wisselen in de correcte volgorde (interval: SLIDE_INTERVAL_MS)
   useEffect(() => {
     if (contentItems.length === 0) return;
     
@@ -959,18 +426,18 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
         setCurrentContentIndex((prevIndex) => (prevIndex + 1) % contentItems.length);
         setAnimationClass('');
       }, 300);
-    }, 8000);
+    }, SLIDE_INTERVAL_MS);
     
     return () => clearInterval(slideTimer);
   }, [contentItems]); // De afhankelijkheid van currentContentIndex is niet meer nodig
 
-  // Live nieuws ticker - elke 15 seconden voor betere leesbaarheid
+  // Live nieuws ticker (interval: NEWS_TICKER_MS)
   useEffect(() => {
     if (liveNewsData.length === 0) return;
     
     const newsTimer = setInterval(() => {
     setNewsIndex((prev) => (prev + 1) % liveNewsData.length);
-  }, 40 * 1000); // 30 seconden
+  }, NEWS_TICKER_MS);
     
     return () => clearInterval(newsTimer);
   }, [liveNewsData.length]);
@@ -990,32 +457,6 @@ const [isModalOpen, setIsModalOpen] = useState(false); // State voor de popup
     return `${Math.floor(days / 30)} maanden geleden`;
   };
 
-  // Seizoensgebonden content helper (uitgebreid)
-  const getSeasonalContent = (month) => {
-    const seasonalData = {
-      // Lente (maart, april, mei)
-      2: { text: "Lente is begonnen! Perfect weer om buiten te sporten 🌸", icon: Calendar, color: "from-green-400 to-blue-500" },
-      3: { text: "April: Ideale maand voor atletiek en buitenactiviteiten! 🏃‍♂️", icon: Activity, color: "from-blue-400 to-green-500" },
-      4: { text: "Mei: Sportdag voorbereidingen zijn in volle gang! 🏆", icon: Trophy, color: "from-yellow-400 to-green-500" },
-      
-      // Zomer (juni, juli, augustus)
-      5: { text: "Zomersport seizoen geopend! Zwemmen en watersport! 🏊‍♀️", icon: Activity, color: "from-blue-500 to-cyan-500" },
-      6: { text: "Juli: Zomerkampen en buitenactiviteiten! ☀️", icon: Users, color: "from-orange-400 to-yellow-500" },
-      7: { text: "Augustus: Laatste kans voor zomerse sportbeoefening! 🌞", icon: Target, color: "from-red-400 to-orange-500" },
-      
-      // Herfst (september, oktober, november) 
-      8: { text: "Schoolsport herstart! Nieuwe kansen, nieuwe records! 📚", icon: BookOpen, color: "from-orange-500 to-red-500" },
-      9: { text: "Oktober: Herfstcrosslopen en teambuilding activiteiten! 🍂", icon: Users, color: "from-yellow-500 to-orange-600" },
-      10: { text: "November: Indoor sporten nemen de overhand! 🏀", icon: Target, color: "from-purple-500 to-blue-600" },
-      
-      // Winter (december, januari, februari)
-      11: { text: "December: Winterse uitdagingen en conditieopbouw! ❄️", icon: Zap, color: "from-blue-600 to-purple-600" },
-      0: { text: "Januari: Nieuwe jaar, nieuwe sportdoelen! 🎯", icon: Target, color: "from-indigo-500 to-purple-600" },
-      1: { text: "Februari: Opbouw naar lente sportactiviteiten! 💪", icon: TrendingUp, color: "from-purple-600 to-pink-600" }
-    };
-    
-    return seasonalData[month] || null;
-  };
 
 
 const canPostMessages = () => {
@@ -1503,6 +944,27 @@ case CONTENT_TYPES.BREAKING_NEWS:
           )}
         </div>
       </div>
+
+      {/* Foutmelding dashboarddata: voorkomt een stil leeg scherm */}
+      {dataError && (
+        <div className="mx-4 mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <WifiOff className="h-5 w-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Dashboardgegevens konden niet vernieuwd worden</p>
+              <p className="text-xs text-amber-700">Het scherm toont de laatst geladen gegevens en probeert het automatisch opnieuw.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchAllAdValvasData()}
+            className="flex-shrink-0 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-xs font-medium text-white hover:bg-amber-700"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Opnieuw
+          </button>
+        </div>
+      )}
 
       {/* Enhanced Live Sport News Ticker - Desktop only */}
       {!school?.instellingen?.disableSportLiveFeed && (
