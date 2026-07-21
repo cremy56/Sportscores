@@ -219,20 +219,24 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
           RESTERENDE ruimte. overflow-hidden i.p.v. auto: op een kioskscherm
           hoort niets te scrollen; past het niet, dan schaalt de slide zelf. */}
       <div className={`flex-1 min-h-0 pb-4 lg:pb-24 ${kiosk ? 'flex flex-col justify-center overflow-hidden' : 'overflow-y-auto'}`}>
-        <div className={`w-full max-w-7xl mx-auto px-4 pb-8 lg:px-8 lg:pb-10 ${kiosk ? 'pt-0' : 'pt-4'}`}>
+        <div className={`w-full max-w-7xl mx-auto px-4 lg:px-8 ${kiosk ? 'pt-0 pb-0 min-h-0' : 'pt-4 pb-8 lg:pb-10'}`}>
           
           {/* --- OUDE KNOP HIER VERWIJDERD --- */}
 
           {/* Main Content */}
           {contentItems.length > 0 && currentItem ? (
-            <div className={`transition-all duration-700 ${animationClass} mb-10`}>
-              <ContentSlide item={currentItem} />
+            <div
+              className={`transition-all duration-700 ${animationClass} ${
+                kiosk ? 'mb-4 max-h-full flex items-center justify-center' : 'mb-10'
+              }`}
+            >
+              <ContentSlide item={currentItem} kiosk={kiosk} />
               
               {/* Voortgang. In kioskmodus een dunne balk i.p.v. klikbare
                   bolletjes: op een scherm zonder muis zijn knoppen zinloos,
                   en 12 bolletjes zijn van veraf toch niet te tellen. */}
               {kiosk ? (
-                <div className="mt-10 mx-auto max-w-md">
+                <div className="mt-6 mx-auto max-w-md">
                   <div className="h-1.5 w-full bg-gray-300/60 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-purple-600 to-blue-600 rounded-full transition-all duration-500"

@@ -27,17 +27,17 @@ const PODIUM_STYLES = {
   }
 };
 
-export default function PodiumCard({ score, position, eenheid }) {
+export default function PodiumCard({ score, position, eenheid, kiosk = false }) {
   const style = PODIUM_STYLES[position];
   if (!style) return null;
 
   return (
     <div
-      className={`${style.bg} ${style.shadow} rounded-2xl p-5 text-center shadow-xl transform hover:scale-105 hover:rotate-1 transition-all duration-500 ${
-        position === 1 ? 'scale-105 animate-pulse' : ''
-      }`}
+      className={`${style.bg} ${style.shadow} rounded-2xl text-center shadow-xl transform hover:scale-105 hover:rotate-1 transition-all duration-500 ${
+        kiosk ? 'p-4' : 'p-5'
+      } ${position === 1 ? 'scale-105 animate-pulse' : ''}`}
     >
-      <div className="text-6xl lg:text-7xl mb-3 animate-bounce">{style.icon}</div>
+      <div className={`${kiosk ? 'text-5xl lg:text-6xl mb-2' : 'text-6xl lg:text-7xl mb-3'} animate-bounce`}>{style.icon}</div>
       <div className={`${style.text} font-bold text-3xl lg:text-4xl mb-2 tracking-wide`}>
         {formatNameForDisplay(score.leerling_naam)}
       </div>
