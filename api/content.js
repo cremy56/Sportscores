@@ -254,10 +254,55 @@ async function handleCreateData(req, res, decodedToken) {
 
 // --- HOOFD HANDLER (Router) ---
 // VERVANG je oude 'export default' handler met DEZE
+// Onderscheidt een ECHTE tokenverificatiefout van een infrastructuurfout.
+//
+// Waarom dit bestaat: voorheen stond hier error.message.includes('token').
+// Die check labelde ook infrastructuurfouten als 401 — een ingetrokken
+// service-account-key geeft "Failed to fetch access token", wat dus als
+// "niet ingelogd" naar de client ging ZONDER logging. Dat maskeerde in
+// juli 2026 een productie-uitval van ±15 minuten.
+//
+// De Admin SDK zet op echte auth-fouten een .code van de vorm 'auth/...'
+// (bv. auth/id-token-expired, auth/argument-error). Infrastructuurfouten
+// hebben die code niet. Dat is de betrouwbare scheidslijn; we vallen alleen
+// terug op tekstherkenning voor de expliciete gevallen die onze eigen
+// verifyToken-wrapper gooit.
+function isEchteTokenfout(error) {
+    if (typeof error?.code === 'string' && error.code.startsWith('auth/')) {
+        // Uitzondering: dit is een configuratie-/infrastructuurprobleem aan
+        // ONZE kant, geen ongeldig token van de gebruiker.
+        if (error.code === 'auth/internal-error') return false;
+        return true;
+    }
+    // Geen 'auth/'-code = geen echte auth-fout. verifyToken() in
+    // lib/firebaseAdmin.js zet zelf 'auth/geen-token' bij een ontbrekende of
+    // misvormde Authorization-header, dus we hoeven niet op fouttekst terug
+    // te vallen. Alles zonder code behandelen we als infrastructuurfout:
+    // luid loggen is beter dan stil een 401 teruggeven.
+    return false;
+}
+
 export default async function handler(req, res) {
+    // ── Stap 1: authenticatie, met een EIGEN catch ──────────────────────────
+    // Zo hoeft de brede catch hieronder nooit te raden of iets een auth- of
+    // een infrastructuurfout was.
+    let decodedToken;
     try {
-        // Stap 1 (Authenticatie) gebeurt hier voor BEIDE routes
-        const decodedToken = await verifyToken(req.headers.authorization);
+        decodedToken = await verifyToken(req.headers.authorization);
+    } catch (error) {
+        if (isEchteTokenfout(error)) {
+            // Geen error.message doorgeven aan de client: dat lekt interne
+            // details. De reden staat in de log.
+            console.warn('[auth] tokenverificatie geweigerd:', error.code || error.message);
+            return res.status(401).json({ error: 'Niet geauthenticeerd' });
+        }
+        // Infrastructuurfout (bv. ingetrokken key, Secret Manager onbereikbaar):
+        // LUID loggen en als 503 melden, niet stil als 401 wegmoffelen.
+        console.error('❌ [auth] INFRASTRUCTUURFOUT bij tokenverificatie:', error);
+        return res.status(503).json({ error: 'Authenticatiedienst tijdelijk niet beschikbaar' });
+    }
+
+    try {
 
         // ── Rate limit (per gebruiker: GET = lees, POST = schrijf) ───────────
         const rl = await checkRateLimit(req, {
@@ -309,10 +354,8 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
 
     } catch (error) {
-        // Vangt token-fouten op
-        if (error.message.includes('token')) {
-            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
-        }
+        // Authenticatie is hierboven al afgehandeld; wat hier landt is een
+        // echte serverfout. Altijd loggen, nooit als 401 maskeren.
         console.error('❌ API Hoofd-error in /content:', error);
         res.status(500).json({ error: 'Interne serverfout' });
     }
