@@ -21,7 +21,7 @@ export default function NewsTicker({
   return (
     <>
       <div className="hidden lg:block bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-t border-slate-700 fixed bottom-0 left-0 right-0 z-50 shadow-2xl">
-        <div className="flex items-center h-18 overflow-hidden">
+        <div className="flex items-center h-20 overflow-hidden">
           {/* Status indicator */}
           <div className={`flex items-center px-6 h-full shadow-lg ${
             feedStatus === 'online' ? 'bg-gradient-to-r from-green-600 to-green-700' :

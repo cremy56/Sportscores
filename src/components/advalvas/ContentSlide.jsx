@@ -34,13 +34,13 @@ export default function ContentSlide({ item }) {
   return (
     // Gekleurd vlak i.p.v. witte kaart op lichtgrijze achtergrond: die ene
     // slide viel weg tegen de pagina. Nu dezelfde vormtaal als de rest.
-    <div className={`relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-3xl shadow-2xl p-10 lg:p-14 ${paneelBreedte} mx-auto overflow-hidden`}>
+    <div className={`relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-3xl shadow-2xl p-8 lg:p-10 ${paneelBreedte} mx-auto overflow-hidden`}>
       <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-2">
         <Trophy className="h-4 w-4 text-amber-300" />
         <span className="text-sm font-bold uppercase tracking-wider text-white">Toppers</span>
       </div>
       <div className="relative z-10">
-        <div className="text-center mb-10 lg:mb-14">
+        <div className="text-center mb-8 lg:mb-10">
           <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight drop-shadow-lg">
             {item.data.test.naam}
           </h2>

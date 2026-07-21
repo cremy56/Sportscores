@@ -131,8 +131,8 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
     return (
     <div
       className={`fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col transition-opacity duration-[3000ms] ${
-        rustmodus ? 'opacity-40' : 'opacity-100'
-      }`}
+        kiosk ? 'overflow-hidden' : ''
+      } ${rustmodus ? 'opacity-40' : 'opacity-100'}`}
     >
       {/* --- POPUP FORMULIER --- */}
       {isModalOpen && (
@@ -147,13 +147,10 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
         />
       )}
 
-      {/* Main Content Area — in kioskmodus verticaal gecentreerd: de slide
-          stond bovenaan met een lege strook eronder op een groot scherm. */}
-      <div className={`flex-1 overflow-y-auto pb-20 lg:pb-20 ${kiosk ? 'flex flex-col justify-center' : ''}`}>
-        <div className={`w-full max-w-7xl mx-auto px-4 pb-8 lg:px-8 lg:pb-10 ${kiosk ? 'pt-4' : 'pt-16 lg:pt-20'}`}>
-          
-          {/* --- OUDE KNOP HIER VERWIJDERD --- */}
-
+      {/* HEADER — staat BUITEN het scrollgebied. Zat er eerst in, samen met
+          de verticale centrering: bij een hoge slide schoof de header dan
+          uit beeld en verscheen er een scrollbalk. */}
+      <div className={`flex-shrink-0 w-full max-w-7xl mx-auto px-4 lg:px-8 ${kiosk ? 'pt-6' : 'pt-16 lg:pt-20'}`}>
           {/* MOBILE HEADER */}
           <div className="lg:hidden flex justify-between items-center mb-6 px-4">
             <div className="flex items-center space-x-3">
@@ -216,6 +213,15 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
               </div>
             </div>
           </div>
+      </div>
+
+      {/* Main Content Area — in kioskmodus verticaal gecentreerd in de
+          RESTERENDE ruimte. overflow-hidden i.p.v. auto: op een kioskscherm
+          hoort niets te scrollen; past het niet, dan schaalt de slide zelf. */}
+      <div className={`flex-1 min-h-0 pb-4 lg:pb-24 ${kiosk ? 'flex flex-col justify-center overflow-hidden' : 'overflow-y-auto'}`}>
+        <div className={`w-full max-w-7xl mx-auto px-4 pb-8 lg:px-8 lg:pb-10 ${kiosk ? 'pt-0' : 'pt-4'}`}>
+          
+          {/* --- OUDE KNOP HIER VERWIJDERD --- */}
 
           {/* Main Content */}
           {contentItems.length > 0 && currentItem ? (

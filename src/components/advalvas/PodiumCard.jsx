@@ -33,15 +33,15 @@ export default function PodiumCard({ score, position, eenheid }) {
 
   return (
     <div
-      className={`${style.bg} ${style.shadow} rounded-2xl p-6 text-center shadow-xl transform hover:scale-105 hover:rotate-1 transition-all duration-500 ${
+      className={`${style.bg} ${style.shadow} rounded-2xl p-5 text-center shadow-xl transform hover:scale-105 hover:rotate-1 transition-all duration-500 ${
         position === 1 ? 'scale-105 animate-pulse' : ''
       }`}
     >
-      <div className="text-7xl lg:text-8xl mb-4 animate-bounce">{style.icon}</div>
-      <div className={`${style.text} font-bold text-3xl lg:text-4xl mb-3 tracking-wide`}>
+      <div className="text-6xl lg:text-7xl mb-3 animate-bounce">{style.icon}</div>
+      <div className={`${style.text} font-bold text-3xl lg:text-4xl mb-2 tracking-wide`}>
         {formatNameForDisplay(score.leerling_naam)}
       </div>
-      <div className={`${style.text} text-5xl lg:text-6xl font-black mb-3 drop-shadow-sm`}>
+      <div className={`${style.text} text-5xl lg:text-6xl font-black mb-2 drop-shadow-sm`}>
         {formatScoreWithUnit(score.score, eenheid)}
       </div>
       <div className={`${style.text} opacity-80 text-lg font-medium`}>
