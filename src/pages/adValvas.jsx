@@ -218,7 +218,7 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
       {/* Main Content Area — in kioskmodus verticaal gecentreerd in de
           RESTERENDE ruimte. overflow-hidden i.p.v. auto: op een kioskscherm
           hoort niets te scrollen; past het niet, dan schaalt de slide zelf. */}
-      <div className={`flex-1 min-h-0 pb-4 lg:pb-24 ${kiosk ? 'flex flex-col justify-center overflow-hidden' : 'overflow-y-auto'}`}>
+      <div className={`flex-1 min-h-0 pb-4 lg:pb-24 ${kiosk ? 'flex flex-col justify-center items-stretch overflow-hidden' : 'overflow-y-auto'}`}>
         <div className={`w-full max-w-7xl mx-auto px-4 lg:px-8 ${kiosk ? 'pt-0 pb-0 min-h-0' : 'pt-4 pb-8 lg:pb-10'}`}>
           
           {/* --- OUDE KNOP HIER VERWIJDERD --- */}
@@ -226,8 +226,8 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
           {/* Main Content */}
           {contentItems.length > 0 && currentItem ? (
             <div
-              className={`transition-all duration-700 ${animationClass} ${
-                kiosk ? 'mb-4 max-h-full flex items-center justify-center' : 'mb-10'
+              className={`w-full transition-all duration-700 ${animationClass} ${
+                kiosk ? 'mb-4 max-h-full' : 'mb-10'
               }`}
             >
               <ContentSlide item={currentItem} kiosk={kiosk} />

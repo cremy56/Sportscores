@@ -19,22 +19,19 @@ export default function ContentSlide({ item, kiosk = false }) {
   // één enkele score twee lege kolommen naast zich kreeg — dat oogde als een
   // renderfout op het scherm in de sporthal.
   const aantalScores = item.data.scores.length;
+  // Het paneel gebruikt ALTIJD de volle breedte. Een eerdere poging liet het
+  // paneel meekrimpen met het aantal scores (max-w-2xl bij één score); samen
+  // met de verticale inperking leverde dat een smalle kolom midden op een
+  // breed scherm. Alleen de kaarten binnenin schalen nu mee.
   const kolommen =
-    aantalScores === 1 ? 'grid-cols-1 max-w-md' :
-    aantalScores === 2 ? 'grid-cols-1 md:grid-cols-2 max-w-3xl' :
+    aantalScores === 1 ? 'grid-cols-1 max-w-2xl' :
+    aantalScores === 2 ? 'grid-cols-1 md:grid-cols-2 max-w-5xl' :
     'grid-cols-1 md:grid-cols-3 max-w-6xl';
-
-  // Het omhullende paneel krimpt mee: één kaart in een 7xl-breed vlak oogt
-  // verloren op een groot scherm.
-  const paneelBreedte =
-    aantalScores === 1 ? 'max-w-2xl' :
-    aantalScores === 2 ? 'max-w-4xl' :
-    'max-w-7xl';
 
   return (
     // Gekleurd vlak i.p.v. witte kaart op lichtgrijze achtergrond: die ene
     // slide viel weg tegen de pagina. Nu dezelfde vormtaal als de rest.
-    <div className={`relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-3xl shadow-2xl ${kiosk ? 'p-6 lg:p-8' : 'p-8 lg:p-10'} ${paneelBreedte} mx-auto overflow-hidden`}>
+    <div className={`relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-3xl shadow-2xl ${kiosk ? 'p-6 lg:p-8' : 'p-8 lg:p-10'} w-full max-w-7xl mx-auto overflow-hidden`}>
       <div className={`absolute ${kiosk ? 'top-4 right-4' : 'top-6 right-6'} flex items-center space-x-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-2`}>
         <Trophy className="h-4 w-4 text-amber-300" />
         <span className="text-sm font-bold uppercase tracking-wider text-white">Toppers</span>
@@ -64,7 +61,7 @@ export default function ContentSlide({ item, kiosk = false }) {
   case 'mededeling':
         const MededelingIcoon = item.data.icoon;
         return (
-          <div className={`relative bg-gradient-to-br ${item.data.kleur} rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden`}>
+          <div className={`relative bg-gradient-to-br ${item.data.kleur} rounded-3xl shadow-2xl p-12 w-full max-w-7xl mx-auto text-white overflow-hidden`}>
             <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
               <MededelingIcoon className="h-4 w-4" />
               <span className="text-sm font-bold uppercase tracking-wider">
@@ -85,7 +82,7 @@ export default function ContentSlide({ item, kiosk = false }) {
     case 'placeholder':
         const PlaceholderIcon = item.data.icon;
         return (
-          <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-lg p-12 max-w-6xl mx-auto text-white`}>
+          <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-lg p-12 w-full max-w-7xl mx-auto text-white`}>
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 rounded-full mb-8">
                 <PlaceholderIcon className="h-12 w-12 opacity-90 animate-spin" />
@@ -99,7 +96,7 @@ export default function ContentSlide({ item, kiosk = false }) {
 
       case CONTENT_TYPES.LIVE_SPORTS_NEWS:
         return (
-          <div className="relative bg-gradient-to-br from-red-600 via-red-700 to-pink-800 rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden">
+          <div className="relative bg-gradient-to-br from-red-600 via-red-700 to-pink-800 rounded-3xl shadow-2xl p-12 w-full max-w-7xl mx-auto text-white overflow-hidden">
             {/* Live indicator */}
             <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
               <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
@@ -130,7 +127,7 @@ export default function ContentSlide({ item, kiosk = false }) {
         );
 case CONTENT_TYPES.BREAKING_NEWS:
       return (
-        <div className="relative bg-gradient-to-br from-red-600 via-red-700 to-pink-800 rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden animate-pulse">
+        <div className="relative bg-gradient-to-br from-red-600 via-red-700 to-pink-800 rounded-3xl shadow-2xl p-12 w-full max-w-7xl mx-auto text-white overflow-hidden animate-pulse">
           {/* BREAKING NEWS indicator */}
           <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 animate-bounce">
             <div className="w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
@@ -165,7 +162,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
       
     case CONTENT_TYPES.ACTIVE_TEST:
       return (
-        <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden`}>
+        <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 w-full max-w-7xl mx-auto text-white overflow-hidden`}>
           {/* LIVE indicator */}
           <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
             <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
@@ -192,7 +189,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
       
     case CONTENT_TYPES.UPCOMING_EVENT:
       return (
-        <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden`}>
+        <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 w-full max-w-7xl mx-auto text-white overflow-hidden`}>
           <div className="relative z-10 text-center">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 backdrop-blur-sm rounded-full mb-8">
               <Calendar className="h-10 w-10 opacity-80" />
@@ -209,7 +206,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
       );
       case CONTENT_TYPES.QUOTE:
         return (
-          <div className="relative bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden">
+          <div className="relative bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 rounded-3xl shadow-2xl p-12 w-full max-w-7xl mx-auto text-white overflow-hidden">
             {/* Animated background particles */}
             <div className="absolute inset-0 overflow-hidden">
               <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white/20 rounded-full animate-ping"></div>
@@ -237,7 +234,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
       // moet vanaf de overkant van de sporthal leesbaar zijn.
       case CONTENT_TYPES.DAILY_ACTIVITY:
         return (
-          <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden`}>
+          <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 w-full max-w-7xl mx-auto text-white overflow-hidden`}>
             <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
               <div className="w-3 h-3 bg-green-300 rounded-full animate-pulse"></div>
               <span className="text-sm font-bold uppercase tracking-wider">Vandaag</span>
@@ -263,7 +260,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
       // Weekcijfers: schaal tonen, nooit individuele prestaties.
       case CONTENT_TYPES.WEEKLY_STATS:
         return (
-          <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden`}>
+          <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 w-full max-w-7xl mx-auto text-white overflow-hidden`}>
             <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
               <BarChart3 className="h-4 w-4" />
               <span className="text-sm font-bold uppercase tracking-wider">Deze week</span>
@@ -295,7 +292,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
       case CONTENT_TYPES.SPORT_FACT:
         const IconComponent = item.data.icon;
         return (
-          <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden`}>
+          <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 w-full max-w-7xl mx-auto text-white overflow-hidden`}>
             {/* Subtle animated background */}
             <div className="absolute inset-0 opacity-10">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-32 translate-x-32"></div>
