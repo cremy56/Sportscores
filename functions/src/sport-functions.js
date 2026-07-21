@@ -298,6 +298,25 @@ function stripHtml(html) {
   return html.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ').trim();
 }
 
+// Herkent een geciteerde uitspraak van enige lengte in een titel. Gebruikt
+// charCodes i.p.v. een regex-literal zodat de diverse soorten aanhalingstekens
+// (recht, links/rechts krullend) eenduidig te vergelijken zijn.
+function bevatLangCitaat(titel) {
+  if (!titel) return false;
+  const QUOTES = [0x22, 0x201C, 0x201D, 0x2018, 0x2019, 0xAB, 0xBB];
+  let eerste = -1;
+  for (let i = 0; i < titel.length; i++) {
+    if (QUOTES.includes(titel.charCodeAt(i))) {
+      if (eerste === -1) {
+        eerste = i;
+      } else if (i - eerste >= 15) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Sport content filter
 function filterSportContent(items) {
   const sportKeywords = [
@@ -310,8 +329,30 @@ function filterSportContent(items) {
   ];
 
   const excludeKeywords = [
-    'politiek', 'politics', 'economie', 'crime', 'accident', 
+    'politiek', 'politics', 'economie', 'crime', 'accident',
     'weather', 'weer', 'verkeer', 'entertainment', 'showbizz', 'reality'
+  ];
+
+  // ── Schoolscherm-filter ────────────────────────────────────────────────────
+  // Het ad valvas hangt publiek in een school. De sportcheck hierboven kijkt
+  // enkel of er ERGENS een sportwoord in de tekst staat: een smeuig interview
+  // met een atleet haalt die check dus moeiteloos. Deze lijst blokkeert los
+  // van het sportgehalte. Bij twijfel: niet tonen.
+  const nietVoorSchool = [
+    // lichamelijk/plat
+    'poep', 'kak', 'pis', 'plas', 'kots', 'braak', 'scheet', 'toilet',
+    // seksueel / relationeel geroddel
+    'seks', 'sex', 'naakt', 'nude', 'vreemdgaan', 'affaire',
+    'liefdesleven', 'scheiding', 'echtscheiding', 'ex-vriendin', 'ex-vrouw',
+    'onenightstand', 'pikant', 'intiem', 'sexy', 'lingerie',
+    'ontrouw', 'bedrogen', 'datingleven', 'relatiebreuk',
+    // zware/gevoelige onderwerpen
+    'overleden', 'sterft', 'stierf', 'begrafenis', 'zelfmoord',
+    'suicide', 'doodgereden', 'verkracht', 'aanranding', 'misbruik',
+    'mishandeling', 'geweld', 'moord', 'drugs', 'doping', 'alcohol',
+    'dronken', 'gokken', 'gokverslaving',
+    // clickbait-registers
+    'schandaal', 'ruzie', 'uithaal', 'sneer', 'afgekraakt'
   ];
 
   return items.filter(item => {
@@ -324,6 +365,15 @@ function filterSportContent(items) {
     const hasExcludedContent = excludeKeywords.some(keyword =>
       content.includes(keyword.toLowerCase())
     );
+
+    // Ongeschikt voor een schoolscherm -> altijd weg, ook al is het sport.
+    const ongeschikt = nietVoorSchool.some(woord => content.includes(woord));
+    if (ongeschikt) return false;
+
+    // Een geciteerde uitspraak in de titel duidt bijna altijd op een
+    // interviewkop; dat is het genre waar de smeuige koppen zitten. Een
+    // sportverslag ("Club wint met 3-0") heeft aanhalingstekens zelden nodig.
+    if (bevatLangCitaat(item.title)) return false;
     
     // Alleen recente content (laatste 24 uur)
     const isRecent = item.publishedAt && 

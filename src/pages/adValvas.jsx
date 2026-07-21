@@ -147,9 +147,10 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
         />
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto pb-20 lg:pb-20">
-        <div className={`max-w-7xl mx-auto px-4 pb-8 lg:px-8 lg:pb-10 ${kiosk ? 'pt-6 lg:pt-8' : 'pt-16 lg:pt-20'}`}>
+      {/* Main Content Area — in kioskmodus verticaal gecentreerd: de slide
+          stond bovenaan met een lege strook eronder op een groot scherm. */}
+      <div className={`flex-1 overflow-y-auto pb-20 lg:pb-20 ${kiosk ? 'flex flex-col justify-center' : ''}`}>
+        <div className={`w-full max-w-7xl mx-auto px-4 pb-8 lg:px-8 lg:pb-10 ${kiosk ? 'pt-4' : 'pt-16 lg:pt-20'}`}>
           
           {/* --- OUDE KNOP HIER VERWIJDERD --- */}
 
@@ -221,25 +222,40 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
             <div className={`transition-all duration-700 ${animationClass} mb-10`}>
               <ContentSlide item={currentItem} />
               
-              {/* Enhanced Content Indicators */}
-              <div className="flex justify-center items-center space-x-3 mt-10">
-                <div className="flex space-x-2">
-                  {contentItems.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentContentIndex(index)}
-                      className={`transition-all duration-300 rounded-full ${
-                        currentContentIndex === index 
-                          ? 'w-8 h-4 bg-gradient-to-r from-purple-600 to-blue-600 scale-110' 
-                          : 'w-4 h-4 bg-gray-300 hover:bg-gray-400 hover:scale-110'
-                      }`}
+              {/* Voortgang. In kioskmodus een dunne balk i.p.v. klikbare
+                  bolletjes: op een scherm zonder muis zijn knoppen zinloos,
+                  en 12 bolletjes zijn van veraf toch niet te tellen. */}
+              {kiosk ? (
+                <div className="mt-10 mx-auto max-w-md">
+                  <div className="h-1.5 w-full bg-gray-300/60 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-purple-600 to-blue-600 rounded-full transition-all duration-500"
+                      style={{
+                        width: `${((currentContentIndex + 1) / contentItems.length) * 100}%`
+                      }}
                     />
-                  ))}
+                  </div>
                 </div>
-                <div className="ml-4 text-sm text-gray-500 font-medium">
-                  {currentContentIndex + 1} / {contentItems.length}
+              ) : (
+                <div className="flex justify-center items-center space-x-3 mt-10">
+                  <div className="flex space-x-2">
+                    {contentItems.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentContentIndex(index)}
+                        className={`transition-all duration-300 rounded-full ${
+                          currentContentIndex === index
+                            ? 'w-8 h-4 bg-gradient-to-r from-purple-600 to-blue-600 scale-110'
+                            : 'w-4 h-4 bg-gray-300 hover:bg-gray-400 hover:scale-110'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <div className="ml-4 text-sm text-gray-500 font-medium">
+                    {currentContentIndex + 1} / {contentItems.length}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             // Enhanced Empty State

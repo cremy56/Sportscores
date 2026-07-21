@@ -20,14 +20,21 @@ export default function ContentSlide({ item }) {
   // renderfout op het scherm in de sporthal.
   const aantalScores = item.data.scores.length;
   const kolommen =
-    aantalScores === 1 ? 'grid-cols-1 max-w-lg' :
-    aantalScores === 2 ? 'grid-cols-1 md:grid-cols-2 max-w-4xl' :
+    aantalScores === 1 ? 'grid-cols-1 max-w-md' :
+    aantalScores === 2 ? 'grid-cols-1 md:grid-cols-2 max-w-3xl' :
     'grid-cols-1 md:grid-cols-3 max-w-6xl';
+
+  // Het omhullende paneel krimpt mee: één kaart in een 7xl-breed vlak oogt
+  // verloren op een groot scherm.
+  const paneelBreedte =
+    aantalScores === 1 ? 'max-w-2xl' :
+    aantalScores === 2 ? 'max-w-4xl' :
+    'max-w-7xl';
 
   return (
     // Gekleurd vlak i.p.v. witte kaart op lichtgrijze achtergrond: die ene
     // slide viel weg tegen de pagina. Nu dezelfde vormtaal als de rest.
-    <div className="relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-3xl shadow-2xl p-10 lg:p-14 max-w-7xl mx-auto overflow-hidden">
+    <div className={`relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-3xl shadow-2xl p-10 lg:p-14 ${paneelBreedte} mx-auto overflow-hidden`}>
       <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-2">
         <Trophy className="h-4 w-4 text-amber-300" />
         <span className="text-sm font-bold uppercase tracking-wider text-white">Toppers</span>
