@@ -12,7 +12,7 @@ import ContentSlide from '../components/advalvas/ContentSlide.jsx';
 import NewsTicker from '../components/advalvas/NewsTicker.jsx';
 import { useAdValvasData } from '../hooks/useAdValvasData.js';
 import { useAdValvasContent } from '../hooks/useAdValvasContent.js';
-import { NEWS_TICKER_MS } from '../data/adValvasConfig.js';
+import { NEWS_TICKER_MS, isRustmodus } from '../data/adValvasConfig.js';
 import { formatTime, formatDate, canPostMessages } from '../utils/adValvasHelpers.js';
 
 export default function AdValvas() {
@@ -28,6 +28,8 @@ export default function AdValvas() {
     mededelingenData,
     breakingNewsItems,
     activeTests,
+    dagActiviteit,
+    weekStats,
     loading,
     dataError,
     liveNewsData,
@@ -49,6 +51,9 @@ export default function AdValvas() {
     breakingNewsItems,
     activeTests,
     mededelingenData,
+    dagActiviteit,
+    weekStats,
+    liveNewsData,
     loading
   });
 
@@ -57,6 +62,10 @@ export default function AdValvas() {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Rustmodus buiten schooluren: scherm dimmen (stroom + inbranden).
+  // currentTime tikt elke seconde, dus dit volgt vanzelf.
+  const rustmodus = isRustmodus(currentTime);
 
   // Online/offline status
   useEffect(() => {
@@ -102,7 +111,11 @@ export default function AdValvas() {
     );
   }
     return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
+    <div
+      className={`fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col transition-opacity duration-[3000ms] ${
+        rustmodus ? 'opacity-40' : 'opacity-100'
+      }`}
+    >
       {/* --- POPUP FORMULIER --- */}
       {isModalOpen && (
         <MededelingModal 

@@ -187,11 +187,85 @@ async function getBreakingNewsAndActiveTests(schoolId) {
                 .map(snap => ({ id: snap.id, ...snap.data() }));
         }
         
-        return { breakingNews, activeTests: activeTestsData, todayScores: todayScoresData };
+        // ── Dagactiviteit per klas+test ────────────────────────────────────
+        // "3A heeft de Cooper-test gelopen — 22 leerlingen". Klasnamen zijn
+        // geen persoonsgegevens; individuele leerlingen komen hier NIET in
+        // voor. Groepen van 1-2 leerlingen slaan we over: op een publiek
+        // scherm is "1 leerling uit 3A deed de Cooper-test" herleidbaar.
+        const MIN_GROEP = 3;
+        const testNaamCache = new Map(activeTestsData.map(t => [t.id, t]));
+        const perKlasTest = new Map();
+
+        for (const s of todayScoresData) {
+            if (!s.klas || !s.test_id) continue; // groepstestafnames hebben klas: null
+            const sleutel = `${s.klas}|${s.test_id}`;
+            if (!perKlasTest.has(sleutel)) {
+                perKlasTest.set(sleutel, { klas: s.klas, test_id: s.test_id, leerlingen: new Set() });
+            }
+            if (s.leerling_id) perKlasTest.get(sleutel).leerlingen.add(s.leerling_id);
+        }
+
+        const dagActiviteit = [];
+        for (const item of perKlasTest.values()) {
+            const aantal = item.leerlingen.size;
+            if (aantal < MIN_GROEP) continue;
+            const test = testNaamCache.get(item.test_id);
+            if (!test) continue;
+            dagActiviteit.push({
+                klas: item.klas,
+                testNaam: test.naam,
+                aantalLeerlingen: aantal
+            });
+        }
+        dagActiviteit.sort((a, b) => b.aantalLeerlingen - a.aantalLeerlingen);
+
+        return {
+            breakingNews,
+            activeTests: activeTestsData,
+            todayScores: todayScoresData,
+            dagActiviteit: dagActiviteit.slice(0, 6)
+        };
 
     } catch (error) {
         console.error('Server error fetching breaking news:', error);
-        return { breakingNews: [], activeTests: [], todayScores: [] };
+        return { breakingNews: [], activeTests: [], todayScores: [], dagActiviteit: [] };
+    }
+}
+
+// --- Helper 4: Weekstatistieken (geaggregeerd, niet herleidbaar) ---
+// Toont schaal, geen personen: aantal scores, actieve klassen, testsoorten.
+async function getWeekStats(schoolId) {
+    try {
+        const nu = new Date();
+        const weekGeleden = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() - 7);
+
+        const snap = await db.collection('scores')
+            .where('school_id', '==', schoolId)
+            .where('datum', '>=', Timestamp.fromDate(weekGeleden))
+            .get();
+
+        if (snap.empty) return null;
+
+        const klassen = new Set();
+        const testen = new Set();
+        const leerlingen = new Set();
+
+        snap.docs.forEach(d => {
+            const s = d.data();
+            if (s.klas) klassen.add(s.klas);
+            if (s.test_id) testen.add(s.test_id);
+            if (s.leerling_id) leerlingen.add(s.leerling_id);
+        });
+
+        return {
+            aantalScores: snap.size,
+            aantalKlassen: klassen.size,
+            aantalTesten: testen.size,
+            aantalLeerlingen: leerlingen.size
+        };
+    } catch (error) {
+        console.error('Server error fetching weekstats:', error);
+        return null;
     }
 }
 
@@ -325,13 +399,15 @@ export default async function handler(req, res) {
 
             // === 3. VOER ALLE QUERIES PARALLEL UIT ===
             const [
-                highscoresData, 
-                mededelingenData, 
-                newsAndTestData
+                highscoresData,
+                mededelingenData,
+                newsAndTestData,
+                weekStats
             ] = await Promise.all([
                 getTestHighscores(schoolId),
                 getMededelingen(schoolId),
-                getBreakingNewsAndActiveTests(schoolId)
+                getBreakingNewsAndActiveTests(schoolId),
+                getWeekStats(schoolId)
             ]);
 
             // === 4. STUUR GECOMBINEERD ANTWOORD TERUG ===
@@ -341,7 +417,8 @@ export default async function handler(req, res) {
                 mededelingen: mededelingenData,
                 breakingNews: newsAndTestData.breakingNews,
                 activeTests: newsAndTestData.activeTests,
-                todayScores: newsAndTestData.todayScores
+                dagActiviteit: newsAndTestData.dagActiviteit,
+                weekStats
             });
         }
 

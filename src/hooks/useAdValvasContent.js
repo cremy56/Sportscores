@@ -4,7 +4,7 @@
 // verzorgt de rotatie op het scherm.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Award, Megaphone, BookOpen, Target, RefreshCw } from 'lucide-react';
+import { Award, Megaphone, BookOpen, Target, RefreshCw, Users, BarChart3 } from 'lucide-react';
 import { SPORT_QUOTES } from '../data/sportQuotes.js';
 import { SPORT_FACTS } from '../data/sportFacts.js';
 import {
@@ -14,11 +14,22 @@ import {
 } from '../data/adValvasConfig.js';
 import { shuffleArray } from '../utils/adValvasHelpers.js';
 
+// Hoeveel quotes/feiten per generatie in de rotatie komen. Was 2 en 3: met
+// pools van ~190 quotes en ~309 feiten zag je op een rustige dag steeds
+// dezelfde vijf terugkomen. De lijst wordt elke datavernieuwing opnieuw
+// geschud (elke 15 min), dus dit bepaalt de variatie binnen één ronde.
+const AANTAL_QUOTES = 4;
+const AANTAL_FACTS = 5;
+const AANTAL_NIEUWS = 3;
+
 export function useAdValvasContent({
   testHighscores,
   breakingNewsItems,
   activeTests,
   mededelingenData,
+  dagActiviteit,
+  weekStats,
+  liveNewsData,
   loading
 }) {
   const [contentItems, setContentItems] = useState([]);
@@ -65,7 +76,7 @@ export function useAdValvasContent({
 
     try {
       const shuffledQuotes = shuffleArray(SPORT_QUOTES);
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < AANTAL_QUOTES; i++) {
         otherContent.push({
           type: CONTENT_TYPES.QUOTE,
           data: shuffledQuotes[i],
@@ -75,7 +86,7 @@ export function useAdValvasContent({
       }
 
       const shuffledFacts = shuffleArray(SPORT_FACTS);
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < AANTAL_FACTS; i++) {
         otherContent.push({
           type: CONTENT_TYPES.SPORT_FACT,
           data: {
@@ -118,13 +129,60 @@ export function useAdValvasContent({
       id: `mededeling-${item.id}`
     }));
 
+    // ── Dagactiviteit: "3A liep de Cooper-test" ──────────────────────────
+    const dagActiviteitItems = (dagActiviteit || []).map((a, i) => ({
+      type: CONTENT_TYPES.DAILY_ACTIVITY,
+      data: {
+        klas: a.klas,
+        testNaam: a.testNaam,
+        aantalLeerlingen: a.aantalLeerlingen,
+        icon: Users,
+        color: 'from-emerald-500 to-teal-600'
+      },
+      priority: 14,
+      id: `dagactiviteit-${a.klas}-${a.testNaam}-${i}`
+    }));
+
+    // ── Weekstatistieken: schaal tonen, geen personen ────────────────────
+    const weekStatsItems = weekStats && weekStats.aantalScores > 0
+      ? [{
+          type: CONTENT_TYPES.WEEKLY_STATS,
+          data: {
+            ...weekStats,
+            icon: BarChart3,
+            color: 'from-violet-500 to-fuchsia-600'
+          },
+          priority: 8,
+          id: `weekstats-${generatie}`
+        }]
+      : [];
+
+    // ── Sportnieuws als volwaardige slide ────────────────────────────────
+    // Stond alleen in het smalle balkje onderaan, dat op tablets niet eens
+    // zichtbaar is (hidden lg:block).
+    const nieuwsItems = shuffleArray(liveNewsData || [])
+      .slice(0, AANTAL_NIEUWS)
+      .map((n, i) => ({
+        type: CONTENT_TYPES.LIVE_SPORTS_NEWS,
+        data: {
+          title: n.title,
+          source: n.source,
+          publishedAt: n.publishedAt
+        },
+        priority: 6,
+        id: `nieuws-${generatie}-${i}`
+      }));
+
     // Bouw het alternerende patroon: highscore ↔ overige content
     const diverseContent = [];
     diverseContent.push(...mededelingItems);
     breakingItems.forEach((item) => {
       for (let i = 0; i < (item.showFrequency || 1); i++) diverseContent.push(item);
     });
+    diverseContent.push(...dagActiviteitItems);
     diverseContent.push(...activeTestItems);
+    diverseContent.push(...weekStatsItems);
+    diverseContent.push(...nieuwsItems);
     diverseContent.push(...otherContent);
 
     const diverseItemsForLoop = shuffleArray(diverseContent);
@@ -154,7 +212,7 @@ export function useAdValvasContent({
       finalPattern.push(diverseItemsForLoop[i % diverseCount]);
     }
     return finalPattern;
-  }, [testHighscores, breakingNewsItems, activeTests, mededelingenData]);
+  }, [testHighscores, breakingNewsItems, activeTests, mededelingenData, dagActiviteit, weekStats, liveNewsData]);
 
   // Contentlijst (her)opbouwen zodra de data verandert.
   // liveNewsData stond hier ooit als dependency maar wordt niet gebruikt:

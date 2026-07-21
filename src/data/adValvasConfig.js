@@ -25,6 +25,19 @@ export const FEED_REFRESH_MS = 60 * 60 * 1000;   // sportnieuwsfeed: elk uur
 export const SLIDE_INTERVAL_MS = 8 * 1000;       // content wisselt elke 8 seconden
 export const NEWS_TICKER_MS = 40 * 1000;         // nieuwsticker: elke 40 seconden
 
+// --- Rustmodus buiten schooluren ---
+// Het scherm hangt permanent aan. Buiten deze uren dimmen we: scheelt stroom
+// en beperkt inbranden van statische elementen op het paneel.
+export const RUSTMODUS_START_UUR = 18;  // vanaf 18:00 dimmen
+export const RUSTMODUS_EIND_UUR = 7;    // tot 07:00
+
+export function isRustmodus(datum = new Date()) {
+  const uur = datum.getHours();
+  const dag = datum.getDay(); // 0 = zondag, 6 = zaterdag
+  if (dag === 0 || dag === 6) return true;
+  return uur >= RUSTMODUS_START_UUR || uur < RUSTMODUS_EIND_UUR;
+}
+
 // Seizoensgebonden content helper (uitgebreid)
 export const getSeasonalContent = (month) => {
   const seasonalData = {

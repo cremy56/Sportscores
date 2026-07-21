@@ -6,7 +6,7 @@
 // LET OP: externe RSS-titels (LIVE_SPORTS_NEWS) worden als tekstnode
 // gerenderd — React escapet die. Nooit dangerouslySetInnerHTML gebruiken.
 
-import { Trophy, Calendar, Clock, Activity, Quote, BookOpen } from 'lucide-react';
+import { Trophy, Calendar, Clock, Activity, Quote, BookOpen, Users, BarChart3 } from 'lucide-react';
 import PodiumCard from './PodiumCard.jsx';
 import { CONTENT_TYPES } from '../../data/adValvasConfig.js';
 import { getRelativeTime } from '../../utils/adValvasHelpers.js';
@@ -20,7 +20,7 @@ export default function ContentSlide({ item }) {
       {/* ... decoratieve elementen ... */}
       <div className="relative z-10">
         <div className="text-center mb-12">
-          <h2 className="text-2xl lg:text-3xl font-black text-gray-800 mb-4 tracking-tight bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+          <h2 className="text-4xl lg:text-6xl font-black text-gray-800 mb-4 tracking-tight bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
             {item.data.test.naam}
           </h2>
         </div>
@@ -51,7 +51,7 @@ export default function ContentSlide({ item }) {
               <div className="inline-flex items-center justify-center w-24 h-24 bg-white/10 rounded-full mb-8">
                 <MededelingIcoon className="h-12 w-12 opacity-90" />
               </div>
-              <h2 className="text-2xl lg:text-4xl font-bold leading-tight drop-shadow-lg mb-4">
+              <h2 className="text-4xl lg:text-6xl font-bold leading-tight drop-shadow-lg mb-4">
                 {item.data.tekst}
               </h2>
              
@@ -66,7 +66,7 @@ export default function ContentSlide({ item }) {
               <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 rounded-full mb-8">
                 <PlaceholderIcon className="h-12 w-12 opacity-90 animate-spin" />
               </div>
-              <h2 className="text-2xl lg:text-4xl font-bold">
+              <h2 className="text-4xl lg:text-6xl font-bold">
                 {item.data.text}
               </h2>
             </div>
@@ -93,7 +93,7 @@ export default function ContentSlide({ item }) {
               <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 backdrop-blur-sm rounded-full mb-8">
                 <Activity className="h-10 w-10 opacity-80" />
               </div>
-              <h2 className="text-2xl lg:text-4xl font-bold leading-tight drop-shadow-lg mb-6">
+              <h2 className="text-4xl lg:text-6xl font-bold leading-tight drop-shadow-lg mb-6">
                 {item.data.title}
               </h2>
               <div className="flex items-center justify-center space-x-4 text-red-100">
@@ -124,10 +124,10 @@ case CONTENT_TYPES.BREAKING_NEWS:
             <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 backdrop-blur-sm rounded-full mb-8">
               <Trophy className="h-10 w-10 opacity-80 animate-spin" style={{animationDuration: '3s'}} />
             </div>
-            <h2 className="text-2xl lg:text-4xl font-bold leading-tight drop-shadow-lg mb-4">
+            <h2 className="text-4xl lg:text-6xl font-bold leading-tight drop-shadow-lg mb-4">
               {item.data.title}
             </h2>
-            <p className="text-xl lg:text-2xl mb-6 opacity-90">
+            <p className="text-2xl lg:text-4xl mb-6 opacity-90">
               {item.data.subtitle}
             </p>
             <div className="flex items-center justify-center space-x-4 text-red-100">
@@ -152,7 +152,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
             <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 backdrop-blur-sm rounded-full mb-8">
               <BookOpen className="h-10 w-10 opacity-80" />
             </div>
-            <h2 className="text-2xl lg:text-4xl font-bold leading-tight drop-shadow-lg mb-4">
+            <h2 className="text-4xl lg:text-6xl font-bold leading-tight drop-shadow-lg mb-4">
               {item.data.text}
             </h2>
             <p className="text-xl opacity-80 mb-6">
@@ -173,7 +173,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
             <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 backdrop-blur-sm rounded-full mb-8">
               <Calendar className="h-10 w-10 opacity-80" />
             </div>
-            <h2 className="text-2xl lg:text-4xl font-bold leading-tight drop-shadow-lg mb-6">
+            <h2 className="text-4xl lg:text-6xl font-bold leading-tight drop-shadow-lg mb-6">
               {item.data.text}
             </h2>
             <div className="inline-flex items-center space-x-2 bg-white/20 rounded-full px-4 py-2">
@@ -197,7 +197,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
               <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 backdrop-blur-sm rounded-full mb-8">
                 <Quote className="h-10 w-10 opacity-80" />
               </div>
-              <blockquote className="text-2xl lg:text-4xl font-medium leading-relaxed mb-8 italic relative">
+              <blockquote className="text-4xl lg:text-6xl font-medium leading-relaxed mb-8 italic relative">
                 <span className="text-6xl text-white/20 absolute -top-4 -left-2">"</span>
                 {item.data.text}
                 <span className="text-6xl text-white/20 absolute -bottom-8 -right-2">"</span>
@@ -209,8 +209,64 @@ case CONTENT_TYPES.BREAKING_NEWS:
           </div>
         );
 
+      // "3A liep de Cooper-test — 22 leerlingen". Bewust groot gezet: dit
+      // moet vanaf de overkant van de sporthal leesbaar zijn.
       case CONTENT_TYPES.DAILY_ACTIVITY:
+        return (
+          <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden`}>
+            <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
+              <div className="w-3 h-3 bg-green-300 rounded-full animate-pulse"></div>
+              <span className="text-sm font-bold uppercase tracking-wider">Vandaag</span>
+            </div>
+            <div className="relative z-10 text-center">
+              <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 rounded-full mb-8">
+                <Users className="h-12 w-12 opacity-90" />
+              </div>
+              <div className="text-7xl lg:text-9xl font-black tracking-tight mb-4 drop-shadow-lg">
+                {item.data.klas}
+              </div>
+              <h2 className="text-3xl lg:text-5xl font-bold leading-tight mb-6">
+                {item.data.testNaam}
+              </h2>
+              <div className="inline-flex items-center space-x-3 bg-white/20 rounded-full px-6 py-3">
+                <span className="text-2xl lg:text-3xl font-black">{item.data.aantalLeerlingen}</span>
+                <span className="text-lg lg:text-xl font-medium opacity-90">leerlingen namen deel</span>
+              </div>
+            </div>
+          </div>
+        );
+
+      // Weekcijfers: schaal tonen, nooit individuele prestaties.
       case CONTENT_TYPES.WEEKLY_STATS:
+        return (
+          <div className={`relative bg-gradient-to-br ${item.data.color} rounded-3xl shadow-2xl p-12 max-w-6xl mx-auto text-white overflow-hidden`}>
+            <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="text-sm font-bold uppercase tracking-wider">Deze week</span>
+            </div>
+            <div className="relative z-10 text-center">
+              <h2 className="text-3xl lg:text-5xl font-bold mb-10">Zo actief was de sportweek</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+                {[
+                  { waarde: item.data.aantalScores, label: 'scores' },
+                  { waarde: item.data.aantalLeerlingen, label: 'sporters' },
+                  { waarde: item.data.aantalKlassen, label: 'klassen' },
+                  { waarde: item.data.aantalTesten, label: 'testsoorten' }
+                ].map((stat) => (
+                  <div key={stat.label} className="bg-white/15 backdrop-blur-sm rounded-2xl py-6 px-4">
+                    <div className="text-5xl lg:text-7xl font-black tracking-tight drop-shadow-sm">
+                      {stat.waarde}
+                    </div>
+                    <div className="text-base lg:text-lg font-medium opacity-90 mt-2">
+                      {stat.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
       case CONTENT_TYPES.SEASON_STATS:
       case CONTENT_TYPES.SPORT_FACT:
         const IconComponent = item.data.icon;
@@ -226,7 +282,7 @@ case CONTENT_TYPES.BREAKING_NEWS:
               <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full mb-8 hover:scale-110 transition-transform duration-300">
                 <IconComponent className="h-12 w-12 opacity-90" />
               </div>
-              <h2 className="text-2xl lg:text-4xl font-bold leading-tight drop-shadow-sm">
+              <h2 className="text-4xl lg:text-6xl font-bold leading-tight drop-shadow-sm">
                 {item.data.text}
               </h2>
               

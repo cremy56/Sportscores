@@ -14,6 +14,8 @@ export function useAdValvasData(profile) {
   const [mededelingenData, setMededelingenData] = useState([]);
   const [breakingNewsItems, setBreakingNewsItems] = useState([]);
   const [activeTests, setActiveTests] = useState([]);
+  const [dagActiviteit, setDagActiviteit] = useState([]);
+  const [weekStats, setWeekStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dataError, setDataError] = useState(false);
 
@@ -58,6 +60,8 @@ export function useAdValvasData(profile) {
       setMededelingenData(data.mededelingen || []);
       setBreakingNewsItems(data.breakingNews || []);
       setActiveTests(data.activeTests || []);
+      setDagActiviteit(data.dagActiviteit || []);
+      setWeekStats(data.weekStats || null);
       setDataError(false);
     } catch (error) {
       if (!gemonteerdRef.current) return;
@@ -135,6 +139,8 @@ export function useAdValvasData(profile) {
     mededelingenData,
     breakingNewsItems,
     activeTests,
+    dagActiviteit,
+    weekStats,
     loading,
     dataError,
     liveNewsData,
