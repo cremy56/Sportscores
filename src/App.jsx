@@ -211,6 +211,18 @@ function App() {
             <Route path="/setup-account" element={<SetupAccount />} />
             
             <Route element={<ProtectedRoute profile={profile} school={school} />}>
+
+              {/* KIOSKMODUS — het permanente scherm in de sporthal.
+                  Valt BEWUST buiten <Layout>: geen navigatiebalk, geen
+                  knoppen, alleen de content. Nog steeds achter
+                  ProtectedRoute, dus login blijft vereist.
+                  Open deze URL één keer op de sporthal-pc in fullscreen;
+                  gewone gebruikers komen hier nooit vanzelf terecht. */}
+              <Route
+                path="/advalvas-kiosk"
+                element={<AdValvas kiosk profile={profile} school={school} />}
+              />
+
               <Route element={
                 <Layout
                   profile={profile}

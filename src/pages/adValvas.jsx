@@ -15,8 +15,26 @@ import { useAdValvasContent } from '../hooks/useAdValvasContent.js';
 import { NEWS_TICKER_MS, isRustmodus } from '../data/adValvasConfig.js';
 import { formatTime, formatDate, canPostMessages } from '../utils/adValvasHelpers.js';
 
-export default function AdValvas() {
+// Binnen <Layout> komen profile/school uit de outlet-context; op de
+// kioskroute (buiten Layout) worden ze als props meegegeven. useOutletContext()
+// mag alleen aangeroepen worden wanneer er ook echt een Outlet is — vandaar
+// deze twee schillen in plaats van een voorwaardelijke hook-aanroep.
+export default function AdValvas({ kiosk = false, profile, school }) {
+  if (kiosk) {
+    return <AdValvasScherm kiosk profile={profile} school={school} />;
+  }
+  return <AdValvasMetContext />;
+}
+
+function AdValvasMetContext() {
   const { profile, school } = useOutletContext();
+  return <AdValvasScherm profile={profile} school={school} />;
+}
+
+// kiosk=true → route /advalvas-kiosk: geen navigatiebalk, geen knoppen,
+// grotere klok. Bedoeld voor het permanente scherm in de sporthal. De gewone
+// route /advalvas en de homepage blijven ongewijzigd werken.
+function AdValvasScherm({ kiosk = false, profile, school }) {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [newsIndex, setNewsIndex] = useState(0);
@@ -131,7 +149,7 @@ export default function AdValvas() {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto pb-20 lg:pb-20">
-        <div className="max-w-7xl mx-auto px-4 pt-16 pb-8 lg:px-8 lg:pt-20 lg:pb-10">
+        <div className={`max-w-7xl mx-auto px-4 pb-8 lg:px-8 lg:pb-10 ${kiosk ? 'pt-6 lg:pt-8' : 'pt-16 lg:pt-20'}`}>
           
           {/* --- OUDE KNOP HIER VERWIJDERD --- */}
 
@@ -144,7 +162,7 @@ export default function AdValvas() {
             </div>
             
             {/* --- KNOP HIER TOEGEVOEGD (MOBIELE VERSIE) --- */}
-            {canPostMessages(profile, school) && (
+            {!kiosk && canPostMessages(profile, school) && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold px-3 py-1 rounded-lg shadow-md hover:scale-105 transition-transform text-sm"
@@ -178,7 +196,7 @@ export default function AdValvas() {
             </div>
 
             {/* --- KNOP HIER TOEGEVOEGD (DESKTOP VERSIE) --- */}
-            {canPostMessages(profile, school) && (
+            {!kiosk && canPostMessages(profile, school) && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-lg hover:scale-105 transition-transform"
@@ -189,10 +207,10 @@ export default function AdValvas() {
         )}
 
             <div className="text-right">
-              <div className="text-4xl font-bold text-gray-800 font-mono">
+              <div className={`font-bold text-gray-800 font-mono ${kiosk ? 'text-6xl' : 'text-4xl'}`}>
                 {formatTime(currentTime)}
               </div>
-              <div className="text-gray-600">
+              <div className={kiosk ? 'text-xl text-gray-600' : 'text-gray-600'}>
                 {formatDate(currentTime)}
               </div>
             </div>

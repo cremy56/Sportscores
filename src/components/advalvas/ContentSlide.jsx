@@ -14,17 +14,31 @@ import { getRelativeTime } from '../../utils/adValvasHelpers.js';
 export default function ContentSlide({ item }) {
   if (!item) return null;
     switch (item.type) {
-     case CONTENT_TYPES.HIGHSCORES:
+     case CONTENT_TYPES.HIGHSCORES: {
+  // Kolommen volgen het AANTAL scores. Stond hard op lg:grid-cols-3, waardoor
+  // één enkele score twee lege kolommen naast zich kreeg — dat oogde als een
+  // renderfout op het scherm in de sporthal.
+  const aantalScores = item.data.scores.length;
+  const kolommen =
+    aantalScores === 1 ? 'grid-cols-1 max-w-lg' :
+    aantalScores === 2 ? 'grid-cols-1 md:grid-cols-2 max-w-4xl' :
+    'grid-cols-1 md:grid-cols-3 max-w-6xl';
+
   return (
-    <div className="bg-white rounded-3xl shadow-lg border border-slate-200 p-10 max-w-7xl mx-auto overflow-hidden relative">
-      {/* ... decoratieve elementen ... */}
+    // Gekleurd vlak i.p.v. witte kaart op lichtgrijze achtergrond: die ene
+    // slide viel weg tegen de pagina. Nu dezelfde vormtaal als de rest.
+    <div className="relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-3xl shadow-2xl p-10 lg:p-14 max-w-7xl mx-auto overflow-hidden">
+      <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-2">
+        <Trophy className="h-4 w-4 text-amber-300" />
+        <span className="text-sm font-bold uppercase tracking-wider text-white">Toppers</span>
+      </div>
       <div className="relative z-10">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl lg:text-6xl font-black text-gray-800 mb-4 tracking-tight bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+        <div className="text-center mb-10 lg:mb-14">
+          <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight drop-shadow-lg">
             {item.data.test.naam}
           </h2>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
+        <div className={`grid ${kolommen} gap-8 lg:gap-10 mx-auto`}>
           {item.data.scores.map((score, index) => (
             <PodiumCard 
               key={score.id} 
@@ -37,6 +51,8 @@ export default function ContentSlide({ item }) {
       </div>
     </div>
   );
+  }
+
   case 'mededeling':
         const MededelingIcoon = item.data.icoon;
         return (
@@ -287,12 +303,13 @@ case CONTENT_TYPES.BREAKING_NEWS:
               </h2>
               
               {/* Add type indicator */}
-              <div className="mt-6 inline-flex items-center space-x-2 bg-white/20 rounded-full px-4 py-2">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium opacity-90 uppercase tracking-wider">
-                  {item.type === CONTENT_TYPES.SPORT_FACT ? 'Wist je dat...' : 
-                   item.type === CONTENT_TYPES.WEEKLY_STATS ? 'Deze week' :
-                   item.type === CONTENT_TYPES.SEASON_STATS ? 'Seizoen update' : 'Vandaag'}
+              {/* Label zonder ellipsis: "Wist je dat..." las op het scherm als
+                  afgekapte tekst i.p.v. als bewuste formulering. */}
+              <div className="mt-8 inline-flex items-center space-x-3 bg-white/20 rounded-full px-6 py-3">
+                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                <span className="text-lg lg:text-xl font-semibold opacity-95 uppercase tracking-wider">
+                  {item.type === CONTENT_TYPES.SPORT_FACT ? 'Wist je dat' :
+                   item.type === CONTENT_TYPES.SEASON_STATS ? 'Seizoen' : 'Vandaag'}
                 </span>
               </div>
             </div>

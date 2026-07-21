@@ -284,8 +284,26 @@ async function handleCreateData(req, res, decodedToken) {
         }
         const adminProfile = adminUserSnap.data();
 
-        // Check of de rol wel mededelingen mag posten
-        if (!['leerkracht', 'super-administrator'].includes(adminProfile.rol)) {
+        // === AUTORISATIE — moet gelijklopen met canPostMessages() in
+        // src/utils/adValvasHelpers.js. Stond hier eerder op
+        // ['leerkracht', 'super-administrator'], waardoor:
+        //   - een ADMINISTRATOR wél de knop zag maar een 403 kreeg;
+        //   - de schoolinstelling teachersCanPostAnnouncements server-side
+        //     genegeerd werd (leerkracht kon posten ook als de school het
+        //     had uitgezet).
+        const rol = adminProfile.rol;
+        let magPosten = false;
+
+        if (rol === 'administrator' || rol === 'super-administrator') {
+            magPosten = true;
+        } else if (rol === 'leerkracht') {
+            // Schoolinstelling is leidend; de client-side check is enkel UI.
+            const schoolSnap = await db.collection('scholen').doc(adminProfile.school_id).get();
+            magPosten = schoolSnap.exists
+                && schoolSnap.data()?.instellingen?.teachersCanPostAnnouncements === true;
+        }
+
+        if (!magPosten) {
             return res.status(403).json({ error: 'Je hebt geen rechten om dit te doen.' });
         }
 
