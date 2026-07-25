@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import StudentSearch from '../components/StudentSearch';
 import EvolutionCard from '../components/EvolutionCard';
-import PageHeader from '../components/PageHeader';
-import { generateSchoolYears, getCurrentSchoolYear, filterTestDataBySchoolYear, formatSchoolYear } from '../utils/schoolyearUtils';
+import { generateSchoolYears, filterTestDataBySchoolYear, formatSchoolYear } from '../utils/schoolyearUtils';
+import { apiCall } from '../utils/api';
 
 export default function Evolutie() {
     const { profile, selectedStudent, setSelectedStudent } = useOutletContext();
@@ -29,19 +29,11 @@ export default function Evolutie() {
         if (profile?.rol === 'leerling' && !selectedStudent) {
             const enrichProfile = async () => {
                 try {
-                    const response = await fetch('/api/tests', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${profile._token}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action: 'get_student_profile',
-                            schoolId: profile.school_id,
-                            leerlingId: profile.toegestane_gebruikers_id
-                        })
+                    const data = await apiCall('/api/tests', {
+                        action: 'get_student_profile',
+                        schoolId: profile.school_id,
+                        leerlingId: profile.toegestane_gebruikers_id
                     });
-                    const data = await response.json();
                     if (data.geslacht) {
                         setSelectedStudent({ ...profile, geslacht: data.geslacht });
                     } else {
@@ -66,13 +58,9 @@ export default function Evolutie() {
             setError(null);
             try {
                 const leerlingId = selectedStudent.toegestane_gebruikers_id || selectedStudent.id;
-                const response = await fetch('/api/tests', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get_student_evolution', leerlingId, schoolId: profile.school_id })
+                const data = await apiCall('/api/tests', {
+                    action: 'get_student_evolution', leerlingId, schoolId: profile.school_id
                 });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'API fout');
                 const allData = data.evolutionData || [];
                 const dataToShow = (selectedYear === 'all')
                     ? allData
@@ -484,7 +472,6 @@ export default function Evolutie() {
             <StudentSearch 
                 onStudentSelect={setSelectedStudent}
                 schoolId={profile?.school_id}
-                token={profile?._token}
                 initialStudent={selectedStudent}
             />
         </div>
@@ -609,7 +596,13 @@ export default function Evolutie() {
                                             try {
                                                 // Voor ingelogde leerling: gebruik toegestane_gebruikers_id als leerling_id
                 const leerlingId = selectedStudent.toegestane_gebruikers_id || selectedStudent.id;
-                const allData = await getStudentEvolutionData(leerlingId, profile.school_id, profile._token);
+                                                // Was: getStudentEvolutionData(...) — een functie die nooit
+                                                // geïmporteerd is; deze knop crashte met een ReferenceError.
+                                                // Nu dezelfde apiCall als de hoofd-fetch hierboven.
+                                                const data = await apiCall('/api/tests', {
+                                                    action: 'get_student_evolution', leerlingId, schoolId: profile.school_id
+                                                });
+                                                const allData = data.evolutionData || [];
                                                 const filteredData = filterTestDataBySchoolYear(allData, selectedYear);
                                                 setEvolutionData(filteredData);
                                             } catch (err) {
@@ -685,7 +678,6 @@ export default function Evolutie() {
                                     categoryName={categoryName}
                                     tests={testsInCategory}
                                     student={selectedStudent}
-                                    token={profile._token}
                                 />
                             ))}
                         </div>

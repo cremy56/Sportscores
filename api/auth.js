@@ -38,6 +38,20 @@ const validateNickname = (nickname) => {
     return null;
 };
 
+// Onderscheidt een ECHTE tokenverificatiefout van een infrastructuurfout.
+// Zie content.js/tests.js: verifyToken() zet 'auth/geen-token' bij een
+// ontbrekende header, de Admin SDK zet 'auth/...' bij verlopen/ongeldige
+// tokens. Alles zonder auth-code is infrastructuur (bv. ingetrokken key:
+// "Failed to fetch access token") en moet luid gelogd worden, niet stil als
+// 401 — dat maskeerde de key-rotatie-uitval (onderhoudslijst punt 6).
+function isEchteTokenfout(error) {
+    if (typeof error?.code === 'string' && error.code.startsWith('auth/')) {
+        if (error.code === 'auth/internal-error') return false;
+        return true;
+    }
+    return false;
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
@@ -55,7 +69,14 @@ export default async function handler(req, res) {
         let decodedToken;
         try {
             decodedToken = await verifyToken(req.headers.authorization);
-        } catch {
+        } catch (error) {
+            // Infrastructuurfout (bv. ingetrokken key) NIET als 401 maskeren:
+            // luid loggen en 503, anders lijkt een storing op 'uitgelogd'.
+            if (!isEchteTokenfout(error)) {
+                console.error('❌ [auth] INFRASTRUCTUURFOUT bij tokenverificatie:', error);
+                return res.status(503).json({ error: 'Authenticatiedienst tijdelijk niet beschikbaar' });
+            }
+            // Echte auth-fout: rate limit per IP (brute-force met foute tokens).
             const rl = await checkRateLimit(req, { categorie: 'auth' }); // per IP
             if (!rl.toegestaan) return stuurRateLimitResponse(res, rl.retryAfter);
             return res.status(401).json({ error: 'Niet geauthenticeerd' });
@@ -200,9 +221,9 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
-        if (error.message?.includes('token')) {
-            return res.status(401).json({ error: 'Niet geauthenticeerd' });
-        }
+        // Authenticatie is hierboven al afgehandeld; wat hier landt is een
+        // echte serverfout. Altijd loggen, nooit als 401 maskeren.
+        console.error('❌ API Hoofd-error in /auth:', error);
         return res.status(500).json({ error: 'Serverfout bij profielcontrole' });
     }
 }

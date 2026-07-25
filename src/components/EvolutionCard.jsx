@@ -4,19 +4,13 @@ import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon, ExclamationTriangleIcon 
 import EvolutionChart from './EvolutionChart';
 import { formatDate, formatScoreWithUnit } from '../utils/formatters.js';
 
-// Lokale API helper — vervangt getScoreNorms en calculateTestRanking uit firebaseUtils
-async function apiPost(action, body, token) {
-  const response = await fetch('/api/tests', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...body })
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'API fout');
-  return data;
-}
+import { apiCall } from '../utils/api';
 
-export default function EvolutionCard({ categoryName, tests, student, token }) {
+// Dunne wrapper rond de centrale apiCall(): vers token per call + 401-refresh
+// + 429-toast. Verving de eigen fetch met doorgegeven token-prop.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
+
+export default function EvolutionCard({ categoryName, tests, student }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedDataPoint, setSelectedDataPoint] = useState(null);
   const [scoreNorms, setScoreNorms] = useState(null);
@@ -200,7 +194,7 @@ export default function EvolutionCard({ categoryName, tests, student, token }) {
 useEffect(() => {
     const fetchNorms = async () => {
       // ✅ GDPR: gebruik klas ipv geboortedatum voor leeftijdsbepaling
-      if (!currentTest || !student?.klas || !student?.geslacht || !token) {
+      if (!currentTest || !student?.klas || !student?.geslacht) {
         setScoreNorms(null);
         setError(null);
         return;
@@ -214,7 +208,7 @@ useEffect(() => {
           testId: currentTest.test_id,
           klas: student.klas,
           geslacht: student.geslacht,
-        }, token);
+        });
         const normData = result.normen;
         
         if (normData) {
@@ -236,37 +230,31 @@ useEffect(() => {
     };
 
     fetchNorms();
-  }, [currentTest, student, token]);
+  }, [currentTest, student]);
 
   useEffect(() => {
   const fetchRanking = async () => {
-    if (!currentTest?.personal_best_score || !currentTest?.test_id || !student?.klas || !student?.geslacht || !token) {
+    if (!currentTest?.personal_best_score || !currentTest?.test_id || !student?.klas || !student?.geslacht) {
       setRankingData(null);
       return;
     }
     try {
-      const response = await fetch('/api/tests', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'get_test_ranking',
-          schoolId: student.school_id,
-          testId: currentTest.test_id,
-          score: currentTest.personal_best_score,
-          klas: student.klas,
-          geslacht: student.geslacht,
-        })
+      const data = await apiCall('/api/tests', {
+        action: 'get_test_ranking',
+        schoolId: student.school_id,
+        testId: currentTest.test_id,
+        score: currentTest.personal_best_score,
+        klas: student.klas,
+        geslacht: student.geslacht,
       });
-      const data = await response.json();
-      if (response.ok) setRankingData(data);
-      else setRankingData(null);
+      setRankingData(data);
     } catch {
       setRankingData(null);
     }
   };
 
   fetchRanking();
-}, [currentTest, student, token]);
+}, [currentTest, student]);
 
   // Keyboard navigatie
   useEffect(() => {
