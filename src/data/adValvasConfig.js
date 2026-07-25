@@ -32,9 +32,11 @@ export const RUSTMODUS_START_UUR = 18;  // vanaf 18:00 dimmen
 export const RUSTMODUS_EIND_UUR = 7;    // tot 07:00
 
 export function isRustmodus(datum = new Date()) {
+  // Enkel 's nachts dimmen. Het hele weekend dimmen was te agressief: op een
+  // zaterdag kan er een sportdag of toernooi zijn en dan hoort het scherm
+  // gewoon te branden. Wie ook overdag in het weekend wil dimmen, kan hier
+  // een weekendcheck terugzetten.
   const uur = datum.getHours();
-  const dag = datum.getDay(); // 0 = zondag, 6 = zaterdag
-  if (dag === 0 || dag === 6) return true;
   return uur >= RUSTMODUS_START_UUR || uur < RUSTMODUS_EIND_UUR;
 }
 

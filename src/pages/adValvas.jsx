@@ -83,7 +83,9 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
 
   // Rustmodus buiten schooluren: scherm dimmen (stroom + inbranden).
   // currentTime tikt elke seconde, dus dit volgt vanzelf.
-  const rustmodus = isRustmodus(currentTime);
+  // Alleen het permanente kioskscherm dimt 's nachts; de gewone pagina
+  // (leerkracht aan zijn bureau, leerling thuis) nooit.
+  const rustmodus = kiosk && isRustmodus(currentTime);
 
   // Online/offline status
   useEffect(() => {
@@ -131,9 +133,42 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
     return (
     <div
       className={`fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col transition-opacity duration-[3000ms] ${
-        kiosk ? 'overflow-hidden' : ''
+        kiosk ? 'kiosk-fluid overflow-hidden' : ''
       } ${rustmodus ? 'opacity-40' : 'opacity-100'}`}
     >
+      {kiosk && (
+        <style>{`
+          /* Fluid typografie: tekst schaalt mee met de schermbreedte i.p.v.
+             vaste breakpoint-sprongen. clamp(min, vw-waarde, max) houdt het
+             leesbaar op een laptop én benut een grote sporthal-tv volledig.
+             1vw ≈ 1% van de schermbreedte, dus op 1920px telt elke stap flink
+             door; de min/max voorkomen extremen. */
+          .kiosk-fluid .text-2xl  { font-size: clamp(1.5rem, 2.2vw, 2.75rem); }
+          .kiosk-fluid .text-3xl  { font-size: clamp(1.875rem, 2.8vw, 3.5rem); }
+          .kiosk-fluid .text-4xl  { font-size: clamp(2.25rem, 3.4vw, 4.5rem); }
+          .kiosk-fluid .text-5xl  { font-size: clamp(3rem, 4.2vw, 5.5rem); }
+          .kiosk-fluid .text-6xl  { font-size: clamp(3.75rem, 5vw, 7rem); }
+          .kiosk-fluid .text-7xl  { font-size: clamp(4.5rem, 6vw, 8.5rem); }
+          .kiosk-fluid .text-9xl  { font-size: clamp(6rem, 9vw, 12rem); }
+          /* lg:-varianten wijzen naar dezelfde clamp: op een kioskscherm (altijd
+             breed) zijn de lg:-groottes leidend, dus we overschrijven ze mee. */
+          .kiosk-fluid .lg\:text-3xl { font-size: clamp(1.875rem, 2.8vw, 3.5rem); }
+          .kiosk-fluid .lg\:text-4xl { font-size: clamp(2.25rem, 3.4vw, 4.5rem); }
+          .kiosk-fluid .lg\:text-5xl { font-size: clamp(3rem, 4.2vw, 5.5rem); }
+          .kiosk-fluid .lg\:text-6xl { font-size: clamp(3.75rem, 5vw, 7rem); }
+          .kiosk-fluid .lg\:text-7xl { font-size: clamp(4.5rem, 6vw, 8.5rem); }
+          .kiosk-fluid .lg\:text-9xl { font-size: clamp(6rem, 9vw, 12rem); }
+
+          /* Kaarten en tussenruimte schalen mee, anders groeit alleen de
+             tekst en blijven de vlakken achter. */
+          .kiosk-fluid .p-6  { padding: clamp(1rem, 1.8vw, 2.25rem); }
+          .kiosk-fluid .p-8  { padding: clamp(1.5rem, 2.4vw, 3rem); }
+          .kiosk-fluid .lg\:p-8  { padding: clamp(1.5rem, 2.4vw, 3rem); }
+          .kiosk-fluid .p-12 { padding: clamp(2rem, 3.2vw, 4.5rem); }
+          .kiosk-fluid .gap-8  { gap: clamp(1.5rem, 2.2vw, 3rem); }
+          .kiosk-fluid .lg\:gap-10 { gap: clamp(1.5rem, 2.6vw, 3.5rem); }
+        `}</style>
+      )}
       {/* --- POPUP FORMULIER --- */}
       {isModalOpen && (
         <MededelingModal 
