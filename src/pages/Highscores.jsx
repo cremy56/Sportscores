@@ -1,9 +1,9 @@
 // src/pages/Highscores.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { db } from '../firebase';
 import CategoryCard from '../components/CategoryCard';
 import { getLeeftijdFromKlas } from '../utils/klasUtils';
+import { apiCall } from '../utils/api';
 
 
 export default function Highscores() {
@@ -16,6 +16,13 @@ export default function Highscores() {
     const [teacherSelectedAge, setTeacherSelectedAge] = useState(null);
     // State voor de effectieve filter die wordt doorgegeven aan de componenten
     const [effectiveAgeFilter, setEffectiveAgeFilter] = useState(null);
+
+    // Voorkomt setState nadat de component ontkoppeld is (async fetch).
+    const isMountedRef = useRef(true);
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => { isMountedRef.current = false; };
+    }, []);
 
     // Bepaal de effectieve filter op basis van de rol en selectie
     useEffect(() => {
@@ -46,36 +53,25 @@ export default function Highscores() {
 
     const fetchTesten = async () => {
         try {
-        setError(null);
-        setLoading(true); 
+            setError(null);
+            setLoading(true);
 
-        // *** NIEUWE TOKEN LOGICA ***
-        if (!profile?._token) { // Wacht tot de token in de profile context zit
-            throw new Error("Authenticatie-token nog niet beschikbaar.");
-        }
-        const token = profile._token;
-        // *** EINDE NIEUWE LOGICA ***
+            // apiCall(): vers token per call + 401-refresh/retry + 429-toast.
+            // Vervangt profile._token (verliep na 1u) en de eigen fetch.
+            const data = await apiCall('/api/tests', { action: 'get_tests' });
 
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ action: 'get_tests' })
-        });
-
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'Kon de testen niet laden via API.');
+            if (isMountedRef.current) {
+                setTesten(data.testen);
             }
-
-            setTesten(data.testen);
         } catch (err) {
             console.error('Error fetching testen via API:', err);
-            setError('Kon de testen niet laden. Probeer het later opnieuw.');
+            if (isMountedRef.current) {
+                setError('Kon de testen niet laden. Probeer het later opnieuw.');
+            }
         } finally {
-            setLoading(false);
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
         }
     };
 

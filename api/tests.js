@@ -53,14 +53,40 @@ import {
 } from '../lib/handlers/sportlab.js';
 
 // ─── HOOFD HANDLER ────────────────────────────────────────────────────────────
+// Onderscheidt een ECHTE tokenverificatiefout van een infrastructuurfout.
+// Zie ook content.js: verifyToken() zet 'auth/geen-token' bij een ontbrekende
+// header; de Admin SDK zet 'auth/...' bij verlopen/ongeldige tokens. Alles
+// zonder auth-code is een infrastructuurfout (bv. ingetrokken service-key gaf
+// "Failed to fetch access token") en moet luid gelogd worden, niet stil als
+// 401 (dat maskeerde in juli de key-rotatie-uitval — onderhoudslijst punt 6).
+function isEchteTokenfout(error) {
+    if (typeof error?.code === 'string' && error.code.startsWith('auth/')) {
+        if (error.code === 'auth/internal-error') return false;
+        return true;
+    }
+    return false;
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         res.setHeader('Allow', ['POST']);
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
 
+    // ── Authenticatie met een EIGEN catch ───────────────────────────────────
+    let decodedToken;
     try {
-        const decodedToken = await verifyToken(req.headers.authorization);
+        decodedToken = await verifyToken(req.headers.authorization);
+    } catch (error) {
+        if (isEchteTokenfout(error)) {
+            console.warn('[auth] tokenverificatie geweigerd:', error.code || error.message);
+            return res.status(401).json({ error: 'Niet geauthenticeerd' });
+        }
+        console.error('❌ [auth] INFRASTRUCTUURFOUT bij tokenverificatie:', error);
+        return res.status(503).json({ error: 'Authenticatiedienst tijdelijk niet beschikbaar' });
+    }
+
+    try {
         const { action } = req.body;
 
         // ── Rate limit (per gebruiker, categorie op basis van action) ────────
@@ -170,9 +196,8 @@ export default async function handler(req, res) {
         }
 
     } catch (error) {
-        if (error.message?.includes('token')) {
-            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
-        }
+        // Authenticatie is hierboven al afgehandeld; wat hier landt is een
+        // echte serverfout. Altijd loggen, nooit als 401 maskeren.
         console.error('❌ API Hoofd-error in /tests:', error);
         return res.status(500).json({ error: 'Fout bij verwerken test data' });
     }

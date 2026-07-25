@@ -4,6 +4,7 @@ import { useOutletContext } from 'react-router-dom';
 
 // Verwijder alle 'firebase/firestore' imports
 import { formatScoreWithUnit } from '../utils/formatters.js';
+import { apiCall } from '../utils/api';
 
 // --- HELPER FUNCTIE 1: Schooljaar veilig berekenen ---
 // (Deze functie blijft hetzelfde, geen Firebase calls)
@@ -54,30 +55,14 @@ export default function Leaderboard({ testId, globalAgeFilter, isLearner }) {
             setError(null);
 
             try {
-        // *** NIEUWE TOKEN LOGICA ***
-        if (!profile?._token) { // Wacht tot de token in de profile context zit
-            throw new Error("Authenticatie-token nog niet beschikbaar.");
-        }
-        const token = profile._token;
-        // *** EINDE NIEUWE LOGICA ***
-
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`, // <-- Gebruik de context token
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: 'get_leaderboard',
-                testId: testId,
-                globalAgeFilter: globalAgeFilter 
-            })
-        });
-
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || 'Kon scores niet laden');
-                }
+                // apiCall(): vers token per call + 401-refresh/retry + 429-toast.
+                // Vervangt profile._token (verliep na 1u) en de eigen fetch,
+                // conform de projectregel voor nieuwe/gemigreerde frontend-code.
+                const data = await apiCall('/api/tests', {
+                    action: 'get_leaderboard',
+                    testId: testId,
+                    globalAgeFilter: globalAgeFilter
+                });
 
                 if (isMountedRef.current) {
                     setScores(data.scores);
