@@ -133,42 +133,45 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
     return (
     <div
       className={`fixed inset-0 bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col transition-opacity duration-[3000ms] ${
-        kiosk ? 'kiosk-fluid overflow-hidden' : ''
+        kiosk ? 'fluid-schaal fluid-kiosk overflow-hidden' : 'fluid-schaal fluid-normaal'
       } ${rustmodus ? 'opacity-40' : 'opacity-100'}`}
     >
-      {kiosk && (
-        <style>{`
-          /* Fluid typografie: tekst schaalt mee met de schermbreedte i.p.v.
-             vaste breakpoint-sprongen. clamp(min, vw-waarde, max) houdt het
-             leesbaar op een laptop én benut een grote sporthal-tv volledig.
-             1vw ≈ 1% van de schermbreedte, dus op 1920px telt elke stap flink
-             door; de min/max voorkomen extremen. */
-          .kiosk-fluid .text-2xl  { font-size: clamp(1.5rem, 2.2vw, 2.75rem); }
-          .kiosk-fluid .text-3xl  { font-size: clamp(1.875rem, 2.8vw, 3.5rem); }
-          .kiosk-fluid .text-4xl  { font-size: clamp(2.25rem, 3.4vw, 4.5rem); }
-          .kiosk-fluid .text-5xl  { font-size: clamp(3rem, 4.2vw, 5.5rem); }
-          .kiosk-fluid .text-6xl  { font-size: clamp(3.75rem, 5vw, 7rem); }
-          .kiosk-fluid .text-7xl  { font-size: clamp(4.5rem, 6vw, 8.5rem); }
-          .kiosk-fluid .text-9xl  { font-size: clamp(6rem, 9vw, 12rem); }
-          /* lg:-varianten wijzen naar dezelfde clamp: op een kioskscherm (altijd
-             breed) zijn de lg:-groottes leidend, dus we overschrijven ze mee. */
-          .kiosk-fluid .lg\:text-3xl { font-size: clamp(1.875rem, 2.8vw, 3.5rem); }
-          .kiosk-fluid .lg\:text-4xl { font-size: clamp(2.25rem, 3.4vw, 4.5rem); }
-          .kiosk-fluid .lg\:text-5xl { font-size: clamp(3rem, 4.2vw, 5.5rem); }
-          .kiosk-fluid .lg\:text-6xl { font-size: clamp(3.75rem, 5vw, 7rem); }
-          .kiosk-fluid .lg\:text-7xl { font-size: clamp(4.5rem, 6vw, 8.5rem); }
-          .kiosk-fluid .lg\:text-9xl { font-size: clamp(6rem, 9vw, 12rem); }
+      <style>{`
+        /* Fluid typografie: tekst, kaarten en tussenruimte schalen mee met de
+           schermbreedte i.p.v. vaste breakpoint-sprongen. clamp(min, vw, max).
+           Twee niveaus:
+             .fluid-kiosk  → sporthalscherm, vult de volle breedte, ruime max.
+             .fluid-normaal→ pagina mét navigatiebalk; bescheidener zodat het
+                             niet overweldigt naast het menu. */
 
-          /* Kaarten en tussenruimte schalen mee, anders groeit alleen de
-             tekst en blijven de vlakken achter. */
-          .kiosk-fluid .p-6  { padding: clamp(1rem, 1.8vw, 2.25rem); }
-          .kiosk-fluid .p-8  { padding: clamp(1.5rem, 2.4vw, 3rem); }
-          .kiosk-fluid .lg\:p-8  { padding: clamp(1.5rem, 2.4vw, 3rem); }
-          .kiosk-fluid .p-12 { padding: clamp(2rem, 3.2vw, 4.5rem); }
-          .kiosk-fluid .gap-8  { gap: clamp(1.5rem, 2.2vw, 3rem); }
-          .kiosk-fluid .lg\:gap-10 { gap: clamp(1.5rem, 2.6vw, 3.5rem); }
-        `}</style>
-      )}
+        /* ── Kioskscherm: royaal ─────────────────────────────────────────── */
+        .fluid-kiosk .text-2xl,  .fluid-kiosk .lg\\:text-2xl { font-size: clamp(1.5rem, 2.2vw, 2.75rem); }
+        .fluid-kiosk .text-3xl,  .fluid-kiosk .lg\\:text-3xl { font-size: clamp(1.875rem, 2.8vw, 3.5rem); }
+        .fluid-kiosk .text-4xl,  .fluid-kiosk .lg\\:text-4xl { font-size: clamp(2.25rem, 3.4vw, 4.5rem); }
+        .fluid-kiosk .text-5xl,  .fluid-kiosk .lg\\:text-5xl { font-size: clamp(3rem, 4.2vw, 5.5rem); }
+        .fluid-kiosk .text-6xl,  .fluid-kiosk .lg\\:text-6xl { font-size: clamp(3.75rem, 5vw, 7rem); }
+        .fluid-kiosk .text-7xl,  .fluid-kiosk .lg\\:text-7xl { font-size: clamp(4.5rem, 6vw, 8.5rem); }
+        .fluid-kiosk .text-9xl,  .fluid-kiosk .lg\\:text-9xl { font-size: clamp(6rem, 9vw, 12rem); }
+        .fluid-kiosk .p-6  { padding: clamp(1rem, 1.8vw, 2.25rem); }
+        .fluid-kiosk .p-8,  .fluid-kiosk .lg\\:p-8  { padding: clamp(1.5rem, 2.4vw, 3rem); }
+        .fluid-kiosk .p-12 { padding: clamp(2rem, 3.2vw, 4.5rem); }
+        .fluid-kiosk .gap-8 { gap: clamp(1.5rem, 2.2vw, 3rem); }
+        .fluid-kiosk .lg\\:gap-10 { gap: clamp(1.5rem, 2.6vw, 3.5rem); }
+
+        /* ── Gewone pagina: mee-schalend maar ingetogener ────────────────── */
+        .fluid-normaal .text-2xl,  .fluid-normaal .lg\\:text-2xl { font-size: clamp(1.25rem, 1.6vw, 2rem); }
+        .fluid-normaal .text-3xl,  .fluid-normaal .lg\\:text-3xl { font-size: clamp(1.5rem, 2vw, 2.5rem); }
+        .fluid-normaal .text-4xl,  .fluid-normaal .lg\\:text-4xl { font-size: clamp(1.875rem, 2.6vw, 3.25rem); }
+        .fluid-normaal .text-5xl,  .fluid-normaal .lg\\:text-5xl { font-size: clamp(2.25rem, 3.2vw, 4rem); }
+        .fluid-normaal .text-6xl,  .fluid-normaal .lg\\:text-6xl { font-size: clamp(2.75rem, 3.8vw, 5rem); }
+        .fluid-normaal .text-7xl,  .fluid-normaal .lg\\:text-7xl { font-size: clamp(3.25rem, 4.6vw, 6rem); }
+        .fluid-normaal .text-9xl,  .fluid-normaal .lg\\:text-9xl { font-size: clamp(4rem, 6.5vw, 8.5rem); }
+        .fluid-normaal .p-6  { padding: clamp(0.875rem, 1.4vw, 1.75rem); }
+        .fluid-normaal .p-8,  .fluid-normaal .lg\\:p-8  { padding: clamp(1.25rem, 1.8vw, 2.25rem); }
+        .fluid-normaal .p-12 { padding: clamp(1.5rem, 2.4vw, 3.25rem); }
+        .fluid-normaal .gap-8 { gap: clamp(1.25rem, 1.8vw, 2.25rem); }
+        .fluid-normaal .lg\\:gap-10 { gap: clamp(1.25rem, 2vw, 2.5rem); }
+      `}</style>
       {/* --- POPUP FORMULIER --- */}
       {isModalOpen && (
         <MededelingModal 
