@@ -18,9 +18,13 @@ export function analyseerEvolutieData(evolutionData) {
     
     // Bepaal of er verbetering is op basis van score geschiedenis
     let isImproved = false;
-    if (test.scores && test.scores.length >= 2) {
-      // Sorteer scores chronologisch (oudste eerst)
-      const chronologicalScores = test.scores.sort((a, b) => new Date(a.datum) - new Date(b.datum));
+    // De API levert de scoregeschiedenis als 'all_scores'; dit was 'test.scores',
+    // een veld dat niet bestaat -> de check viel altijd door en isImproved bleef
+    // altijd false (de 'verbeterd'-status verscheen nooit).
+    if (test.all_scores && test.all_scores.length >= 2) {
+      // Sorteer scores chronologisch (oudste eerst). new Date() rond datum
+      // verwerkt zowel een Date-object als een datum-string.
+      const chronologicalScores = [...test.all_scores].sort((a, b) => new Date(a.datum) - new Date(b.datum));
       
       // Check de eerste helft van scores - was de leerling toen zwak?
       const firstHalf = chronologicalScores.slice(0, Math.ceil(chronologicalScores.length / 2));
