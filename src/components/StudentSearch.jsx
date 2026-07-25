@@ -1,8 +1,10 @@
 // src/components/StudentSearch.jsx
-// ✅ GEMIGREERD — zoeken via API (server ontsleutelt namen)
+// Zoeken via de API (server ontsleutelt namen). Gebruikt apiCall(): vers token
+// per call + 401-refresh/retry + 429-toast; de token-prop is niet meer nodig.
 import { useState, useEffect } from 'react';
 import { Combobox } from '@headlessui/react';
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
+import { apiCall } from '../utils/api';
 
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ');
@@ -11,7 +13,6 @@ function classNames(...classes) {
 export default function StudentSearch({
     onStudentSelect,
     schoolId,
-    token,
     initialStudent = null,
     placeholder = "Zoek op naam...",
     compact = false
@@ -26,7 +27,7 @@ export default function StudentSearch({
     }, [initialStudent]);
 
     useEffect(() => {
-        if (queryText.length < 2 || !schoolId || !token) {
+        if (queryText.length < 2 || !schoolId) {
             setPeople([]);
             return;
         }
@@ -34,22 +35,12 @@ export default function StudentSearch({
         const fetchPeople = async () => {
             setLoading(true);
             try {
-                // ✅ Zoeken via API — server ontsleutelt namen
-                const response = await fetch('/api/users', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        action: 'get_users',
-                        schoolId,
-                        filterRol: 'leerling'
-                    })
-                });
-
-                if (!response.ok) throw new Error('Zoeken mislukt');
-                const data = await response.json();
+                // Zoeken via de API — server ontsleutelt namen
+                const data = await apiCall('/api/users', {
+                    action: 'get_users',
+                    schoolId,
+                    filterRol: 'leerling'
+                }, { stil: true });
                 const allStudents = data.users || [];
 
                 // Filter client-side op zoekterm (namen zijn al ontsleuteld door server)
@@ -76,7 +67,7 @@ export default function StudentSearch({
 
         const timeoutId = setTimeout(fetchPeople, 300);
         return () => clearTimeout(timeoutId);
-    }, [queryText, schoolId, token]);
+    }, [queryText, schoolId]);
 
     const handleSelect = (person) => {
         setSelected(person);
