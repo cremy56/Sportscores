@@ -4,6 +4,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { useOutletContext } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Loader2, PlusCircle, Trash2, ClipboardList } from 'lucide-react';
+import { apiCall } from '../utils/api';
 
 export default function SchemaFormModal({ isOpen, onClose, onSave, schemaData, alleOefeningen, alleTesten }) {
     const [naam, setNaam] = useState('');
@@ -77,21 +78,12 @@ export default function SchemaFormModal({ isOpen, onClose, onSave, schemaData, a
     };
 
     try {
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${profile._token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: 'save_schema',
-                schoolId: profile.school_id,
-                schemaId: isEditing ? schemaData.id : null,
-                schema: schemaObject
-            })
+        await apiCall('/api/tests', {
+            action: 'save_schema',
+            schoolId: profile.school_id,
+            schemaId: isEditing ? schemaData.id : null,
+            schema: schemaObject
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'API fout');
         toast.success(isEditing ? 'Schema succesvol bijgewerkt!' : 'Schema succesvol aangemaakt!');
         onSave();
         onClose();

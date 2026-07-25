@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Target, X } from 'lucide-react';
 import { useState } from 'react';
 import ConfirmModal from '../ConfirmModal';
+import { apiCall } from '../../utils/api';
 
 export default function FocusPuntKaart({ test, schema, student, isVerplicht = false, isActief = false,
     isImproved = false }) {
@@ -27,18 +28,12 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
 
    const handleRemoveImproved = async () => {
     try {
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'delete_leerling_schema',
-                schoolId: profile.school_id,
-                leerlingId: studentIdentifier,
-                schemaTemplateId: schema.id
-            })
+        await apiCall('/api/tests', {
+            action: 'delete_leerling_schema',
+            schoolId: profile.school_id,
+            leerlingId: studentIdentifier,
+            schemaTemplateId: schema.id
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
         toast.success("Trainingsschema verwijderd - goed gedaan!");
         window.location.reload();
     } catch (error) {
@@ -50,19 +45,13 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
 
     const handleStartSchema = async () => {
     try {
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'start_schema',
-                schoolId: profile.school_id,
-                leerlingId: studentIdentifier,
-                schemaTemplateId: schema.id,
-                type: isVerplicht ? 'verplicht' : 'optioneel'
-            })
+        await apiCall('/api/tests', {
+            action: 'start_schema',
+            schoolId: profile.school_id,
+            leerlingId: studentIdentifier,
+            schemaTemplateId: schema.id,
+            type: isVerplicht ? 'verplicht' : 'optioneel'
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
         toast.success("Schema gestart! Veel succes!");
         handleContinueSchema();
     } catch (error) {

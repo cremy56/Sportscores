@@ -2,23 +2,12 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import FocusPuntKaart from './FocusPuntKaart';
-import { getStudentEvolutionData } from '../../utils/firebaseUtils';
 import { analyseerEvolutieData } from '../../utils/analyseUtils';
+import { apiCall } from '../../utils/api';
 
-// ─── API helper (zelfde patroon als rest van de app) ──────────────────────────
-async function apiPost(action, body, token) {
-    const response = await fetch('/api/tests', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action, ...body }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call + 401-refresh
+// + 429-toast. Verving de eigen fetch + doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 export default function GroeiplanLeerling({ studentProfile }) {
     const context = useOutletContext();
@@ -36,11 +25,23 @@ export default function GroeiplanLeerling({ studentProfile }) {
 
         const fetchData = async () => {
             setLoading(true);
-            const token = profile._token;
             const schoolId = profile.school_id;
-            if (!token || !schoolId) { setLoading(false); return; }
+            if (!schoolId) { setLoading(false); return; }
 
-            const evolutionData = await getStudentEvolutionData(profile.id, schoolId, token);
+            // Was: getStudentEvolutionData() uit firebaseUtils — een API-wrapper
+            // die de datum-strings naar Date-objecten converteerde. Die conversie
+            // doen we hier zelf, anders krijgt analyseerEvolutieData strings.
+            const evoResult = await apiCall('/api/tests', {
+                action: 'get_student_evolution', leerlingId: profile.id, schoolId
+            });
+            const evolutionData = (evoResult.evolutionData || []).map(test => ({
+                ...test,
+                all_scores: (test.all_scores || []).map(sc => ({
+                    ...sc,
+                    datum: sc.datum ? new Date(sc.datum) : new Date()
+                })),
+                personal_best_datum: test.personal_best_datum ? new Date(test.personal_best_datum) : null
+            }));
 
             // 1. Haal lijst van zwakke testen op
             const zwakkeTesten = analyseerEvolutieData(evolutionData);
@@ -48,12 +49,11 @@ export default function GroeiplanLeerling({ studentProfile }) {
 
             if (zwakkeTesten.length > 0) {
                 // 2. Zoek voor ELKE zwakke test een bijbehorend schema via API
-                //    (was: directe Firestore query op 'trainingsschemas' collection)
                 const schemaPromises = zwakkeTesten.map(test =>
                     apiPost('get_trainingsschema_for_test', {
                         schoolId,
                         testId: test.test_id,
-                    }, token).catch(() => null) // null als er geen schema bestaat
+                    }).catch(() => null) // null als er geen schema bestaat
                 );
 
                 const schemaResults = await Promise.all(schemaPromises);

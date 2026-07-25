@@ -8,19 +8,11 @@ import FocusPuntKaart from '../components/groeiplan/FocusPuntKaart';
 import StudentSearch from '../components/StudentSearch';
 import ConfirmModal from '../components/ConfirmModal';
 import { analyseerEvolutieData } from '../utils/analyseUtils';
-import { getStudentEvolutionData } from '../utils/firebaseUtils';
+import { apiCall } from '../utils/api';
 
-// ✅ API helper
-async function apiPost(action, body, token) {
-    const response = await fetch('/api/tests', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...body })
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call + 401-refresh
+// + 429-toast. Verving de eigen fetch + doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 // =============================================
 // HELPER: Haal de smartschool_id_hash op van een profiel
@@ -36,7 +28,7 @@ function getStudentHash(profile) {
 // ✅ FIX: Typo opgelost (student?.emai → studentHash)
 // ✅ FIX: smartschool_id_hash als identifier
 // =============================================
-const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin, token, schoolId }) => {
+const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin, schoolId }) => {
     const navigate = useNavigate();
     const [schemaExists, setSchemaExists] = useState(!schema.isNew);
     const [loading, setLoading] = useState(!schema.isNew);
@@ -48,21 +40,21 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin, t
     useEffect(() => {
         if (schema.isNew) { setLoading(false); return; }
         const checkSchemaExists = async () => {
-            if (!isTeacherOrAdmin && studentHash && token) {
+            if (!isTeacherOrAdmin && studentHash) {
                 try {
-                    const data = await apiPost('check_schema_exists', { leerlingId: studentHash, schemaId: schema.id, schoolId }, token);
+                    const data = await apiPost('check_schema_exists', { leerlingId: studentHash, schemaId: schema.id, schoolId });
                     setSchemaExists(data.exists);
                 } catch { setSchemaExists(false); }
             }
             setLoading(false);
         };
         checkSchemaExists();
-    }, [schemaInstanceId, isTeacherOrAdmin, studentHash, schema.isNew, token, schoolId]);
+    }, [schemaInstanceId, isTeacherOrAdmin, studentHash, schema.isNew, schoolId]);
 
     const handleStartOrContinue = async () => {
-        if (!schemaExists && token) {
+        if (!schemaExists) {
             try {
-                await apiPost('start_schema', { leerlingId: studentHash, schemaId: schema.id, type: 'optioneel', schoolId }, token);
+                await apiPost('start_schema', { leerlingId: studentHash, schemaId: schema.id, type: 'optioneel', schoolId });
                 setSchemaExists(true);
                 toast.success("Optioneel schema gestart!");
             } catch (error) {
@@ -77,7 +69,7 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin, t
 
     const handleConfirmRemove = async () => {
         try {
-            await apiPost('remove_optioneel_schema', { leerlingId: studentHash, schemaId: schema.id, schoolId }, token);
+            await apiPost('remove_optioneel_schema', { leerlingId: studentHash, schemaId: schema.id, schoolId });
             onRemove(schema.id);
             toast.success("Trainingsplan verwijderd.");
         } catch (error) {
@@ -155,7 +147,7 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin, t
 // =============================================
 // SUB-COMPONENT: Modal voor trainingsplan kiezen
 // =============================================
-const TrainingsplanModal = ({ isOpen, onClose, onSelect, alGekozenIds, token }) => {
+const TrainingsplanModal = ({ isOpen, onClose, onSelect, alGekozenIds }) => {
     const [alleSchemas, setAlleSchemas] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('Alle');
@@ -164,17 +156,17 @@ const TrainingsplanModal = ({ isOpen, onClose, onSelect, alGekozenIds, token }) 
     const categories = useMemo(() => ['Alle', ...new Set(alleSchemas.map(s => s.categorie))], [alleSchemas]);
 
     useEffect(() => {
-        if (!isOpen || !token) return;
+        if (!isOpen) return;
         const fetchSchemas = async () => {
             setLoading(true);
             try {
-                const data = await apiPost('get_trainingsschemas', {}, token);
+                const data = await apiPost('get_trainingsschemas', {});
                 setAlleSchemas(data.schemas || []);
             } catch { toast.error('Kon trainingsschemas niet laden.'); }
             setLoading(false);
         };
         fetchSchemas();
-    }, [isOpen, token]);
+    }, [isOpen]);
 
     const gefilterdePlannen = alleSchemas.filter(plan => {
         if (alGekozenIds.includes(plan.id)) return false;
@@ -261,24 +253,38 @@ export default function Groeiplan() {
         const fetchData = async () => {
             setLoading(true);
             const studentHash = getStudentHash(currentProfile);
-            if (!studentHash || !profile._token) { setLoading(false); return; }
+            if (!studentHash) { setLoading(false); return; }
 
             // Stap 1: Haal groeiplan data op via API
             const groeiplanData = await apiPost('get_groeiplan_data', {
                 leerlingId: studentHash, schoolId: profile.school_id
-            }, profile._token);
+            });
             const actieveSchemaMap = new Map(Object.entries(groeiplanData.actieveSchemaMap || {}));
             setOptioneleSchemas(groeiplanData.optioneleSchemas || []);
 
-            // Stap 2: Evolutiedata + verplichte focuspunten
-            const evolutionData = await getStudentEvolutionData(studentHash, profile.school_id, profile._token);
+            // Stap 2: Evolutiedata + verplichte focuspunten.
+            // Was: getStudentEvolutionData() uit firebaseUtils — dat was al een
+            // API-wrapper rond get_student_evolution, MAAR converteerde de
+            // datum-strings naar Date-objecten. Die conversie doen we hier zelf,
+            // anders krijgt analyseerEvolutieData strings i.p.v. Dates.
+            const evoResult = await apiPost('get_student_evolution', {
+                leerlingId: studentHash, schoolId: profile.school_id
+            });
+            const evolutionData = (evoResult.evolutionData || []).map(test => ({
+                ...test,
+                all_scores: (test.all_scores || []).map(sc => ({
+                    ...sc,
+                    datum: sc.datum ? new Date(sc.datum) : new Date()
+                })),
+                personal_best_datum: test.personal_best_datum ? new Date(test.personal_best_datum) : null
+            }));
             const zwakkeTesten = analyseerEvolutieData(evolutionData);
             const verplichteFocusPuntenData = [];
 
             for (const testResult of zwakkeTesten) {
                 const schemaData = await apiPost('get_trainingsschema_for_test', {
                     testId: testResult.test_id
-                }, profile._token);
+                });
                 if (schemaData.schema) {
                     verplichteFocusPuntenData.push({
                         test: { ...testResult, test_naam: testResult.naam },
@@ -305,7 +311,7 @@ export default function Groeiplan() {
         try {
             await apiPost('add_optioneel_schema', {
                 leerlingId: studentHash, schemaId: plan.id, schoolId: profile.school_id
-            }, profile._token);
+            });
             setOptioneleSchemas(prev => [...prev, { ...plan, isNew: true }]);
             setShowModal(false);
             toast.success("Trainingsplan toegevoegd!");
@@ -344,7 +350,6 @@ export default function Groeiplan() {
                                     <StudentSearch
                                         onStudentSelect={setSelectedStudent}
                                         schoolId={profile?.school_id}
-                                        token={profile?._token}
                                         initialStudent={selectedStudent}
                                     />
                                 </div>
@@ -411,7 +416,6 @@ export default function Groeiplan() {
                                             student={currentProfile}
                                             onRemove={handleRemoveOptionalPlan}
                                             isTeacherOrAdmin={isTeacherOrAdmin}
-                                            token={profile._token}
                                             schoolId={profile.school_id}
                                         />
                                     ))}
@@ -426,7 +430,6 @@ export default function Groeiplan() {
                     onClose={() => setShowModal(false)}
                     onSelect={handleSelectTrainingPlan}
                     alGekozenIds={alGekozenIds}
-                    token={profile._token}
                 />
             </div>
         </div>

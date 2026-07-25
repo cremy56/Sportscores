@@ -3,6 +3,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import toast from 'react-hot-toast';
 import { Loader2, PlusCircle, XCircle, Dumbbell } from 'lucide-react';
+import { apiCall } from '../utils/api';
 
 export default function OefeningFormModal({ isOpen, onClose, onSave, oefeningData, profile }) {
     const [naam, setNaam] = useState('');
@@ -58,18 +59,12 @@ export default function OefeningFormModal({ isOpen, onClose, onSave, oefeningDat
         }, {});
 
         try {
-            const response = await fetch('/api/tests', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'save_oefening',
-                    schoolId: profile.school_id,
-                    oefeningId: isEditing ? oefeningData.id : null,
-                    oefening: { naam, beschrijving, categorie, visuele_media_url: visueleMediaUrl, instructies: instructiesObject }
-                })
+            await apiCall('/api/tests', {
+                action: 'save_oefening',
+                schoolId: profile.school_id,
+                oefeningId: isEditing ? oefeningData.id : null,
+                oefening: { naam, beschrijving, categorie, visuele_media_url: visueleMediaUrl, instructies: instructiesObject }
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error);
             toast.success(isEditing ? 'Oefening succesvol bijgewerkt!' : 'Oefening succesvol aangemaakt!');
             onSave();
             onClose();

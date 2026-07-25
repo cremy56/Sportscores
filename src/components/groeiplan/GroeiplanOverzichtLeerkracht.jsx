@@ -16,8 +16,7 @@ export default function GroeiplanOverzichtLeerkracht() {
                 </label>
                 <StudentSearch 
                     onStudentSelect={setSelectedStudent} 
-                    schoolId={profile?.school_id} // <-- 3. School ID doorgeven
-                    token={profile?._token}
+                    schoolId={profile?.school_id}
                 />
             </div>
 
