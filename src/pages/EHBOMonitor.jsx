@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import StudentSearch from '../components/StudentSearch';
+import { apiCall } from '../utils/api';
 import {
   AcademicCapIcon,
   ChartBarIcon,
@@ -16,19 +17,9 @@ import {
 // het EHBO-competentiedashboard (kennis, geen gezondheidsdata) blijft integraal.
 
 // ─── API helper ───────────────────────────────────────────────────────────────
-async function apiPost(action, body, token) {
-  const response = await fetch('/api/tests', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ action, ...body }),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'API fout');
-  return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call + 401-refresh
+// + 429-toast. Verving de eigen fetch + doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 // ─── EHBODashboard — BUITEN parent zodat React geen remount-loop maakt ────────
 function EHBODashboard({ loading, error, classStats, students, selectedStudent, selectedGroup, selectedGroupName }) {
@@ -262,7 +253,7 @@ const EHBOMonitor = () => {
   const loadUserGroups = async () => {
     setGroupsLoading(true);
     try {
-      const result = await apiPost('get_groepen', { schoolId: profile.school_id }, profile._token);
+      const result = await apiPost('get_groepen', { schoolId: profile.school_id });
       const groepen = result.groepen || [];
       setAvailableGroups([
         { id: 'all', naam: 'Selecteer een groep...' },
@@ -286,7 +277,7 @@ const EHBOMonitor = () => {
     try {
       const result = await apiPost('get_ehbo_stats', {
         schoolId: profile.school_id, classId: groupId, studentId,
-      }, profile._token);
+      });
       if (result.success) {
         setClassStats(result.classStats);
         setStudents(result.students || []);
@@ -338,7 +329,6 @@ const EHBOMonitor = () => {
                       <StudentSearch
                         onStudentSelect={s => { setSelectedStudent(s); setSelectedGroup('all'); }}
                         schoolId={profile?.school_id}
-                        token={profile?._token}
                         initialStudent={selectedStudent}
                         placeholder="Extra filter op leerling"
                       />
