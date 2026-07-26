@@ -51,6 +51,13 @@ const EHBODetail = () => {
     return scenario.graad <= leerlingGraad;
   });
 
+  // Kettingreacties horen bij de 3de graad (ze combineren meerdere scenario's
+  // tot een reeks). Leerling: enkel wie in graad 3 zit (of onbekende graad ->
+  // tonen i.p.v. verbergen). Leerkracht/admin: volgt de graadfilter.
+  const mogenChainsGetoond = isLeerkrachtOfAdmin
+    ? (graadFilter === 'alle' || graadFilter === '3')
+    : (!leerlingGraad || leerlingGraad === 3);
+
   const [userProgress, setUserProgress] = useState({
     completedScenarios: [],
     certificates: [],
@@ -533,7 +540,7 @@ const startChain = (chain) => {
         </div>
       </div>
     {/* --- START WIJZIGING: Toon dit blok alleen als enhancedMode aan staat --- */}
-{enhancedMode && (
+{enhancedMode && mogenChainsGetoond && (
 <div className="mb-8">
       <h2 className="text-xl font-bold text-slate-800 mb-4">Kettingreacties</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
