@@ -1212,115 +1212,191 @@ export const scenarios = [
       ]
     },
 
-    // --- SYMPTOOMHERKENNING (graad 3, BV3_01.01) ---
-    // Type 'symptomen': herkennen i.p.v. handelen. Draait om observeren en
-    // interpreteren van symptomen, passend bij het leerplandoel
-    // "symptomen gerelateerd aan ongevallen en noodsituaties".
+    // --- SYMPTOOMHERKENNING (graad 3, BV3_01.01) ────────────────────────────
+    // Type 'symptomen': herkennen i.p.v. handelen. Twee niveaus.
+    // Structuur per symptoom: één herkenningsvraag.
+    //   - JUIST  -> 1 bevestigende vervolgvraag -> volgend symptoom
+    //   - FOUT   -> consequence-vraag die naar het inzicht leidt -> volgend symptoom
+    // De medische feiten zijn geverifieerd via meerdere EHBO-bronnen; de
+    // vraagstellingen zijn eigen formuleringen. VUL AAN tot ~20 symptomen
+    // volgens ditzelfde patroon. Laat een EHBO-deskundige de inhoud nakijken.
     {
-      id: 'symptomen_shock',
+      id: 'symptomen_moeilijk',
       graad: 3,
       leerplandoel: 'BV3_01.01',
       type: 'symptomen',
-      title: 'Symptomen herkennen: Shock',
+      title: 'Symptomen herkennen',
       difficulty: 'Moeilijk',
-      duration: '2-3 min',
-      description: 'Herken de noodsituatie aan de symptomen',
+      duration: '5-7 min',
+      description: 'Herken de noodsituatie aan kenmerkende symptomen',
       image: '🔍',
       color: 'purple',
       steps: [
+        // ── SYMPTOOM 1: SHOCK ──────────────────────────────────────────────
         {
           id: 1,
-          question: 'Een leerling is bleek, klam en zweterig. De pols is snel maar zwak, de ademhaling oppervlakkig, en hij is verward en duizelig. Welke noodsituatie herken je?',
+          question: 'Iemand is bleek, heeft een koude en klamme huid, ademt snel en oppervlakkig, en is onrustig en dorstig. Welke noodsituatie herken je?',
           options: [
-            { id: 'a', text: 'Shock', correct: true, feedback: 'Correct! Bleek, klam, snelle zwakke pols en verwardheid wijzen op shock.', nextStepId: 2 },
-            { id: 'b', text: 'Epileptische aanval', correct: false, feedback: 'Nee — bij epilepsie zie je typisch stuiptrekkingen, niet deze combinatie.', nextStepId: null },
-            { id: 'c', text: 'Flauwvallen', correct: false, feedback: 'Deels — flauwvallen is kortdurend. Deze aanhoudende symptomen wijzen op shock.', nextStepId: null },
-            { id: 'd', text: 'Hyperventilatie', correct: false, feedback: 'Nee — bij hyperventilatie is de ademhaling juist snel en diep, niet oppervlakkig.', nextStepId: null }
+            { id: 'a', text: 'Shock', correct: true, feedback: 'Correct! Bleke klamme huid, snelle ademhaling, onrust en dorst wijzen op shock.', nextStepId: '1_bevestig' },
+            { id: 'b', text: 'Flauwte', correct: false, feedback: 'Kijk nog eens naar de aanhoudende symptomen...', nextStepId: '1_fout' },
+            { id: 'c', text: 'Onderkoeling', correct: false, feedback: 'De koude huid misleidt je hier...', nextStepId: '1_fout' },
+            { id: 'd', text: 'Hyperventilatie', correct: false, feedback: 'De ademhaling klopt deels, maar de rest niet...', nextStepId: '1_fout' }
           ],
-          timeLimit: 20,
-          explanation: 'Shock herken je aan: bleke/klamme huid, snelle zwakke pols, oppervlakkige ademhaling, verwardheid, dorst.'
+          timeLimit: 25,
+          explanation: 'Shock: bleke/koude/klamme huid, snelle oppervlakkige ademhaling, versnelde hartslag, onrust/verwardheid, dorst.'
         },
         {
-          id: 2,
-          question: 'Je herkent shock. Welk symptoom is het meest alarmerend en vraagt onmiddellijk 112?',
+          id: '1_bevestig',
+          question: 'Je herkent shock. Wat is de juiste eerste actie?',
           options: [
-            { id: 'a', text: 'Dalend bewustzijn', correct: true, feedback: 'Juist. Een dalend bewustzijn betekent dat de shock verergert — 112 is dringend.', nextStepId: null },
-            { id: 'b', text: 'Dorstgevoel', correct: false, feedback: 'Dorst hoort bij shock maar is op zich niet het meest alarmerend.', nextStepId: null }
+            { id: 'a', text: '112 bellen en het slachtoffer plat neerleggen, benen omhoog', correct: true, feedback: 'Juist. Bij shock is snel professionele hulp inschakelen levensreddend.', nextStepId: 2 },
+            { id: 'b', text: 'Iets te drinken geven tegen de dorst', correct: false, feedback: 'Nee — bij shock geef je niets te drinken. Bel 112.', nextStepId: 2 }
           ],
           timeLimit: 15,
-          explanation: 'Symptomen kunnen verergeren. Een dalend bewustzijn is een alarmsignaal.'
+          explanation: 'Bij shock: 112 bellen, plat neerleggen met benen omhoog, warm houden, niets te drinken geven.'
+        },
+        {
+          id: '1_fout',
+          question: 'Kijk naar de combinatie: bleek én klam én snelle ademhaling én dorst, en het gaat niet vanzelf over. Wat past hierbij?',
+          options: [
+            { id: 'a', text: 'Shock — deze symptomen samen wijzen op een verstoorde bloedsomloop', correct: true, feedback: 'Precies. Het is de combinatie die shock kenmerkt, niet één los symptoom.', nextStepId: 2 },
+            { id: 'b', text: 'Toch flauwte', correct: false, feedback: 'Flauwte is kortdurend en herstelt vanzelf. Deze aanhoudende symptomen wijzen op shock.', nextStepId: 2 }
+          ],
+          timeLimit: 20,
+          explanation: 'Losse symptomen kunnen misleiden. Bij shock telt de combinatie: bleek, klam, snelle ademhaling, dorst, onrust.'
+        },
+        // ── SYMPTOOM 2: BEROERTE (FAST) ────────────────────────────────────
+        {
+          id: 2,
+          question: 'Iemand heeft plots een scheve mond, kan één arm niet omhoog houden en spreekt onduidelijk. Wat herken je?',
+          options: [
+            { id: 'a', text: 'Een beroerte', correct: true, feedback: 'Correct! Scheve mond, arm-zwakte en spraakproblemen zijn de FAST-signalen.', nextStepId: '2_bevestig' },
+            { id: 'b', text: 'Dronkenschap', correct: false, feedback: 'Dat is een gevaarlijke aanname...', nextStepId: '2_fout' },
+            { id: 'c', text: 'Vermoeidheid', correct: false, feedback: 'Deze plotse, eenzijdige uitval is geen vermoeidheid...', nextStepId: '2_fout' },
+            { id: 'd', text: 'Migraine', correct: false, feedback: 'Migraine geeft niet deze plotse eenzijdige verlamming...', nextStepId: '2_fout' }
+          ],
+          timeLimit: 25,
+          explanation: 'FAST: Face (scheve mond), Arm (zwakte), Speech (spraak), Time (bel snel 112).'
+        },
+        {
+          id: '2_bevestig',
+          question: 'Waar staat de "T" van FAST voor?',
+          options: [
+            { id: 'a', text: 'Time — noteer wanneer het begon en bel meteen 112', correct: true, feedback: 'Juist. Bij een beroerte telt elke minuut.', nextStepId: 3 },
+            { id: 'b', text: 'Temperatuur', correct: false, feedback: 'Nee, de T staat voor Time.', nextStepId: 3 }
+          ],
+          timeLimit: 15,
+          explanation: 'Time: het beginmoment bepaalt de behandeling. Snel 112 bellen redt hersenweefsel.'
+        },
+        {
+          id: '2_fout',
+          question: 'De symptomen kwamen plots en zitten aan één kant: scheve mond, zwakke arm, onduidelijke spraak. Welke methode gebruik je?',
+          options: [
+            { id: 'a', text: 'FAST — dit zijn de klassieke tekenen van een beroerte', correct: true, feedback: 'Precies. Bij twijfel: ga uit van een beroerte en bel 112.', nextStepId: 3 },
+            { id: 'b', text: 'Gewoon laten uitrusten', correct: false, feedback: 'Nee — bij een beroerte is wachten gevaarlijk. Bel 112.', nextStepId: 3 }
+          ],
+          timeLimit: 20,
+          explanation: 'Plotse eenzijdige uitval = beroerte tot het tegendeel bewezen is. Nooit afwachten.'
+        },
+        // ── SYMPTOOM 3: (voorbeeld-eindpunt) ───────────────────────────────
+        {
+          id: 3,
+          question: 'Iemand grijpt met beide handen naar de keel, kan niet praten of hoesten, en wordt blauw. Wat herken je?',
+          options: [
+            { id: 'a', text: 'Volledige verslikking (verstikking)', correct: true, feedback: 'Correct! De handen aan de keel is het universele teken van verstikking.', nextStepId: null },
+            { id: 'b', text: 'Astma-aanval', correct: false, feedback: 'Bij astma kan iemand meestal nog wat geluid maken...', nextStepId: '3_fout' },
+            { id: 'c', text: 'Paniekaanval', correct: false, feedback: 'Het niet kunnen praten én blauw worden wijst op iets acuuts...', nextStepId: '3_fout' }
+          ],
+          timeLimit: 20,
+          explanation: 'Verstikking: handen aan de keel, niet kunnen praten/hoesten/ademen, blauw aanlopen. Geef rugslagen.'
+        },
+        {
+          id: '3_fout',
+          question: 'De persoon kan geen geluid maken, niet hoesten en loopt blauw aan. Wat is dit?',
+          options: [
+            { id: 'a', text: 'Volledige verstikking — de luchtweg is geblokkeerd', correct: true, feedback: 'Juist. Geen geluid = volledige blokkade. Geef meteen rugslagen.', nextStepId: null },
+            { id: 'b', text: 'Toch een astma-aanval', correct: false, feedback: 'Bij astma is er meestal nog een piepend geluid. Hier is de luchtweg volledig dicht.', nextStepId: null }
+          ],
+          timeLimit: 15,
+          explanation: 'Geen enkel geluid meer = volledige verstikking. Handel onmiddellijk met rugslagen en buikstoten.'
         }
       ]
     },
     {
-      id: 'symptomen_beroerte',
+      id: 'symptomen_zeer_moeilijk',
       graad: 3,
       leerplandoel: 'BV3_01.01',
       type: 'symptomen',
-      title: 'Symptomen herkennen: Beroerte (FAST)',
-      difficulty: 'Moeilijk',
-      duration: '2-3 min',
-      description: 'Herken een beroerte met de FAST-methode',
-      image: '🔍',
+      title: 'Symptomen herkennen',
+      difficulty: 'Zeer moeilijk',
+      duration: '5-7 min',
+      description: 'Onderscheid noodsituaties die op elkaar lijken',
+      image: '🔬',
       color: 'purple',
       steps: [
+        // ── DIFFERENTIATIE 1: HARTAANVAL vs PANIEKAANVAL ───────────────────
         {
           id: 1,
-          question: 'Iemand heeft plots een scheve mond, kan één arm niet optillen en spreekt onduidelijk. Welke methode gebruik je om een beroerte te herkennen?',
+          question: 'Iemand heeft drukkende pijn op de borst die uitstraalt naar de linkerarm en kaak, met kortademigheid en misselijkheid. De klachten houden aan en worden erger. Wat is het meest waarschijnlijk?',
           options: [
-            { id: 'a', text: 'FAST (Face, Arm, Speech, Time)', correct: true, feedback: 'Correct! FAST staat voor Face, Arm, Speech, Time — precies deze symptomen.', nextStepId: 2 },
-            { id: 'b', text: 'ABC (Airway, Breathing, Circulation)', correct: false, feedback: 'Nee — ABC gebruik je bij het controleren van vitale functies, niet voor beroerteherkenning.', nextStepId: null },
-            { id: 'c', text: 'RICE (Rest, Ice, Compression, Elevation)', correct: false, feedback: 'Nee — RICE is voor spier- en gewrichtsletsel.', nextStepId: null },
-            { id: 'd', text: 'PLS (stabiele zijligging)', correct: false, feedback: 'Dat is een houding, geen herkenningsmethode.', nextStepId: null }
+            { id: 'a', text: 'Hartaanval', correct: true, feedback: 'Correct! Uitstraling naar arm/kaak én aanhoudende, verergerende klachten wijzen op een hartaanval.', nextStepId: '1_bevestig' },
+            { id: 'b', text: 'Paniekaanval', correct: false, feedback: 'Let op de uitstraling en dat het erger wordt...', nextStepId: '1_fout' },
+            { id: 'c', text: 'Spierpijn', correct: false, feedback: 'De uitstraling en misselijkheid passen niet bij spierpijn...', nextStepId: '1_fout' }
           ],
-          timeLimit: 20,
-          explanation: 'FAST: Face (scheve mond), Arm (zwakte), Speech (spraak), Time (tijd — bel snel 112).'
+          timeLimit: 30,
+          explanation: 'Hartaanval: drukkende pijn met uitstraling naar arm/kaak, aanhoudend en verergerend. Paniekaanval: eerder scherpe lokale pijn, zakt meestal binnen 10 minuten.'
         },
         {
-          id: 2,
-          question: 'Waar staat de "T" in FAST voor, en waarom is die zo belangrijk?',
+          id: '1_bevestig',
+          question: 'Wat is het onderscheid met een paniekaanval, die ook borstpijn en kortademigheid geeft?',
           options: [
-            { id: 'a', text: 'Time — noteer wanneer de symptomen begonnen en bel meteen 112', correct: true, feedback: 'Juist. Bij een beroerte telt elke minuut voor de behandeling.', nextStepId: null },
-            { id: 'b', text: 'Temperatuur meten', correct: false, feedback: 'Nee — de T staat voor Time.', nextStepId: null }
-          ],
-          timeLimit: 15,
-          explanation: 'Time: het tijdstip van de eerste symptomen bepaalt welke behandeling mogelijk is. Snel handelen redt hersenweefsel.'
-        }
-      ]
-    },
-    {
-      id: 'symptomen_hartaanval',
-      graad: 3,
-      leerplandoel: 'BV3_01.01',
-      type: 'symptomen',
-      title: 'Symptomen herkennen: Hartaanval',
-      difficulty: 'Moeilijk',
-      duration: '2-3 min',
-      description: 'Onderscheid een hartaanval van een paniekaanval',
-      image: '🔍',
-      color: 'purple',
-      steps: [
-        {
-          id: 1,
-          question: 'Iemand klaagt over drukkende pijn op de borst die uitstraalt naar de linkerarm en kaak, met kortademigheid en misselijkheid. Wat herken je?',
-          options: [
-            { id: 'a', text: 'Hartaanval', correct: true, feedback: 'Correct! Drukkende pijn met uitstraling naar arm/kaak is typisch voor een hartaanval.', nextStepId: 2 },
-            { id: 'b', text: 'Paniekaanval', correct: false, feedback: 'Voorzichtig — bij twijfel altijd als hartaanval behandelen. Uitstraling naar arm/kaak wijst op het hart.', nextStepId: null },
-            { id: 'c', text: 'Spierpijn', correct: false, feedback: 'Nee — de combinatie met kortademigheid en misselijkheid wijst op iets ernstigers.', nextStepId: null },
-            { id: 'd', text: 'Maagklachten', correct: false, feedback: 'Nee — de uitstraling naar arm en kaak is een alarmsignaal voor het hart.', nextStepId: null }
+            { id: 'a', text: 'Een hartaanval houdt aan of wordt erger; een paniekaanval zakt meestal binnen 10 minuten', correct: true, feedback: 'Juist. Duur en uitstraling zijn de sleutel. Bij twijfel: altijd 112.', nextStepId: 2 },
+            { id: 'b', text: 'Er is geen betrouwbaar verschil', correct: false, feedback: 'Er zijn wél aanwijzingen: uitstraling en het aanhouden van de klachten.', nextStepId: 2 }
           ],
           timeLimit: 20,
-          explanation: 'Hartaanval: drukkende pijn op de borst, uitstraling naar arm/kaak/rug, kortademigheid, misselijkheid, koud zweet.'
+          explanation: 'Bij twijfel tussen hartaanval en paniekaanval: ga uit van het gevaarlijkste en bel 112.'
         },
         {
-          id: 2,
-          question: 'Je twijfelt tussen een hartaanval en een paniekaanval. Wat doe je?',
+          id: '1_fout',
+          question: 'De pijn straalt uit naar arm en kaak, gaat gepaard met misselijkheid, en wordt erger in plaats van beter. Wat doe je?',
           options: [
-            { id: 'a', text: 'Bij twijfel altijd 112 bellen en als hartaanval behandelen', correct: true, feedback: 'Juist. Bij een hartaanval is snel handelen levensreddend — twijfel niet.', nextStepId: null },
-            { id: 'b', text: 'Eerst afwachten of het vanzelf overgaat', correct: false, feedback: 'Nee — afwachten kan bij een hartaanval fataal zijn.', nextStepId: null }
+            { id: 'a', text: 'Als hartaanval behandelen en 112 bellen', correct: true, feedback: 'Precies. Uitstraling + verergering = hartaanval tot het tegendeel blijkt.', nextStepId: 2 },
+            { id: 'b', text: 'Afwachten of het zakt', correct: false, feedback: 'Nee — bij een hartaanval is afwachten levensgevaarlijk.', nextStepId: 2 }
           ],
-          timeLimit: 15,
-          explanation: 'Bij twijfel tussen hartaanval en paniekaanval: altijd het veiligste aannemen en 112 bellen.'
+          timeLimit: 20,
+          explanation: 'Uitstraling naar arm/kaak en verergerende klachten onderscheiden een hartaanval van paniek. Bij twijfel: 112.'
+        },
+        // ── DIFFERENTIATIE 2: BEROERTE vs ONDERKOELING (verwardheid) ───────
+        {
+          id: 2,
+          question: 'Een wandelaar is na uren in de kou verward, spreekt onduidelijk, rilt hevig en heeft een koude, bleke huid. Waar denk je in de EERSTE plaats aan?',
+          options: [
+            { id: 'a', text: 'Onderkoeling', correct: true, feedback: 'Correct! De context (uren in de kou) plus rillen en koude huid wijzen op onderkoeling.', nextStepId: '2_bevestig' },
+            { id: 'b', text: 'Beroerte', correct: false, feedback: 'De onduidelijke spraak lijkt erop, maar kijk naar de context...', nextStepId: '2_fout' },
+            { id: 'c', text: 'Dronkenschap', correct: false, feedback: 'Een gevaarlijke aanname zonder de context mee te wegen...', nextStepId: '2_fout' }
+          ],
+          timeLimit: 30,
+          explanation: 'Onderkoeling: context van kou, hevig rillen, koude bleke huid, verwardheid, onduidelijke spraak. Context is hier doorslaggevend.'
+        },
+        {
+          id: '2_bevestig',
+          question: 'Wat doe je als eerste bij onderkoeling?',
+          options: [
+            { id: 'a', text: 'Uit de kou halen, warm en droog inpakken, 112 bij ernstige verwardheid', correct: true, feedback: 'Juist. Geleidelijk opwarmen en beschermen tegen verder warmteverlies.', nextStepId: null },
+            { id: 'b', text: 'Stevig masseren om op te warmen', correct: false, feedback: 'Nee — ruw masseren kan gevaarlijk zijn. Pak warm in en bel bij twijfel 112.', nextStepId: null }
+          ],
+          timeLimit: 20,
+          explanation: 'Onderkoeling: uit de kou, droog en warm inpakken, voorzichtig opwarmen, bij ernst 112.'
+        },
+        {
+          id: '2_fout',
+          question: 'Weeg de context mee: uren in de kou, rillen, koude huid. Wat verklaart de verwardheid het best?',
+          options: [
+            { id: 'a', text: 'Onderkoeling — de kou verklaart alle symptomen samen', correct: true, feedback: 'Precies. De context is hier de sleutel tot de juiste herkenning.', nextStepId: null },
+            { id: 'b', text: 'Toch een beroerte', correct: false, feedback: 'Een beroerte geeft plotse eenzijdige uitval, niet rillen na uren kou.', nextStepId: null }
+          ],
+          timeLimit: 20,
+          explanation: 'Bij lijkende symptomen bepaalt de context vaak het onderscheid. Kou + rillen + koude huid = onderkoeling.'
         }
       ]
     }
