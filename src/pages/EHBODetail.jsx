@@ -58,6 +58,20 @@ const EHBODetail = () => {
     ? (graadFilter === 'alle' || graadFilter === '3')
     : (!leerlingGraad || leerlingGraad === 3);
 
+  // Variant B — gegroepeerde weergave voor de LEERLING: eigen graad bovenaan
+  // als grote tiles, lagere graden elk in een eigen kader met hun scenario's.
+  // De leerkracht/admin houdt de platte lijst (zichtbareScenarios) + filter.
+  const eigenGraadScenarios = leerlingGraad
+    ? scenarios.filter(sc => sc.graad === leerlingGraad)
+    : [];
+  const lagereGraden = leerlingGraad
+    ? [1, 2].filter(g => g < leerlingGraad).map(g => ({
+        graad: g,
+        label: ['', '1ste graad', '2de graad', '3de graad'][g],
+        scenarios: scenarios.filter(sc => sc.graad === g),
+      }))
+    : [];
+
   const [userProgress, setUserProgress] = useState({
     completedScenarios: [],
     certificates: [],
@@ -484,6 +498,64 @@ const startChain = (chain) => {
     }
   };
 
+  // Herbruikbare scenario-kaart. Gebruikt in de eigen-graad-grid én in de
+  // kaders van de lagere graden (variant B). Leest userProgress,
+  // isLeerkrachtOfAdmin en startScenario uit de closure.
+  const ScenarioKaart = ({ scenario }) => {
+    const isCompleted = userProgress.completedScenarios.includes(scenario.id);
+    const colorClass = {
+      red: 'from-red-500 to-pink-500',
+      orange: 'from-orange-500 to-amber-500',
+      blue: 'from-blue-500 to-indigo-500',
+      green: 'from-green-500 to-emerald-500',
+      purple: 'from-purple-500 to-violet-500'
+    }[scenario.color];
+
+    return (
+      <div
+        key={scenario.id}
+        className={`relative bg-gradient-to-br ${colorClass} rounded-xl p-4 text-white cursor-pointer transform transition-all hover:scale-105 ${isCompleted ? 'ring-2 ring-yellow-400' : ''}`}
+        onClick={() => startScenario(scenario)}
+      >
+        {isCompleted && (
+          <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 rounded-full p-1">
+            <CheckIcon className="w-4 h-4" />
+          </div>
+        )}
+
+        <div className="flex items-start justify-between mb-3">
+          <div className="text-4xl">{scenario.image}</div>
+          <div className="text-right text-xs opacity-90">
+            <div>{scenario.difficulty}</div>
+            <div>{scenario.duration}</div>
+          </div>
+        </div>
+
+        <h4 className="text-lg font-bold mb-2">{scenario.title}</h4>
+
+        {scenario.type === 'symptomen' && (
+          <div className="inline-flex items-center gap-1.5 bg-white/25 backdrop-blur-sm rounded-full px-2.5 py-1 mb-2 text-xs font-semibold">
+            <span>🔍 Herkennen</span>
+          </div>
+        )}
+
+        {isLeerkrachtOfAdmin && scenario.graad && (
+          <div className="inline-flex items-center gap-1.5 bg-white/25 backdrop-blur-sm rounded-full px-2.5 py-1 mb-2 text-xs font-semibold">
+            <AcademicCapIcon className="w-3.5 h-3.5" />
+            <span>{['', '1ste', '2de', '3de'][scenario.graad]} graad · {scenario.leerplandoel}</span>
+          </div>
+        )}
+
+        <p className="text-sm opacity-90 mb-3 line-clamp-2">{scenario.description}</p>
+
+        <button className="bg-white/20 backdrop-blur-sm px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-white/30 transition-colors text-sm">
+          <PlayIcon className="w-4 h-4" />
+          {isCompleted ? 'Opnieuw' : 'Start'}
+        </button>
+      </div>
+    );
+  };
+
   const Dashboard = () => (
     <div className="space-y-6">
       {/* OPTIMALISATIE: Status en controls samengevoegd in één compacte balk */}
@@ -601,66 +673,57 @@ const startChain = (chain) => {
       </div>
     )}
 
-    {/* Scenario Grid - direct zichtbaar zonder extra headers */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {zichtbareScenarios.map(scenario => {
-        const isCompleted = userProgress.completedScenarios.includes(scenario.id);
-        const colorClass = {
-          red: 'from-red-500 to-pink-500',
-          orange: 'from-orange-500 to-amber-500',
-          blue: 'from-blue-500 to-indigo-500',
-          green: 'from-green-500 to-emerald-500',
-          purple: 'from-purple-500 to-violet-500'
-        }[scenario.color];
-
-        return (
-          <div 
-            key={scenario.id}
-            className={`relative bg-gradient-to-br ${colorClass} rounded-xl p-4 text-white cursor-pointer transform transition-all hover:scale-105 ${isCompleted ? 'ring-2 ring-yellow-400' : ''}`}
-            onClick={() => startScenario(scenario)}
-          >
-            {isCompleted && (
-              <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 rounded-full p-1">
-                <CheckIcon className="w-4 h-4" />
-              </div>
+    {/* Scenario-weergave. Leerkracht/admin: platte lijst met alle (gefilterde)
+        scenario's + labels. Leerling (variant B): eigen graad bovenaan, lagere
+        graden elk in een eigen kader met hun scenario's er direct in. */}
+    {isLeerkrachtOfAdmin ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {zichtbareScenarios.map(scenario => (
+          <ScenarioKaart key={scenario.id} scenario={scenario} />
+        ))}
+      </div>
+    ) : (
+      <div className="space-y-8">
+        {/* Eigen graad */}
+        {eigenGraadScenarios.length > 0 && (
+          <div>
+            {leerlingGraad && (
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                Jouw graad — {['', '1ste', '2de', '3de'][leerlingGraad]} graad
+              </h3>
             )}
-            
-            <div className="flex items-start justify-between mb-3">
-              <div className="text-4xl">{scenario.image}</div>
-              <div className="text-right text-xs opacity-90">
-                <div>{scenario.difficulty}</div>
-                <div>{scenario.duration}</div>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {eigenGraadScenarios.map(scenario => (
+                <ScenarioKaart key={scenario.id} scenario={scenario} />
+              ))}
             </div>
-            
-            <h4 className="text-lg font-bold mb-2">{scenario.title}</h4>
-
-            {/* Type-label 'Herkennen' voor symptoomscenario's — voor iedereen,
-                zodat duidelijk is dat dit om herkennen i.p.v. handelen gaat. */}
-            {scenario.type === 'symptomen' && (
-              <div className="inline-flex items-center gap-1.5 bg-white/25 backdrop-blur-sm rounded-full px-2.5 py-1 mb-2 text-xs font-semibold">
-                <span>🔍 Herkennen</span>
-              </div>
-            )}
-
-            {/* Leerplan-label: enkel voor leerkracht/admin */}
-            {isLeerkrachtOfAdmin && scenario.graad && (
-              <div className="inline-flex items-center gap-1.5 bg-white/25 backdrop-blur-sm rounded-full px-2.5 py-1 mb-2 text-xs font-semibold">
-                <AcademicCapIcon className="w-3.5 h-3.5" />
-                <span>{['', '1ste', '2de', '3de'][scenario.graad]} graad · {scenario.leerplandoel}</span>
-              </div>
-            )}
-
-            <p className="text-sm opacity-90 mb-3 line-clamp-2">{scenario.description}</p>
-            
-            <button className="bg-white/20 backdrop-blur-sm px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-white/30 transition-colors text-sm">
-              <PlayIcon className="w-4 h-4" />
-              {isCompleted ? 'Opnieuw' : 'Start'}
-            </button>
           </div>
-        );
-      })}
-    </div>
+        )}
+
+        {/* Onbekende graad: toon alles plat (fallback, geen leeg scherm) */}
+        {!leerlingGraad && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {zichtbareScenarios.map(scenario => (
+              <ScenarioKaart key={scenario.id} scenario={scenario} />
+            ))}
+          </div>
+        )}
+
+        {/* Lagere graden, elk in een eigen kader */}
+        {lagereGraden.map(groep => (
+          <div key={groep.graad} className="border border-gray-200 rounded-2xl p-4 bg-gray-50">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              {groep.label}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {groep.scenarios.map(scenario => (
+                <ScenarioKaart key={scenario.id} scenario={scenario} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
   </div>
 );
 
