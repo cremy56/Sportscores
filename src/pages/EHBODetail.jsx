@@ -421,7 +421,7 @@ function HotspotOefening({ step, onVoltooid }) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex items-center gap-1.5">
         {hotspots.map((hs, i) => (
           <div key={hs.id}
@@ -431,7 +431,7 @@ function HotspotOefening({ step, onVoltooid }) {
         ))}
       </div>
 
-      <p className="text-sm text-gray-500">
+      <p className="text-xs md:text-sm text-gray-500 -mt-1">
         {klaar
           ? 'Alles in orde — je kunt verder.'
           : `${gedaan.length} van ${hotspots.length} ${volgordeVerplicht ? 'controles uitgevoerd' : 'gevaren aangepakt'}`}
@@ -445,7 +445,7 @@ function HotspotOefening({ step, onVoltooid }) {
         onKlik={klik}
         onMis={verbergZones ? klikMis : null}
         verbergZones={verbergZones}
-        maxHoogte="46dvh"
+        maxHoogte="min(68dvh, calc(100dvh - 19rem))"
       />
 
       {mis && !laatsteUitleg && (
@@ -1324,13 +1324,12 @@ const startChain = (chain) => {
             
             {/* --- START WIJZIGING --- */}
             <div className="flex items-center justify-between">
-             <div className="flex items-center gap-4">
-               {(() => {
-                  const questionsInCurrentStep = Object.keys(scenarioResults).filter(key => !key.includes('_consequence')).length;
-                  // Nieuwe, doorlopende vraagnummering
-                  const vraagNummer = chainQuestionOffset + questionsInCurrentStep + 1;
-                  return <span className="text-lg font-semibold">Vraag {vraagNummer}</span>;
-                })()}
+             <div className="flex items-center gap-4 flex-1 min-w-0 pr-3">
+                {/* De vraag staat in de gekleurde kop (zwart), zodat de
+                    inhoud eronder alle ruimte krijgt voor de foto. */}
+                <p className="text-base md:text-lg font-semibold text-slate-900 leading-snug">
+                  {currentStepData.question}
+                </p>
               </div>
               
               {/* TIMER ALLEEN TONEN ALS ACCESSIBILITY MODE UIT STAAT */}
@@ -1355,23 +1354,29 @@ const startChain = (chain) => {
             {!showResults ? (
               <>
                 <div className="mb-6">
-                  <h3 className="text-lg md:text-xl font-bold mb-4">{currentStepData.question}</h3>
 
                   {/* Tekening bij een gewone vraag. Bij interactie 'hotspots'
                       tekent HotspotOefening de scène zelf (met klikzones).
                       sceneOpgeruimd laat gevaren die al weggewerkt zijn weg,
                       zodat de leerling het resultaat van zijn werk ziet. */}
+                  {/* Bij een vraag MET foto staan de keuzes op een breed scherm
+                      naast de foto (lg:grid-cols-2), zodat de foto de volle
+                      hoogte krijgt. Op smalle schermen stapelen ze. */}
+                  <div className={currentStepData.scene && currentStepData.interactie !== 'hotspots'
+                    ? 'grid grid-cols-1 lg:grid-cols-2 gap-4 lg:items-start'
+                    : ''}>
                   {currentStepData.scene && currentStepData.interactie !== 'hotspots' && (
-                    <div className="mb-4">
+                    <div className="mb-2 lg:mb-0">
                       <SceneWeergave
                         scene={currentStepData.scene}
                         opgeruimd={currentStepData.sceneOpgeruimd || []}
                         hotspots={currentStepData.toonGedaan ? (currentStepData.hotspots || []) : []}
                         gedaan={currentStepData.toonGedaan ? (currentStepData.hotspots || []).map(h => h.id) : []}
-                        maxHoogte="30dvh"
+                        maxHoogte="min(58dvh, calc(100dvh - 22rem))"
                       />
                     </div>
                   )}
+                  <div>
                   {/* Role considerations */}
                   {isEnhanced && currentStepData.roleConsiderations && currentStepData.roleConsiderations.length > 0 && (
                     <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
@@ -1448,6 +1453,8 @@ const startChain = (chain) => {
                     ))}
                   </div>
                  )}
+                  </div>
+                  </div>
                 {/* NIEUW: Hint systeem voor enhanced scenarios */}
                   {isEnhanced && currentStepData.hint && shouldShowHints && (
                     <EnhancedUIComponents.HintDisplay
