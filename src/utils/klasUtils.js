@@ -26,3 +26,18 @@ export function getLeeftijdFromKlas(klas) {
     const leerjaar = getLeerjaarFromKlas(klas);
     return getLeeftijdFromLeerjaar(leerjaar);
 }
+
+/**
+ * Converteert een klasnaam naar de onderwijsgraad (GO! secundair onderwijs).
+ * Leerjaar 1-2 → 1ste graad, 3-4 → 2de graad, 5-6 → 3de graad.
+ * Gebruikt o.a. door de EHBO-module om scenario's per graad te tonen.
+ * @returns {number|null} 1, 2, 3, of null als de klas niet herkend wordt.
+ */
+export function getGraadFromKlas(klas) {
+    const leerjaar = getLeerjaarFromKlas(klas);
+    if (!leerjaar) return null;
+    if (leerjaar <= 2) return 1;
+    if (leerjaar <= 4) return 2;
+    if (leerjaar <= 6) return 3;
+    return null;
+}
