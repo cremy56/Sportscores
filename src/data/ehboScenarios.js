@@ -1212,6 +1212,205 @@ export const scenarios = [
       ]
     },
 
+    // --- BASISSTAPPEN EHBO (graad 1, BV1_01.01) ─────────────────────────────
+    // Eén samenhangende oefening die de vier basisstappen doorloopt met
+    // wisselende interacties: meerkeuze -> gevaren wegklikken op de tekening ->
+    // meerkeuze -> controles in volgorde op het slachtoffer -> 112 -> recap.
+    {
+      id: 'basisstappen_ongeval',
+      graad: 1,
+      leerplandoel: 'BV1_01.01',
+      type: 'basisstappen',
+      title: 'Basisstappen EHBO',
+      difficulty: 'Basis',
+      duration: '8-10 min',
+      description: 'Doorloop een echt ongeval van veiligheid tot eerste hulp',
+      image: '🚑',
+      color: 'green',
+      steps: [
+        {
+          id: 1,
+          scene: 'sporthal_ongeval',
+          sceneBeschrijving: 'Sporthal met een slachtoffer op de grond, een omgevallen ladder, een plas water, een losse kabel en glasscherven.',
+          question: 'Je komt de sporthal binnen en ziet dit. Wat doe je ALS EERSTE?',
+          options: [
+            { id: 'a', text: 'Zorg voor veiligheid', correct: true, feedback: 'Correct! Stap 1 is altijd: zorg voor veiligheid.', nextStepId: 2 },
+            { id: 'b', text: 'Meteen naar het slachtoffer rennen', correct: false, feedback: 'Er liggen nog gevaren — je kunt zelf slachtoffer worden.', nextStepId: '1_fout' },
+            { id: 'c', text: 'Direct 112 bellen', correct: false, feedback: '112 komt later. Eerst de plek veilig maken.', nextStepId: '1_fout' },
+            { id: 'd', text: 'Het slachtoffer wakker schudden', correct: false, feedback: 'Nog niet — eerst de veiligheid.', nextStepId: '1_fout' }
+          ],
+          timeLimit: 30,
+          explanation: 'De vier basisstappen beginnen altijd met: zorg voor veiligheid (van jezelf, het slachtoffer en de omstanders).'
+        },
+        {
+          id: '1_fout',
+          scene: 'sporthal_ongeval',
+          question: 'Kijk nog eens naar de tekening. Er liggen gevaren. Wat gebeurt er als je meteen toeloopt?',
+          options: [
+            { id: 'a', text: 'Ik word zelf slachtoffer en kan niemand meer helpen', correct: true, feedback: 'Precies. Daarom: eerst veiligheid.', nextStepId: 2 },
+            { id: 'b', text: 'Niets, ik ben voorzichtig genoeg', correct: false, feedback: 'Een risico dat je nooit moet nemen. Eigen veiligheid eerst.', nextStepId: 2 }
+          ],
+          timeLimit: 25,
+          explanation: 'Een gewonde helper maakt de situatie erger. Eigen veiligheid komt altijd eerst.'
+        },
+        {
+          id: 2,
+          interactie: 'hotspots',
+          scene: 'sporthal_ongeval',
+          sceneBeschrijving: 'Klik de gevaren aan: omgevallen ladder, plas water, losse kabel en glasscherven.',
+          question: 'Zorg voor veiligheid: klik alle tien de gevaren aan voor je verder gaat.',
+          klaarTekst: 'De plek is nu veilig — voor jou, het slachtoffer en de omstanders.',
+          hotspots: [
+            { id: 'g_blok', naam: 'Stopcontactblok met kabels', x: 59.2, y: 88.9, r: 5,
+              uitleg: 'Stroom én water in dezelfde ruimte is levensgevaarlijk. Stekker eruit en kabels opgerold — dit was het grootste gevaar.' },
+            { id: 'g_plas_links', naam: 'Plas water', x: 17, y: 55.7, r: 4.5,
+              uitleg: 'De plas opgedweild. Op een sportvloer glijd je zo onderuit.' },
+            { id: 'g_fles', naam: 'Omgevallen drinkfles met plas', x: 36.8, y: 74.2, r: 4.5,
+              uitleg: 'Fles rechtgezet en de plas weggewerkt. Uitglijgevaar weg.' },
+            { id: 'g_horde', naam: 'Omgevallen horde', x: 10.7, y: 41.8, r: 5,
+              uitleg: 'De horde aan de kant gezet. Je struikelt er zo over.' },
+            { id: 'g_tas', naam: 'Openliggende sporttas', x: 11.4, y: 78.6, r: 5.5,
+              uitleg: 'De tas dichtgemaakt en opzij gezet. Riemen zijn echte struikeldraden.' },
+            { id: 'g_racket', naam: 'Badmintonracket op de vloer', x: 30.6, y: 61, r: 4,
+              uitleg: 'Racket opgeraapt. Je verstapt je erop of glijdt weg.' },
+            { id: 'g_bal', naam: 'Basketbal op de vloer', x: 25.5, y: 42.2, r: 3.5,
+              uitleg: 'Bal weggelegd. Een losse bal onder je voet is zo een tweede ongeval.' },
+            { id: 'g_stang', naam: 'Losse stang', x: 60.2, y: 42.7, r: 3,
+              uitleg: 'Stang opgeborgen. Rolt weg onder je voet.' },
+            { id: 'g_kegel', naam: 'Omgevallen kegel', x: 67.1, y: 46.1, r: 3,
+              uitleg: 'Kegel rechtgezet. Klein maar je struikelt er makkelijk over.' },
+            { id: 'g_sleutels', naam: 'Sleutels op de vloer', x: 22.8, y: 88.9, r: 3,
+              uitleg: 'Sleutels opgeraapt. Klein, hard en makkelijk over het hoofd gezien.' }
+          ],
+          options: [
+            { id: 'a', text: 'Alle gevaren weggewerkt', correct: true, feedback: 'De plek is veilig. Nu pas ga je naar het slachtoffer.', nextStepId: 3 }
+          ],
+          timeLimit: 180,
+          explanation: 'Veiligheid betekent: gevaren wegnemen of iedereen op afstand houden — voor jezelf, het slachtoffer én de omstanders.'
+        },
+        {
+          id: 3,
+          scene: 'sporthal_ongeval',
+          toonGedaan: true,
+          hotspots: [
+            { id: 'g_blok', x: 59.2, y: 88.9, r: 5 },
+            { id: 'g_plas_links', x: 17, y: 55.7, r: 4.5 },
+            { id: 'g_fles', x: 36.8, y: 74.2, r: 4.5 },
+            { id: 'g_horde', x: 10.7, y: 41.8, r: 5 },
+            { id: 'g_tas', x: 11.4, y: 78.6, r: 5.5 },
+            { id: 'g_racket', x: 30.6, y: 61, r: 4 },
+            { id: 'g_bal', x: 25.5, y: 42.2, r: 3.5 },
+            { id: 'g_stang', x: 60.2, y: 42.7, r: 3 },
+            { id: 'g_kegel', x: 67.1, y: 46.1, r: 3 },
+            { id: 'g_sleutels', x: 22.8, y: 88.9, r: 3 }
+          ],
+          sceneBeschrijving: 'Alle tien de gevaren zijn aangepakt (groen afgevinkt).',
+          question: 'Alle gevaren zijn aangepakt. Wat is de volgende basisstap?',
+          options: [
+            { id: 'a', text: 'Beoordeel de toestand van het slachtoffer', correct: true, feedback: 'Juist! Stap 2: beoordeel de toestand.', nextStepId: 4 },
+            { id: 'b', text: 'Verleen meteen eerste hulp', correct: false, feedback: 'Eerst beoordelen — je weet nog niet wat er aan de hand is.', nextStepId: '3_fout' },
+            { id: 'c', text: 'De ouders bellen', correct: false, feedback: 'Nee — eerst de toestand beoordelen.', nextStepId: '3_fout' },
+            { id: 'd', text: 'Het slachtoffer verplaatsen', correct: false, feedback: 'Niet verplaatsen zonder reden. Beoordeel eerst.', nextStepId: '3_fout' }
+          ],
+          timeLimit: 25,
+          explanation: 'Stap 2 van de basisstappen: beoordeel de toestand van het slachtoffer.'
+        },
+        {
+          id: '3_fout',
+          question: 'Je weet nog niet of het slachtoffer bij bewustzijn is of ademt. Wat moet je dus eerst doen?',
+          options: [
+            { id: 'a', text: 'De toestand beoordelen: bewustzijn, luchtweg, ademhaling', correct: true, feedback: 'Precies. Zonder te weten wat er is, kun je niet gericht helpen.', nextStepId: 4 },
+            { id: 'b', text: 'Gokken en meteen handelen', correct: false, feedback: 'Nooit gokken. Beoordeel eerst de toestand.', nextStepId: 4 }
+          ],
+          timeLimit: 20,
+          explanation: 'Beoordelen komt vóór handelen: bewustzijn, luchtweg, ademhaling.'
+        },
+        {
+          id: 4,
+          interactie: 'hotspots',
+          volgordeVerplicht: true,
+          scene: 'slachtoffer',
+          sceneBeschrijving: 'Close-up van het slachtoffer. Klik de controles aan in de juiste volgorde.',
+          question: 'Beoordeel de toestand. Voer de drie controles uit in de JUISTE volgorde.',
+          klaarTekst: 'Bewustzijn, luchtweg en ademhaling gecontroleerd.',
+          hotspots: [
+            { id: 'h_schouders', naam: 'Schouders', x: 41.9, y: 52, r: 6.9,
+              uitleg: 'Je spreekt luid aan en schudt voorzichtig aan de schouders. Geen reactie — het slachtoffer is bewusteloos.',
+              foutUitleg: 'Eerst controleer je het bewustzijn: spreek aan en schud aan de schouders.' },
+            { id: 'h_hoofd', naam: 'Hoofd en kin', x: 25, y: 52.4, r: 7.75,
+              uitleg: 'Je kantelt het hoofd achterover en tilt de kin op. De luchtweg is nu vrij.',
+              foutUitleg: 'Nog niet. Welke controle komt hiervóór?' },
+            { id: 'h_borst', naam: 'Borstkas', x: 58.8, y: 52, r: 7.5,
+              uitleg: 'Kijken, luisteren en voelen — maximaal 10 seconden. Het slachtoffer ademt niet normaal.',
+              foutUitleg: 'Nog niet. Eerst het bewustzijn en de luchtweg.' }
+          ],
+          options: [
+            { id: 'a', text: 'Alle controles uitgevoerd', correct: true, feedback: 'Goed: bewustzijn, luchtweg, ademhaling — in die volgorde.', nextStepId: 5 }
+          ],
+          timeLimit: 180,
+          explanation: 'Beoordelen gebeurt altijd in deze volgorde: bewustzijn controleren, luchtweg openen, ademhaling controleren (max 10 seconden).'
+        },
+        {
+          id: 5,
+          question: 'Het slachtoffer is bewusteloos en ademt niet normaal. Wat is de volgende basisstap?',
+          options: [
+            { id: 'a', text: 'Raadpleeg gespecialiseerde hulp — bel 112', correct: true, feedback: 'Correct! Stap 3: raadpleeg gespecialiseerde hulp.', nextStepId: 6 },
+            { id: 'b', text: 'Eerst zelf verder helpen, dan bellen', correct: false, feedback: 'Bel eerst 112 — professionele hulp moet meteen onderweg zijn.', nextStepId: 6 },
+            { id: 'c', text: 'Wachten of het vanzelf beter wordt', correct: false, feedback: 'Nooit afwachten bij een bewusteloos slachtoffer dat niet ademt.', nextStepId: 6 }
+          ],
+          timeLimit: 25,
+          explanation: 'Stap 3: raadpleeg gespecialiseerde hulp. Bij een bewusteloos slachtoffer dat niet normaal ademt: onmiddellijk 112.'
+        },
+        {
+          id: 6,
+          question: 'Je hebt 112 aan de lijn. Welke drie dingen wil de operator van jou weten?',
+          options: [
+            { id: 'a', text: 'Waar? Wat? Wie?', correct: true, feedback: 'Correct! Waar het gebeurde, wat er gebeurd is, en wie erbij betrokken zijn.', nextStepId: 7 },
+            { id: 'b', text: 'Alleen mijn naam en telefoonnummer', correct: false, feedback: 'Onvoldoende. De operator heeft Waar, Wat en Wie nodig.', nextStepId: '6_fout' },
+            { id: 'c', text: 'Alleen waar het gebeurd is', correct: false, feedback: 'De plaats is belangrijk, maar Wat en Wie horen erbij.', nextStepId: '6_fout' }
+          ],
+          timeLimit: 25,
+          explanation: 'Bij 112: Waar? (juiste plaats) — Wat? (wat is er gebeurd) — Wie? (hoeveel slachtoffers, in welke toestand).'
+        },
+        {
+          id: '6_fout',
+          question: 'De operator moet weten waarheen, wat er aan de hand is en om wie het gaat. Welke drie vragen zijn dat?',
+          options: [
+            { id: 'a', text: 'Waar? Wat? Wie?', correct: true, feedback: 'Precies. Blijf ook aan de lijn: de operator geeft instructies.', nextStepId: 7 },
+            { id: 'b', text: 'Hoe? Waarom? Wanneer?', correct: false, feedback: 'Nee — de operator werkt met Waar, Wat en Wie.', nextStepId: 7 }
+          ],
+          timeLimit: 20,
+          explanation: 'Waar? Wat? Wie? En blijf aan de lijn tot de operator zegt dat je mag ophangen.'
+        },
+        {
+          id: 7,
+          question: 'Hulp is onderweg. Wat is de vierde en laatste basisstap?',
+          options: [
+            { id: 'a', text: 'Verleen verdere eerste hulp', correct: true, feedback: 'Juist! Blijf bij het slachtoffer en help verder tot de hulpdiensten er zijn.', nextStepId: 8 },
+            { id: 'b', text: 'Naar buiten gaan om te wachten', correct: false, feedback: 'Blijf bij het slachtoffer en verleen verdere eerste hulp.', nextStepId: 8 }
+          ],
+          timeLimit: 20,
+          explanation: 'Stap 4: verleen verdere eerste hulp tot de gespecialiseerde hulp overneemt.'
+        },
+        {
+          id: 8,
+          interactie: 'volgorde',
+          question: 'Tot slot: zet de vier basisstappen die je net doorlopen hebt in de juiste volgorde.',
+          items: [
+            { id: 'v1', text: 'Zorg voor veiligheid' },
+            { id: 'v2', text: 'Beoordeel de toestand van het slachtoffer' },
+            { id: 'v3', text: 'Raadpleeg gespecialiseerde hulp' },
+            { id: 'v4', text: 'Verleen verdere eerste hulp' }
+          ],
+          options: [
+            { id: 'a', text: 'Volgorde correct', correct: true, feedback: 'Je kent de basisstappen. Goed gedaan!', nextStepId: null }
+          ],
+          timeLimit: 180,
+          explanation: 'Veiligheid — Beoordelen — Hulp raadplegen — Verdere eerste hulp.'
+        }
+      ]
+    },
+
     // --- SYMPTOOMHERKENNING (graad 3, BV3_01.01) ────────────────────────────
     // Type 'symptomen': herkennen i.p.v. handelen. Twee niveaus.
     // Structuur per symptoom: één herkenningsvraag.

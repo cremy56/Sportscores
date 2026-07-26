@@ -22,6 +22,513 @@ function shuffleArray(array) {
   return array;
 }
 
+// ─── Scène-afbeeldingen ──────────────────────────────────────────────────────
+// Bestanden staan in public/ehbo/ en worden via een absoluut pad geladen
+// (Vite serveert de public-map vanaf de root). Heeft een scène géén src, dan
+// valt SceneWeergave terug op de getekende SVG hieronder.
+const EHBO_SCENES = {
+  sporthal_ongeval: {
+    src: '/ehbo/sporthal-ongeval.png',
+    alt: 'Sporthal met een slachtoffer op de grond. Op de vloer liggen onder meer een omgevallen horde, een basketbal, plassen water, een open sporttas, sleutels, een badmintonracket, een omgevallen drinkfles, een losse stang, een omgevallen kegel en een stopcontactblok met kabels.'
+  },
+  // Nog geen foto voor de close-up: valt terug op de SVG-tekening.
+  slachtoffer: {
+    alt: 'Close-up van het bewusteloze slachtoffer, van opzij gezien.'
+  }
+};
+
+// ─── SVG-scènes voor de interactieve basisstappen ────────────────────────────
+// Inline SVG i.p.v. externe afbeeldingen: schaalt mee, geen assets nodig, en
+// weggeklikte gevaren kunnen echt uit beeld verdwijnen.
+// Tekenvlak: 800 x 500.
+function EhboScene({ scene, opgeruimd = [] }) {
+  const weg = (id) => opgeruimd.includes(id);
+
+  if (scene === 'sporthal_ongeval') {
+    return (
+      <g>
+        {/* ── ACHTERGROND: muur ───────────────────────────────────────────── */}
+        <rect x="0" y="0" width="800" height="300" fill="#eef2f7" />
+        <rect x="0" y="252" width="800" height="48" fill="#c8d4e3" />
+        <rect x="0" y="248" width="800" height="6" fill="#9fb3c8" />
+
+        {/* Ramen */}
+        {[210, 400, 590].map(x => (
+          <g key={x}>
+            <rect x={x} y="34" width="130" height="82" rx="4" fill="#cfe6f7" stroke="#8fa9bf" strokeWidth="4" />
+            <line x1={x + 65} y1="34" x2={x + 65} y2="116" stroke="#8fa9bf" strokeWidth="4" />
+            <line x1={x} y1="75" x2={x + 130} y2="75" stroke="#8fa9bf" strokeWidth="4" />
+            <path d={`M${x + 6} 110 L${x + 40} 40`} stroke="#ffffff" strokeWidth="7" opacity="0.55" />
+          </g>
+        ))}
+
+        {/* Basketbalring */}
+        <g>
+          <rect x="638" y="140" width="96" height="62" rx="4" fill="#fdfdfd" stroke="#64748b" strokeWidth="4" />
+          <rect x="666" y="164" width="40" height="28" fill="none" stroke="#64748b" strokeWidth="4" />
+          <rect x="676" y="202" width="20" height="7" fill="#94a3b8" />
+          <ellipse cx="686" cy="212" rx="26" ry="7" fill="none" stroke="#ea580c" strokeWidth="5" />
+          <path d="M662 214 L668 240 M672 216 L676 242 M686 217 L686 244 M700 216 L696 242 M710 214 L704 240"
+            stroke="#e2e8f0" strokeWidth="2.5" fill="none" />
+          <path d="M668 240 Q 686 248, 704 240" stroke="#e2e8f0" strokeWidth="2.5" fill="none" />
+        </g>
+
+        {/* Wandrek (ribstok) links */}
+        <g>
+          <rect x="26" y="60" width="14" height="240" rx="3" fill="#d9ab6a" />
+          <rect x="120" y="60" width="14" height="240" rx="3" fill="#d9ab6a" />
+          <rect x="26" y="60" width="5" height="240" fill="#b98d4f" />
+          <rect x="120" y="60" width="5" height="240" fill="#b98d4f" />
+          {[86, 116, 146, 176, 206, 236, 266].map(y => (
+            <g key={y}>
+              <rect x="34" y={y} width="92" height="9" rx="4.5" fill="#e8c38a" />
+              <rect x="34" y={y + 6} width="92" height="3" rx="1.5" fill="#c49a5c" />
+            </g>
+          ))}
+        </g>
+
+        {/* Gymbank tegen de muur */}
+        <g>
+          <rect x="470" y="256" width="150" height="12" rx="3" fill="#e0b578" />
+          <rect x="470" y="266" width="150" height="4" fill="#bb9155" />
+          <rect x="484" y="270" width="9" height="28" fill="#9a7a49" />
+          <rect x="598" y="270" width="9" height="28" fill="#9a7a49" />
+        </g>
+
+        {/* ── VLOER ───────────────────────────────────────────────────────── */}
+        <rect x="0" y="300" width="800" height="200" fill="#e6c79a" />
+        {[0, 100, 200, 300, 400, 500, 600, 700].map(x => (
+          <line key={x} x1={x} y1="300" x2={x - 30} y2="500" stroke="#d3ae7c" strokeWidth="2" />
+        ))}
+        <line x1="0" y1="300" x2="800" y2="300" stroke="#b8935f" strokeWidth="4" />
+        {/* Speelveldbelijning */}
+        <line x1="0" y1="356" x2="800" y2="356" stroke="#2563eb" strokeWidth="4" opacity="0.55" />
+        <path d="M200 500 Q 330 372, 470 500" fill="none" stroke="#dc2626" strokeWidth="4" opacity="0.45" />
+
+        {/* ── SLACHTOFFER (bovenaanzicht, liggend op de rug) ──────────────── */}
+        <g>
+          <ellipse cx="410" cy="432" rx="150" ry="30" fill="#1e293b" opacity="0.12" />
+
+          {/* Linkerarm omhoog */}
+          <path d="M340 378 Q 322 348, 306 330" stroke="#f4cba4" strokeWidth="23" strokeLinecap="round" fill="none" />
+          <circle cx="302" cy="325" r="14" fill="#f4cba4" />
+          <path d="M294 318 L299 312 M301 315 L306 309 M308 314 L313 309" stroke="#dda87c" strokeWidth="2.5" strokeLinecap="round" />
+
+          {/* Rechterarm opzij */}
+          <path d="M342 424 Q 332 452, 322 470" stroke="#f4cba4" strokeWidth="23" strokeLinecap="round" fill="none" />
+          <circle cx="319" cy="475" r="14" fill="#f4cba4" />
+
+          {/* Benen */}
+          <path d="M470 386 L556 380" stroke="#f4cba4" strokeWidth="26" strokeLinecap="round" />
+          <path d="M470 414 L556 420" stroke="#f4cba4" strokeWidth="26" strokeLinecap="round" />
+          {/* Sokken */}
+          <rect x="548" y="368" width="20" height="24" rx="5" fill="#f8fafc" transform="rotate(-4 558 380)" />
+          <rect x="548" y="408" width="20" height="24" rx="5" fill="#f8fafc" transform="rotate(4 558 420)" />
+          {/* Sportschoenen */}
+          <g>
+            <path d="M566 368 q 32 -4 34 12 q 2 14 -30 12 z" fill="#ef4444" />
+            <path d="M566 388 q 32 2 34 4 q -2 6 -34 0 z" fill="#f8fafc" />
+            <path d="M574 372 l 12 3 M578 366 l 10 4" stroke="#f8fafc" strokeWidth="2.5" strokeLinecap="round" />
+          </g>
+          <g>
+            <path d="M566 432 q 32 4 34 -12 q 2 -14 -30 -12 z" fill="#ef4444" />
+            <path d="M566 412 q 32 -2 34 -4 q -2 -6 -34 0 z" fill="#f8fafc" />
+            <path d="M574 428 l 12 -3 M578 434 l 10 -4" stroke="#f8fafc" strokeWidth="2.5" strokeLinecap="round" />
+          </g>
+
+          {/* Sportbroek */}
+          <path d="M432 368 h 46 a 8 8 0 0 1 8 8 v 48 a 8 8 0 0 1 -8 8 h -46 z" fill="#1d4ed8" />
+          <line x1="478" y1="400" x2="432" y2="400" stroke="#1e40af" strokeWidth="3" />
+
+          {/* T-shirt */}
+          <path d="M322 370 h 112 a 10 10 0 0 1 10 10 v 40 a 10 10 0 0 1 -10 10 h -112 a 12 12 0 0 1 -12 -12 v -36 a 12 12 0 0 1 12 -12 z" fill="#22c55e" />
+          <rect x="352" y="370" width="52" height="7" fill="#16a34a" />
+          {/* Mouwranden */}
+          <path d="M334 370 v 60" stroke="#16a34a" strokeWidth="3" />
+          {/* Halsopening */}
+          <path d="M310 388 q 12 12 0 24" fill="#0f7a37" />
+
+          {/* Nek */}
+          <rect x="296" y="386" width="20" height="28" rx="8" fill="#e8b98d" />
+
+          {/* Hoofd */}
+          <circle cx="284" cy="400" r="34" fill="#f4cba4" />
+          {/* Haar */}
+          <path d="M284 366 a 34 34 0 0 0 -30 50 q -14 -30 8 -46 q 12 -9 22 -4 z" fill="#6b4423" />
+          <path d="M284 366 a 34 34 0 0 1 30 50 q 14 -30 -8 -46 q -12 -9 -22 -4 z" fill="#5a3719" />
+          {/* Oor */}
+          <ellipse cx="288" cy="432" rx="6" ry="8" fill="#e8b98d" />
+          {/* Gesloten ogen (bewusteloos) */}
+          <path d="M266 388 q 7 -6 14 -1" stroke="#3f2d20" strokeWidth="3" fill="none" strokeLinecap="round" />
+          <path d="M266 414 q 7 6 14 1" stroke="#3f2d20" strokeWidth="3" fill="none" strokeLinecap="round" />
+          {/* Wenkbrauwen */}
+          <path d="M264 380 q 8 -4 16 -1" stroke="#6b4423" strokeWidth="3" fill="none" strokeLinecap="round" />
+          <path d="M264 422 q 8 4 16 1" stroke="#6b4423" strokeWidth="3" fill="none" strokeLinecap="round" />
+          {/* Neus */}
+          <path d="M256 401 q -8 -1 -1 -8" stroke="#dda87c" strokeWidth="3" fill="none" strokeLinecap="round" />
+          {/* Mond, licht open */}
+          <ellipse cx="258" cy="410" rx="5" ry="7" fill="#b96b6b" transform="rotate(-12 258 410)" />
+        </g>
+
+        {/* ── GEVAAR 1: omgevallen ladder ─────────────────────────────────── */}
+        {!weg('g_ladder') && (
+          <g>
+            <path d="M628 476 L764 330 L776 342 L640 488 Z" fill="#c98b3a" stroke="#8a5c22" strokeWidth="2.5" />
+            <path d="M660 500 L796 354 L808 366 L672 512 Z" fill="#c98b3a" stroke="#8a5c22" strokeWidth="2.5" />
+            {[0, 1, 2, 3].map(i => (
+              <rect key={i}
+                x={640 + i * 34} y={452 - i * 36} width="42" height="11" rx="4"
+                fill="#dda75c" stroke="#8a5c22" strokeWidth="2"
+                transform={`rotate(-47 ${661 + i * 34} ${458 - i * 36})`} />
+            ))}
+            <circle cx="770" cy="336" r="8" fill="#4b5563" />
+            <circle cx="802" cy="360" r="8" fill="#4b5563" />
+          </g>
+        )}
+
+        {/* ── GEVAAR 2: plas water + omgevallen fles ──────────────────────── */}
+        {!weg('g_plas') && (
+          <g>
+            <path d="M104 452 q 22 -30 62 -24 q 44 6 56 26 q 12 22 -22 34 q -40 14 -76 4 q -30 -8 -20 -40 z"
+              fill="#5eb3f0" opacity="0.72" />
+            <path d="M124 452 q 20 -18 52 -14 q 30 4 40 16"
+              fill="none" stroke="#cbe9ff" strokeWidth="4" opacity="0.9" />
+            <ellipse cx="150" cy="470" rx="16" ry="5" fill="#cbe9ff" opacity="0.7" />
+            {/* Omgevallen drinkfles */}
+            <g transform="rotate(-72 196 424)">
+              <rect x="180" y="404" width="32" height="62" rx="12" fill="#e2f0fb" stroke="#93b8d4" strokeWidth="2.5" />
+              <rect x="186" y="418" width="20" height="24" rx="3" fill="#38bdf8" opacity="0.55" />
+              <rect x="188" y="392" width="16" height="14" rx="3" fill="#2563eb" />
+            </g>
+          </g>
+        )}
+
+        {/* ── GEVAAR 3: losse kabel met stekker ───────────────────────────── */}
+        {!weg('g_kabel') && (
+          <g>
+            <path d="M36 336 q 44 -22 80 6 q 32 26 68 8 q 22 -10 34 4"
+              stroke="#111827" strokeWidth="9" fill="none" strokeLinecap="round" />
+            <path d="M36 336 q 44 -22 80 6 q 32 26 68 8 q 22 -10 34 4"
+              stroke="#374151" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+            <g transform="rotate(18 224 356)">
+              <rect x="210" y="342" width="34" height="26" rx="5" fill="#1f2937" />
+              <rect x="244" y="348" width="10" height="5" rx="2.5" fill="#9ca3af" />
+              <rect x="244" y="358" width="10" height="5" rx="2.5" fill="#9ca3af" />
+            </g>
+          </g>
+        )}
+
+        {/* ── GEVAAR 4: gebroken fles + scherven ──────────────────────────── */}
+        {!weg('g_glas') && (
+          <g>
+            <g fill="#86d6ac" stroke="#15803d" strokeWidth="2" opacity="0.92">
+              <path d="M556 468 q 28 -6 46 2 l -4 18 q -22 8 -44 0 z" />
+              <path d="M596 452 l 16 -22 l 12 6 l -14 24 z" />
+            </g>
+            <g fill="#a7e8c6" stroke="#15803d" strokeWidth="1.8">
+              <polygon points="614,472 632,452 642,476" />
+              <polygon points="636,486 654,466 664,490" />
+              <polygon points="596,490 610,474 620,494" />
+              <polygon points="566,492 578,478 588,496" />
+              <polygon points="650,458 660,446 668,462" />
+            </g>
+            <path d="M620 458 l 5 8 M640 470 l 6 7" stroke="#ffffff" strokeWidth="2.5" opacity="0.8" strokeLinecap="round" />
+          </g>
+        )}
+      </g>
+    );
+  }
+
+  if (scene === 'slachtoffer') {
+    return (
+      <g>
+        <rect x="0" y="0" width="800" height="500" fill="#eef2f7" />
+        <rect x="0" y="330" width="800" height="170" fill="#e6c79a" />
+        <line x1="0" y1="330" x2="800" y2="330" stroke="#b8935f" strokeWidth="4" />
+        <ellipse cx="400" cy="330" rx="300" ry="52" fill="#1e293b" opacity="0.1" />
+
+        {/* Slachtoffer, close-up */}
+        <g>
+          {/* Arm */}
+          <path d="M330 300 Q 320 360, 300 396" stroke="#f4cba4" strokeWidth="40" strokeLinecap="round" fill="none" />
+          <circle cx="296" cy="404" r="24" fill="#f4cba4" />
+
+          {/* Romp / T-shirt */}
+          <path d="M300 190 h 250 a 18 18 0 0 1 18 18 v 104 a 18 18 0 0 1 -18 18 h -250 a 22 22 0 0 1 -22 -22 v -96 a 22 22 0 0 1 22 -22 z" fill="#22c55e" />
+          <rect x="352" y="190" width="86" height="12" fill="#16a34a" />
+          <path d="M330 190 v 140" stroke="#16a34a" strokeWidth="5" />
+          <path d="M278 236 q 22 24 0 48" fill="#0f7a37" />
+          {/* Borstkas-markering (subtiel) */}
+          <path d="M400 230 q 44 30 0 62" fill="none" stroke="#16a34a" strokeWidth="3" opacity="0.6" />
+
+          {/* Nek */}
+          <rect x="248" y="228" width="42" height="62" rx="18" fill="#e8b98d" />
+
+          {/* Hoofd */}
+          <circle cx="212" cy="260" r="72" fill="#f4cba4" />
+          <path d="M212 188 a 72 72 0 0 0 -64 106 q -30 -64 18 -98 q 26 -18 46 -8 z" fill="#6b4423" />
+          <path d="M212 188 a 72 72 0 0 1 64 106 q 30 -64 -18 -98 q -26 -18 -46 -8 z" fill="#5a3719" />
+          <ellipse cx="222" cy="326" rx="13" ry="18" fill="#e8b98d" />
+          {/* Gesloten ogen */}
+          <path d="M172 232 q 16 -13 32 -2" stroke="#3f2d20" strokeWidth="5" fill="none" strokeLinecap="round" />
+          <path d="M172 288 q 16 13 32 2" stroke="#3f2d20" strokeWidth="5" fill="none" strokeLinecap="round" />
+          <path d="M168 216 q 18 -9 34 -2" stroke="#6b4423" strokeWidth="5" fill="none" strokeLinecap="round" />
+          <path d="M168 304 q 18 9 34 2" stroke="#6b4423" strokeWidth="5" fill="none" strokeLinecap="round" />
+          {/* Neus */}
+          <path d="M152 262 q -18 -2 -2 -18" stroke="#dda87c" strokeWidth="5" fill="none" strokeLinecap="round" />
+          {/* Mond, licht open */}
+          <ellipse cx="156" cy="282" rx="11" ry="15" fill="#b96b6b" transform="rotate(-12 156 282)" />
+        </g>
+      </g>
+    );
+  }
+
+  return null;
+}
+
+// ─── Scèneweergave ───────────────────────────────────────────────────────────
+// Toont de foto (als die er is) of anders de getekende SVG, met daarover de
+// klikzones. Posities staan in PROCENTEN van de afbeelding, zodat ze op elk
+// schermformaat op de juiste plek blijven liggen.
+function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], foutId = null, onKlik = null }) {
+  const def = EHBO_SCENES[scene] || {};
+  const klikbaar = typeof onKlik === 'function';
+
+  return (
+    <div className="relative w-full rounded-xl overflow-hidden border-2 border-gray-200 bg-white">
+      {def.src ? (
+        <img src={def.src} alt={def.alt || 'Situatietekening'} className="w-full h-auto block" />
+      ) : (
+        <svg viewBox="0 0 800 500" className="w-full h-auto block" role="img" aria-label={def.alt || 'Situatietekening'}>
+          <EhboScene scene={scene} opgeruimd={opgeruimd} />
+        </svg>
+      )}
+
+      {hotspots.map(hs => {
+        const isGedaan = gedaan.includes(hs.id);
+        const isFout = foutId === hs.id;
+        return (
+          <button
+            key={hs.id}
+            type="button"
+            onClick={klikbaar ? () => onKlik(hs) : undefined}
+            disabled={!klikbaar || isGedaan}
+            aria-label={hs.naam || 'Gevaar'}
+            title={klikbaar ? (hs.naam || 'Gevaar') : undefined}
+            className="absolute rounded-full flex items-center justify-center transition-all duration-200"
+            style={{
+              left: `${hs.x}%`,
+              top: `${hs.y}%`,
+              width: `${hs.r * 2}%`,
+              aspectRatio: '1',
+              transform: 'translate(-50%, -50%)',
+              borderWidth: '3px',
+              borderStyle: isGedaan ? 'solid' : 'dashed',
+              borderColor: isFout ? '#dc2626' : isGedaan ? '#16a34a' : '#eab308',
+              backgroundColor: isFout
+                ? 'rgba(239,68,68,0.35)'
+                : isGedaan
+                  ? 'rgba(34,197,94,0.45)'
+                  : 'rgba(250,204,21,0.22)',
+              cursor: klikbaar && !isGedaan ? 'pointer' : 'default'
+            }}
+          >
+            {isGedaan && (
+              <span className="text-white font-black text-lg md:text-2xl drop-shadow-md leading-none">✓</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Hotspot-oefening ────────────────────────────────────────────────────────
+// Klik de aangeduide plekken aan. Twee modi:
+//   volgordeVerplicht=false -> alle klikzones, willekeurige volgorde
+//   volgordeVerplicht=true  -> exact in de opgegeven volgorde
+// Staat op modulescope zodat de interne state bewaard blijft bij re-renders.
+function HotspotOefening({ step, onVoltooid }) {
+  const [gedaan, setGedaan] = useState([]);
+  const [foutId, setFoutId] = useState(null);
+  const [laatsteUitleg, setLaatsteUitleg] = useState(null);
+  const [klaar, setKlaar] = useState(false);
+
+  const hotspots = step.hotspots || [];
+  const volgordeVerplicht = step.volgordeVerplicht === true;
+
+  const klik = (hs) => {
+    if (klaar || gedaan.includes(hs.id)) return;
+
+    if (volgordeVerplicht) {
+      const verwacht = hotspots[gedaan.length]?.id;
+      if (hs.id !== verwacht) {
+        setFoutId(hs.id);
+        setLaatsteUitleg(hs.foutUitleg || 'Nog niet — welke controle komt hiervóór?');
+        setTimeout(() => setFoutId(null), 1500);
+        return;
+      }
+    }
+
+    const nieuw = [...gedaan, hs.id];
+    setGedaan(nieuw);
+    setFoutId(null);
+    setLaatsteUitleg(hs.uitleg || null);
+
+    if (nieuw.length === hotspots.length) {
+      setKlaar(true);
+      setTimeout(() => onVoltooid(), 1600);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-1.5">
+        {hotspots.map((hs, i) => (
+          <div key={hs.id}
+            className={`h-2 flex-1 rounded-full transition-colors ${
+              i < gedaan.length ? 'bg-green-500' : 'bg-gray-200'
+            }`} />
+        ))}
+      </div>
+
+      <p className="text-sm text-gray-500">
+        {klaar
+          ? 'Alles in orde — je kunt verder.'
+          : `${gedaan.length} van ${hotspots.length} ${volgordeVerplicht ? 'controles uitgevoerd' : 'gevaren aangepakt'}`}
+      </p>
+
+      <SceneWeergave
+        scene={step.scene}
+        hotspots={hotspots}
+        gedaan={gedaan}
+        foutId={foutId}
+        onKlik={klik}
+      />
+
+      {laatsteUitleg && (
+        <div className={`rounded-xl p-3 text-sm border-2 ${
+          foutId ? 'bg-red-50 border-red-400 text-red-800' : 'bg-blue-50 border-blue-300 text-blue-900'
+        }`}>
+          {laatsteUitleg}
+        </div>
+      )}
+
+      {klaar && (
+        <div className="bg-green-50 border-2 border-green-500 rounded-xl p-4 text-green-800 font-semibold text-center">
+          {step.klaarTekst || 'Goed gedaan!'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Interactieve volgorde-oefening ──────────────────────────────────────────
+// De leerling klikt de stappen in de juiste volgorde aan. Staat BEWUST op
+// modulescope (niet binnen EHBODetail): een component die binnen de ouder
+// gedefinieerd wordt, remount bij elke re-render en verliest dan zijn state.
+// step.items = array in de JUISTE volgorde; de weergave wordt geschud.
+function VolgordeOefening({ step, onVoltooid }) {
+  const [geplaatst, setGeplaatst] = useState([]);
+  const [foutItem, setFoutItem] = useState(null);
+  const [klaar, setKlaar] = useState(false);
+
+  // Eenmalig schudden bij mount (lazy initializer, niet bij elke render).
+  const [geschud] = useState(() => {
+    const kopie = [...step.items];
+    for (let i = kopie.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [kopie[i], kopie[j]] = [kopie[j], kopie[i]];
+    }
+    return kopie;
+  });
+
+  const klikItem = (item) => {
+    if (klaar) return;
+    const verwachtId = step.items[geplaatst.length]?.id;
+    if (item.id === verwachtId) {
+      const nieuw = [...geplaatst, item];
+      setGeplaatst(nieuw);
+      setFoutItem(null);
+      if (nieuw.length === step.items.length) {
+        setKlaar(true);
+        setTimeout(() => onVoltooid(), 1200);
+      }
+    } else {
+      setFoutItem(item.id);
+      setTimeout(() => setFoutItem(null), 1200);
+    }
+  };
+
+  const isGeplaatst = (id) => geplaatst.some(g => g.id === id);
+
+  return (
+    <div className="space-y-4">
+      {/* Voortgangsbalk */}
+      <div className="flex items-center gap-2">
+        {step.items.map((_, i) => (
+          <div
+            key={i}
+            className={`h-2 flex-1 rounded-full transition-colors ${
+              i < geplaatst.length ? 'bg-green-500' : 'bg-gray-200'
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Al geplaatste stappen, in volgorde */}
+      {geplaatst.length > 0 && (
+        <ol className="space-y-2">
+          {geplaatst.map((item, i) => (
+            <li
+              key={item.id}
+              className="flex items-start gap-3 bg-green-50 border-2 border-green-500 rounded-xl p-3"
+            >
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-green-500 text-white font-bold flex items-center justify-center text-sm">
+                {i + 1}
+              </span>
+              <span className="text-green-900 font-medium">{item.text}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {/* Nog te plaatsen (geschud) */}
+      {!klaar && (
+        <div className="space-y-2">
+          <p className="text-sm text-gray-500">
+            Klik de volgende stap aan ({geplaatst.length + 1} van {step.items.length})
+          </p>
+          {geschud.filter(item => !isGeplaatst(item.id)).map(item => (
+            <button
+              key={item.id}
+              onClick={() => klikItem(item)}
+              className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
+                foutItem === item.id
+                  ? 'border-red-500 bg-red-50 text-red-800 animate-pulse'
+                  : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50'
+              }`}
+            >
+              {item.text}
+              {foutItem === item.id && (
+                <span className="block text-sm mt-1 font-medium">
+                  Nog niet — welke stap komt hiervóór?
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {klaar && (
+        <div className="bg-green-50 border-2 border-green-500 rounded-xl p-4 text-green-800 font-semibold text-center">
+          Volgorde correct! Je kent de basisstappen.
+        </div>
+      )}
+    </div>
+  );
+}
+
 const EHBODetail = () => {
   const { profile } = useOutletContext();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -799,6 +1306,21 @@ const startChain = (chain) => {
               <>
                 <div className="mb-6">
                   <h3 className="text-lg md:text-xl font-bold mb-4">{currentStepData.question}</h3>
+
+                  {/* Tekening bij een gewone vraag. Bij interactie 'hotspots'
+                      tekent HotspotOefening de scène zelf (met klikzones).
+                      sceneOpgeruimd laat gevaren die al weggewerkt zijn weg,
+                      zodat de leerling het resultaat van zijn werk ziet. */}
+                  {currentStepData.scene && currentStepData.interactie !== 'hotspots' && (
+                    <div className="mb-4">
+                      <SceneWeergave
+                        scene={currentStepData.scene}
+                        opgeruimd={currentStepData.sceneOpgeruimd || []}
+                        hotspots={currentStepData.toonGedaan ? (currentStepData.hotspots || []) : []}
+                        gedaan={currentStepData.toonGedaan ? (currentStepData.hotspots || []).map(h => h.id) : []}
+                      />
+                    </div>
+                  )}
                   {/* Role considerations */}
                   {isEnhanced && currentStepData.roleConsiderations && currentStepData.roleConsiderations.length > 0 && (
                     <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
@@ -810,6 +1332,23 @@ const startChain = (chain) => {
                       </ul>
                     </div>
                   )}
+                 {/* Volgorde-oefening krijgt een eigen interactie; de rest
+                     blijft de klassieke meerkeuzeknoppen. De oefening geeft
+                     bij voltooiing het (enige, correcte) antwoord door aan
+                     handleAnswer, zodat scoring en nextStepId ongewijzigd werken. */}
+                 {currentStepData.interactie === 'hotspots' ? (
+                   <HotspotOefening
+                     key={currentStepData.id}
+                     step={currentStepData}
+                     onVoltooid={() => handleAnswer(currentStepData.options[0], currentStepData)}
+                   />
+                 ) : currentStepData.interactie === 'volgorde' ? (
+                   <VolgordeOefening
+                     key={currentStepData.id}
+                     step={currentStepData}
+                     onVoltooid={() => handleAnswer(currentStepData.options[0], currentStepData)}
+                   />
+                 ) : (
                  <div className="space-y-3">
                     {currentStepData.options.map(option => (
                       <button
@@ -857,6 +1396,7 @@ const startChain = (chain) => {
                       </button>
                     ))}
                   </div>
+                 )}
                 {/* NIEUW: Hint systeem voor enhanced scenarios */}
                   {isEnhanced && currentStepData.hint && shouldShowHints && (
                     <EnhancedUIComponents.HintDisplay
