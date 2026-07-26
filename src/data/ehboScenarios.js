@@ -1256,9 +1256,10 @@ export const scenarios = [
         {
           id: 2,
           interactie: 'hotspots',
+          verbergZones: true,
           scene: 'sporthal_ongeval',
           sceneBeschrijving: 'Klik de gevaren aan: omgevallen ladder, plas water, losse kabel en glasscherven.',
-          question: 'Zorg voor veiligheid: klik alle tien de gevaren aan voor je verder gaat.',
+          question: 'Zorg voor veiligheid: zoek en klik alle tien de gevaren aan. Ze zijn niet aangeduid — kijk goed rond.',
           klaarTekst: 'De plek is nu veilig — voor jou, het slachtoffer en de omstanders.',
           hotspots: [
             { id: 'g_blok', naam: 'Stopcontactblok met kabels', x: 59.2, y: 88.9, r: 5,

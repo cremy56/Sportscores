@@ -290,12 +290,16 @@ function EhboScene({ scene, opgeruimd = [] }) {
 // Toont de foto (als die er is) of anders de getekende SVG, met daarover de
 // klikzones. Posities staan in PROCENTEN van de afbeelding, zodat ze op elk
 // schermformaat op de juiste plek blijven liggen.
-function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], foutId = null, onKlik = null }) {
+function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], foutId = null, onKlik = null, onMis = null, verbergZones = false }) {
   const def = EHBO_SCENES[scene] || {};
   const klikbaar = typeof onKlik === 'function';
 
   return (
-    <div className="relative w-full rounded-xl overflow-hidden border-2 border-gray-200 bg-white">
+    <div
+      className="relative w-full rounded-xl overflow-hidden border-2 border-gray-200 bg-white"
+      onClick={klikbaar && onMis ? onMis : undefined}
+      style={{ cursor: klikbaar ? 'crosshair' : 'default' }}
+    >
       {def.src ? (
         <img src={def.src} alt={def.alt || 'Situatietekening'} className="w-full h-auto block" />
       ) : (
@@ -307,14 +311,18 @@ function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], fout
       {hotspots.map(hs => {
         const isGedaan = gedaan.includes(hs.id);
         const isFout = foutId === hs.id;
+        // Bij verbergZones is de zone onzichtbaar tot hij gevonden is: de
+        // leerling moet de gevaren zelf herkennen. De cursor blijft daarom
+        // ook een crosshair (een pointer zou de plek verraden).
+        const onzichtbaar = verbergZones && !isGedaan && !isFout;
         return (
           <button
             key={hs.id}
             type="button"
-            onClick={klikbaar ? () => onKlik(hs) : undefined}
+            onClick={klikbaar ? (e) => { e.stopPropagation(); onKlik(hs); } : undefined}
             disabled={!klikbaar || isGedaan}
             aria-label={hs.naam || 'Gevaar'}
-            title={klikbaar ? (hs.naam || 'Gevaar') : undefined}
+            title={klikbaar && !verbergZones ? (hs.naam || 'Gevaar') : undefined}
             className="absolute rounded-full flex items-center justify-center transition-all duration-200"
             style={{
               left: `${hs.x}%`,
@@ -322,15 +330,17 @@ function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], fout
               width: `${hs.r * 2}%`,
               aspectRatio: '1',
               transform: 'translate(-50%, -50%)',
-              borderWidth: '3px',
+              borderWidth: onzichtbaar ? '0' : '3px',
               borderStyle: isGedaan ? 'solid' : 'dashed',
               borderColor: isFout ? '#dc2626' : isGedaan ? '#16a34a' : '#eab308',
-              backgroundColor: isFout
-                ? 'rgba(239,68,68,0.35)'
-                : isGedaan
-                  ? 'rgba(34,197,94,0.45)'
-                  : 'rgba(250,204,21,0.22)',
-              cursor: klikbaar && !isGedaan ? 'pointer' : 'default'
+              backgroundColor: onzichtbaar
+                ? 'transparent'
+                : isFout
+                  ? 'rgba(239,68,68,0.35)'
+                  : isGedaan
+                    ? 'rgba(34,197,94,0.45)'
+                    : 'rgba(250,204,21,0.22)',
+              cursor: klikbaar && !isGedaan ? (verbergZones ? 'crosshair' : 'pointer') : 'default'
             }}
           >
             {isGedaan && (
@@ -354,8 +364,19 @@ function HotspotOefening({ step, onVoltooid }) {
   const [laatsteUitleg, setLaatsteUitleg] = useState(null);
   const [klaar, setKlaar] = useState(false);
 
+  const [mis, setMis] = useState(false);
+
   const hotspots = step.hotspots || [];
   const volgordeVerplicht = step.volgordeVerplicht === true;
+  const verbergZones = step.verbergZones === true;
+
+  // Klik naast een gevaar: korte feedback, zodat het zoeken betekenis heeft.
+  const klikMis = () => {
+    if (klaar) return;
+    setMis(true);
+    setLaatsteUitleg(null);
+    setTimeout(() => setMis(false), 1200);
+  };
 
   const klik = (hs) => {
     if (klaar || gedaan.includes(hs.id)) return;
@@ -373,6 +394,7 @@ function HotspotOefening({ step, onVoltooid }) {
     const nieuw = [...gedaan, hs.id];
     setGedaan(nieuw);
     setFoutId(null);
+    setMis(false);
     setLaatsteUitleg(hs.uitleg || null);
 
     if (nieuw.length === hotspots.length) {
@@ -404,7 +426,15 @@ function HotspotOefening({ step, onVoltooid }) {
         gedaan={gedaan}
         foutId={foutId}
         onKlik={klik}
+        onMis={verbergZones ? klikMis : null}
+        verbergZones={verbergZones}
       />
+
+      {mis && !laatsteUitleg && (
+        <div className="rounded-xl p-3 text-sm border-2 bg-amber-50 border-amber-300 text-amber-900">
+          Daar zie ik geen gevaar. Kijk nog eens goed rond.
+        </div>
+      )}
 
       {laatsteUitleg && (
         <div className={`rounded-xl p-3 text-sm border-2 ${
@@ -2046,13 +2076,13 @@ const TheoryTab = () => (
         {/* Content */}
         {!activeScenario && (
           <>
-            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'dashboard' && Dashboard()}
             {activeTab === 'emergency' && <EmergencyTab />}
             {activeTab === 'theory' && <TheoryTab />}
           </>
         )}
         
-        {activeScenario && <ScenarioView />}
+        {activeScenario && ScenarioView()}
       </div>
     </div>
   );
