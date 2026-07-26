@@ -504,24 +504,6 @@ const startChain = (chain) => {
   const ScenarioKaart = ({ scenario, mini = false }) => {
     const isCompleted = userProgress.completedScenarios.includes(scenario.id);
 
-    // Mini-variant voor lagere graden: enkel de titel als compacte klikbare
-    // pill. Geen emoji, geen beschrijving, geen startknop.
-    if (mini) {
-      return (
-        <button
-          key={scenario.id}
-          onClick={() => startScenario(scenario)}
-          className={`text-left text-sm font-medium px-3 py-2 rounded-lg border transition-colors ${
-            isCompleted
-              ? 'bg-yellow-50 border-yellow-300 text-yellow-800'
-              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-100'
-          }`}
-        >
-          {scenario.title}
-        </button>
-      );
-    }
-
     const colorClass = {
       red: 'from-red-500 to-pink-500',
       orange: 'from-orange-500 to-amber-500',
@@ -529,6 +511,23 @@ const startChain = (chain) => {
       green: 'from-green-500 to-emerald-500',
       purple: 'from-purple-500 to-violet-500'
     }[scenario.color];
+
+    // Mini-variant voor lagere graden: enkel de titel als compacte klikbare
+    // pill. Behoudt de kleur van de tile (zelfde gradient als de volle kaart),
+    // geen emoji, geen beschrijving, geen startknop.
+    if (mini) {
+      return (
+        <button
+          key={scenario.id}
+          onClick={() => startScenario(scenario)}
+          className={`text-left text-sm font-semibold text-white px-3 py-2 rounded-lg bg-gradient-to-br ${colorClass} transform transition-all hover:scale-105 ${
+            isCompleted ? 'ring-2 ring-yellow-400' : ''
+          }`}
+        >
+          {scenario.title}
+        </button>
+      );
+    }
 
     return (
       <div
