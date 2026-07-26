@@ -501,8 +501,27 @@ const startChain = (chain) => {
   // Herbruikbare scenario-kaart. Gebruikt in de eigen-graad-grid én in de
   // kaders van de lagere graden (variant B). Leest userProgress,
   // isLeerkrachtOfAdmin en startScenario uit de closure.
-  const ScenarioKaart = ({ scenario }) => {
+  const ScenarioKaart = ({ scenario, mini = false }) => {
     const isCompleted = userProgress.completedScenarios.includes(scenario.id);
+
+    // Mini-variant voor lagere graden: enkel de titel als compacte klikbare
+    // pill. Geen emoji, geen beschrijving, geen startknop.
+    if (mini) {
+      return (
+        <button
+          key={scenario.id}
+          onClick={() => startScenario(scenario)}
+          className={`text-left text-sm font-medium px-3 py-2 rounded-lg border transition-colors ${
+            isCompleted
+              ? 'bg-yellow-50 border-yellow-300 text-yellow-800'
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          {scenario.title}
+        </button>
+      );
+    }
+
     const colorClass = {
       red: 'from-red-500 to-pink-500',
       orange: 'from-orange-500 to-amber-500',
@@ -709,15 +728,16 @@ const startChain = (chain) => {
           </div>
         )}
 
-        {/* Lagere graden, elk in een eigen kader */}
+        {/* Lagere graden, elk in een eigen kader. Mini-tiles: enkel titel,
+            compact naast elkaar i.p.v. een 3-koloms grid met volle kaarten. */}
         {lagereGraden.map(groep => (
           <div key={groep.graad} className="border border-gray-200 rounded-2xl p-4 bg-gray-50">
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
               {groep.label}
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex flex-wrap gap-2">
               {groep.scenarios.map(scenario => (
-                <ScenarioKaart key={scenario.id} scenario={scenario} />
+                <ScenarioKaart key={scenario.id} scenario={scenario} mini />
               ))}
             </div>
           </div>
