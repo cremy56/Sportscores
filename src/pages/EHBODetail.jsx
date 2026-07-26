@@ -635,6 +635,14 @@ const startChain = (chain) => {
             
             <h4 className="text-lg font-bold mb-2">{scenario.title}</h4>
 
+            {/* Type-label 'Herkennen' voor symptoomscenario's — voor iedereen,
+                zodat duidelijk is dat dit om herkennen i.p.v. handelen gaat. */}
+            {scenario.type === 'symptomen' && (
+              <div className="inline-flex items-center gap-1.5 bg-white/25 backdrop-blur-sm rounded-full px-2.5 py-1 mb-2 text-xs font-semibold">
+                <span>🔍 Herkennen</span>
+              </div>
+            )}
+
             {/* Leerplan-label: enkel voor leerkracht/admin */}
             {isLeerkrachtOfAdmin && scenario.graad && (
               <div className="inline-flex items-center gap-1.5 bg-white/25 backdrop-blur-sm rounded-full px-2.5 py-1 mb-2 text-xs font-semibold">

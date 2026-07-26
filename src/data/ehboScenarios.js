@@ -159,8 +159,8 @@ export const scenarios = [
     },
    {
       id: 'hartaanval',
-      graad: 3,
-      leerplandoel: 'BV3_01.01',
+      graad: 2,
+      leerplandoel: 'BV2_01.01',
       title: 'Hartaanval',
       difficulty: 'Moeilijk',
       duration: '4-5 min',
@@ -316,8 +316,8 @@ export const scenarios = [
     },
     {
       id: 'reanimatie',
-      graad: 3,
-      leerplandoel: 'BV3_01.01',
+      graad: 2,
+      leerplandoel: 'BV2_01.01',
       title: 'Reanimatie',
       difficulty: 'Moeilijk',
       duration: '5-6 min',
@@ -394,8 +394,8 @@ export const scenarios = [
     },
     {
       id: 'anafylaxie',
-      graad: 2,
-      leerplandoel: 'BV2_01.01',
+      graad: 3,
+      leerplandoel: 'BV3_01.01',
       title: 'Allergische reactie',
       difficulty: 'Moeilijk',
       duration: '3-4 min',
@@ -558,8 +558,8 @@ export const scenarios = [
     },
     {
       id: 'epilepsie',
-      graad: 2,
-      leerplandoel: 'BV2_01.01',
+      graad: 3,
+      leerplandoel: 'BV3_01.01',
       title: 'Epileptische aanval',
       difficulty: 'Gemiddeld',
       duration: '4 min',
@@ -803,8 +803,8 @@ export const scenarios = [
     },
     {
       id: 'wondverzorging',
-      graad: 1,
-      leerplandoel: 'BV1_01.01',
+      graad: 2,
+      leerplandoel: 'BV2_01.01',
       title: 'Wondverzorging (Schaafwond)',
       difficulty: 'Makkelijk',
       duration: '2-3 min',
@@ -967,8 +967,8 @@ export const scenarios = [
     },
     {
       id: 'bloedneus',
-      graad: 1,
-      leerplandoel: 'BV1_01.01',
+      graad: 2,
+      leerplandoel: 'BV2_01.01',
       title: 'Bloedneus',
       difficulty: 'Makkelijk',
       duration: '2 min',
@@ -1208,6 +1208,119 @@ export const scenarios = [
             ],
             timeLimit: 14,
             explanation: 'De operator kan je tot de aankomst van de hulpdiensten begeleiden met levensreddende instructies. Blijf dus altijd aan de lijn.'
+        }
+      ]
+    },
+
+    // --- SYMPTOOMHERKENNING (graad 3, BV3_01.01) ---
+    // Type 'symptomen': herkennen i.p.v. handelen. Draait om observeren en
+    // interpreteren van symptomen, passend bij het leerplandoel
+    // "symptomen gerelateerd aan ongevallen en noodsituaties".
+    {
+      id: 'symptomen_shock',
+      graad: 3,
+      leerplandoel: 'BV3_01.01',
+      type: 'symptomen',
+      title: 'Symptomen herkennen: Shock',
+      difficulty: 'Moeilijk',
+      duration: '2-3 min',
+      description: 'Herken de noodsituatie aan de symptomen',
+      image: '🔍',
+      color: 'purple',
+      steps: [
+        {
+          id: 1,
+          question: 'Een leerling is bleek, klam en zweterig. De pols is snel maar zwak, de ademhaling oppervlakkig, en hij is verward en duizelig. Welke noodsituatie herken je?',
+          options: [
+            { id: 'a', text: 'Shock', correct: true, feedback: 'Correct! Bleek, klam, snelle zwakke pols en verwardheid wijzen op shock.', nextStepId: 2 },
+            { id: 'b', text: 'Epileptische aanval', correct: false, feedback: 'Nee — bij epilepsie zie je typisch stuiptrekkingen, niet deze combinatie.', nextStepId: null },
+            { id: 'c', text: 'Flauwvallen', correct: false, feedback: 'Deels — flauwvallen is kortdurend. Deze aanhoudende symptomen wijzen op shock.', nextStepId: null },
+            { id: 'd', text: 'Hyperventilatie', correct: false, feedback: 'Nee — bij hyperventilatie is de ademhaling juist snel en diep, niet oppervlakkig.', nextStepId: null }
+          ],
+          timeLimit: 20,
+          explanation: 'Shock herken je aan: bleke/klamme huid, snelle zwakke pols, oppervlakkige ademhaling, verwardheid, dorst.'
+        },
+        {
+          id: 2,
+          question: 'Je herkent shock. Welk symptoom is het meest alarmerend en vraagt onmiddellijk 112?',
+          options: [
+            { id: 'a', text: 'Dalend bewustzijn', correct: true, feedback: 'Juist. Een dalend bewustzijn betekent dat de shock verergert — 112 is dringend.', nextStepId: null },
+            { id: 'b', text: 'Dorstgevoel', correct: false, feedback: 'Dorst hoort bij shock maar is op zich niet het meest alarmerend.', nextStepId: null }
+          ],
+          timeLimit: 15,
+          explanation: 'Symptomen kunnen verergeren. Een dalend bewustzijn is een alarmsignaal.'
+        }
+      ]
+    },
+    {
+      id: 'symptomen_beroerte',
+      graad: 3,
+      leerplandoel: 'BV3_01.01',
+      type: 'symptomen',
+      title: 'Symptomen herkennen: Beroerte (FAST)',
+      difficulty: 'Moeilijk',
+      duration: '2-3 min',
+      description: 'Herken een beroerte met de FAST-methode',
+      image: '🔍',
+      color: 'purple',
+      steps: [
+        {
+          id: 1,
+          question: 'Iemand heeft plots een scheve mond, kan één arm niet optillen en spreekt onduidelijk. Welke methode gebruik je om een beroerte te herkennen?',
+          options: [
+            { id: 'a', text: 'FAST (Face, Arm, Speech, Time)', correct: true, feedback: 'Correct! FAST staat voor Face, Arm, Speech, Time — precies deze symptomen.', nextStepId: 2 },
+            { id: 'b', text: 'ABC (Airway, Breathing, Circulation)', correct: false, feedback: 'Nee — ABC gebruik je bij het controleren van vitale functies, niet voor beroerteherkenning.', nextStepId: null },
+            { id: 'c', text: 'RICE (Rest, Ice, Compression, Elevation)', correct: false, feedback: 'Nee — RICE is voor spier- en gewrichtsletsel.', nextStepId: null },
+            { id: 'd', text: 'PLS (stabiele zijligging)', correct: false, feedback: 'Dat is een houding, geen herkenningsmethode.', nextStepId: null }
+          ],
+          timeLimit: 20,
+          explanation: 'FAST: Face (scheve mond), Arm (zwakte), Speech (spraak), Time (tijd — bel snel 112).'
+        },
+        {
+          id: 2,
+          question: 'Waar staat de "T" in FAST voor, en waarom is die zo belangrijk?',
+          options: [
+            { id: 'a', text: 'Time — noteer wanneer de symptomen begonnen en bel meteen 112', correct: true, feedback: 'Juist. Bij een beroerte telt elke minuut voor de behandeling.', nextStepId: null },
+            { id: 'b', text: 'Temperatuur meten', correct: false, feedback: 'Nee — de T staat voor Time.', nextStepId: null }
+          ],
+          timeLimit: 15,
+          explanation: 'Time: het tijdstip van de eerste symptomen bepaalt welke behandeling mogelijk is. Snel handelen redt hersenweefsel.'
+        }
+      ]
+    },
+    {
+      id: 'symptomen_hartaanval',
+      graad: 3,
+      leerplandoel: 'BV3_01.01',
+      type: 'symptomen',
+      title: 'Symptomen herkennen: Hartaanval',
+      difficulty: 'Moeilijk',
+      duration: '2-3 min',
+      description: 'Onderscheid een hartaanval van een paniekaanval',
+      image: '🔍',
+      color: 'purple',
+      steps: [
+        {
+          id: 1,
+          question: 'Iemand klaagt over drukkende pijn op de borst die uitstraalt naar de linkerarm en kaak, met kortademigheid en misselijkheid. Wat herken je?',
+          options: [
+            { id: 'a', text: 'Hartaanval', correct: true, feedback: 'Correct! Drukkende pijn met uitstraling naar arm/kaak is typisch voor een hartaanval.', nextStepId: 2 },
+            { id: 'b', text: 'Paniekaanval', correct: false, feedback: 'Voorzichtig — bij twijfel altijd als hartaanval behandelen. Uitstraling naar arm/kaak wijst op het hart.', nextStepId: null },
+            { id: 'c', text: 'Spierpijn', correct: false, feedback: 'Nee — de combinatie met kortademigheid en misselijkheid wijst op iets ernstigers.', nextStepId: null },
+            { id: 'd', text: 'Maagklachten', correct: false, feedback: 'Nee — de uitstraling naar arm en kaak is een alarmsignaal voor het hart.', nextStepId: null }
+          ],
+          timeLimit: 20,
+          explanation: 'Hartaanval: drukkende pijn op de borst, uitstraling naar arm/kaak/rug, kortademigheid, misselijkheid, koud zweet.'
+        },
+        {
+          id: 2,
+          question: 'Je twijfelt tussen een hartaanval en een paniekaanval. Wat doe je?',
+          options: [
+            { id: 'a', text: 'Bij twijfel altijd 112 bellen en als hartaanval behandelen', correct: true, feedback: 'Juist. Bij een hartaanval is snel handelen levensreddend — twijfel niet.', nextStepId: null },
+            { id: 'b', text: 'Eerst afwachten of het vanzelf overgaat', correct: false, feedback: 'Nee — afwachten kan bij een hartaanval fataal zijn.', nextStepId: null }
+          ],
+          timeLimit: 15,
+          explanation: 'Bij twijfel tussen hartaanval en paniekaanval: altijd het veiligste aannemen en 112 bellen.'
         }
       ]
     }
