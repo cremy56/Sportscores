@@ -290,20 +290,36 @@ function EhboScene({ scene, opgeruimd = [] }) {
 // Toont de foto (als die er is) of anders de getekende SVG, met daarover de
 // klikzones. Posities staan in PROCENTEN van de afbeelding, zodat ze op elk
 // schermformaat op de juiste plek blijven liggen.
-function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], foutId = null, onKlik = null, onMis = null, verbergZones = false }) {
+function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], foutId = null, onKlik = null, onMis = null, verbergZones = false, maxHoogte = '55dvh' }) {
   const def = EHBO_SCENES[scene] || {};
   const klikbaar = typeof onKlik === 'function';
 
+  // De wrapper is inline-block en krimpt exact om de afbeelding heen. Dat is
+  // essentieel: de klikzones staan in procenten van deze container, dus als
+  // die breder zou zijn dan de foto (letterboxing) verschuiven alle zones.
+  // De hoogtebeperking staat daarom op het beeld zelf, niet op de wrapper.
   return (
-    <div
-      className="relative w-full rounded-xl overflow-hidden border-2 border-gray-200 bg-white"
-      onClick={klikbaar && onMis ? onMis : undefined}
-      style={{ cursor: klikbaar ? 'crosshair' : 'default' }}
-    >
+    <div className="w-full flex justify-center">
+      <div
+        className="relative inline-block rounded-xl overflow-hidden border-2 border-gray-200 bg-white"
+        onClick={klikbaar && onMis ? onMis : undefined}
+        style={{ cursor: klikbaar ? 'crosshair' : 'default' }}
+      >
       {def.src ? (
-        <img src={def.src} alt={def.alt || 'Situatietekening'} className="w-full h-auto block" />
+        <img
+          src={def.src}
+          alt={def.alt || 'Situatietekening'}
+          className="block w-auto max-w-full h-auto"
+          style={{ maxHeight: maxHoogte }}
+        />
       ) : (
-        <svg viewBox="0 0 800 500" className="w-full h-auto block" role="img" aria-label={def.alt || 'Situatietekening'}>
+        <svg
+          viewBox="0 0 800 500"
+          className="block w-auto max-w-full h-auto"
+          style={{ maxHeight: maxHoogte }}
+          role="img"
+          aria-label={def.alt || 'Situatietekening'}
+        >
           <EhboScene scene={scene} opgeruimd={opgeruimd} />
         </svg>
       )}
@@ -349,6 +365,7 @@ function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], fout
           </button>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -428,6 +445,7 @@ function HotspotOefening({ step, onVoltooid }) {
         onKlik={klik}
         onMis={verbergZones ? klikMis : null}
         verbergZones={verbergZones}
+        maxHoogte="46dvh"
       />
 
       {mis && !laatsteUitleg && (
@@ -1291,12 +1309,14 @@ const startChain = (chain) => {
     const isCurrentStepConsequence = String(currentStepData.id).includes('_consequence');
 
     return (
-      <div className="max-w-4xl mx-auto">
-        {/* OPTIMALISATIE: Minder padding en kleinere schaduw voor een compacter gevoel */}
-        <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+      // Vult de beschikbare schermhoogte en verdeelt die: vaste header,
+      // meeschalende inhoud. dvh i.p.v. vh zodat de browserbalk op mobiel
+      // meegerekend wordt.
+      <div className="max-w-4xl mx-auto flex flex-col" style={{ height: 'calc(100dvh - 6rem)' }}>
+        <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden flex flex-col flex-1 min-h-0">
           {/* Header */}
           {/* OPTIMALISATIE: Minder padding (p-4), kleinere titel op mobiel (text-xl) */}
-          <div className={`bg-gradient-to-r from-${activeScenario.color}-500 to-${activeScenario.color}-600 p-4 text-white`}>
+          <div className={`flex-shrink-0 bg-gradient-to-r from-${activeScenario.color}-500 to-${activeScenario.color}-600 p-4 text-white`}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xl md:text-2xl font-bold">{activeScenario.title}</h2>
               <button onClick={resetScenario} className="p-1 rounded-full hover:bg-white/20"><XMarkIcon className="w-6 h-6" /></button>
@@ -1331,7 +1351,7 @@ const startChain = (chain) => {
           </div>
           
           {/* Question Content */}
-          <div className="p-4 md:p-6">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
             {!showResults ? (
               <>
                 <div className="mb-6">
@@ -1348,6 +1368,7 @@ const startChain = (chain) => {
                         opgeruimd={currentStepData.sceneOpgeruimd || []}
                         hotspots={currentStepData.toonGedaan ? (currentStepData.hotspots || []) : []}
                         gedaan={currentStepData.toonGedaan ? (currentStepData.hotspots || []).map(h => h.id) : []}
+                        maxHoogte="30dvh"
                       />
                     </div>
                   )}
@@ -2039,20 +2060,23 @@ const TheoryTab = () => (
 
   return (
     <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
-      <div className="max-w-7xl mx-auto px-4 pt-20 pb-6">
+      <div className={`max-w-7xl mx-auto px-4 pb-6 ${activeScenario ? "pt-16" : "pt-20"}`}>
         
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">EHBO & Veiligheid</h1>
-              <p className="text-slate-500">Leer levensreddende vaardigheden door interactieve scenario's</p>
+        {/* Header — verborgen tijdens een oefening, zodat die de volle
+            schermhoogte krijgt. */}
+        {!activeScenario && (
+          <div className="mb-8">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">EHBO & Veiligheid</h1>
+                <p className="text-slate-500">Leer levensreddende vaardigheden door interactieve scenario's</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap gap-1 mb-8 bg-white rounded-xl p-1 shadow-sm border border-gray-200">
+        {/* Navigation Tabs — idem verborgen tijdens een oefening */}
+        <div className={`${activeScenario ? 'hidden' : 'flex'} flex-wrap gap-1 mb-8 bg-white rounded-xl p-1 shadow-sm border border-gray-200`}>
           {[
             { id: 'dashboard', label: 'Dashboard', icon: AcademicCapIcon },
             { id: 'emergency', label: 'Noodcontacten', icon: PhoneIcon },
