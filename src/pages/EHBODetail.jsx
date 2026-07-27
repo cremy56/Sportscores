@@ -445,7 +445,7 @@ function HotspotOefening({ step, onVoltooid }) {
         onKlik={klik}
         onMis={verbergZones ? klikMis : null}
         verbergZones={verbergZones}
-        maxHoogte="min(68dvh, calc(100dvh - 19rem))"
+        maxHoogte="min(76dvh, calc(100dvh - 19rem))"
       />
 
       {mis && !laatsteUitleg && (
@@ -1312,7 +1312,7 @@ const startChain = (chain) => {
       // Vult de beschikbare schermhoogte en verdeelt die: vaste header,
       // meeschalende inhoud. dvh i.p.v. vh zodat de browserbalk op mobiel
       // meegerekend wordt.
-      <div className="max-w-4xl mx-auto flex flex-col" style={{ height: 'calc(100dvh - 6rem)' }}>
+      <div className="max-w-6xl mx-auto flex flex-col" style={{ height: 'calc(100dvh - 6rem)' }}>
         <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden flex flex-col flex-1 min-h-0">
           {/* Header */}
           {/* OPTIMALISATIE: Minder padding (p-4), kleinere titel op mobiel (text-xl) */}
@@ -1359,21 +1359,37 @@ const startChain = (chain) => {
                       tekent HotspotOefening de scène zelf (met klikzones).
                       sceneOpgeruimd laat gevaren die al weggewerkt zijn weg,
                       zodat de leerling het resultaat van zijn werk ziet. */}
-                  {/* Bij een vraag MET foto staan de keuzes op een breed scherm
-                      naast de foto (lg:grid-cols-2), zodat de foto de volle
-                      hoogte krijgt. Op smalle schermen stapelen ze. */}
-                  <div className={currentStepData.scene && currentStepData.interactie !== 'hotspots'
-                    ? 'grid grid-cols-1 lg:grid-cols-2 gap-4 lg:items-start'
-                    : ''}>
+                  {/* Vraag MET foto: de foto krijgt de VOLLE breedte (dat is
+                      wat de grootte bepaalt, niet de hoogtelimiet) en de
+                      keuzes liggen als laag over de onderkant. Na het kiezen
+                      verdwijnt die laag en gaat de oefening verder op
+                      dezelfde foto. */}
                   {currentStepData.scene && currentStepData.interactie !== 'hotspots' && (
-                    <div className="mb-2 lg:mb-0">
+                    <div className="relative mb-3">
                       <SceneWeergave
                         scene={currentStepData.scene}
                         opgeruimd={currentStepData.sceneOpgeruimd || []}
                         hotspots={currentStepData.toonGedaan ? (currentStepData.hotspots || []) : []}
                         gedaan={currentStepData.toonGedaan ? (currentStepData.hotspots || []).map(h => h.id) : []}
-                        maxHoogte="min(58dvh, calc(100dvh - 22rem))"
+                        maxHoogte="min(72dvh, calc(100dvh - 19rem))"
                       />
+
+                      {/* Keuzelaag — alleen zolang er nog niet gekozen is */}
+                      {!selectedAnswer && (
+                        <div className="absolute inset-x-0 bottom-0 p-2 md:p-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {currentStepData.options.map(option => (
+                              <button
+                                key={option.id}
+                                onClick={() => handleAnswer(option, currentStepData)}
+                                className="text-left px-3 py-2 rounded-lg bg-white/92 hover:bg-white backdrop-blur-sm border border-white/70 shadow-lg text-sm md:text-base font-medium text-gray-900 transition-colors"
+                              >
+                                {option.text}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   <div>
@@ -1404,6 +1420,9 @@ const startChain = (chain) => {
                      step={currentStepData}
                      onVoltooid={() => handleAnswer(currentStepData.options[0], currentStepData)}
                    />
+                 ) : currentStepData.scene ? (
+                   // Keuzes staan al als laag op de foto; hier niets herhalen.
+                   null
                  ) : (
                  <div className="space-y-3">
                     {currentStepData.options.map(option => (
@@ -1454,7 +1473,6 @@ const startChain = (chain) => {
                   </div>
                  )}
                   </div>
-                  </div>
                 {/* NIEUW: Hint systeem voor enhanced scenarios */}
                   {isEnhanced && currentStepData.hint && shouldShowHints && (
                     <EnhancedUIComponents.HintDisplay
@@ -1466,7 +1484,7 @@ const startChain = (chain) => {
                 </div>
                 
                 {selectedAnswer && (
-                    <div className={`p-4 rounded-xl ${
+                    <div className={`p-3 rounded-xl ${
                       selectedAnswer.timedOut
                         ? 'bg-yellow-50 border border-yellow-200'
                         : showIntermediateFeedback 
@@ -1501,7 +1519,7 @@ const startChain = (chain) => {
                       )}
 
                       {/* --- AANGEPASTE CONDITIONELE KNOPPEN --- */}
-                      <div className="mt-4 text-center">
+                      <div className="mt-2 text-center">
                         {/* Toon "Verder" knop bij time-out OF bij een eerste foute antwoord */}
                         {(selectedAnswer.timedOut || showIntermediateFeedback) ? (
                           <button
