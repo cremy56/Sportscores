@@ -290,7 +290,7 @@ function EhboScene({ scene, opgeruimd = [] }) {
 // Toont de foto (als die er is) of anders de getekende SVG, met daarover de
 // klikzones. Posities staan in PROCENTEN van de afbeelding, zodat ze op elk
 // schermformaat op de juiste plek blijven liggen.
-function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], foutId = null, onKlik = null, onMis = null, verbergZones = false, maxHoogte = '55dvh' }) {
+function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], foutId = null, onKlik = null, onMis = null, verbergZones = false, maxHoogte = '55dvh', keuzes = null }) {
   const def = EHBO_SCENES[scene] || {};
   const klikbaar = typeof onKlik === 'function';
 
@@ -365,6 +365,15 @@ function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], fout
           </button>
         );
       })}
+
+      {/* Keuzes onder het beeld, binnen dezelfde wrapper zodat ze exact even
+          breed zijn als de foto. Dichte achtergrond i.p.v. doorzichtig:
+          tekst over een drukke foto is onleesbaar, zeker op een telefoon. */}
+      {keuzes && (
+        <div className="bg-slate-800 px-2 py-2 md:px-3 md:py-2.5">
+          {keuzes}
+        </div>
+      )}
       </div>
     </div>
   );
@@ -1365,31 +1374,27 @@ const startChain = (chain) => {
                       verdwijnt die laag en gaat de oefening verder op
                       dezelfde foto. */}
                   {currentStepData.scene && currentStepData.interactie !== 'hotspots' && (
-                    <div className="relative mb-3">
+                    <div className="mb-3">
                       <SceneWeergave
                         scene={currentStepData.scene}
                         opgeruimd={currentStepData.sceneOpgeruimd || []}
                         hotspots={currentStepData.toonGedaan ? (currentStepData.hotspots || []) : []}
                         gedaan={currentStepData.toonGedaan ? (currentStepData.hotspots || []).map(h => h.id) : []}
-                        maxHoogte="min(72dvh, calc(100dvh - 19rem))"
-                      />
-
-                      {/* Keuzelaag — alleen zolang er nog niet gekozen is */}
-                      {!selectedAnswer && (
-                        <div className="absolute inset-x-0 bottom-0 p-2 md:p-3">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        maxHoogte="min(64dvh, calc(100dvh - 23rem))"
+                        keuzes={!selectedAnswer ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 md:gap-2">
                             {currentStepData.options.map(option => (
                               <button
                                 key={option.id}
                                 onClick={() => handleAnswer(option, currentStepData)}
-                                className="text-left px-3 py-2 rounded-lg bg-white/92 hover:bg-white backdrop-blur-sm border border-white/70 shadow-lg text-sm md:text-base font-medium text-gray-900 transition-colors"
+                                className="text-left px-3 py-2 rounded-lg bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-400 text-sm md:text-base font-medium text-slate-900 transition-colors"
                               >
                                 {option.text}
                               </button>
                             ))}
                           </div>
-                        </div>
-                      )}
+                        ) : null}
+                      />
                     </div>
                   )}
                   <div>
