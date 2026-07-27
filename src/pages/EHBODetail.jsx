@@ -370,7 +370,14 @@ function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], fout
           breed zijn als de foto. Dichte achtergrond i.p.v. doorzichtig:
           tekst over een drukke foto is onleesbaar, zeker op een telefoon. */}
       {keuzes && (
-        <div className="bg-slate-800 px-2 py-2 md:px-3 md:py-2.5">
+        // width:0 + minWidth:100% zorgt dat dit blok NIET meetelt voor de
+        // breedte van de wrapper (die blijft dus exact de fotobreedte) maar
+        // wel de volle breedte vult. Zonder deze truc duwen lange knopteksten
+        // de container breder dan de foto, en staat de foto uit het midden.
+        <div
+          className="bg-slate-800 px-2 py-2 md:px-3 md:py-2.5"
+          style={{ width: 0, minWidth: '100%' }}
+        >
           {keuzes}
         </div>
       )}
@@ -1387,7 +1394,7 @@ const startChain = (chain) => {
                               <button
                                 key={option.id}
                                 onClick={() => handleAnswer(option, currentStepData)}
-                                className="text-left px-3 py-2 rounded-lg bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-400 text-sm md:text-base font-medium text-slate-900 transition-colors"
+                                className="text-left px-3 py-2 rounded-lg bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-400 text-sm md:text-base font-medium text-slate-900 transition-colors break-words"
                               >
                                 {option.text}
                               </button>
