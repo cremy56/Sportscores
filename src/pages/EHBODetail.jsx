@@ -290,7 +290,7 @@ function EhboScene({ scene, opgeruimd = [] }) {
 // Toont de foto (als die er is) of anders de getekende SVG, met daarover de
 // klikzones. Posities staan in PROCENTEN van de afbeelding, zodat ze op elk
 // schermformaat op de juiste plek blijven liggen.
-function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], foutId = null, onKlik = null, onMis = null, verbergZones = false, maxHoogte = '55dvh', keuzes = null }) {
+function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], foutId = null, onKlik = null, onMis = null, verbergZones = false, maxHoogte = '55dvh', keuzes = null, beeldVerhouding = 1.5 }) {
   const def = EHBO_SCENES[scene] || {};
   const klikbaar = typeof onKlik === 'function';
 
@@ -300,8 +300,18 @@ function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], fout
   // De hoogtebeperking staat daarom op het beeld zelf, niet op de wrapper.
   return (
     <div className="w-full flex justify-center">
+      {/* maxWidth volgt uit de hoogtelimiet: anders blijft de wrapper op zijn
+          natuurlijke breedte staan wanneer de hoogte bindend is, en staat de
+          (smaller gerenderde) foto links in een te breed vlak. */}
       <div
-        className="relative inline-block rounded-xl overflow-hidden border-2 border-gray-200 bg-white"
+        className="inline-block rounded-xl overflow-hidden border-2 border-gray-200 bg-white"
+        style={{ maxWidth: `calc((${maxHoogte}) * ${beeldVerhouding})` }}
+      >
+      {/* Beeld + klikzones in een EIGEN relative container. De keuzebalk valt
+          hier BUITEN: anders rekenen de procent-posities van de klikzones
+          tegen foto+balk samen en verschuiven alle vinkjes naar beneden. */}
+      <div
+        className="relative block"
         onClick={klikbaar && onMis ? onMis : undefined}
         style={{ cursor: klikbaar ? 'crosshair' : 'default' }}
       >
@@ -365,6 +375,8 @@ function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], fout
           </button>
         );
       })}
+
+      </div>
 
       {/* Keuzes onder het beeld, binnen dezelfde wrapper zodat ze exact even
           breed zijn als de foto. Dichte achtergrond i.p.v. doorzichtig:
