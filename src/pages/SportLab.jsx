@@ -1,6 +1,7 @@
 // src/pages/SportLab.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
+import { apiCall } from '../utils/api';
 import toast, { Toaster } from 'react-hot-toast';
 import {
     ChevronRightIcon,
@@ -18,24 +19,12 @@ import { BodyFixerView } from './SportLabBodyFixer';
 import { WaarnemerView } from './SportLabWaarnemer';
 
 // ─── API HELPER ───────────────────────────────────────────────────────────────
-async function apiPost(action, body, token) {
-    const res = await fetch('/api/tests', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...body })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-        const errMsg = data.error || 'API fout';
-        // Als het token vervallen is (bv. na slaapstand laptop), forceer een reload
-        if (errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('geauthenticeerd')) {
-            window.location.reload();
-            return new Promise(() => {}); // Pauzeer code executie terwijl pagina herlaadt
-        }
-        throw new Error(errMsg);
-    }
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call +
+// 401-refresh/retry + 429-toast. Verving de eigen fetch met doorgegeven token.
+// apiCall doet bij een 401 een geforceerde token-refresh + retry. Dat
+// verving de oude noodgreep window.location.reload(), die de leerkracht
+// midden in een SportLab-sessie zijn scherm afnam.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 // Helper voor privacy: "Jan Peeters" -> "Jan P."
 const formatPrivacyNaam = (naam) => {
     if (!naam || naam === 'Onbekend') return 'Speler';
@@ -166,8 +155,8 @@ function SessieStartForm({ profile, onSessieGestart }) {
         const fetchKlassenEnGroepen = async () => {
             try {
                 const [klassenData, groepenData] = await Promise.all([
-                    apiPost('get_mijn_klassen', { schoolId: profile.school_id }, profile._token),
-                    apiPost('get_groepen', { schoolId: profile.school_id }, profile._token),
+                    apiPost('get_mijn_klassen', { schoolId: profile.school_id }),
+                    apiPost('get_groepen', { schoolId: profile.school_id }),
                 ]);
                 setKlassenEnGroepen({
                     klassen: klassenData.klassen || [],
@@ -180,7 +169,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
             }
         };
         fetchKlassenEnGroepen();
-    }, [profile?.school_id, profile?._token]);
+    }, [profile?.school_id]);
 
     // Vrijgestelde leerlingen ophalen voor preview (enkel bij klas-selectie)
     useEffect(() => {
@@ -196,7 +185,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
                 const data = await apiPost('get_klas_detail', {
                     klasNaam: klasNaam,
                     schoolId: profile.school_id,
-                }, profile._token);
+                });
                 
                 const vrijgesteld = (data.members || []).filter(m => m.vrijgesteld);
                 setVrijgesteldeLeerlingen(vrijgesteld);
@@ -208,7 +197,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
             }
         };
         fetchVrijgesteld();
-    }, [doelgroep, profile?.school_id, profile?._token]);
+    }, [doelgroep, profile?.school_id]);
 
     const handleStart = async () => {
         if (!sport) { toast.error('Kies een sport.'); return; }
@@ -233,7 +222,7 @@ function SessieStartForm({ profile, onSessieGestart }) {
                 sport,
                 doelType,
                 doelId
-            }, profile._token);
+            });
             toast.success(`Sport Lab sessie gestart voor ${sport}!`);
             
             // Wacht nu écht tot de pagina ververst is voordat we de loading-state stoppen
@@ -362,7 +351,7 @@ function BeoordelingRij({ d, sessie, profile, onOpgeslagen }) {
                 maxScore: 10,
                 groepId: sessie.groep_id, 
                 levelUp: geefLevelUp
-            }, profile._token);
+            });
             
             toast.success(`Score opgeslagen voor ${d.echte_naam}`);
             onOpgeslagen(); 
@@ -466,7 +455,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                 sessieId: sessie.id,
                 definitief,
                 naarDocentEvaluatie
-            }, profile._token);
+            });
             
             if (definitief) {
                 toast.success('Sessie definitief gesloten.');
@@ -665,7 +654,7 @@ function ActieveSessieLeerkracht({ sessie, profile, onSessieGesloten, onRefresh 
                                                 sessieId: sessie.id,
                                                 teams: toernooiData.teams,
                                                 type: toernooiData.type
-                                            }, profile._token);
+                                            });
                                             toast.success('Toernooi gestart!', { id: toastId });
                                             if (onRefresh) onRefresh(); // <--- ZORGT VOOR ONMIDDELLIJK BEELD!
                                         } catch(e) {
@@ -828,7 +817,7 @@ function RolKeuze({ sessie, profile, isVrijgesteld, niveaus, eigenDeelname, onRo
                 schoolId: profile.school_id,
                 sessieId: sessie.id,
                 rol: rolId
-            }, profile._token);
+            });
             toast.success('Rol gekozen!');
             onRolGekozen(rolId);
         } catch (e) {
@@ -968,7 +957,7 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
             try {
                 const data = await apiPost('get_sportlab_content', {
                     sport: sessie.sport.toLowerCase(),
-                }, profile._token);
+                });
                 setRolContent(data.content || null);
             } catch (e) {
                 console.error('Content laden mislukt:', e);
@@ -977,7 +966,7 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
             }
         };
         fetchContent();
-    }, [sessie.sport, profile._token]);
+    }, [sessie.sport]);
 
     // Auto-switch naar reflectie bij evaluatiefase
     useEffect(() => {
@@ -1094,7 +1083,7 @@ function ActieveRolView({ rol, niveau, sessie, deelname, profile, onGereflecteer
                                                 sessieId: sessie.id,
                                                 teams: toernooiData.teams,
                                                 type: toernooiData.type
-                                            }, profile._token);
+                                            });
                                             toast.success('Toernooi gestart!', { id: toastId });
                                             if (onRefresh) onRefresh(); 
                                         } catch(e) {
@@ -1240,7 +1229,7 @@ function ZelfreflectieForm({ rol, rolData, deelnameId, sessie, profile, onIngedi
                     oefeningen_afgevinkt: oefeningenAfgevinkt,
                     hoofdtip_gegeven: hoofdtip || null, // Stuur de tip mee
                 }
-            }, profile._token);
+            });
             toast.success(`+${data.xp_earned} XP verdiend!`);
             onIngediend();
         } catch (e) {
@@ -1437,10 +1426,10 @@ export default function SportLab() {
     }, [sessie?.id]);
 
     const fetchSessie = useCallback(async () => {
-        if (!profile?._token || !profile?.school_id) return;
+        if (!profile?.school_id) return;
         try {
             if (['leerkracht', 'administrator', 'super-administrator'].includes(profile?.rol)) {
-                const data = await apiPost('get_sportlab_sessies', { schoolId: profile.school_id }, profile._token);
+                const data = await apiPost('get_sportlab_sessies', { schoolId: profile.school_id });
                 const actief = (data.sessies || [])
                     .filter(s => {
                         if (!['actief', 'evaluatie', 'docent_evaluatie'].includes(s.status)) return false;
@@ -1456,7 +1445,7 @@ export default function SportLab() {
                     .sort((a, b) => new Date(b.start_tijd) - new Date(a.start_tijd))[0] || null;
                 setLeerkrachtSessie(actief || null);
             } else {
-                const data = await apiPost('get_actieve_sportlab_sessie', { schoolId: profile.school_id }, profile._token);
+                const data = await apiPost('get_actieve_sportlab_sessie', { schoolId: profile.school_id });
                 setSessie(data.sessie || null);
                 setEigenDeelname(data.eigen_deelname || null);
             }

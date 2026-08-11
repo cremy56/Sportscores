@@ -3,6 +3,7 @@
 // Alle data gaat via /api/tests (Admin SDK server-side)
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useOutletContext, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { apiCall } from '../utils/api';
 import { auth } from '../firebase';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, PencilIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
@@ -14,19 +15,9 @@ import { getLeeftijdFromKlas } from '../utils/klasUtils.js';
 import WaarnemerPanel, { detectWaarnemerModus } from '../components/WaarnemerPanel';
 
 // --- API HELPER ---
-async function apiPost(action, body, token) {
-    const response = await fetch('/api/tests', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action, ...body })
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call +
+// 401-refresh/retry + 429-toast. Verving de eigen fetch met doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 // --- HELPER FUNCTIES ---// ✅ GDPR: geen geboortedatum — leeftijd wordt bepaald via klas
 function calculatePuntFromScore(test, leerling, score, normenData) {
@@ -138,17 +129,17 @@ export default function NieuweTestafname() {
     // ✅ GEMIGREERD van directe Firestore queries
     // =============================================
     useEffect(() => {
-        if (!profile?.school_id || !profile?._token) return;
+        if (!profile?.school_id) return;
         setLoading(true);
         const fetchData = async () => {
             try {
                 const data = await apiPost('get_setup_data', {
                     schoolId: profile.school_id
-                }, profile._token);
+                });
                 setGroepen(data.groepen || []);
                 setTesten(data.testen || []);
                 try {
-                    const klData = await apiPost('get_mijn_klassen', { schoolId: profile.school_id }, profile._token);
+                    const klData = await apiPost('get_mijn_klassen', { schoolId: profile.school_id });
                     setKlassen(klData.klassen || []);
                 } catch { /* klassen optioneel */ }
             } catch (error) {
@@ -224,7 +215,7 @@ export default function NieuweTestafname() {
                     const data = await apiPost('get_leerlingen_voor_klas', {
                         klasNaam: selectedKlas,
                         schoolId: profile.school_id,
-                    }, profile._token);
+                    });
 
                     setVolledigeLeerlingen(
                         (data.leerlingen || []).sort((a, b) => a.data.naam.localeCompare(b.data.naam))
@@ -241,7 +232,7 @@ export default function NieuweTestafname() {
                 const data = await apiPost('get_leerlingen_voor_groep', {
                     groepId: selectedGroep.id,
                     schoolId: profile.school_id
-                }, profile._token);
+                });
 
                 setVolledigeLeerlingen(
                     (data.leerlingen || []).sort((a, b) => a.data.naam.localeCompare(b.data.naam))
@@ -271,7 +262,7 @@ export default function NieuweTestafname() {
             try {
                 const data = await apiPost('get_normen', {
                     testId: selectedTest.id
-                }, profile._token);
+                });
 
                 const normenData = data.normen || null;
                 setCachedNormenData(normenData);
@@ -336,7 +327,7 @@ export default function NieuweTestafname() {
                     groepId: selectedGroep ? selectedGroep.id : `klas-${selectedKlas}`,
                     datum: datum,
                     schoolId: profile.school_id
-                }, profile._token);
+                });
 
                 if (data.hasRecentScores) {
                     const { message, afnameDatum, isEigenAfname } = data;
@@ -448,7 +439,7 @@ export default function NieuweTestafname() {
                     schoolId: profile.school_id,
                     datum: datum,
                     scores: scoresToSave
-                }, profile._token);
+                });
             } else {
                 // KLAS: per leerling opslaan via save_score (enkelvoud, groep_id = null)
                 for (const s of scoresToSave) {
@@ -461,7 +452,7 @@ export default function NieuweTestafname() {
                         klas:       s.klas,
                         geslacht:   s.geslacht,
                         score:      s.score,
-                    }, profile._token);
+                    });
                 }
             }
 

@@ -1,6 +1,7 @@
 // src/pages/SchemaDetail.jsx
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { apiCall } from '../utils/api';
 
 // Firestore imports verwijderd - alles via API
 import { ArrowLeftIcon, PlayIcon, CheckCircleIcon, ClockIcon, CameraIcon, StarIcon, TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid';
@@ -10,16 +11,9 @@ import { useOutletContext, useLocation } from 'react-router-dom';
 
 
 // ─── API helper ───────────────────────────────────────────────────────────────
-async function apiPost(action, body, token) {
-    const response = await fetch('/api/tests', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...body }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call +
+// 401-refresh/retry + 429-toast. Verving de eigen fetch met doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 export default function SchemaDetail() {
     
@@ -44,7 +38,7 @@ const schemaData = location.state;
     (profile?.toegestane_gebruikers_id && profile.toegestane_gebruikers_id === leerlingProfiel?.toegestane_gebruikers_id);
 
   useEffect(() => {
-    if (!schemaData || !profile?._token) return;
+    if (!schemaData) return;
 
     const fetchData = async () => {
         setLoading(true);
@@ -53,7 +47,7 @@ const schemaData = location.state;
                 schoolId: profile.school_id || 'ka_beveren',
                 leerlingId: schemaData.userId,
                 schemaTemplateId: schemaData.schemaTemplateId,
-            }, profile._token);
+            });
 
             setSchemaDetails(result.schemaDetails || null);
             setActiefSchema(result.actiefSchema || null);
@@ -67,7 +61,7 @@ const schemaData = location.state;
     };
     fetchData();
    
-}, [schemaData?.schemaTemplateId, schemaData?.userId, profile?._token]);
+}, [schemaData?.schemaTemplateId, schemaData?.userId]);
 
     // ALLE FUNCTIE DEFINITIES
 const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
@@ -94,7 +88,7 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
             leerlingId: schemaData.userId,
             schemaTemplateId: schemaData.schemaTemplateId,
             voltooide_taken: updatedVoltooide,
-        }, profile._token);
+        });
 
         // 3. Update de lokale state
         setActiefSchema(prev => ({
@@ -167,7 +161,7 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                     schoolId: profile.school_id,
                     leerlingId: schemaData.userId,
                     schemaTemplateId: schemaData.schemaTemplateId,
-                }, profile._token);
+                });
                 const freshSchemaData = freshResult.actiefSchema;
                 if (!freshSchemaData) throw new Error("Schema niet gevonden");
             
@@ -255,7 +249,7 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                     voltooide_taken: freshSchemaData.voltooide_taken,
                     gevalideerde_weken: updatedGevalideerdeWeken,
                     huidige_week: nieuweHuidigeWeek,
-                }, profile._token);
+                });
 
                
 
@@ -658,7 +652,7 @@ function TaakCard({ taak, weekNummer, taakIndex, actiefSchema, onTaakVoltooien, 
                 const result = await apiPost('get_oefening_detail', {
                     schoolId: profile?.school_id,
                     oefeningId: taak.oefening_id,
-                }, profile?._token);
+                });
                 if (result.oefening) {
                     setOefeningDetails(result.oefening);
                 }

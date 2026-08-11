@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
+import { apiCall } from '../utils/api';
 import { PlusIcon, TrashIcon, PencilIcon, CalendarIcon, CogIcon } from '@heroicons/react/24/outline';
 import { BuildingOffice2Icon, AtSymbolIcon } from '@heroicons/react/24/solid';
 import SchoolFormModal from '../components/SchoolFormModal';
@@ -10,16 +11,9 @@ import RapportperiodeModal from '../components/RapportperiodeModal';
 import MobileActionButtons from '../components/MobileActionButtons';
 
 // ─── API helper ───────────────────────────────────────────────────────────────
-async function apiPost(action, body, token) {
-    const response = await fetch('/api/archive', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...body }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call +
+// 401-refresh/retry + 429-toast. Verving de eigen fetch met doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/archive', { action, ...body });
 
 // ─── Auth Method Selector ─────────────────────────────────────────────────────
 const AuthMethodSelector = ({ school, onAuthMethodChange, schoolSettingsExpanded, setSchoolSettingsExpanded }) => {
@@ -84,17 +78,11 @@ export default function SchoolBeheer() {
 
     // Scholen ophalen
     useEffect(() => {
-    if (!profile?._token) return;
+    if (!profile?.school_id) return;
     setLoading(true);
     const fetchScholen = async () => {
         try {
-            const response = await fetch('/api/tests', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'get_scholen', schoolId: profile.school_id })
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error);
+            const data = await apiCall('/api/tests', { action: 'get_scholen', schoolId: profile.school_id });
             const scholenData = (data.scholen || []).sort((a, b) => a.naam.localeCompare(b.naam));
             setScholen(scholenData);
             if (!isSuperAdmin && userSchoolId) {
@@ -108,21 +96,15 @@ export default function SchoolBeheer() {
         }
     };
     fetchScholen();
-}, [profile?._token, isSuperAdmin, userSchoolId]);
+}, [profile?.school_id, isSuperAdmin, userSchoolId]);
 
     // Rapportperioden ophalen
     useEffect(() => {
-    if (!selectedSchool || !profile?._token) { setRapportperioden([]); return; }
+    if (!selectedSchool) { setRapportperioden([]); return; }
     setPeriodenLoading(true);
     const fetchPerioden = async () => {
         try {
-            const response = await fetch('/api/tests', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'get_rapportperioden', schoolId: profile.school_id, targetSchoolId: selectedSchool.id })
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error);
+            const data = await apiCall('/api/tests', { action: 'get_rapportperioden', schoolId: profile.school_id, targetSchoolId: selectedSchool.id });
             setRapportperioden(data.perioden || []);
         } catch (error) {
             toast.error("Kon rapportperioden niet laden.");
@@ -131,7 +113,7 @@ export default function SchoolBeheer() {
         }
     };
     fetchPerioden();
-}, [selectedSchool, profile?._token]);
+}, [selectedSchool]);
 
     const handleCloseModal = () => setModal({ type: null, data: null });
 
@@ -140,13 +122,7 @@ export default function SchoolBeheer() {
     if (!schoolToDelete) return;
     const loadingToast = toast.loading('School verwijderen...');
     try {
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'delete_school', schoolId: profile.school_id, targetSchoolId: schoolToDelete.id })
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
+        const data = await apiCall('/api/tests', { action: 'delete_school', schoolId: profile.school_id, targetSchoolId: schoolToDelete.id });
         toast.success(`'${schoolToDelete.naam}' succesvol verwijderd.`);
         setScholen(prev => prev.filter(s => s.id !== schoolToDelete.id));
     } catch (error) {
@@ -162,13 +138,7 @@ export default function SchoolBeheer() {
     if (!periodToDelete || !selectedSchool) return;
     const loadingToast = toast.loading('Periode verwijderen...');
     try {
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'delete_rapportperiode', schoolId: profile.school_id, targetSchoolId: selectedSchool.id, periodeId: periodToDelete.id })
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
+        const data = await apiCall('/api/tests', { action: 'delete_rapportperiode', schoolId: profile.school_id, targetSchoolId: selectedSchool.id, periodeId: periodToDelete.id });
         toast.success(`'${periodToDelete.naam}' succesvol verwijderd.`);
         setRapportperioden(prev => prev.filter(p => p.id !== periodToDelete.id));
     } catch (error) {
@@ -183,13 +153,11 @@ export default function SchoolBeheer() {
     if (!selectedSchool || newMethod !== 'smartschool') return;
     const loadingToast = toast.loading('Inlogmethode bijwerken...');
     try {
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'save_school_settings', schoolId: profile.school_id, instellingen: { ...selectedSchool.instellingen, auth_method: newMethod } })
+        await apiCall('/api/tests', {
+            action: 'save_school_settings',
+            schoolId: profile.school_id,
+            instellingen: { ...selectedSchool.instellingen, auth_method: newMethod }
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
         toast.success('Inlogmethode bijgewerkt naar Smartschool');
     } catch (error) {
         toast.error('Kon inlogmethode niet bijwerken');
@@ -203,7 +171,7 @@ export default function SchoolBeheer() {
         setArchiveLoading(true);
         setArchiveResult(null);
         try {
-            const result = await apiPost('archiveer_rankings', {}, profile._token);
+            const result = await apiPost('archiveer_rankings', {});
             setArchiveResult({ type: 'success', msg: `✅ ${result.gearchiveerdeRankings} rankings gearchiveerd, ${result.geblokkeerdeNicknames} nicknames geblokkeerd (${result.schooljaar})` });
             toast.success('Rankings gearchiveerd!');
         } catch (err) {
@@ -219,7 +187,7 @@ export default function SchoolBeheer() {
         setArchiveLoading(true);
         setArchiveResult(null);
         try {
-            const result = await apiPost('verwijder_verlopen', {}, profile._token);
+            const result = await apiPost('verwijder_verlopen', {});
             setArchiveResult({ type: 'success', msg: `✅ ${result.verwijderdeUsers} profielen verwijderd, ${result.verwijderdeToegestane} whitelistrecords gewist` });
             toast.success('Verlopen gegevens verwijderd!');
         } catch (err) {
@@ -442,7 +410,6 @@ export default function SchoolBeheer() {
                     isOpen={modal.type === 'form'}
                     onClose={handleCloseModal}
                     schoolData={modal.data}
-                    token={profile?._token}
                 />
             )}
 
@@ -451,7 +418,6 @@ export default function SchoolBeheer() {
                 onClose={handleCloseModal}
                 schoolId={selectedSchool?.id}
                 periodData={modal.data}
-                token={profile?._token}
             />
 
             <ConfirmModal

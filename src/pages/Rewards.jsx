@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Trophy, Star, TrendingUp, Zap } from 'lucide-react';
+import { apiCall } from '../utils/api';
 
 // Herijkt bij ontmanteling welzijnsmodule (jul 2026):
 // - Welzijn Kompas XP (segment + volledig) VERWIJDERD
@@ -31,22 +32,19 @@ const Rewards = () => {
   const [activeTab, setActiveTab] = useState('overzicht');
 
   useEffect(() => {
-    if (!profile?.school_id || !profile?._token || !profile?.groepen?.length) return;
+    if (!profile?.school_id || !profile?.groepen?.length) return;
     const fetchClassTarget = async () => {
       try {
-        const response = await fetch('/api/tests', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'get_groep_detail', schoolId: profile.school_id, groepId: profile.groepen[0] })
+        const data = await apiCall('/api/tests', {
+          action: 'get_groep_detail', schoolId: profile.school_id, groepId: profile.groepen[0]
         });
-        const data = await response.json();
         if (data.groep?.doel_xp_current_period) setClassTarget(data.groep.doel_xp_current_period);
       } catch (error) {
         console.error('Fout bij laden klassendoel:', error);
       }
     };
     fetchClassTarget();
-  }, [profile?.groepen, profile?._token]);
+  }, [profile?.groepen, profile?.school_id]);
 
   if (profile?.rol !== 'leerling') {
     return <div className="p-8 text-gray-500">Rewards zijn alleen voor leerlingen.</div>;

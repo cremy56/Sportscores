@@ -3,6 +3,7 @@
 // Ondersteunt zowel groepen (/groep/:groepId) als klassen (/klas/:klasNaam)
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, useOutletContext } from 'react-router-dom';
+import { apiCall } from '../utils/api';
 import toast, { Toaster } from 'react-hot-toast';
 import {
     TrashIcon, PlusIcon, ArrowLeftIcon,
@@ -11,19 +12,9 @@ import {
 import ConfirmModal from '../components/ConfirmModal';
 
 // --- API HELPER ---
-async function apiPost(action, body, token) {
-    const response = await fetch('/api/tests', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action, ...body })
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call +
+// 401-refresh/retry + 429-toast. Verving de eigen fetch met doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 // =============================================
 // MODAL: Sorteren
@@ -68,18 +59,14 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded, token, profil
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (searchTerm.length < 2 || !group?.school_id || !token) { setSearchResults([]); return; }
+        if (searchTerm.length < 2 || !group?.school_id) { setSearchResults([]); return; }
 
         const delayDebounceFn = setTimeout(async () => {
             setLoading(true);
             try {
-                const response = await fetch('/api/users', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ action: 'get_users', schoolId: group.school_id, filterRol: 'leerling' })
-                });
-                if (!response.ok) throw new Error('Fout bij zoeken');
-                const data = await response.json();
+                const data = await apiCall('/api/users', {
+                    action: 'get_users', schoolId: group.school_id, filterRol: 'leerling'
+                }, { stil: true });
                 const allStudents = data.users || [];
                 const searchLower = searchTerm.toLowerCase();
                 const currentIds = group.leerling_ids || [];
@@ -102,7 +89,7 @@ function AddStudentModal({ group, isOpen, onClose, onStudentAdded, token, profil
                 groepId: group.id,
                 leerlingId: student.id,
                 schoolId: group.school_id
-            }, token);
+            });
             const naam = student.decrypted_name || student.naam || '';
             toast.success(`${naam} toegevoegd!`);
             onStudentAdded();
@@ -298,12 +285,12 @@ export default function GroupDetail() {
     // ALLE DATA LADEN via API
     // =============================================
     const fetchGroupData = useCallback(async () => {
-        if (!profile?._token || !profile?.school_id) return;
+        if (!profile?.school_id) return;
         setLoading(true);
         try {
             const data = isKlas
-                ? await apiPost('get_klas_detail', { klasNaam, schoolId: profile.school_id }, profile._token)
-                : await apiPost('get_groep_detail', { groepId, schoolId: profile.school_id }, profile._token);
+                ? await apiPost('get_klas_detail', { klasNaam, schoolId: profile.school_id })
+                : await apiPost('get_groep_detail', { groepId, schoolId: profile.school_id });
 
             setGroup(data.groep);
             setMembers(data.members || []);
@@ -373,7 +360,7 @@ export default function GroupDetail() {
                 groepId,
                 leerlingId: studentToRemove.id,
                 schoolId: profile.school_id
-            }, profile._token);
+            });
             toast.success(`${studentToRemove.naam} verwijderd uit de groep!`);
             setShowRemoveStudentModal(false);
             setStudentToRemove(null);
@@ -395,7 +382,7 @@ export default function GroupDetail() {
                 schoolId: profile.school_id,
                 vrijgesteld,
                 einddatum: einddatum || null
-            }, profile._token);
+            });
 
             const naam = vrijstellingLeerling.naam;
             if (vrijgesteld) {
@@ -594,7 +581,7 @@ export default function GroupDetail() {
                 </div>
             </div>
 
-            <AddStudentModal group={group} isOpen={isAddStudentModalOpen} onClose={() => setIsAddStudentModalOpen(false)} onStudentAdded={fetchGroupData} token={profile?._token} profile={profile} />
+            <AddStudentModal group={group} isOpen={isAddStudentModalOpen} onClose={() => setIsAddStudentModalOpen(false)} onStudentAdded={fetchGroupData} profile={profile} />
             <SortStudentsModal isOpen={isSortModalOpen} onClose={() => setIsSortModalOpen(false)} availableTests={availableTests} onSortChange={setCurrentSort} currentSort={currentSort} />
             <ConfirmModal isOpen={showRemoveStudentModal} onClose={() => setShowRemoveStudentModal(false)} onConfirm={handleRemoveStudent} title="Leerling Verwijderen">
                 Weet u zeker dat u "{studentToRemove?.naam}" uit deze groep wilt verwijderen?
