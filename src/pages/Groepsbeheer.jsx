@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext, Link, useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
+import { apiCall } from '../utils/api';
 import {
     PlusIcon, UsersIcon, AcademicCapIcon,
     PencilIcon, TrashIcon, XMarkIcon,
@@ -11,36 +12,11 @@ import {
 import ConfirmModal from '../components/ConfirmModal';
 
 // --- API HELPER ---
-async function apiPost(action, body, token) {
-    const response = await fetch('/api/tests', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action, ...body })
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call +
+// 401-refresh/retry + 429-toast. Verving de eigen fetch met doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 // Leerlingen van een klas ophalen via /api/users
-async function fetchLeerlingenVanKlas(klas, schoolId, token) {
-    try {
-        const response = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ action: 'get_users', schoolId, filterKlas: klas, filterRol: 'leerling' })
-        });
-        if (!response.ok) throw new Error('Fout bij ophalen leerlingen');
-        const data = await response.json();
-        return data.users || [];
-    } catch (error) {
-        toast.error('Kon leerlingen niet ophalen.');
-        return [];
-    }
-}
 
 export default function Groepsbeheer() {
     const { profile } = useOutletContext();
@@ -76,10 +52,10 @@ export default function Groepsbeheer() {
     // GROEPEN LADEN via API
     // =============================================
     const fetchGroepen = useCallback(async () => {
-        if (!profile?.school_id || !profile?._token) return;
+        if (!profile?.school_id) return;
         setLoadingGroepen(true);
         try {
-            const data = await apiPost('get_groepen', { schoolId: profile.school_id }, profile._token);
+            const data = await apiPost('get_groepen', { schoolId: profile.school_id });
             setGroepen(data.groepen || []);
         } catch (error) {
             toast.error('Kon de groepen niet laden.');
@@ -96,12 +72,12 @@ export default function Groepsbeheer() {
     // KLASSEN LADEN via API
     // =============================================
     useEffect(() => {
-        if (activeTab !== 'klassen' || !profile?.school_id || !profile?._token) return;
+        if (activeTab !== 'klassen' || !profile?.school_id) return;
 
         const laadKlassen = async () => {
             setLoadingKlassen(true);
             try {
-                const data = await apiPost('get_mijn_klassen', { schoolId: profile.school_id }, profile._token);
+                const data = await apiPost('get_mijn_klassen', { schoolId: profile.school_id });
                 setMijnKlassen(data.klassen || []);
                 setIsFallbackKlassen(data.isFallback || false);
             } catch (error) {
@@ -139,7 +115,7 @@ export default function Groepsbeheer() {
                 naam: newGroupName.trim(),
                 leerling_ids: geselecteerdeLeerlingen.map(l => l.id),
                 schoolId: profile.school_id
-            }, profile._token);
+            });
 
             // Voeg toe aan lokale state
             setGroepen(prev => [...prev, {
@@ -186,7 +162,7 @@ export default function Groepsbeheer() {
                 groepId: editingGroup.id,
                 naam: editGroupName.trim(),
                 schoolId: profile.school_id
-            }, profile._token);
+            });
 
             setGroepen(prev => prev.map(g => g.id === editingGroup.id ? { ...g, naam: editGroupName.trim() } : g));
             toast.success('Groepsnaam bijgewerkt!');
@@ -204,7 +180,7 @@ export default function Groepsbeheer() {
             await apiPost('delete_groep', {
                 groepId: groupToDelete.id,
                 schoolId: profile.school_id
-            }, profile._token);
+            });
 
             setGroepen(prev => prev.filter(g => g.id !== groupToDelete.id));
             toast.success(`Groep "${groupToDelete.naam}" verwijderd.`);

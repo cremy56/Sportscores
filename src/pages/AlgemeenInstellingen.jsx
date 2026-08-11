@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
+import { apiCall } from '../utils/api';
 
 // De beschikbare evaluatiemethoden
 const evaluationOptions = [
@@ -55,16 +56,12 @@ export default function AlgemeenInstellingen() {
 
     // Haal de huidige instellingen op
    const fetchSettings = useCallback(async () => {
-    if (!profile?.school_id || !profile?._token) return;
+    if (!profile?.school_id) return;
     setLoading(true);
     try {
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'get_school_settings', schoolId: profile.school_id })
+        const data = await apiCall('/api/tests', {
+            action: 'get_school_settings', schoolId: profile.school_id
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
         const fetched = data.instellingen || {
             sportdashboardAsHomepage: false,
             teachersCanPostAnnouncements: true,
@@ -82,7 +79,7 @@ export default function AlgemeenInstellingen() {
     } finally {
         setLoading(false);
     }
-}, [profile?.school_id, profile?._token]);
+}, [profile?.school_id]);
 
     useEffect(() => {
         fetchSettings();
@@ -107,13 +104,9 @@ export default function AlgemeenInstellingen() {
     setIsSaving(true);
     const loadingToast = toast.loading("Instellingen opslaan...");
     try {
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'save_school_settings', schoolId: profile.school_id, instellingen: settings })
+        await apiCall('/api/tests', {
+            action: 'save_school_settings', schoolId: profile.school_id, instellingen: settings
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
         setInitialSettings(settings);
         toast.success("Instellingen succesvol opgeslagen!");
     } catch (error) {

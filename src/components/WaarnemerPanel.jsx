@@ -11,6 +11,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import BeeptestTool from './BeeptestTool';
+import { apiCall } from '../utils/api';
 import {
     PlayIcon,
     StopIcon,
@@ -38,15 +39,14 @@ function msNaarSeconden(ms) {
 
 // ─── API HELPER ────────────────────────────────────────────────────────────────
 async function apiSaveScore(profile, groepId, testId, datum, leerlingId, klas, geslacht, score) {
-    await fetch('/api/tests', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            action: 'save_score',
-            schoolId: profile.school_id,
-            groepId, testId, datum,
-            leerlingId, klas: klas || null, geslacht: geslacht || null, score,
-        }),
+    // apiCall(): vers token per call + 401-refresh/retry + 429-toast, én het
+    // gooit bij een HTTP-foutstatus. De oude fetch deed dat niet, waardoor een
+    // 500 stil doorging en de aanroeper dacht dat de score opgeslagen was.
+    await apiCall('/api/tests', {
+        action: 'save_score',
+        schoolId: profile.school_id,
+        groepId, testId, datum,
+        leerlingId, klas: klas || null, geslacht: geslacht || null, score,
     });
 }
 
@@ -1598,17 +1598,11 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
         setLoading(true);
         setFout(false);
         try {
-            const res  = await fetch('/api/tests', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action:   'get_waarnemer_metingen',
-                    schoolId: profile.school_id,
-                    groepId, testId, datum,
-                }),
+            const data = await apiCall('/api/tests', {
+                action:   'get_waarnemer_metingen',
+                schoolId: profile.school_id,
+                groepId, testId, datum,
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
             setInzendingen(data.inzendingen || []);
         } catch {
             // Stille fout — geen toast, gewoon lege staat tonen
@@ -1671,16 +1665,11 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
         if (!bevestigd) return;
 
         try {
-            const res = await fetch('/api/tests', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action:   'verwijder_waarnemer_metingen',
-                    schoolId: profile.school_id,
-                    metingId: actieveInzending.id,
-                }),
+            await apiCall('/api/tests', {
+                action:   'verwijder_waarnemer_metingen',
+                schoolId: profile.school_id,
+                metingId: actieveInzending.id,
             });
-            if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
             toast.success('Inzending verwijderd');
             // Lokaal verwijderen + index corrigeren
             setInzendingen(prev => prev.filter(i => i.id !== actieveInzending.id));
@@ -1719,30 +1708,24 @@ function KoppelTab({ groepId, testId, datum, leerlingen, profile, onScoresOpgesl
 
         for (const k of gekoppeld) {
             try {
-                await fetch('/api/tests', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'save_score',
-                        schoolId: profile.school_id,
-                        groepId, testId, datum,
-                        ...k,
-                    }),
+                // apiCall gooit bij een HTTP-foutstatus; de oude fetch niet,
+                // waardoor een 500 gewoon als succes werd geteld.
+                await apiCall('/api/tests', {
+                    action: 'save_score',
+                    schoolId: profile.school_id,
+                    groepId, testId, datum,
+                    ...k,
                 });
                 succes++;
-            } catch { /* doorgaan */ }
+            } catch { /* doorgaan met de volgende leerling */ }
         }
 
         // Markeer inzending als verwerkt + kent XP toe aan waarnemer (FIX #3 in backend)
         try {
-            await fetch('/api/tests', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action:   'markeer_waarnemer_gekoppeld',
-                    schoolId: profile.school_id,
-                    metingId: actieveInzending.id,
-                }),
+            await apiCall('/api/tests', {
+                action:   'markeer_waarnemer_gekoppeld',
+                schoolId: profile.school_id,
+                metingId: actieveInzending.id,
             });
         } catch { /* niet kritisch */ }
 

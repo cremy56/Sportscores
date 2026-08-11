@@ -1,13 +1,17 @@
 // src/components/NicknameWijzigen.jsx
 import { useState } from 'react';
 import { Pencil, Check, X, RefreshCw } from 'lucide-react';
+import { apiCall } from '../utils/api';
 
 const ADJECTIVES = ['Swift','Bold','Fierce','Wild','Sharp','Brave','Rapid','Strong','Iron','Steel','Dark','Storm','Blaze','Frost','Shadow','Thunder','Silver','Golden','Crimson','Blazing','Silent','Mighty','Cosmic','Turbo','Hyper','Ultra','Mega','Super','Flash','Neon','Cyber','Phantom'];
 const ANIMALS = ['Tiger','Eagle','Lynx','Shark','Panther','Falcon','Wolf','Cobra','Lion','Hawk','Jaguar','Viper','Condor','Mamba','Bear','Hornet','Rhino','Cheetah','Bison','Raptor','Stallion','Barracuda','Piranha','Komodo','Wolverine','Scorpion','Mantis','Gecko','Tarantula','Grizzly','Puma','Osprey'];
 
 const generateNickname = () => {
-    const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIEVEN.length)];
-    const animal = ANIMALS[Math.floor(Math.random() * DIEREN.length)];
+    // FIX: verwees naar ADJECTIEVEN/DIEREN — die bestaan niet (de arrays
+    // heten ADJECTIVES/ANIMALS). Elke klik op de shuffle-knop gooide een
+    // ReferenceError, ook in de onboarding van een nieuwe leerling.
+    const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+    const animal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
     const num = Math.floor(Math.random() * 999) + 1;
     return `${adj}${animal}${num}`;
 };
@@ -23,16 +27,7 @@ export default function NicknameWijzigen({ profile, onNicknameUpdated, isOnboard
         setError(null);
         setLoading(true);
         try {
-            const response = await fetch('/api/auth', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${profile._token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ action: 'update_nickname', nickname: value }),
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Fout bij opslaan');
+            const data = await apiCall('/api/auth', { action: 'update_nickname', nickname: value });
 
             setSuccess(true);
             setEditing(false);
