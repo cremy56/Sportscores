@@ -1,10 +1,11 @@
 // src/App.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { auth, db } from './firebase';
-import { onAuthStateChanged, onIdTokenChanged } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore'; 
 import { setupNetworkMonitoring } from './utils/firebaseUtils';
+import { apiCall } from './utils/api';
 import toast from 'react-hot-toast';
 
 // Component Imports
@@ -55,29 +56,12 @@ function App() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [activeRole, setActiveRole] = useState(null);
 
-  // 🐛 FIX (jul 2026): het ID-token werd één keer bij login opgehaald en
-  // daarna als statische string in profile._token gedeeld met de hele app.
-  // Firebase-tokens verlopen na 1 uur → app-brede 401's bij lange sessies.
-  // Oplossing: de SDK ververst tokens zelf proactief en meldt dat via
-  // onIdTokenChanged — wij houden profile._token synchroon.
-  const tokenRef = useRef(null);
-
-  useEffect(() => {
-    const unsubscribeToken = onIdTokenChanged(auth, async (currentUser) => {
-      if (!currentUser) {
-        tokenRef.current = null;
-        return;
-      }
-      try {
-        const versToken = await currentUser.getIdToken();
-        tokenRef.current = versToken;
-        setProfile(p => (p ? { ...p, _token: versToken } : p));
-      } catch (err) {
-        console.error('Token-verversing mislukt:', err.message);
-      }
-    });
-    return () => unsubscribeToken();
-  }, []);
+  // De profile._token-machinerie is verwijderd (aug 2026). Alle netwerkcode
+  // gaat nu via apiCall() uit src/utils/api.js, die per call zelf een vers
+  // token ophaalt bij de Firebase-SDK. Het token hoeft dus niet meer via het
+  // profiel door de app gedeeld te worden, en de onIdTokenChanged-listener
+  // die het elk uur synchroon hield (met een re-render van de hele app tot
+  // gevolg) is overbodig geworden.
 
   // Auth state listener
   useEffect(() => {
@@ -109,37 +93,24 @@ function App() {
     const profileRef = doc(db, 'users', user.uid);
     let unsubscribeProfile;
 
-    const checkAndCreateProfile = async (firebaseUser) => {
+    const checkAndCreateProfile = async () => {
       try {
-        const token = await firebaseUser.getIdToken();
-        tokenRef.current = token;
+        // apiCall() haalt zelf een vers token op en gooit bij een foutstatus.
+        const result = await apiCall('/api/auth', {});
 
-        const response = await fetch('/api/auth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        const result = await response.json();
-        if (!response.ok) {
-          throw new Error(result.error || 'Kon profiel niet valideren');
-        }
-
-        const setupListenerWithToken = () => {
+        const setupProfileListener = () => {
           unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
             if (docSnap.exists()) {
-              const profileData = { 
+              const profileData = {
                 id: docSnap.id,
                 ...docSnap.data(),
-                _token: tokenRef.current || token // altijd het meest recente token
               };
               setProfile(profileData);
 
-              if (!activeRole) {
-                setActiveRole(profileData.rol);
-              }
+              // Functionele update: zet de rol enkel de eerste keer. Zo hoeft
+              // activeRole niet in de dependency-array, wat voorkwam dat dit
+              // effect opnieuw liep en /api/auth een tweede keer aanriep.
+              setActiveRole(prev => prev ?? profileData.rol);
 
               if (!profileData.onboarding_complete && window.location.pathname !== '/setup-account') {
                 window.location.replace('/setup-account');
@@ -149,9 +120,9 @@ function App() {
         };
 
         if (result.status === 'profile_created') {
-          setTimeout(setupListenerWithToken, 500); 
+          setTimeout(setupProfileListener, 500);
         } else {
-          setupListenerWithToken();
+          setupProfileListener();
         }
 
       } catch (error) {
@@ -161,12 +132,12 @@ function App() {
       }
     };
 
-    checkAndCreateProfile(user);
+    checkAndCreateProfile();
 
     return () => {
       if (unsubscribeProfile) unsubscribeProfile();
     };
-  }, [user, activeRole]);
+  }, [user]);
 
   // School listener
   useEffect(() => {
@@ -183,7 +154,10 @@ function App() {
         }
         setLoading(false);
       });
-      return () => unsubscribeSchool;
+      // FIX: gaf de functie terug i.p.v. hem aan te roepen, waardoor de
+      // Firestore-listener nooit werd afgesloten. Bij elke profielwijziging
+      // kwam er een nieuwe bij terwijl de oude bleef draaien.
+      return () => unsubscribeSchool();
     } else {
       if (user) setLoading(false);
     }
