@@ -5,6 +5,7 @@
 // Eliminatie: 2 waarschuwingen → uitgevallen, ↩ om ongedaan te maken
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { apiCall } from '../utils/api';
 
 // ─── LEVEL DATA ───────────────────────────────────────────────────────────────
 // Shuttles per niveau: officieel Léger-protocol
@@ -296,21 +297,22 @@ export default function BeeptestTool({
         let ok = 0;
         for (const s of metScore) {
             try {
-                await fetch('/api/tests', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'save_score',
-                        schoolId: profile.school_id,
-                        groepId, testId, datum,
-                        leerlingId: s.dbId,
-                        klas:       s.klas     || null,
-                        geslacht:   s.geslacht || null,
-                        score:      s.dist,    // afstand in meters als score
-                    }),
+                // apiCall(): vers token per call + 401-refresh/retry + 429-toast.
+                // FIX meegenomen: de oude fetch gooide NIET bij een HTTP-fout
+                // (alleen bij netwerkuitval), dus een 500 telde gewoon mee als
+                // geslagd en de leerkracht kreeg 'x scores opgeslagen' terwijl
+                // er niets was weggeschreven. apiCall() gooit wél.
+                await apiCall('/api/tests', {
+                    action: 'save_score',
+                    schoolId: profile.school_id,
+                    groepId, testId, datum,
+                    leerlingId: s.dbId,
+                    klas:       s.klas     || null,
+                    geslacht:   s.geslacht || null,
+                    score:      s.dist,    // afstand in meters als score
                 });
                 ok++;
-            } catch { /* doorgaan */ }
+            } catch { /* doorgaan met de volgende leerling */ }
         }
         if (t) toast.dismiss(t);
         if (typeof toast !== 'undefined') toast.success(`${ok} score(s) opgeslagen!`);
