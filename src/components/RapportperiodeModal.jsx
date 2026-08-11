@@ -5,8 +5,10 @@ import { Dialog, Transition } from '@headlessui/react';
 import toast from 'react-hot-toast';
 import { CalendarIcon } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
+import { apiCall } from '../utils/api';
 
-export default function RapportperiodeModal({ isOpen, onClose, schoolId, periodData, token }) {
+// token-prop vervallen: apiCall() haalt zelf een vers token op.
+export default function RapportperiodeModal({ isOpen, onClose, schoolId, periodData }) {
     const [formData, setFormData] = useState({
         naam: '',
         startdatum: '',
@@ -62,21 +64,15 @@ export default function RapportperiodeModal({ isOpen, onClose, schoolId, periodD
     const toastId = toast.loading(isEditing ? 'Periode bijwerken...' : 'Periode opslaan...');
 
     try {
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'save_rapportperiode',
-                schoolId,
-                periodeId: isEditing ? periodData.id : null,
-                periode: {
-                    ...formData,
-                    doel_xp: Number(formData.doel_xp),
-                }
-            })
+        await apiCall('/api/tests', {
+            action: 'save_rapportperiode',
+            schoolId,
+            periodeId: isEditing ? periodData.id : null,
+            periode: {
+                ...formData,
+                doel_xp: Number(formData.doel_xp),
+            }
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
         toast.success(`Periode succesvol ${isEditing ? 'bijgewerkt' : 'aangemaakt'}!`);
         onClose();
     } catch (error) {

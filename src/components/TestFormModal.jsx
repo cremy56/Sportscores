@@ -3,8 +3,14 @@ import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import toast from 'react-hot-toast';
 import { ClipboardList, CheckCircleIcon, Loader2 } from 'lucide-react';
+import { apiCall } from '../utils/api';
 
-export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, schoolId, token }) {
+// FIX: onSuccess werd in handleSubmit aangeroepen maar stond niet in de
+// props -> ReferenceError NA een geslaagde opslag, dus de leerkracht zag
+// een foutmelding terwijl de test wel bewaard was. Sporttesten gaf de prop
+// wel mee; hij werd hier alleen nooit opgevangen.
+// token-prop vervallen: apiCall() haalt zelf een vers token op.
+export default function TestFormModal({ isOpen, onClose, onTestSaved, onSuccess, testData, schoolId }) {
     const [naam, setNaam] = useState('');
     const [categorie, setCategorie] = useState('Kracht');
     const [eenheid, setEenheid] = useState('');
@@ -53,19 +59,13 @@ export default function TestFormModal({ isOpen, onClose, onTestSaved, testData, 
     };
 
     try {
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'save_test',
-                schoolId,
-                testId: isEditing ? testData.id : null,
-                customId: isEditing ? null : generateTestId(naam),
-                test: testObject
-            })
+        await apiCall('/api/tests', {
+            action: 'save_test',
+            schoolId,
+            testId: isEditing ? testData.id : null,
+            customId: isEditing ? null : generateTestId(naam),
+            test: testObject
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
         toast.success(isEditing ? 'Test succesvol bijgewerkt!' : 'Test succesvol aangemaakt!');
         if (onTestSaved) onTestSaved();
         if (onSuccess) onSuccess();

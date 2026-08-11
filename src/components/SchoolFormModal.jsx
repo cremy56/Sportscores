@@ -4,8 +4,10 @@ import { Dialog, Transition } from '@headlessui/react';
 
 import toast from 'react-hot-toast';
 import { BuildingOffice2Icon, MapPinIcon } from '@heroicons/react/24/outline';
+import { apiCall } from '../utils/api';
 
-export default function SchoolFormModal({ isOpen, onClose, schoolData, token }) {
+// token-prop vervallen: apiCall() haalt zelf een vers token op.
+export default function SchoolFormModal({ isOpen, onClose, schoolData }) {
     const [formData, setFormData] = useState({ naam: '', stad: '' });
     const [loading, setLoading] = useState(false);
 
@@ -38,20 +40,14 @@ export default function SchoolFormModal({ isOpen, onClose, schoolData, token }) 
         const toastId = toast.loading(isEditing ? 'School bijwerken...' : 'School toevoegen...');
 
         try {
-            const response = await fetch('/api/tests', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'save_school',
-                    schoolId: isEditing ? schoolData.id : null,
-                    school: {
-                        naam: formData.naam.trim(),
-                        stad: formData.stad.trim()
-                    }
-                })
+            await apiCall('/api/tests', {
+                action: 'save_school',
+                schoolId: isEditing ? schoolData.id : null,
+                school: {
+                    naam: formData.naam.trim(),
+                    stad: formData.stad.trim()
+                }
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error);
             toast.success(`School succesvol ${isEditing ? 'bijgewerkt' : 'toegevoegd'}!`);
             onClose();
         } catch (error) {

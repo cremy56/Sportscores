@@ -1,9 +1,9 @@
 // src/components/UserFormModal.jsx
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { getAuth } from 'firebase/auth';
 
 import toast from 'react-hot-toast';
+import { apiCall } from '../utils/api';
 import { 
     UserIcon, 
     BuildingOfficeIcon,
@@ -13,17 +13,6 @@ import {
 
 // Helper functies
 const capitalize = (s) => s && s.charAt(0).toUpperCase() + s.slice(1);
-
-// Helper om veilig de auth token op te halen
-const getAuthToken = async () => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-        toast.error("Authenticatie verlopen. Log opnieuw in.");
-        throw new Error("Niet geauthenticeerd");
-    }
-    return await user.getIdToken();
-};
 
 export default function UserFormModal({ 
     isOpen, 
@@ -87,14 +76,9 @@ export default function UserFormModal({
     const fetchSchools = async () => {
     setLoadingSchools(true);
     try {
-        const token = await getAuthToken();
-        const response = await fetch('/api/tests', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'get_scholen', schoolId: currentUserProfile?.school_id })
+        const data = await apiCall('/api/tests', {
+            action: 'get_scholen', schoolId: currentUserProfile?.school_id
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
         setSchools(data.scholen || []);
     } catch (error) {
         toast.error('Kon scholen niet laden');
@@ -158,8 +142,9 @@ export default function UserFormModal({
         const loadingToast = toast.loading(isEditing ? 'Bijwerken...' : 'Toevoegen...');
         
         try {
-            const token = await getAuthToken(); // <-- 1. HAAL TOKEN OP
-            let response;
+            // apiCall() haalt zelf een vers token op, doet 401-refresh + retry
+            // en gooit bij een foutstatus. De losse response.ok-controle
+            // hieronder is daardoor vervallen.
             let result;
 
             if (isEditing) {
@@ -174,17 +159,12 @@ export default function UserFormModal({
                     currentUserProfileHash: currentUserProfile?.toegestane_gebruikers_id
                 };
 
-                response = await fetch('/api/users', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'update_user',
-                        userId: userData.id,
-                        updates: updates,
-                        currentUserProfileHash: currentUserProfile.toegestane_gebruikers_id
-                    })
+                result = await apiCall('/api/users', {
+                    action: 'update_user',
+                    userId: userData.id,
+                    updates: updates,
+                    currentUserProfileHash: currentUserProfile.toegestane_gebruikers_id
                 });
-                result = await response.json();
 
             } else {
                 // --- CREATE PAD ---
@@ -197,24 +177,15 @@ export default function UserFormModal({
                 };
 
                 
-                response = await fetch('/api/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
+                result = await apiCall('/api/users', {
                     action: 'create_user',
                     formData: formData,
-                    targetSchoolId: targetSchoolId, // <-- CORRECT
-                    currentUserRole: currentUserRole, // <-- CORRECT
+                    targetSchoolId: targetSchoolId,
+                    currentUserRole: currentUserRole,
                     currentUserProfileHash: currentUserProfile?.toegestane_gebruikers_id
-                })
-            })
-                result = await response.json();
+                });
             }
 
-            // --- Algemene afhandeling ---
-            if (!response.ok) {
-                throw new Error(result.error || 'Er is iets misgegaan');
-            }
             
             toast.dismiss(loadingToast);
             toast.success(isEditing ? 'Gebruiker succesvol bijgewerkt!' : `${capitalize(currentUserRole)} succesvol toegevoegd!`);

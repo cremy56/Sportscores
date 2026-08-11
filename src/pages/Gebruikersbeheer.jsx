@@ -1,7 +1,7 @@
 // src/pages/Gebruikersbeheer.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { getAuth } from 'firebase/auth';
+import { apiCall } from '../utils/api';
 import { db } from '../firebase';
 import toast, { Toaster } from 'react-hot-toast';
 import Papa from 'papaparse';
@@ -23,17 +23,6 @@ import ConfirmModal from '../components/ConfirmModal';
 
 // =============================================
 // HELPER: Auth token ophalen
-// =============================================
-const getAuthToken = async () => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
-        toast.error("Authenticatie verlopen. Log opnieuw in.");
-        throw new Error("Niet geauthenticeerd");
-    }
-    return await user.getIdToken();
-};
-
 // =============================================
 // ACTION BUTTONS
 // =============================================
@@ -92,25 +81,11 @@ function KlassenModal({ isOpen, onClose, leerkracht, alleKlassen, onSaved }) {
     const handleSave = async () => {
         setIsSubmitting(true);
         try {
-            const token = await getAuthToken();
-
-            const response = await fetch('/api/users', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    action: 'update_teacher_klassen',
-                    userId: leerkracht.id,              // smartschool_id_hash
-                    klassen: geselecteerdeKlassen
-                })
+            await apiCall('/api/users', {
+                action: 'update_teacher_klassen',
+                userId: leerkracht.id,              // smartschool_id_hash
+                klassen: geselecteerdeKlassen
             });
-
-            if (!response.ok) {
-                const result = await response.json();
-                throw new Error(result.error || 'Fout bij opslaan');
-            }
 
             toast.success(`Klassen bijgewerkt voor ${leerkracht.decrypted_name}!`);
             onSaved();
@@ -254,14 +229,10 @@ export default function Gebruikersbeheer() {
         const getTotalCount = async () => {
             if (!heeftToegang || !profile?.school_id) return;
             try {
-                const token = await getAuthToken();
-                const response = await fetch('/api/users', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ action: 'get_count', schoolId: profile.school_id })
-                });
-                const result = await response.json();
-                if (response.ok) setTotalCount(result.count);
+                const result = await apiCall('/api/users', {
+                    action: 'get_count', schoolId: profile.school_id
+                }, { stil: true });
+                setTotalCount(result.count);
             } catch (error) {
                 console.error('Fout bij ophalen telling:', error.message);
             }
@@ -280,20 +251,12 @@ export default function Gebruikersbeheer() {
         if (!profile?.school_id) return;
         setLoading(true);
         try {
-            const token = await getAuthToken();
-            const response = await fetch('/api/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    action: 'get_users',
-                    schoolId: profile.school_id,
-                    filterKlas: filterKlas || null,
-                    filterRol: filterRol || null
-                })
+            const result = await apiCall('/api/users', {
+                action: 'get_users',
+                schoolId: profile.school_id,
+                filterKlas: filterKlas || null,
+                filterRol: filterRol || null
             });
-
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Fout bij ophalen gebruikers');
             setUsers(result.users);
         } catch (error) {
             console.error('Fout bij laden gebruikers:', error);
@@ -330,20 +293,13 @@ export default function Gebruikersbeheer() {
         if (!profile?.school_id) return;
         const loadingToast = toast.loading('CSV importeren...');
         try {
-            const token = await getAuthToken();
-            const response = await fetch('/api/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    action: 'bulk_create',
-                    csvData: data,
-                    targetSchoolId: profile.school_id,
-                    currentUserProfileHash: profile.toegestane_gebruikers_id
-                })
+            const result = await apiCall('/api/users', {
+                action: 'bulk_create',
+                csvData: data,
+                targetSchoolId: profile.school_id,
+                currentUserProfileHash: profile.toegestane_gebruikers_id
             });
-            const result = await response.json();
             toast.dismiss(loadingToast);
-            if (!response.ok) throw new Error(result.error || 'Er is iets misgegaan');
             if (result.errorCount > 0) {
                 toast.error(`${result.successCount} geïmporteerd, ${result.errorCount} fouten`, { duration: 5000 });
             } else {
@@ -386,16 +342,7 @@ export default function Gebruikersbeheer() {
     // =============================================
     const handleDelete = async (user) => {
         try {
-            const token = await getAuthToken();
-            const response = await fetch('/api/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ action: 'delete_user', userId: user.id })
-            });
-            if (!response.ok) {
-                const result = await response.json();
-                throw new Error(result.error || 'Kon niet verwijderen');
-            }
+            await apiCall('/api/users', { action: 'delete_user', userId: user.id });
             toast.success('Gebruiker verwijderd');
             loadUsers();
         } catch (error) {
