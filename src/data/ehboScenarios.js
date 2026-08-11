@@ -1335,13 +1335,13 @@ export const scenarios = [
           question: 'Beoordeel de toestand. Voer de drie controles uit in de JUISTE volgorde.',
           klaarTekst: 'Bewustzijn, luchtweg en ademhaling gecontroleerd.',
           hotspots: [
-            { id: 'h_schouders', naam: 'Schouders', x: 41.9, y: 52, r: 6.9,
+            { id: 'h_schouders', naam: 'Schouders', x: 25.5, y: 54.5, r: 5.5,
               uitleg: 'Je spreekt luid aan en schudt voorzichtig aan de schouders. Geen reactie — het slachtoffer is bewusteloos.',
               foutUitleg: 'Eerst controleer je het bewustzijn: spreek aan en schud aan de schouders.' },
-            { id: 'h_hoofd', naam: 'Hoofd en kin', x: 25, y: 52.4, r: 7.75,
+            { id: 'h_hoofd', naam: 'Hoofd en kin', x: 11.5, y: 53.5, r: 7,
               uitleg: 'Je kantelt het hoofd achterover en tilt de kin op. De luchtweg is nu vrij.',
               foutUitleg: 'Nog niet. Welke controle komt hiervóór?' },
-            { id: 'h_borst', naam: 'Borstkas', x: 58.8, y: 52, r: 7.5,
+            { id: 'h_borst', naam: 'Borstkas', x: 39, y: 57.5, r: 7,
               uitleg: 'Kijken, luisteren en voelen — maximaal 10 seconden. Het slachtoffer ademt niet normaal.',
               foutUitleg: 'Nog niet. Eerst het bewustzijn en de luchtweg.' }
           ],
