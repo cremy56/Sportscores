@@ -1,5 +1,6 @@
 // src/utils/firebaseUtils.js
 import { db } from '../firebase';
+import { apiCall } from './api';
 import { enableNetwork, disableNetwork } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
@@ -62,21 +63,17 @@ export function getNetworkStatus() {
 /**
  * Haalt evolutiegegevens op voor een student via de API
  */
-export const getStudentEvolutionData = async (studentId, schoolId, token) => {
-  if (!studentId || !schoolId || !token) {
-    throw new Error('studentId, schoolId en token zijn verplicht');
+// De token-parameter is vervallen: apiCall() haalt zelf een vers token op,
+// doet 401-refresh/retry en toont een toast bij 429. Bestaande aanroepen die
+// nog een derde argument meegeven blijven werken; dat wordt genegeerd.
+export const getStudentEvolutionData = async (studentId, schoolId) => {
+  if (!studentId || !schoolId) {
+    throw new Error('studentId en schoolId zijn verplicht');
   }
   try {
-    const response = await fetch('/api/tests', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'get_student_evolution', leerlingId: studentId, schoolId })
+    const data = await apiCall('/api/tests', {
+      action: 'get_student_evolution', leerlingId: studentId, schoolId
     });
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'API fout');
-    }
-    const data = await response.json();
     return (data.evolutionData || []).map(test => ({
       ...test,
       all_scores: (test.all_scores || []).map(s => ({
@@ -94,19 +91,13 @@ export const getStudentEvolutionData = async (studentId, schoolId, token) => {
 /**
  * Haalt score normen op via de API
  */
-export const getScoreNorms = async (testId, klas, geslacht, token) => {
-  if (!testId || !klas || !geslacht || !token) {
-    console.warn('getScoreNorms: testId, klas, geslacht en token zijn verplicht');
+export const getScoreNorms = async (testId, klas, geslacht) => {
+  if (!testId || !klas || !geslacht) {
+    console.warn('getScoreNorms: testId, klas en geslacht zijn verplicht');
     return null;
   }
   try {
-    const response = await fetch('/api/tests', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'get_score_norms', testId, klas, geslacht })
-    });
-    if (!response.ok) return null;
-    const data = await response.json();
+    const data = await apiCall('/api/tests', { action: 'get_score_norms', testId, klas, geslacht });
     return data.normen || null;
   } catch (error) {
     console.error('getScoreNorms error:', error);

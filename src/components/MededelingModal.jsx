@@ -1,9 +1,9 @@
 // src/components/MededelingModal.jsx
 import { useState, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { auth } from '../firebase';
 import toast from 'react-hot-toast';
 import { Loader2, Megaphone, CheckCircleIcon } from 'lucide-react';
+import { apiCall } from '../utils/api';
 
 export default function MededelingModal({ isOpen, onClose, onSuccess, profile }) {
     const [type, setType] = useState('event');
@@ -25,29 +25,14 @@ export default function MededelingModal({ isOpen, onClose, onSuccess, profile })
     // De datums worden nu op de server berekend
 
     try {
-        const user = auth.currentUser;
-        if (!user) {
-            throw new Error("Geen gebruiker ingelogd.");
-        }
-        const token = await user.getIdToken();
-
-        const response = await fetch('/api/content', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                type: type,
-                tekst: tekst,
-                zichtbaarheidInDagen: parseInt(zichtbaarheidInDagen, 10)
-            })
+        // apiCall(): vers token per call + 401-refresh/retry + 429-toast.
+        // Verving het handmatig ophalen van een token via auth.currentUser,
+        // dat geen van die drie deed.
+        await apiCall('/api/content', {
+            type: type,
+            tekst: tekst,
+            zichtbaarheidInDagen: parseInt(zichtbaarheidInDagen, 10)
         });
-
-        const result = await response.json();
-        if (!response.ok) {
-             throw new Error(result.error || 'Fout bij opslaan');
-        }
 
         toast.success('Bericht succesvol geplaatst!');
         onSuccess();
