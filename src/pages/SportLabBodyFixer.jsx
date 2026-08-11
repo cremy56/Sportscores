@@ -17,18 +17,12 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { apiCall } from '../utils/api';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
-async function apiPost(action, body, token) {
-    const res = await fetch('/api/tests', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...body })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call +
+// 401-refresh/retry + 429-toast. Verving de eigen fetch met doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
@@ -227,7 +221,7 @@ function BodyFixerReflectie({ deelname, aantalAfgevinkt, profile, onIngediend })
                     inzet, samenwerking: inzet, leerwaarde,
                     oefeningen_afgevinkt: aantalAfgevinkt > 0,
                 }
-            }, profile._token);
+            });
             toast.success(`+${data.xp_earned || 20} XP verdiend!`);
             onIngediend();
         } catch (e) {
@@ -313,12 +307,12 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
 
     // Laad data bij mount
     useEffect(() => {
-        apiPost('get_blessure_content', {}, profile._token)
+        apiPost('get_blessure_content', {})
             .then(d => setBlessures(d.blessures?.filter(b => b.id !== '_oefeningen') || []))
             .catch(() => {})
             .finally(() => setLoadingData(false));
 
-        apiPost('get_blessure_content', { blessureKey: '_oefeningen' }, profile._token)
+        apiPost('get_blessure_content', { blessureKey: '_oefeningen' })
             .then(d => setOefenLib(d.blessure?.zones || null))
             .catch(() => {});
     }, []);
@@ -326,7 +320,7 @@ export function BodyFixerView({ sessie, deelname, profile, onGereflecteerd, onTe
     // Laad volledig blessure-document bij selectie
     useEffect(() => {
         if (!gekozenBlessure) return;
-        apiPost('get_blessure_content', { blessureKey: gekozenBlessure }, profile._token)
+        apiPost('get_blessure_content', { blessureKey: gekozenBlessure })
             .then(d => {
                 setBlessureDoc(d.blessure);
                 const zones = d.blessure?.toegestane_zones || [];

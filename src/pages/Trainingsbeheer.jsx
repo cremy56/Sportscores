@@ -4,6 +4,7 @@ import { useOutletContext } from 'react-router-dom';
 import { PlusIcon, ChevronDownIcon, PencilIcon } from '@heroicons/react/24/solid';
 import OefeningFormModal from '../components/OefeningFormModal';
 import SchemaFormModal from '../components/SchemaFormModal';
+import { apiCall } from '../utils/api';
 
 export default function Trainingsbeheer() {
     const context = useOutletContext();
@@ -24,32 +25,20 @@ export default function Trainingsbeheer() {
     const [isSchemasOpen, setIsSchemasOpen] = useState(true);
 
     const fetchData = async () => {
-        if (!profile?.school_id || !profile?._token) {
+        if (!profile?.school_id) {
             setLoading(false);
             return;
         }
         setLoading(true);
         try {
-            const [oefeningenRes, schemasRes, testenRes] = await Promise.all([
-                fetch('/api/tests', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get_oefeningen', schoolId: profile.school_id })
-                }),
-                fetch('/api/tests', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get_trainingsschemas', schoolId: profile.school_id })
-                }),
-                fetch('/api/tests', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get_tests', schoolId: profile.school_id })
-                }),
-            ]);
-
+            // Drie parallelle calls via apiCall(): vers token per call +
+            // 401-refresh/retry + 429-toast. De oude fetches controleerden
+            // response.ok NIET, dus een serverfout leverde stilletjes lege
+            // lijsten op i.p.v. een foutmelding.
             const [oefeningenData, schemasData, testenData] = await Promise.all([
-                oefeningenRes.json(), schemasRes.json(), testenRes.json()
+                apiCall('/api/tests', { action: 'get_oefeningen', schoolId: profile.school_id }),
+                apiCall('/api/tests', { action: 'get_trainingsschemas', schoolId: profile.school_id }),
+                apiCall('/api/tests', { action: 'get_tests', schoolId: profile.school_id }),
             ]);
 
             setOefeningen(oefeningenData.oefeningen || []);
@@ -64,7 +53,7 @@ export default function Trainingsbeheer() {
 
     useEffect(() => {
         fetchData();
-    }, [profile?.school_id, profile?._token]);
+    }, [profile?.school_id]);
 
     const handleSave = () => fetchData();
 

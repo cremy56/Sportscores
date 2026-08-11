@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
+import { apiCall } from '../utils/api';
 import {
     PlayIcon,
     StopIcon,
@@ -132,13 +133,9 @@ function WaarnemerSetup({ onStart, profile }) {
     const laadTesten = async () => {
         setLaadtTesten(true);
         try {
-            const res = await fetch('/api/tests', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${profile._token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'get_tests', schoolId: profile.school_id }),
+            const data = await apiCall('/api/tests', {
+                action: 'get_tests', schoolId: profile.school_id
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Geen toegang');
             const alle = data.testen || data.tests || [];
             const gefilterd = alle.filter(t => testMatchtActiviteit(t, sportType));
             setTesten(gefilterd);
@@ -1081,27 +1078,18 @@ export function WaarnemerView({ sessie, profile, onTerug }) {
     const handleIndienen = async (metingen) => {
         setLoading(true);
         try {
-            const res = await fetch('/api/tests', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${profile._token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action:       'submit_waarnemer_metingen',
-                    schoolId:     profile.school_id,
-                    sessieId:     sessie.id,
-                    sportType:    config.sportType,
-                    testId:       config.test?.id   || null,
-                    testNaam:     config.test?.naam || null,
-                    modus:        config.sportConfig.modus,
-                    eenheid:      config.test?.eenheid || config.sportConfig.eenheid,
-                    configuratie: { rondes: config.rondes, pogingen: config.pogingen },
-                    metingen,
-                }),
+            await apiCall('/api/tests', {
+                action:       'submit_waarnemer_metingen',
+                schoolId:     profile.school_id,
+                sessieId:     sessie.id,
+                sportType:    config.sportType,
+                testId:       config.test?.id   || null,
+                testNaam:     config.test?.naam || null,
+                modus:        config.sportConfig.modus,
+                eenheid:      config.test?.eenheid || config.sportConfig.eenheid,
+                configuratie: { rondes: config.rondes, pogingen: config.pogingen },
+                metingen,
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
             setIngediend(metingen);
             setFase('ingediend');
             toast.success('Resultaten ingediend!');

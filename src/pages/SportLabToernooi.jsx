@@ -6,19 +6,13 @@
 //   - ToernooiDashboard (De Toernooileider — wedstrijden beheren)
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { apiCall } from '../utils/api';
 import { ClockIcon } from '@heroicons/react/24/outline';
 
 // ─── API HELPER (lokale kopie — zelfde als SportLab.jsx) ──────────────────────
-async function apiPost(action, body, token) {
-    const res = await fetch('/api/tests', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...body })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call +
+// 401-refresh/retry + 429-toast. Verving de eigen fetch met doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 export function Scorebord({ rolData, sessieId }) {
     // 1. Haal de opgeslagen score op (of begin bij 0)
@@ -184,12 +178,12 @@ export function DigitaalKlembord({ rolData, sessie, niveau, content, deelnameId,
     // ─── DEBUG VERSIE VAN RESET ───
     const reset = async () => {
         // Stuur op de achtergrond een signaal naar de backend
-        if (deelnameId && profile?._token && profile?.school_id) {
+        if (deelnameId && profile?.school_id) {
             try {
                 await apiPost('sportlab_observatie_klaar', { 
                     deelnameId: deelnameId,
                     schoolId: profile.school_id 
-                }, profile._token);
+                });
             } catch(e) { 
                 console.error("Kon teller niet updaten", e); 
             }
@@ -402,7 +396,7 @@ export function ToernooiBuilder({ sessie, profile, rolData, mode = 'manual', onS
                         klas: sessie.klas, 
                         groepId: sessie.groep_id, 
                         schoolId: profile.school_id 
-                    }, profile._token);
+                    });
                     
                     const leden = data.spelers || [];
                     const actieveLeden = leden.filter(l => !l.vrijgesteld);
@@ -888,7 +882,7 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                 matchId,
                 score1: score1,
                 score2: score2,
-            }, profile._token);
+            });
             if(onRefresh) onRefresh();
         } catch(e) {
             toast.error(e.message);
@@ -911,7 +905,7 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                 matchId,
                 score1: winnaar === 'team1' ? 1 : 0,
                 score2: winnaar === 'team2' ? 1 : 0,
-            }, profile._token);
+            });
             if (onRefresh) await onRefresh();
         } catch (e) {
             // Bij fout: guard weer vrijgeven zodat de knoppen terugkomen
@@ -929,7 +923,7 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                 schoolId: profile.school_id,
                 toernooiId: toernooi.id,
                 matchId, score1: null, score2: null
-            }, profile._token);
+            });
             
             const newInputs = {...inputScores};
             delete newInputs[`${matchId}_1`];
@@ -947,7 +941,7 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
     const bevestigStop = async () => {
         setIsStopping(true);
         try {
-            await apiPost('stop_toernooi', { schoolId: profile.school_id, toernooiId: toernooi.id }, profile._token);
+            await apiPost('stop_toernooi', { schoolId: profile.school_id, toernooiId: toernooi.id });
             toast.success('Toernooi gereset!');
             setToonStopBevestiging(false);
             setInputScores({}); // Reset alle ingevoerde scores
@@ -1109,7 +1103,7 @@ export function ToernooiDashboard({ toernooi, rolData, isLeerkracht, profile, on
                     const triggerVolgendeRonde = async () => {
                         setLoadingMatch('next_round');
                         try {
-                            await apiPost('volgende_ronde', { schoolId: profile.school_id, toernooiId: toernooi.id }, profile._token);
+                            await apiPost('volgende_ronde', { schoolId: profile.school_id, toernooiId: toernooi.id });
                             if(onRefresh) onRefresh();
                         } catch(e) { toast.error(e.message); } 
                         finally { setLoadingMatch(null); }

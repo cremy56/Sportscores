@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { apiCall } from '../utils/api';
 import { useOutletContext } from 'react-router-dom';
 import { ArrowLeftIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowUpTrayIcon, ChevronDownIcon, EllipsisVerticalIcon } from '@heroicons/react/24/solid';
 import Papa from 'papaparse';
@@ -9,16 +10,9 @@ import TestFormModal from '../components/TestFormModal';
 import ConfirmModal from '../components/ConfirmModal';
 import { formatScoreWithUnit } from '../utils/formatters';
 
-async function apiPost(action, body, token) {
-    const response = await fetch('/api/tests', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...body })
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call +
+// 401-refresh/retry + 429-toast. Verving de eigen fetch met doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 export default function TestDetailBeheer() {
     const { testId } = useParams();
@@ -44,11 +38,11 @@ export default function TestDetailBeheer() {
     const getNormIdentifier = (norm) => `${norm.leeftijd}-${norm.geslacht}-${norm.punt}-${norm.score_min}`;
 
     const fetchData = useCallback(async () => {
-        if (!profile?._token || !testId) return;
+        if (!testId) return;
         try {
             const [testenResult, normenResult] = await Promise.all([
-                apiPost('get_tests', { schoolId: profile.school_id }, profile._token),
-                apiPost('get_normen', { schoolId: profile.school_id, testId }, profile._token),
+                apiPost('get_tests', { schoolId: profile.school_id }),
+                apiPost('get_normen', { schoolId: profile.school_id, testId }),
             ]);
 
             const gevondenTest = testenResult.testen?.find(t => t.id === testId);
@@ -74,7 +68,7 @@ export default function TestDetailBeheer() {
         } finally {
             setLoading(false);
         }
-    }, [testId, profile?._token, profile?.school_id]);
+    }, [testId, profile?.school_id]);
 
     useEffect(() => {
         fetchData();
@@ -151,7 +145,7 @@ export default function TestDetailBeheer() {
                     score_min: Number(newNorm.score_min),
                     punt: Number(newNorm.punt)
                 }
-            }, profile._token);
+            });
             setNewNorm({ leeftijd: '', geslacht: 'M', score_min: '', punt: '' });
             setIsAdding(false);
             toast.success('Norm toegevoegd!');
@@ -177,7 +171,7 @@ export default function TestDetailBeheer() {
                     score_min: Number(editingNorm.current.score_min),
                     punt: Number(editingNorm.current.punt)
                 }
-            }, profile._token);
+            });
             setEditingNorm(null);
             toast.success('Norm bijgewerkt!');
             fetchData();
@@ -196,7 +190,7 @@ export default function TestDetailBeheer() {
                     schoolId: profile.school_id,
                     testId,
                     normen: normsToDelete
-                }, profile._token);
+                });
                 setSelectedNorms([]);
                 toast.success(`${normsToDelete.length} norm(en) verwijderd!`);
             } else {
@@ -204,7 +198,7 @@ export default function TestDetailBeheer() {
                     schoolId: profile.school_id,
                     testId,
                     normen: [itemsToDelete]
-                }, profile._token);
+                });
                 toast.success('Norm verwijderd!');
             }
             setItemsToDelete(null);
@@ -254,7 +248,7 @@ export default function TestDetailBeheer() {
                             testId,
                             normen: uniekeNieuweNormen,
                             bestaandeNormen: puntenSchaal
-                        }, profile._token);
+                        });
 
                         resolve(`${uniekeNieuweNormen.length} nieuwe normen geïmporteerd!`);
                         fetchData();
@@ -321,7 +315,7 @@ export default function TestDetailBeheer() {
     return (
         <>
             <ConfirmModal isOpen={!!itemsToDelete} onClose={() => setItemsToDelete(null)} onConfirm={executeDelete} title="Norm(en) verwijderen" />
-            <TestFormModal isOpen={isTestModalOpen} onClose={() => setIsTestModalOpen(false)} onTestSaved={fetchData} testData={test} schoolId={profile?.school_id} token={profile?._token} />
+            <TestFormModal isOpen={isTestModalOpen} onClose={() => setIsTestModalOpen(false)} onTestSaved={fetchData} testData={test} schoolId={profile?.school_id} />
             
             <div className="fixed inset-0 bg-slate-50 overflow-y-auto">
                 <div className="max-w-7xl mx-auto px-4 pt-20 pb-6 lg:px-8 lg:pt-24 lg:pb-8">

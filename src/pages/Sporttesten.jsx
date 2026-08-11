@@ -3,24 +3,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
+import { apiCall } from '../utils/api';
 import { TrashIcon, PlusIcon, ChevronRightIcon, FunnelIcon, MagnifyingGlassIcon, BeakerIcon } from '@heroicons/react/24/outline';
 import ConfirmModal from '../components/ConfirmModal';
 import TestFormModal from '../components/TestFormModal';
 
 // --- API HELPER ---
-async function apiPost(action, body, token) {
-    const response = await fetch('/api/tests', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action, ...body })
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call +
+// 401-refresh/retry + 429-toast. Verving de eigen fetch met doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 function FilterBar({ filters, onFiltersChange, groepen, testen }) {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -94,9 +85,9 @@ function KoppelModal({ inzending, groepen, klassen, profile, onClose, onKlaar })
             try {
                 let data;
                 if (doel.startsWith('klas-')) {
-                    data = await apiPost('get_leerlingen_voor_klas', { klasNaam: doel.slice(5), schoolId: profile.school_id }, profile._token);
+                    data = await apiPost('get_leerlingen_voor_klas', { klasNaam: doel.slice(5), schoolId: profile.school_id });
                 } else {
-                    data = await apiPost('get_leerlingen_voor_groep', { groepId: doel, schoolId: profile.school_id }, profile._token);
+                    data = await apiPost('get_leerlingen_voor_groep', { groepId: doel, schoolId: profile.school_id });
                 }
                 const lijst = (data.leerlingen || []).map(l => ({
                     id: l.id, naam: l.data.naam, klas: l.data.klas || null, geslacht: l.data.geslacht || null,
@@ -181,12 +172,12 @@ function KoppelModal({ inzending, groepen, klassen, profile, onClose, onKlaar })
                     testId:   inzending.test_id,
                     datum,
                     ...k,
-                }, profile._token);
+                });
                 succes++;
             } catch { /* doorgaan */ }
         }
         try {
-            await apiPost('markeer_waarnemer_gekoppeld', { schoolId: profile.school_id, metingId: inzending.id }, profile._token);
+            await apiPost('markeer_waarnemer_gekoppeld', { schoolId: profile.school_id, metingId: inzending.id });
         } catch { /* niet kritisch */ }
 
         toast.dismiss(t);
@@ -302,10 +293,10 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
     // ✅ GEMIGREERD: geen directe Firestore listeners
     // =============================================
     const fetchData = useCallback(async () => {
-        if (!profile?.school_id || !profile?._token) return;
+        if (!profile?.school_id) return;
         setLoading(true);
         try {
-            const data = await apiPost('get_evaluaties', { schoolId: profile.school_id }, profile._token);
+            const data = await apiPost('get_evaluaties', { schoolId: profile.school_id });
             setEvaluaties(data.evaluaties || []);
             setGroepen(data.groepen || []);
             setTesten(data.testen || []);
@@ -322,10 +313,10 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
 
     // Openstaande waarnemer-inzendingen ophalen (los van sessie — blijven 14 dagen beschikbaar)
     const fetchWaarnemerInzendingen = useCallback(async () => {
-        if (!profile?.school_id || !profile?._token) return;
+        if (!profile?.school_id) return;
         setWaarnemerLoading(true);
         try {
-            const data = await apiPost('get_waarnemer_metingen', { schoolId: profile.school_id }, profile._token);
+            const data = await apiPost('get_waarnemer_metingen', { schoolId: profile.school_id });
             setWaarnemerInzendingen(data.inzendingen || []);
         } catch (error) {
             setWaarnemerInzendingen([]);
@@ -334,7 +325,7 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
         }
         // Klassen ophalen voor de koppel-modal (stil, optioneel)
         try {
-            const kl = await apiPost('get_mijn_klassen', { schoolId: profile.school_id }, profile._token);
+            const kl = await apiPost('get_mijn_klassen', { schoolId: profile.school_id });
             setKlassen(kl.klassen || []);
         } catch { /* */ }
     }, [profile]);
@@ -348,7 +339,7 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
         const inz = modal.data;
         if (!inz) return;
         try {
-            await apiPost('verwijder_waarnemer_metingen', { schoolId: profile.school_id, metingId: inz.id }, profile._token);
+            await apiPost('verwijder_waarnemer_metingen', { schoolId: profile.school_id, metingId: inz.id });
             toast.success('Inzending verwijderd');
             setWaarnemerInzendingen(prev => prev.filter(i => i.id !== inz.id));
         } catch (error) {
@@ -373,7 +364,7 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
                 testId: item.test_id,
                 datum: item.datum,
                 schoolId: profile.school_id
-            }, profile._token);
+            });
             toast.success("Testafname succesvol verwijderd.");
             setEvaluaties(prev => prev.filter(e => !((e.klas ? `klas-${e.klas}` : e.groep_id) === (item.klas ? `klas-${item.klas}` : item.groep_id) && e.test_id === item.test_id && e.datum === item.datum)));
         } catch (error) {
@@ -392,7 +383,7 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
         if (!test) return;
         const loadingToast = toast.loading('Test verwijderen...');
         try {
-            await apiPost('delete_test', { testId: test.id, schoolId: profile.school_id }, profile._token);
+            await apiPost('delete_test', { testId: test.id, schoolId: profile.school_id });
             toast.success(`'${test.naam}' succesvol verwijderd.`);
             setTesten(prev => prev.filter(t => t.id !== test.id));
         } catch (error) {
@@ -610,7 +601,7 @@ export default function Sporttesten() {    const { profile } = useOutletContext(
                 </div>
             </div>
 
-           <TestFormModal isOpen={modal.type === 'testForm'} onClose={handleCloseModal} testData={modal.data} schoolId={profile?.school_id} onSuccess={fetchData} token={profile?._token} />
+           <TestFormModal isOpen={modal.type === 'testForm'} onClose={handleCloseModal} testData={modal.data} schoolId={profile?.school_id} onSuccess={fetchData} />
 
             {koppelInzending && (
                 <KoppelModal

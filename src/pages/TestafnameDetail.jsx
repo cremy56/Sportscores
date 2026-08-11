@@ -2,6 +2,7 @@
 // ✅ VOLLEDIG GEMIGREERD — geen directe Firestore calls meer
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { apiCall } from '../utils/api';
 import { auth } from '../firebase';
 import toast from 'react-hot-toast';
 import { 
@@ -22,19 +23,9 @@ import { parseTimeInputToSeconds, formatScoreWithUnit, getPointColorClass } from
 import ConfirmModal from '../components/ConfirmModal';
 import { useOutletContext } from 'react-router-dom';
 // --- API HELPER ---
-async function apiPost(action, body, token) {
-    const response = await fetch('/api/tests', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action, ...body })
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'API fout');
-    return data;
-}
+// Dunne wrapper rond de centrale apiCall(): vers token per call +
+// 401-refresh/retry + 429-toast. Verving de eigen fetch met doorgegeven token.
+const apiPost = (action, body) => apiCall('/api/tests', { action, ...body });
 
 function validateScore(score, eenheid) {
     if (!score || score.toString().trim() === '') return { valid: true, message: '' };
@@ -165,7 +156,7 @@ export default function TestafnameDetail() {
     // ✅ GEMIGREERD: geen directe Firestore calls
     // =============================================
     const fetchDetails = useCallback(async () => {
-        if (!groepId || !testId || !datum || !profile?._token || !profile?.school_id) {
+        if (!groepId || !testId || !datum || !profile?.school_id) {
             setLoading(false);
             return;
         }
@@ -174,7 +165,7 @@ export default function TestafnameDetail() {
             const data = await apiPost('get_testafname_detail', {
                 groepId, testId, datum,
                 schoolId: profile.school_id
-            }, profile._token);
+            });
 
             setDetails({
                 groep_naam: data.groep_naam,
@@ -194,7 +185,7 @@ export default function TestafnameDetail() {
     }, [groepId, testId, datum, profile]);
 
     useEffect(() => {
-        if (groepId && testId && datum && profile?._token) {
+        if (groepId && testId && datum && profile?.school_id) {
             fetchDetails();
             setNewDate(datum.split('T')[0]);
         }
@@ -248,7 +239,7 @@ export default function TestafnameDetail() {
                 klas: leerling?.klas || null,
                 geslacht: leerling?.geslacht || null,
                 schoolId: profile.school_id
-            }, profile._token);
+            });
 
             toast.success("Score bijgewerkt!");
             setDetails(prev => ({
@@ -277,7 +268,7 @@ export default function TestafnameDetail() {
         if (!scoreId) return;
         const loadingToast = toast.loading('Score verwijderen...');
         try {
-            await apiPost('delete_score', { scoreId, schoolId: profile.school_id }, profile._token);
+            await apiPost('delete_score', { scoreId, schoolId: profile.school_id });
             toast.success("Score succesvol verwijderd!");
             setDetails(prev => ({
                 ...prev,
@@ -306,7 +297,7 @@ export default function TestafnameDetail() {
 
             await apiPost('update_score_date', {
                 scoreIds, newDate, schoolId: profile.school_id
-            }, profile._token);
+            });
 
             setCurrentDate(newDate);
             window.history.replaceState(null, '', `/testafname/${groepId}/${testId}/${newDate}`);
@@ -329,7 +320,7 @@ export default function TestafnameDetail() {
         try {
             await apiPost('delete_testafname', {
                 groepId, testId, datum, schoolId: profile.school_id
-            }, profile._token);
+            });
             toast.success("Testafname succesvol verwijderd!");
             navigate('/sporttesten');
         } catch (error) {
