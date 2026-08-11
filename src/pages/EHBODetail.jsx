@@ -29,11 +29,13 @@ function shuffleArray(array) {
 const EHBO_SCENES = {
   sporthal_ongeval: {
     src: '/ehbo/sporthal-ongeval.png',
+    verhouding: 1.5,
     alt: 'Sporthal met een slachtoffer op de grond. Op de vloer liggen onder meer een omgevallen horde, een basketbal, plassen water, een open sporttas, sleutels, een badmintonracket, een omgevallen drinkfles, een losse stang, een omgevallen kegel en een stopcontactblok met kabels.'
   },
-  // Nog geen foto voor de close-up: valt terug op de SVG-tekening.
   slachtoffer: {
-    alt: 'Close-up van het bewusteloze slachtoffer, van opzij gezien.'
+    src: '/ehbo/closeup-geblesseerde.png',
+    verhouding: 1.5,
+    alt: 'Close-up van een bewusteloze jongen die op zijn rug op de sportvloer ligt, hoofd links, met het gezicht naar boven en de mond licht geopend.'
   }
 };
 
@@ -305,7 +307,7 @@ function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], fout
           (smaller gerenderde) foto links in een te breed vlak. */}
       <div
         className="inline-block rounded-xl overflow-hidden border-2 border-gray-200 bg-white"
-        style={{ maxWidth: `calc((${maxHoogte}) * ${beeldVerhouding})` }}
+        style={{ maxWidth: `calc((${maxHoogte}) * ${def.verhouding || beeldVerhouding})` }}
       >
       {/* Beeld + klikzones in een EIGEN relative container. De keuzebalk valt
           hier BUITEN: anders rekenen de procent-posities van de klikzones
@@ -325,7 +327,9 @@ function SceneWeergave({ scene, opgeruimd = [], hotspots = [], gedaan = [], fout
       ) : (
         <svg
           viewBox="0 0 800 500"
-          className="block w-auto max-w-full h-auto"
+          width="800"
+          height="500"
+          className="block max-w-full h-auto"
           style={{ maxHeight: maxHoogte }}
           role="img"
           aria-label={def.alt || 'Situatietekening'}
