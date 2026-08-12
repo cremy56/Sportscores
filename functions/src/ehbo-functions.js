@@ -39,6 +39,12 @@ function getStudentRecommendation(studentStats) {
   return "Regelmatige oefening blijven aanmoedigen.";
 }
 
+// LET OP: deze functie wordt momenteel NERGENS aangeroepen (dode code).
+// Ze bevatte een ReferenceError — zie de FIX hieronder — die daardoor nooit
+// aan het licht kwam. Voor je haar in gebruik neemt: de scoreberekening
+// hieronder deelt de totaalscore door het aantal scenario's en kent dat aan
+// élk relevant scenario toe, waardoor alle deelscores gelijk zijn. Dat is
+// waarschijnlijk niet de bedoeling en verdient een tweede blik.
 function calculateEHBOObjectives(userScenarios, scenarioScores) {
   const objectives = {};
   Object.values(EHBO_OBJECTIVES).forEach(objective => {
@@ -47,7 +53,12 @@ function calculateEHBOObjectives(userScenarios, scenarioScores) {
       objectives[objective.id] = { status: 'not_started', progress: 0, best_score: 0, completed_scenarios: [], missing_scenarios: objective.required_scenarios };
       return;
     }
-    const scores = relevantScenarios.map(s => completedScenarios.includes(s) ? scenarioScores / completedScenarios.length : 0).filter(s => s > 0);
+    // FIX: verwees naar 'completedScenarios', een variabele die hier niet
+    // bestaat (de parameter heet userScenarios) -> ReferenceError bij elke
+    // aanroep.
+    const scores = relevantScenarios
+      .map(s => userScenarios.includes(s) ? scenarioScores / userScenarios.length : 0)
+      .filter(s => s > 0);
     const averageScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
     const progress = (relevantScenarios.length / objective.required_scenarios.length) * 100;
     objectives[objective.id] = {
@@ -160,7 +171,9 @@ exports.getClassEHBOStats = onCall(async (request) => {
       let isRegistered = false;
 
       const usersQuery = await db.collection('users')
-        .where('smartschool_id_hash', '==', studentId)
+        // FIX: users bevat geen smartschool_id_hash — auth.js schrijft daar
+        // toegestane_gebruikers_id. De query gaf altijd leeg terug.
+        .where('toegestane_gebruikers_id', '==', studentId)
         .limit(1)
         .get();
 
@@ -218,11 +231,13 @@ exports.getClassEHBOStats = onCall(async (request) => {
     const registeredStudentDocs = [];
     for (let i = 0; i < leerlingIds.length; i += chunkSize) {
       const chunk = leerlingIds.slice(i, i + chunkSize);
-      const snap = await db.collection('users').where('smartschool_id_hash', 'in', chunk).get();
+      // FIX: idem — zie hierboven. Zonder deze correctie was elke leerling
+      // 'niet geregistreerd' en toonde de monitor lege statistieken.
+      const snap = await db.collection('users').where('toegestane_gebruikers_id', 'in', chunk).get();
       registeredStudentDocs.push(...snap.docs);
     }
 
-    const registeredHashes = registeredStudentDocs.map(doc => doc.data().smartschool_id_hash);
+    const registeredHashes = registeredStudentDocs.map(doc => doc.data().toegestane_gebruikers_id);
     const unregisteredHashes = leerlingIds.filter(hash => !registeredHashes.includes(hash));
     const unregisteredDocs = await Promise.all(unregisteredHashes.map(hash => db.collection('toegestane_gebruikers').doc(hash).get()));
 

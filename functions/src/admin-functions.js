@@ -7,6 +7,26 @@ const {FieldValue} = require('firebase-admin/firestore');
 if (admin.apps.length === 0) admin.initializeApp();  // ✅ zeker geïnitialiseerd
 const db = admin.firestore();  // ✅ nu veilig
 
+// ⚠️ ACHTERHAALD SINDS DE GDPR-HERINRICHTING — BESLISSING NODIG
+//
+// Deze trigger vergelijkt users.naam voor en na. Maar de users-collectie bevat
+// GEEN naam: auth.js schrijft daar bewust enkel toegestane_gebruikers_id,
+// school_id, rol, klas, geslacht en nickname. De echte naam staat versleuteld
+// in toegestane_gebruikers.encrypted_name. De vergelijking is dus altijd
+// undefined !== undefined = false en er gebeurt nooit iets.
+//
+// Twee redenen om hem te verwijderen:
+//   1. Kosten: hij vuurt bij ELKE wijziging aan een users-document — en dat
+//      gebeurt voortdurend (XP, streaks, last_login). Elke keer een
+//      functie-invocatie die niets doet.
+//   2. GDPR: updateDenormalizedNames() hieronder schrijft leerling_naam in
+//      PLATTE TEKST naar de scores-collectie. Dat is precies wat de
+//      herinrichting wilde uitbannen. Zou iemand ooit een naam-veld aan users
+//      toevoegen, dan begint dit mechanisme stilletjes namen te
+//      denormaliseren naar scores.
+//
+// Verwijderen betekent wel dat Firebase bij de volgende deploy vraagt of de
+// functie uit de cloud mag — vandaar dat we dit niet zomaar doen.
 exports.onUserNameChange = onDocumentUpdated('users/{userId}', async (event) => {
     const change = event.data;
     const userId = event.params.userId;
@@ -73,7 +93,10 @@ exports.checkDataConsistency = onCall(async (request) => {
             const scoreData = scoreDoc.data();
             const leerlingHash = scoreData.leerling_id;
             if (!leerlingHash) continue;
-            const usersQuery = await db.collection('users').where('smartschool_id_hash', '==', leerlingHash).limit(1).get();
+            // FIX: users bevat geen smartschool_id_hash maar
+            // toegestane_gebruikers_id — de query gaf altijd leeg terug,
+            // waardoor de consistentiecheck nooit iets kon vinden.
+            const usersQuery = await db.collection('users').where('toegestane_gebruikers_id', '==', leerlingHash).limit(1).get();
             if (!usersQuery.empty) {
                 const actualName = usersQuery.docs[0].data().naam;
                 const storedName = scoreData.leerling_naam;

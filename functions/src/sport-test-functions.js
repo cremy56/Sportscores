@@ -3,7 +3,52 @@ const {onDocumentUpdated} = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const {FieldValue} = require('firebase-admin/firestore');
 const db = admin.firestore();
-const { logXPTransaction, updateClassChallengeProgressInternal, calculateAge } = require('./utils');
+const { logXPTransaction, updateClassChallengeProgressInternal, getPositionInArray } = require('./utils');
+
+// ─── Leeftijd uit de klas ─────────────────────────────────────────────────────
+// FIX: checkLeaderboardPositions gebruikte calculateAge(userData.geboortedatum),
+// maar de users-collectie bevat GEEN geboortedatum (auth.js schrijft die niet;
+// GDPR-keuze: zo min mogelijk persoonsgegevens in users). De leeftijd werd dus
+// altijd 0 en het leeftijdsrecord sloeg nergens op. Overal elders in het project
+// wordt de leeftijd uit de klas afgeleid (src/utils/klasUtils.js) — dat doen we
+// hier ook, zodat beide kanten dezelfde definitie hanteren.
+function leeftijdUitKlas(klas) {
+  if (!klas) return null;
+  const m = String(klas).match(/^(\d+)/);
+  if (!m) return null;
+  const leerjaar = parseInt(m[1], 10);
+  return (leerjaar >= 1 && leerjaar <= 6) ? 11 + leerjaar : null;
+}
+
+// ─── Positie binnen een ranglijst ─────────────────────────────────────────────
+// FIX: getPosition() werd aangeroepen maar bestond nergens — niet in dit
+// bestand en niet in utils.js (dat exporteert getPositionInArray, met een
+// andere signatuur). Elke aanroep gooide een ReferenceError.
+//
+// soort 'school' → positie tussen alle scores van deze test in de school
+// soort 'age'    → idem, maar enkel tussen leeftijdsgenoten (via klas)
+async function getPosition(soort, { testId, schoolId, newScore, scoreRichting, leeftijd }) {
+  const snap = await db.collection('scores')
+    .where('test_id', '==', testId)
+    .where('school_id', '==', schoolId)
+    .get();
+
+  let rijen = snap.docs
+    .map(d => d.data())
+    .filter(r => typeof r.score === 'number');
+
+  if (soort === 'age') {
+    // Zonder bekende leeftijd is een leeftijdsrecord betekenisloos.
+    if (!leeftijd) return Infinity;
+    rijen = rijen.filter(r => leeftijdUitKlas(r.klas) === leeftijd);
+  }
+
+  const bestaande = rijen
+    .map(r => r.score)
+    .sort((a, b) => (scoreRichting === 'laag' ? a - b : b - a));
+
+  return getPositionInArray(newScore, bestaande, scoreRichting === 'laag' ? 'laag' : 'hoog');
+}
 
 
 exports.awardTestScore = onCall({
@@ -18,8 +63,20 @@ exports.awardTestScore = onCall({
   if (!userDoc.exists || !testDoc.exists) throw new Error('User or test not found');
 
   const userData = userDoc.data();
-  const studentHash = userData.smartschool_id_hash;
+  // FIX: users bevat GEEN smartschool_id_hash — auth.js schrijft daar
+  // toegestane_gebruikers_id. studentHash was dus altijd undefined, waardoor
+  // checkPersonalRecord op een lege scoregeschiedenis werkte en ELKE score
+  // als persoonlijk record telde (+500 XP per keer).
+  const studentHash = userData.toegestane_gebruikers_id;
   const batch = db.batch();
+
+  // XP-transacties worden pas NA een geslaagde commit weggeschreven.
+  // FIX: ze werden hiervóór gelogd, terwijl de bijbehorende increments in de
+  // batch zaten die daarna pas commit. Crashte er iets tussenin (en dat gebeurde
+  // altijd, zie checkLeaderboardPositions), dan stond er in het XP-logboek van
+  // de leerling +50 of +500 XP die nooit op zijn saldo terechtkwam. Het logboek
+  // is juist wat je bij een geschil raadpleegt, dus dat moet kloppen.
+  const teLoggen = [];
 
   // 1. ATTITUDE BELONING: Deelname
   const participationXP = 50;
@@ -29,7 +86,7 @@ exports.awardTestScore = onCall({
     xp_current_school_year: FieldValue.increment(participationXP),
     last_activity: FieldValue.serverTimestamp()
   });
-  await logXPTransaction({ user_id: userId, amount: participationXP, reason: 'test_participation', source_id: testId });
+  teLoggen.push({ user_id: userId, amount: participationXP, reason: 'test_participation', source_id: testId });
 
   // 2. PRESTATIE BELONING: Records
   if (newScore !== null && newScore !== undefined) {
@@ -37,43 +94,59 @@ exports.awardTestScore = onCall({
     const prInfo = await checkPersonalRecord(studentHash, testId, newScore, testDoc.data());
     if (prInfo.isPersonalRecord) {
       const prXP = 500;
-      // --- START CORRECTIE ---
       batch.update(userRef, {
         xp: FieldValue.increment(prXP),
         xp_current_school_year: FieldValue.increment(prXP),
-        personal_records_count: FieldValue.increment(1) // Deze was je vergeten hier te updaten
+        personal_records_count: FieldValue.increment(1)
       });
-      // --- EINDE CORRECTIE ---
-      await logXPTransaction({ user_id: userId, amount: prXP, reason: 'personal_record', source_id: testId });
+      teLoggen.push({ user_id: userId, amount: prXP, reason: 'personal_record', source_id: testId });
     }
 
     // B. School- en Leeftijdsrecords
-    const leaderboardInfo = await checkLeaderboardPositions(userId, testId, newScore, userData);
-    if (leaderboardInfo.totalRecordXP > 0) {
-      batch.update(userRef, {
-        xp: FieldValue.increment(leaderboardInfo.totalRecordXP),
-        xp_current_school_year: FieldValue.increment(leaderboardInfo.totalRecordXP)
+    // In een eigen try/catch: een fout in de ranglijstberekening mag de
+    // deelname-XP niet meeslepen. Die is namelijk al verdiend.
+    try {
+      const leaderboardInfo = await checkLeaderboardPositions({
+        testId, newScore, userData, testData: testDoc.data()
       });
-      for (const achievement of leaderboardInfo.achievements) {
-        await logXPTransaction({ user_id: userId, amount: achievement.xp, reason: achievement.type, source_id: testId });
+      if (leaderboardInfo.totalRecordXP > 0) {
+        batch.update(userRef, {
+          xp: FieldValue.increment(leaderboardInfo.totalRecordXP),
+          xp_current_school_year: FieldValue.increment(leaderboardInfo.totalRecordXP)
+        });
+        for (const achievement of leaderboardInfo.achievements) {
+          teLoggen.push({ user_id: userId, amount: achievement.xp, reason: achievement.type, source_id: testId });
+        }
       }
+    } catch (error) {
+      console.error('Ranglijstposities konden niet bepaald worden:', error);
     }
   }
 
   await batch.commit();
+
+  // Pas nu loggen: de increments staan vast.
+  for (const transactie of teLoggen) {
+    await logXPTransaction(transactie);
+  }
+
   await updateClassChallengeProgressInternal(userId, participationXP, 'xp');
   
   return { success: true, message: 'Test score verwerkt!' };
 });
 
 // Helper functies voor test XP functie
-async function checkLeaderboardPositions(testId, newScore, userData) {
-  const testData = (await db.collection('testen').doc(testId).get()).data();
+// FIX: werd aangeroepen met VIER argumenten terwijl de functie er DRIE nam
+// (checkLeaderboardPositions(userId, testId, newScore, userData)). Alles
+// schoof een plek op: testId kreeg de userId, userData kreeg een getal. Het
+// opzoeken van de test vond niets en testData.score_richting gooide een
+// TypeError. De signatuur is nu expliciet en de aanroep aangepast.
+async function checkLeaderboardPositions({ testId, newScore, userData, testData }) {
   const schoolId = userData.school_id;
-  const userAge = calculateAge(userData.geboortedatum);
-  
-  const schoolPosition = await getPosition(db, 'school', { testId, schoolId, newScore, scoreRichting: testData.score_richting });
-  const agePosition = await getPosition(db, 'age', { testId, userAge, newScore, scoreRichting: testData.score_richting, schoolId });
+  const leeftijd = leeftijdUitKlas(userData.klas);
+
+  const schoolPosition = await getPosition('school', { testId, schoolId, newScore, scoreRichting: testData.score_richting });
+  const agePosition = await getPosition('age', { testId, schoolId, newScore, scoreRichting: testData.score_richting, leeftijd });
 
   let totalRecordXP = 0;
   const achievements = [];
