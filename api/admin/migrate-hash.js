@@ -220,7 +220,18 @@ export default async function handler(req, res) {
         // Accounts zonder hash_version zaten niet in de CSV. Die moeten ofwel
         // aan de CSV toegevoegd worden, ofwel bewust verwijderd (oud-leerlingen).
         const restSnap = await db.collection('toegestane_gebruikers').get();
-        const nietGemigreerdDocs = restSnap.docs.filter(d => d.data().hash_version !== CURRENT_HASH_VERSION);
+        // In een DRY RUN is er niets weggeschreven, dus zouden ALLE accounts
+        // hier als 'nog te migreren' verschijnen — ook die deze CSV wél zou
+        // migreren. Dat maakte het cijfer waar de instructie juist naar
+        // verwijst onbruikbaar. We trekken daarom de accounts af waarvan we
+        // de nieuwe hash in deze run berekend hebben.
+        // hashMap: oudeHash -> nieuweHash. In een dry run staan de documenten
+        // er nog onder hun OUDE id, dus vergelijken we met de sleutels.
+        const zouGemigreerdWorden = new Set(hashMap.keys());
+        const nietGemigreerdDocs = restSnap.docs.filter(d =>
+            d.data().hash_version !== CURRENT_HASH_VERSION
+            && !(dryRun && zouGemigreerdWorden.has(d.id))
+        );
         stats.nogTeMigreren = nietGemigreerdDocs.length;
         stats.nogTeMigrerenVoorbeeld = nietGemigreerdDocs
             .slice(0, 10)

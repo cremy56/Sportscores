@@ -2,6 +2,7 @@
 import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { checkRateLimit, stuurRateLimitResponse } from '../lib/rateLimiter.js';
 import { Timestamp } from 'firebase-admin/firestore'; // Belangrijk! Gebruik de Admin Timestamp
+import { isEchteTokenfout } from '../lib/authFouten.js';
 
 // Helper functie (kopiëren uit je client-side utils)
 const formatScoreWithUnit = (score, unit) => {
@@ -343,36 +344,6 @@ async function handleCreateData(req, res, decodedToken) {
     }
 }
 
-
-// --- HOOFD HANDLER (Router) ---
-// VERVANG je oude 'export default' handler met DEZE
-// Onderscheidt een ECHTE tokenverificatiefout van een infrastructuurfout.
-//
-// Waarom dit bestaat: voorheen stond hier error.message.includes('token').
-// Die check labelde ook infrastructuurfouten als 401 — een ingetrokken
-// service-account-key geeft "Failed to fetch access token", wat dus als
-// "niet ingelogd" naar de client ging ZONDER logging. Dat maskeerde in
-// juli 2026 een productie-uitval van ±15 minuten.
-//
-// De Admin SDK zet op echte auth-fouten een .code van de vorm 'auth/...'
-// (bv. auth/id-token-expired, auth/argument-error). Infrastructuurfouten
-// hebben die code niet. Dat is de betrouwbare scheidslijn; we vallen alleen
-// terug op tekstherkenning voor de expliciete gevallen die onze eigen
-// verifyToken-wrapper gooit.
-function isEchteTokenfout(error) {
-    if (typeof error?.code === 'string' && error.code.startsWith('auth/')) {
-        // Uitzondering: dit is een configuratie-/infrastructuurprobleem aan
-        // ONZE kant, geen ongeldig token van de gebruiker.
-        if (error.code === 'auth/internal-error') return false;
-        return true;
-    }
-    // Geen 'auth/'-code = geen echte auth-fout. verifyToken() in
-    // lib/firebaseAdmin.js zet zelf 'auth/geen-token' bij een ontbrekende of
-    // misvormde Authorization-header, dus we hoeven niet op fouttekst terug
-    // te vallen. Alles zonder code behandelen we als infrastructuurfout:
-    // luid loggen is beter dan stil een 401 teruggeven.
-    return false;
-}
 
 export default async function handler(req, res) {
     // ── Stap 1: authenticatie, met een EIGEN catch ──────────────────────────

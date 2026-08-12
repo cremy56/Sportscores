@@ -3,6 +3,7 @@
 // fictief personage in virtuele_atleten/{uid}. Geen Art. 9-data.
 import { verifyToken } from '../lib/firebaseAdmin.js';
 import { checkRateLimit, stuurRateLimitResponse, categorieVoorAction } from '../lib/rateLimiter.js';
+import { stuurAuthfoutResponse } from '../lib/authFouten.js';
 
 import {
     handleGetBuddy, handleCreateBuddy, handleVerzorgDag, handleZetRustperiode,
@@ -16,8 +17,18 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
 
+    // ── Authenticatie met een EIGEN catch ───────────────────────────────────
+    // Een infrastructuurfout (bv. ingetrokken service-key) mag NIET als 401
+    // gerapporteerd worden: dan lijkt een storing op 'uitgelogd' en wordt hij
+    // niet gelogd. Zie lib/authFouten.js.
+    let decodedToken;
     try {
-        const decodedToken = await verifyToken(req.headers.authorization);
+        decodedToken = await verifyToken(req.headers.authorization);
+    } catch (error) {
+        return stuurAuthfoutResponse(res, error, '/sportbuddy');
+    }
+
+    try {
         const { action } = req.body;
 
         // ── Rate limit (per gebruiker, categorie op basis van action) ────────
@@ -39,9 +50,8 @@ export default async function handler(req, res) {
         }
 
     } catch (error) {
-        if (error.message?.includes('token')) {
-            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
-        }
+        // Authenticatie is hierboven al afgehandeld; wat hier landt is een
+        // echte serverfout. Altijd loggen, nooit als 401 maskeren.
         console.error('❌ API Hoofd-error in /sportbuddy:', error);
         return res.status(500).json({ error: 'Fout bij verwerken Sportbuddy-data' });
     }

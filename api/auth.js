@@ -3,6 +3,7 @@ import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { generateHash } from '../lib/apiHelpers.js';
 import { getHashPepper } from '../lib/keyManager.js';
 import { checkRateLimit, stuurRateLimitResponse } from '../lib/rateLimiter.js';
+import { isEchteTokenfout } from '../lib/authFouten.js';
 
 // ─── Nickname generator ───────────────────────────────────────────────────────
 const ADJECTIVES = [
@@ -37,20 +38,6 @@ const validateNickname = (nickname) => {
     if (!/^[a-zA-Z0-9_\-À-ÿ]+$/.test(trimmed)) return 'Alleen letters, cijfers, _ en - toegestaan';
     return null;
 };
-
-// Onderscheidt een ECHTE tokenverificatiefout van een infrastructuurfout.
-// Zie content.js/tests.js: verifyToken() zet 'auth/geen-token' bij een
-// ontbrekende header, de Admin SDK zet 'auth/...' bij verlopen/ongeldige
-// tokens. Alles zonder auth-code is infrastructuur (bv. ingetrokken key:
-// "Failed to fetch access token") en moet luid gelogd worden, niet stil als
-// 401 — dat maskeerde de key-rotatie-uitval (onderhoudslijst punt 6).
-function isEchteTokenfout(error) {
-    if (typeof error?.code === 'string' && error.code.startsWith('auth/')) {
-        if (error.code === 'auth/internal-error') return false;
-        return true;
-    }
-    return false;
-}
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {

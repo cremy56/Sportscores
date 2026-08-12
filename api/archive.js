@@ -3,6 +3,7 @@ import { db, verifyToken } from '../lib/firebaseAdmin.js';
 import { checkRateLimit, stuurRateLimitResponse } from '../lib/rateLimiter.js';
 import { Timestamp } from 'firebase-admin/firestore';
 import { writeAuditLog } from '../lib/auditLogger.js';
+import { stuurAuthfoutResponse } from '../lib/authFouten.js';
 
 const getLeerjaarFromKlas = (klas) => {
     if (!klas) return null;
@@ -25,6 +26,27 @@ const getHuidigSchooljaar = () => {
     return maand >= 9 ? jaar : jaar - 1;
 };
 
+// ─── BATCH-HELPER ─────────────────────────────────────────────────────────────
+// Firestore staat maximaal 500 bewerkingen per batch toe en commit
+// alles-of-niets. Bij een school met veel actieve testen (10 writes per test)
+// of veel leerlingen die tegelijk van status wisselen, liep één grote batch
+// over die limiet — en dan wordt er NIETS weggeschreven. Deze helper knipt de
+// bewerkingen in stukken van 450, net als lib/handlers en api/users.js doen.
+const MAX_PER_BATCH = 450;
+
+async function commitInChunks(db, bewerkingen) {
+    let uitgevoerd = 0;
+    for (let i = 0; i < bewerkingen.length; i += MAX_PER_BATCH) {
+        const batch = db.batch();
+        for (const doeHet of bewerkingen.slice(i, i + MAX_PER_BATCH)) {
+            doeHet(batch);
+        }
+        await batch.commit();
+        uitgevoerd += Math.min(MAX_PER_BATCH, bewerkingen.length - i);
+    }
+    return uitgevoerd;
+}
+
 // ─── GEDEELDE KERNLOGICA ──────────────────────────────────────────────────────
 // Herbruikbaar door zowel de API handler als de Cloud Function cron
 export async function archiveerRankingsVoorSchool(schoolId, actorUid = 'cron') {
@@ -38,7 +60,9 @@ export async function archiveerRankingsVoorSchool(schoolId, actorUid = 'cron') {
 
     let gearchiveerdeRankings = 0;
     let geblokkeerdeNicknames = 0;
-    const batch = db.batch();
+    // Bewerkingen verzamelen en in stukken committen (zie commitInChunks):
+    // per test zijn dit 10 writes, dus ~50 testen zat al aan de 500-limiet.
+    const bewerkingen = [];
 
     for (const testDoc of testenSnap.docs) {
         const testData = testDoc.data();
@@ -71,7 +95,7 @@ export async function archiveerRankingsVoorSchool(schoolId, actorUid = 'cron') {
             const rank = index + 1;
             const archiveId = `${testDoc.id}_${schooljaarLabel}_rank${rank}`;
 
-            batch.set(db.collection('ranking_archief').doc(archiveId), {
+            bewerkingen.push(b => b.set(db.collection('ranking_archief').doc(archiveId), {
                 test_id: testDoc.id,
                 test_naam: testData.naam,
                 categorie: testData.categorie || null,
@@ -83,23 +107,23 @@ export async function archiveerRankingsVoorSchool(schoolId, actorUid = 'cron') {
                 schooljaar: schooljaarLabel,
                 gearchiveerd_op: Timestamp.now(),
                 // GDPR: geen leerling_id
-            }, { merge: true });
+            }, { merge: true }));
 
             gearchiveerdeRankings++;
 
             // Blokkeer nickname voor hergebruik
-            batch.set(db.collection('nickname_archief').doc(nickname), {
+            bewerkingen.push(b => b.set(db.collection('nickname_archief').doc(nickname), {
                 school_id: schoolId,
                 geblokkeerd_sinds: Timestamp.now(),
                 reden: 'alltime_ranking',
                 schooljaar: schooljaarLabel,
-            }, { merge: true });
+            }, { merge: true }));
 
             geblokkeerdeNicknames++;
         });
     }
 
-    await batch.commit();
+    await commitInChunks(db, bewerkingen);
 
     await writeAuditLog({
         admin_user_id: actorUid,
@@ -151,7 +175,10 @@ async function handleDeactiveerOntbrekende(req, res, decodedToken) {
         }
 
         const schooljaar = getHuidigSchooljaar();
-        const batch = db.batch();
+        // Zie commitInChunks: bij het einde van het schooljaar wisselen soms
+        // honderden leerlingen tegelijk van status. Eén batch liep dan over de
+        // 500-limiet en er werd NIETS weggeschreven.
+        const bewerkingen = [];
         let gedeactiveerd = 0;
         let teruggeactiveerd = 0;
 
@@ -164,13 +191,13 @@ async function handleDeactiveerOntbrekende(req, res, decodedToken) {
         for (const doc of actieveSnap.docs) {
             if (!actieveHashen.includes(doc.id)) {
                 const data = doc.data();
-                batch.update(doc.ref, {
+                bewerkingen.push(b => b.update(doc.ref, {
                     is_active: false,
                     klas_bij_vertrek: data.klas || null,
                     gedeactiveerd_op: Timestamp.now(),
                     virtueel_afstudeerjaar: getVirtueelAfstudeerjaar(data.klas, schooljaar),
                     last_updated: Timestamp.now(),
-                });
+                }));
                 gedeactiveerd++;
             }
         }
@@ -183,18 +210,18 @@ async function handleDeactiveerOntbrekende(req, res, decodedToken) {
 
         for (const doc of inactieveSnap.docs) {
             if (actieveHashen.includes(doc.id)) {
-                batch.update(doc.ref, {
+                bewerkingen.push(b => b.update(doc.ref, {
                     is_active: true,
                     gedeactiveerd_op: null,
                     virtueel_afstudeerjaar: null,
                     klas_bij_vertrek: null,
                     last_updated: Timestamp.now(),
-                });
+                }));
                 teruggeactiveerd++;
             }
         }
 
-        await batch.commit();
+        await commitInChunks(db, bewerkingen);
 
         await writeAuditLog({
             admin_user_id: decodedToken.uid,
@@ -323,8 +350,16 @@ async function handleHeractiveer(req, res, decodedToken) {
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
+    // ── Authenticatie met een EIGEN catch ───────────────────────────────────
+    // Infrastructuurfout (bv. ingetrokken key) NIET als 401 maskeren.
+    let decodedToken;
     try {
-        const decodedToken = await verifyToken(req.headers.authorization);
+        decodedToken = await verifyToken(req.headers.authorization);
+    } catch (error) {
+        return stuurAuthfoutResponse(res, error, '/archive');
+    }
+
+    try {
         const { action } = req.body;
 
         // ── Rate limit (categorie 'admin' — alle actions hier zijn beheer) ───
@@ -347,9 +382,8 @@ export default async function handler(req, res) {
                 return res.status(400).json({ error: `Onbekende action: ${action}` });
         }
     } catch (error) {
-        if (error.message?.includes('token')) {
-            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
-        }
+        // Authenticatie is hierboven al afgehandeld; wat hier landt is een
+        // echte serverfout. Altijd loggen, nooit als 401 maskeren.
         console.error('❌ API Hoofd-error in /archive:', error);
         return res.status(500).json({ error: 'Interne serverfout' });
     }

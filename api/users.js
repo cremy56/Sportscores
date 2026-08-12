@@ -4,6 +4,7 @@ import { getMasterKey, getHashPepper } from '../lib/keyManager.js';
 import { writeAuditLog } from '../lib/auditLogger.js';
 import { decryptName, encryptName, generateHash, CURRENT_HASH_VERSION } from '../lib/apiHelpers.js';
 import { checkRateLimit, stuurRateLimitResponse, categorieVoorAction } from '../lib/rateLimiter.js';
+import { stuurAuthfoutResponse } from '../lib/authFouten.js';
 
 async function handleUpdateTeacherKlassen(req, res, decodedToken) {
     try {
@@ -56,9 +57,12 @@ async function handleUpdateTeacherKlassen(req, res, decodedToken) {
         });
  
         // === 5. UPDATE USERS COLLECTIE ===
-        // Zoek de users doc op basis van smartschool_id_hash
+        // FIX: zocht op 'smartschool_id_hash' — dat veld bestaat NIET in de
+        // users-collectie (auth.js schrijft daar 'toegestane_gebruikers_id').
+        // De query gaf dus altijd leeg terug en de update werd stil
+        // overgeslagen: de klassen kwamen nooit in het profiel dat de app leest.
         const usersQuery = await db.collection('users')
-            .where('smartschool_id_hash', '==', userId)
+            .where('toegestane_gebruikers_id', '==', userId)
             .limit(1)
             .get();
  
@@ -391,7 +395,11 @@ async function handleUpdateUser(req, res, decodedToken) {
         // userId = smartschool_id_hash (= doc ID in toegestane_gebruikers)
         const userRef = db.collection('toegestane_gebruikers').doc(userId);
         const userDoc = await userRef.get();
-        if (!userDoc.exists()) {
+        // FIX: exists is in de Admin SDK een EIGENSCHAP, geen methode.
+        // userDoc.exists() gooide een TypeError, waardoor deze handler
+        // crashte vóór de autorisatiecontrole en de gebruiker een generieke
+        // 500 kreeg. (Dezelfde fout is eerder in content.js hersteld.)
+        if (!userDoc.exists) {
             return res.status(404).json({ error: 'De te bewerken gebruiker is niet gevonden.' });
         }
 
@@ -428,10 +436,13 @@ async function handleUpdateUser(req, res, decodedToken) {
         await userRef.update(updateData);
 
         // === 6. UPDATE USERS COLLECTIE (als leerling al ingelogd heeft) ===
-        // ✅ FIX: Zoek via smartschool_id_hash, niet via userId als doc ID
-        //         (users collectie gebruikt Firebase UID als doc ID, niet de hash!)
+        // De users-collectie gebruikt de Firebase UID als doc ID, dus zoeken op
+        // veld. FIX: dat veld heet 'toegestane_gebruikers_id', niet
+        // 'smartschool_id_hash' (die staat enkel in toegestane_gebruikers).
+        // Met de oude naam gaf de query altijd leeg terug en werd de actie
+        // stil overgeslagen.
         const usersQuery = await db.collection('users')
-            .where('smartschool_id_hash', '==', userId)
+            .where('toegestane_gebruikers_id', '==', userId)
             .limit(1)
             .get();
 
@@ -482,7 +493,11 @@ async function handleDeleteUser(req, res, decodedToken) {
         // userId = smartschool_id_hash (= doc ID in toegestane_gebruikers)
         const userRef = db.collection('toegestane_gebruikers').doc(userId);
         const userDoc = await userRef.get();
-        if (!userDoc.exists()) {
+        // FIX: exists is in de Admin SDK een EIGENSCHAP, geen methode.
+        // userDoc.exists() gooide een TypeError, waardoor deze handler
+        // crashte vóór de autorisatiecontrole en de gebruiker een generieke
+        // 500 kreeg. (Dezelfde fout is eerder in content.js hersteld.)
+        if (!userDoc.exists) {
             return res.status(404).json({ error: 'De te verwijderen gebruiker is niet gevonden.' });
         }
 
@@ -498,10 +513,13 @@ async function handleDeleteUser(req, res, decodedToken) {
         await userRef.delete();
         
         // === 5. VERWIJDER UIT USERS COLLECTIE (als leerling al ingelogd heeft) ===
-        // ✅ FIX: Zoek via smartschool_id_hash, niet via userId als doc ID
-        //         (users collectie gebruikt Firebase UID als doc ID, niet de hash!)
+        // De users-collectie gebruikt de Firebase UID als doc ID, dus zoeken op
+        // veld. FIX: dat veld heet 'toegestane_gebruikers_id', niet
+        // 'smartschool_id_hash' (die staat enkel in toegestane_gebruikers).
+        // Met de oude naam gaf de query altijd leeg terug en werd de actie
+        // stil overgeslagen.
         const usersQuery = await db.collection('users')
-            .where('smartschool_id_hash', '==', userId)
+            .where('toegestane_gebruikers_id', '==', userId)
             .limit(1)
             .get();
 
@@ -768,9 +786,16 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
     
+    // ── Authenticatie met een EIGEN catch ───────────────────────────────────
+    // Infrastructuurfout (bv. ingetrokken key) NIET als 401 maskeren.
+    let decodedToken;
     try {
-        // Authenticatie gebeurt één keer
-        const decodedToken = await verifyToken(req.headers.authorization);
+        decodedToken = await verifyToken(req.headers.authorization);
+    } catch (error) {
+        return stuurAuthfoutResponse(res, error, '/users');
+    }
+
+    try {
         const { action } = req.body; 
 
         // ── Rate limit (per gebruiker, categorie op basis van action) ────────
@@ -801,9 +826,8 @@ export default async function handler(req, res) {
         }
 
     } catch (error) {
-         if (error.message.includes('token')) {
-            return res.status(401).json({ error: 'Niet geauthenticeerd: ' + error.message });
-        }
+        // Authenticatie is hierboven al afgehandeld; wat hier landt is een
+        // echte serverfout. Altijd loggen, nooit als 401 maskeren.
         console.error('❌ API Hoofd-error in /users:', error);
         return res.status(500).json({ error: 'Fout bij verwerken user data' });
     }

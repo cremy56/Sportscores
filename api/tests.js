@@ -2,6 +2,7 @@
 // Frontend roept nog steeds /api/tests aan — geen wijzigingen in de client nodig.
 import { verifyToken } from '../lib/firebaseAdmin.js';
 import { checkRateLimit, stuurRateLimitResponse, categorieVoorAction } from '../lib/rateLimiter.js';
+import { isEchteTokenfout } from '../lib/authFouten.js';
 
 import {
     handleGetTests, handleGetLeaderboard, handleGetSetupData,
@@ -51,21 +52,6 @@ import {
     handleGetBlessureContent,
     handleSubmitWaarnemerMetingen, handleGetWaarnemerMetingen, handleMarkeerWaarnemerGekoppeld, handleVerwijderWaarnemerMetingen,
 } from '../lib/handlers/sportlab.js';
-
-// ─── HOOFD HANDLER ────────────────────────────────────────────────────────────
-// Onderscheidt een ECHTE tokenverificatiefout van een infrastructuurfout.
-// Zie ook content.js: verifyToken() zet 'auth/geen-token' bij een ontbrekende
-// header; de Admin SDK zet 'auth/...' bij verlopen/ongeldige tokens. Alles
-// zonder auth-code is een infrastructuurfout (bv. ingetrokken service-key gaf
-// "Failed to fetch access token") en moet luid gelogd worden, niet stil als
-// 401 (dat maskeerde in juli de key-rotatie-uitval — onderhoudslijst punt 6).
-function isEchteTokenfout(error) {
-    if (typeof error?.code === 'string' && error.code.startsWith('auth/')) {
-        if (error.code === 'auth/internal-error') return false;
-        return true;
-    }
-    return false;
-}
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
