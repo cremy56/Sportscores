@@ -128,7 +128,7 @@ exports.awardEHBOXP = onCall(async (request) => {
 exports.saveEHBOProgress = onCall(async (request) => {
   if (!request.auth) throw new Error('Authentication required');
 
-  const { userId, scenarioId } = request.data;
+  const { userId, scenarioId, score } = request.data;
   if (!userId || !scenarioId) throw new Error('userId and scenarioId are required');
 
   try {
@@ -140,14 +140,31 @@ exports.saveEHBOProgress = onCall(async (request) => {
 
     // ✅ FIX: Alleen progress opslaan (XP via awardEHBOXP)
     const baseScenarioId = scenarioId.split('_enhanced_')[0];
-    const scenarioKey = `ehbo_completion_stats.${baseScenarioId}`;
 
-    await userRef.update({
-      [scenarioKey]: FieldValue.increment(1),
-      last_activity: FieldValue.serverTimestamp()
-    });
+    // FIX (aug 2026): de score werd door de frontend WEL meegestuurd maar hier
+    // genegeerd. Nergens in de applicatie werd een EHBO-score bewaard, waardoor
+    // de monitor altijd 0% toonde en de leerplandoelen (EHBO_OBJECTIVES, met
+    // required_score 70–90) niet te beoordelen waren.
+    //
+    // We bewaren de BESTE score per scenario, niet de laatste: een leerling mag
+    // oefenen zonder dat zijn resultaat daalt.
+    const nieuweScore = Number.isFinite(Number(score)) ? Math.max(0, Math.min(100, Math.round(Number(score)))) : null;
+    const bestaandeScores = userDoc.data().ehbo_scores || {};
+    const besteScore = nieuweScore === null
+      ? bestaandeScores[baseScenarioId]
+      : Math.max(nieuweScore, bestaandeScores[baseScenarioId] ?? 0);
 
-    return { success: true, message: 'EHBO progress saved successfully' };
+    const update = {
+      [`ehbo_completion_stats.${baseScenarioId}`]: FieldValue.increment(1),
+      last_activity: FieldValue.serverTimestamp(),
+    };
+    if (besteScore !== undefined) {
+      update[`ehbo_scores.${baseScenarioId}`] = besteScore;
+    }
+
+    await userRef.update(update);
+
+    return { success: true, message: 'EHBO progress saved successfully', besteScore };
 
   } catch (error) {
     console.error('Error saving EHBO progress:', error);
