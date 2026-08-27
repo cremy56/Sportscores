@@ -19,4 +19,4 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-export const functions = getFunctions(app, 'https://europe-west1-sportscore-6774d.cloudfunctions.net');
+export const functions = getFunctions(app, 'europe-west1');

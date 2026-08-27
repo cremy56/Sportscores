@@ -27,7 +27,7 @@ export const initiateSmartschoolLogin = (schoolDomain) => {
 
 export const exchangeCodeForToken = async (code, state) => {
   try {
-    const response = await fetch('https://us-central1-sportscore-6774d.cloudfunctions.net/smartschoolAuth', {
+    const response = await fetch('https://europe-west1-sportscore-6774d.cloudfunctions.net/smartschoolAuth', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
