@@ -38,7 +38,7 @@ export default function ContentSlide({ item, kiosk = false }) {
       </div>
       <div className="relative z-10">
         <div className={`text-center ${kiosk ? 'mb-5 lg:mb-6' : 'mb-8 lg:mb-10'}`}>
-          <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight drop-shadow-lg">
+          <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight drop-shadow-lg px-24 sm:px-0">
             {item.data.test.naam}
           </h2>
         </div>

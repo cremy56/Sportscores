@@ -171,6 +171,32 @@ function AdValvasScherm({ kiosk = false, profile, school }) {
         .fluid-normaal .p-12 { padding: clamp(1.5rem, 2.4vw, 3.25rem); }
         .fluid-normaal .gap-8 { gap: clamp(1.25rem, 1.8vw, 2.25rem); }
         .fluid-normaal .lg\\:gap-10 { gap: clamp(1.25rem, 2vw, 2.5rem); }
+
+        /* ── Woordafbreking ──────────────────────────────────────────────────
+           Lange samengestelde woorden (bv. "Gemeenschapssanctie") pasten niet
+           binnen de kaart en liepen over de rand. Forceer afbreken op elk
+           tekstelement binnen een slide i.p.v. het per component te herhalen. */
+        .fluid-schaal h2,
+        .fluid-schaal p,
+        .fluid-schaal blockquote,
+        .fluid-schaal cite {
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          hyphens: auto;
+        }
+
+        /* ── Smalle schermen: kleiner startpunt ──────────────────────────────
+           Op een telefoon (~360-420px) wint de clamp-MIN het altijd van de
+           vw-term, dus grote koppen bleven te breed. Verlaag daar de min zodat
+           titels echt meeschalen; de kiosk en desktop blijven ongemoeid. */
+        @media (max-width: 640px) {
+          .fluid-normaal .text-3xl,  .fluid-normaal .lg\\:text-3xl { font-size: clamp(1.25rem, 6vw, 2.5rem); }
+          .fluid-normaal .text-4xl,  .fluid-normaal .lg\\:text-4xl { font-size: clamp(1.375rem, 7vw, 3.25rem); }
+          .fluid-normaal .text-5xl,  .fluid-normaal .lg\\:text-5xl { font-size: clamp(1.625rem, 8vw, 4rem); }
+          .fluid-normaal .text-6xl,  .fluid-normaal .lg\\:text-6xl { font-size: clamp(1.875rem, 9vw, 5rem); }
+          .fluid-normaal .text-7xl,  .fluid-normaal .lg\\:text-7xl { font-size: clamp(2.25rem, 11vw, 6rem); }
+          .fluid-normaal .text-9xl,  .fluid-normaal .lg\\:text-9xl { font-size: clamp(2.75rem, 14vw, 8.5rem); }
+        }
       `}</style>
       {/* --- POPUP FORMULIER --- */}
       {isModalOpen && (
