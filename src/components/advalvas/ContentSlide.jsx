@@ -32,13 +32,13 @@ export default function ContentSlide({ item, kiosk = false }) {
     // Gekleurd vlak i.p.v. witte kaart op lichtgrijze achtergrond: die ene
     // slide viel weg tegen de pagina. Nu dezelfde vormtaal als de rest.
     <div className={`relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-3xl shadow-2xl ${kiosk ? 'p-6 lg:p-8' : 'p-8 lg:p-10'} w-full max-w-7xl mx-auto overflow-hidden`}>
-      <div className={`absolute ${kiosk ? 'top-4 right-4' : 'top-6 right-6'} flex items-center space-x-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-2`}>
+      <div className={`absolute ${kiosk ? 'top-4 right-4' : 'top-6 right-6'} hidden sm:flex items-center space-x-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-2`}>
         <Trophy className="h-4 w-4 text-amber-300" />
         <span className="text-sm font-bold uppercase tracking-wider text-white">Toppers</span>
       </div>
       <div className="relative z-10">
-        <div className={`text-center ${kiosk ? 'mb-5 lg:mb-6' : 'mb-8 lg:mb-10'}`}>
-          <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight drop-shadow-lg px-24 sm:px-0">
+        <div className={`text-center overflow-hidden ${kiosk ? 'mb-5 lg:mb-6' : 'mb-8 lg:mb-10'}`}>
+          <h2 className="text-4xl lg:text-6xl font-black text-white tracking-tight drop-shadow-lg whitespace-nowrap">
             {item.data.test.naam}
           </h2>
         </div>
@@ -98,7 +98,7 @@ export default function ContentSlide({ item, kiosk = false }) {
         return (
           <div className="relative bg-gradient-to-br from-red-600 via-red-700 to-pink-800 rounded-3xl shadow-2xl p-12 w-full max-w-7xl mx-auto text-white overflow-hidden">
             {/* Live indicator */}
-            <div className="absolute top-6 right-6 flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
+            <div className="absolute top-6 right-6 hidden sm:flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
               <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
               <span className="text-sm font-bold uppercase tracking-wider">Live News</span>
             </div>

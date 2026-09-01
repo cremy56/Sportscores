@@ -220,7 +220,7 @@ export const SPORT_FACTS = [
   "IJsbaden (10-15°C) na sport verminderen ontstekingen en spierpijn.",
   "Sportmassage verbetert doorbloeding en versnelt herstel merkbaar.",
   "Cross-training vermindert het risico op overbelastingsblessures aanzienlijk.",
-  "Sterke kernspieren voorkomen 60% van alle rug- en knieblessures.",
+  "Sterke core-stability voorkomt 60% van alle rug- en knieblessures.",
   "Adequate hydratatie voorkomt hitteblessures en spierkrampen.",
   "Progressieve belasting voorkomt acute en chronische blessures.",
   "Correcte schoenen zijn essentieel voor gewricht- en spiergezondheid.",
