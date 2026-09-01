@@ -76,6 +76,14 @@ const thresholdLinesPlugin = {
 
 // Y-as schaling — werkt voor zowel hoog-is-beter als laag-is-beter
 const calculateOptimalYRange = (scoreValues, scoreNorms) => {
+  // ✅ Fysieke sporttests hebben nooit negatieve waarden (aantal, tijd, afstand).
+  // Verzamel alle betrokken waarden om te bepalen of we op 0 mogen afklemmen.
+  const allValues = [
+    ...(scoreValues || []),
+    scoreNorms?.['1'], scoreNorms?.['10'], scoreNorms?.['14'], scoreNorms?.['20']
+  ].filter(v => v !== undefined && v !== null);
+  const clampToZero = allValues.length > 0 && allValues.every(v => v >= 0);
+
   // Fallback als normen niet beschikbaar zijn
   if (!scoreNorms || scoreNorms['1'] === undefined || scoreNorms['20'] === undefined) {
     if (!scoreValues || scoreValues.length === 0) return { minValue: 0, maxValue: 100 };
@@ -83,7 +91,9 @@ const calculateOptimalYRange = (scoreValues, scoreNorms) => {
     const maxScore = Math.max(...scoreValues);
     const range = maxScore - minScore;
     const padding = range === 0 ? Math.max(minScore * 0.1, 30) : range * 0.2;
-    return { minValue: minScore - padding, maxValue: maxScore + padding };
+    let minValue = minScore - padding;
+    if (clampToZero && minValue < 0) minValue = 0;
+    return { minValue, maxValue: maxScore + padding };
   }
 
   // ✅ Gebruik altijd numerisch min/max — werkt voor beide richtingen
@@ -103,6 +113,9 @@ const calculateOptimalYRange = (scoreValues, scoreNorms) => {
     if (actualMin < finalMin) finalMin = actualMin - padding * 0.5;
     if (actualMax > finalMax) finalMax = actualMax + padding * 0.5;
   }
+
+  // ✅ Geen negatieve as bij tests waarvan alle waarden ≥ 0 zijn (bv. pull-up telt).
+  if (clampToZero && finalMin < 0) finalMin = 0;
 
   return { minValue: finalMin, maxValue: finalMax };
 };
@@ -170,16 +183,19 @@ export default function EvolutionChart({ scores, eenheid, onPointClick, scoreNor
           font: { size: isMobile ? 10 : 11 },
           padding: 6,
           maxTicksLimit: 8,
-          // ✅ Formateer tijdwaarden naar M'SS" formaat
+          // ✅ Formateer tijdwaarden naar M'SS" formaat (ook onder de minuut),
+          // en rond niet-tijdwaarden af zodat floating-point-artefacten (bv.
+          // 5.175000000000004) nooit rauw op de as verschijnen.
           callback: function(value) {
             const eenheidLower = (eenheid || '').toLowerCase();
             const isTime = ['min', 'sec', 'seconden', 'minuten en seconden'].some(u => eenheidLower.includes(u));
-            if (isTime && value >= 60) {
-              const minutes = Math.floor(value / 60);
-              const seconds = Math.round(value % 60);
+            if (isTime) {
+              const totalSeconds = Math.max(0, Math.round(value));
+              const minutes = Math.floor(totalSeconds / 60);
+              const seconds = totalSeconds % 60;
               return `${minutes}'${seconds.toString().padStart(2, '0')}"`;
             }
-            return value;
+            return Math.round(value * 100) / 100;
           }
         },
         border: {
