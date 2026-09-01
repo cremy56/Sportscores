@@ -46,31 +46,40 @@ export const getPointColorClass = (point, maxPoints = 20) => {
 export const formatScoreWithUnit = (score, eenheid) => {
   if (score === null || score === undefined || isNaN(score)) return '-';
   
-  const eenheidLower = eenheid?.toLowerCase();
+  const eenheidLower = (eenheid || '').toLowerCase().trim();
 
   // Prioriteer eenheden die niet als tijd moeten worden geïnterpreteerd
   if (eenheidLower === 'aantal') {
     return `${score}x`;
   }
-  
-  if (eenheidLower === 'meter') {
+
+  // Lengte-eenheden EERST expliciet afhandelen. 'cm' bevat een 'm' en werd
+  // daardoor eerder verkeerd als tijd geformatteerd (bug: 2 -> 2"00s).
+  if (eenheidLower === 'cm') {
+    return `${score} cm`;
+  }
+  if (eenheidLower === 'meter' || eenheidLower === 'm') {
     return `${score} m`;
   }
 
-  // Behandel eenheden die tijd in seconden representeren (bv. s, sec, km, 100m)
-  const timeUnits = ['min', 'sec', 'seconden', 'seconds', 's'];
-  if (timeUnits.includes(eenheidLower) || eenheidLower?.includes('m')) {
+  // Behandel eenheden die tijd in seconden representeren.
+  // Expliciete whitelist i.p.v. een brede includes('m')-check, zodat lengte-
+  // eenheden (cm, m) nooit meer als tijd worden gezien. Loopafstanden waarvan
+  // de SCORE in seconden staat (km, 100m, 800m, ...) blijven wel als tijd tonen.
+  const timeUnits = ['min', 'minuten', 'sec', 'seconden', 'seconds', 's'];
+  const isAfstandInTijd = /^\d+\s*(m|km)$|^km$/.test(eenheidLower); // bv. 100m, 800m, km
+  if (timeUnits.includes(eenheidLower) || isAfstandInTijd) {
     // Voor sprints (< 60s), toon decimalen
     if (score < 60) {
       return `${score.toFixed(2).replace('.', '"')}s`; // bv. 12"80s
     }
-    
-    // Voor langere afstanden, converteer naar M'SS"
+
+    // Voor langere tijden, converteer naar M'SS"
     const minutes = Math.floor(score / 60);
     const seconds = Math.round(score % 60);
     return `${minutes}'${seconds.toString().padStart(2, '0')}"`;
   }
-  
+
   // Fallback voor andere eenheden
   return `${score} ${eenheid}`;
 };
