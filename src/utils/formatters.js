@@ -66,7 +66,7 @@ export const formatScoreWithUnit = (score, eenheid) => {
   // Expliciete whitelist i.p.v. een brede includes('m')-check, zodat lengte-
   // eenheden (cm, m) nooit meer als tijd worden gezien. Loopafstanden waarvan
   // de SCORE in seconden staat (km, 100m, 800m, ...) blijven wel als tijd tonen.
-  const timeUnits = ['min', 'minuten', 'sec', 'seconden', 'seconds', 's'];
+  const timeUnits = ['min', 'minuten', 'sec', 'seconden', 'seconds', 's', 'minuten en seconden', 'mm:ss', "m'ss"];
   const isAfstandInTijd = /^\d+\s*(m|km)$|^km$/.test(eenheidLower); // bv. 100m, 800m, km
   if (timeUnits.includes(eenheidLower) || isAfstandInTijd) {
     // Voor sprints (< 60s), toon decimalen
