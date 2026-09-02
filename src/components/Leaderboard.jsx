@@ -139,8 +139,8 @@ export default function Leaderboard({ testId, globalAgeFilter, isLearner }) {
                             'bg-gray-50 hover:bg-gray-100'
                         }`}
                     >
-                        <div className="flex items-center gap-3">
-                            <span className={`font-bold w-8 h-8 rounded-full flex items-center justify-center text-sm ${
+                        <div className="flex items-center gap-3 min-w-0">
+                            <span className={`font-bold w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${
                                 index === 0 ? 'bg-yellow-500 text-white' :
                                 index === 1 ? 'bg-gray-500 text-white' :
                                 index === 2 ? 'bg-orange-500 text-white' :
@@ -148,8 +148,8 @@ export default function Leaderboard({ testId, globalAgeFilter, isLearner }) {
                             }`}>
                                 {index + 1}
                             </span>
-                            <div>
-                                <span className="font-medium text-gray-900">
+                            <div className="min-w-0">
+                                <span className="font-medium text-gray-900 block truncate">
                                     {entry.leerling_naam || 'Onbekende leerling'}
                                 </span>
                                 <div className="text-xs text-gray-500">
@@ -157,7 +157,7 @@ export default function Leaderboard({ testId, globalAgeFilter, isLearner }) {
                                 </div>
                             </div>
                         </div>
-                        <span className="font-bold text-lg text-purple-700">
+                        <span className="font-bold text-lg text-purple-700 whitespace-nowrap flex-shrink-0 ml-3">
                             {formatScoreWithUnit(entry.score, testData?.eenheid)}
                         </span>
                     </li>
