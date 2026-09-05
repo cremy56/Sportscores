@@ -427,9 +427,16 @@ const handleTaakVoltooien = async (weekNummer, taakIndex, ervaringData) => {
                 </div>
 
                 {/* Header met Progress */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+                <div className={`bg-white rounded-2xl shadow-sm border-2 p-6 mb-8 ${
+                    (actiefSchema.type || 'verplicht') === 'optioneel' ? 'border-blue-200' : 'border-red-200'
+                }`}>
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
                         <div className="mb-4 lg:mb-0">
+                            <span className={`inline-block mb-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide text-white ${
+                                (actiefSchema.type || 'verplicht') === 'optioneel' ? 'bg-blue-500' : 'bg-red-600'
+                            }`}>
+                                {(actiefSchema.type || 'verplicht') === 'optioneel' ? 'Zelfgekozen' : 'Verplichte Focus'}
+                            </span>
                             <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2">{schemaDetails.naam}</h1>
                             <p className="text-slate-600">
                                 {isTeacherOrAdmin 
