@@ -131,15 +131,7 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
                 )}
 
                 <div className="text-center pt-4">
-                    {isVerplicht && (
-                        <>
-                            <p className={`text-sm font-semibold uppercase mb-2 ${theme.titleColor}`}>
-                                {isTeacherOrAdmin ? `Focuspunt voor ${student.naam}` : 'Jouw Focuspunt'}
-                            </p>
-                            <h2 className="text-3xl font-bold text-slate-800 mb-2">{test.test_naam || test.naam}</h2>
-                        </>
-                    )}
-                    <h2 className={`text-3xl font-bold text-slate-800 mb-2 ${isVerplicht ? '' : 'mt-4'}`}>{schema.naam}</h2>
+                    <h2 className="text-3xl font-bold text-slate-800 mb-2 mt-4">{schema.naam}</h2>
                     <p className="text-slate-500 mb-6">{schema.omschrijving}</p>
                 </div>
 
