@@ -155,11 +155,6 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
                             <span>Duur: {schema.duur_weken} weken</span>
                             <span>Categorie: {schema.categorie}</span>
                         </div>
-                        {isActief && (
-                            <div className="mt-2 text-xs font-semibold text-red-600">
-                                Voortgang: {voortgangPct}% afgerond
-                            </div>
-                        )}
                     </div>
                 </div>
 

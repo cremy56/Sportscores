@@ -33,6 +33,7 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin, s
     const [schemaExists, setSchemaExists] = useState(!schema.isNew);
     const [loading, setLoading] = useState(!schema.isNew);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [voortgangPct, setVoortgangPct] = useState(0);
 
     const studentHash = getStudentHash(student);
     const schemaInstanceId = `${studentHash}_${schema.id}`;
@@ -50,6 +51,31 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin, s
         };
         checkSchemaExists();
     }, [schemaInstanceId, isTeacherOrAdmin, studentHash, schema.isNew, schoolId]);
+
+    // Voortgang (gevalideerde weken) voor de voortgangsbalk. Alleen als het
+    // schema al bestaat/gestart is; anders blijft de balk op 0%.
+    useEffect(() => {
+        if (!schemaExists || !studentHash || !schema?.id) return;
+        let actief = true;
+        (async () => {
+            try {
+                const data = await apiPost('get_schema_actief', {
+                    schoolId, leerlingId: studentHash, schemaTemplateId: schema.id
+                });
+                const gevalideerd = data?.actiefSchema?.gevalideerde_weken || {};
+                const aantalGevalideerd = Object.values(gevalideerd)
+                    .filter(w => w?.gevalideerd === true).length;
+                const totaal = schema?.duur_weken || 0;
+                const pct = totaal > 0
+                    ? Math.min(100, Math.round((aantalGevalideerd / totaal) * 100))
+                    : 0;
+                if (actief) setVoortgangPct(pct);
+            } catch (err) {
+                console.error('Kon voortgang niet laden:', err);
+            }
+        })();
+        return () => { actief = false; };
+    }, [schemaExists, studentHash, schema?.id, schema?.duur_weken, schoolId]);
 
     const handleStartOrContinue = async () => {
         if (!schemaExists) {
@@ -95,10 +121,16 @@ const OptionalFocusPuntKaart = ({ schema, student, onRemove, isTeacherOrAdmin, s
                     </button>
                 )}
                 <div className="text-center pt-4">
-                    <h2 className="text-3xl font-bold text-slate-800 mb-2">{schema.naam}</h2>
-                    <div className="bg-blue-50 rounded-xl border border-blue-200 p-6 mt-6">
-                        <p className="text-sm text-blue-600 mb-4">{schema.omschrijving}</p>
-                        <div className="flex justify-between items-center text-sm font-medium text-blue-700">
+                    <h2 className="text-3xl font-bold text-slate-800 mb-2 mt-4">{schema.naam}</h2>
+                    <p className="text-slate-500 mb-6">{schema.omschrijving}</p>
+                    <div className="relative overflow-hidden bg-blue-50 rounded-xl border border-blue-200 p-6">
+                        {/* Subtiele voortgangsvulling: breedte = % gevalideerde weken */}
+                        <div
+                            className="absolute inset-y-0 left-0 bg-blue-500/15 transition-all duration-500"
+                            style={{ width: `${voortgangPct}%` }}
+                            aria-hidden="true"
+                        ></div>
+                        <div className="relative z-10 flex justify-between items-center text-sm font-medium text-blue-700">
                             <span>Duur: {schema.duur_weken} weken</span>
                             <span>Categorie: {schema.categorie}</span>
                         </div>
