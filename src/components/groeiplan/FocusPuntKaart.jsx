@@ -16,8 +16,13 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator';
 
 
-    // ✅ FIX: smartschool_id_hash als identifier
-    const studentIdentifier = student?.smartschool_id_hash || student?.id;
+    // Identifier voor leerling_schemas.leerling_id.
+    // FIX: de server (training-functions.js/getUserByHash) matcht op
+    // users.toegestane_gebruikers_id — 'smartschool_id_hash' bestaat NIET in users.
+    // Gebruik dus toegestane_gebruikers_id, met id als fallback. Dit zorgt dat
+    // SchemaDetail's isCurrentUser-check klopt en de leerling de 'Opdracht
+    // voltooid'-knop ziet, óók bij een verplicht schema.
+    const studentIdentifier = student?.toegestane_gebruikers_id || student?.id;
 
     if (!studentIdentifier) {
         console.error('Geen geldige student identifier gevonden:', student);
