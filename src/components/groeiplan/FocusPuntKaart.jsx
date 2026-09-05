@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useOutletContext } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Target, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ConfirmModal from '../ConfirmModal';
 import { apiCall } from '../../utils/api';
 
@@ -15,7 +15,6 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
 
     const isTeacherOrAdmin = profile?.rol === 'leerkracht' || profile?.rol === 'administrator' || profile?.rol === 'super-administrator';
 
-
     // Identifier voor leerling_schemas.leerling_id.
     // FIX: de server (training-functions.js/getUserByHash) matcht op
     // users.toegestane_gebruikers_id — 'smartschool_id_hash' bestaat NIET in users.
@@ -23,6 +22,40 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
     // SchemaDetail's isCurrentUser-check klopt en de leerling de 'Opdracht
     // voltooid'-knop ziet, óók bij een verplicht schema.
     const studentIdentifier = student?.toegestane_gebruikers_id || student?.id;
+
+    // Voortgang (gevalideerde weken) tonen op de kaart. Alleen zinvol als het
+    // schema al gestart is; anders blijft de balk op 0%. We halen het actieve
+    // schema-document op via get_schema_actief en tellen gevalideerde weken.
+    const [voortgangPct, setVoortgangPct] = useState(0);
+
+    useEffect(() => {
+        if (!isActief || !studentIdentifier || !schema?.id) return;
+        let actief = true;
+
+        (async () => {
+            try {
+                const data = await apiCall('/api/tests', {
+                    action: 'get_schema_actief',
+                    schoolId: profile?.school_id,
+                    leerlingId: studentIdentifier,
+                    schemaTemplateId: schema.id
+                });
+                const gevalideerd = data?.actiefSchema?.gevalideerde_weken || {};
+                const aantalGevalideerd = Object.values(gevalideerd)
+                    .filter(w => w?.gevalideerd === true).length;
+                const totaal = schema?.duur_weken || 0;
+                const pct = totaal > 0
+                    ? Math.min(100, Math.round((aantalGevalideerd / totaal) * 100))
+                    : 0;
+                if (actief) setVoortgangPct(pct);
+            } catch (err) {
+                console.error('Kon voortgang niet laden:', err);
+            }
+        })();
+
+        return () => { actief = false; };
+    }, [isActief, studentIdentifier, schema?.id, schema?.duur_weken, profile?.school_id]);
+
 
     if (!studentIdentifier) {
         console.error('Geen geldige student identifier gevonden:', student);
@@ -110,10 +143,23 @@ export default function FocusPuntKaart({ test, schema, student, isVerplicht = fa
                     <p className="text-slate-500 mb-6">{schema.omschrijving}</p>
                 </div>
 
-                <div className="bg-slate-50 rounded-xl border border-slate-200 p-6">
-                    <div className="flex justify-between items-center text-sm font-medium text-slate-600">
-                        <span>Duur: {schema.duur_weken} weken</span>
-                        <span>Categorie: {schema.categorie}</span>
+                <div className="relative overflow-hidden bg-slate-50 rounded-xl border border-slate-200 p-6">
+                    {/* Subtiele voortgangsvulling: breedte = % gevalideerde weken */}
+                    <div
+                        className="absolute inset-y-0 left-0 bg-red-500/15 transition-all duration-500"
+                        style={{ width: `${voortgangPct}%` }}
+                        aria-hidden="true"
+                    ></div>
+                    <div className="relative z-10">
+                        <div className="flex justify-between items-center text-sm font-medium text-slate-600">
+                            <span>Duur: {schema.duur_weken} weken</span>
+                            <span>Categorie: {schema.categorie}</span>
+                        </div>
+                        {isActief && (
+                            <div className="mt-2 text-xs font-semibold text-red-600">
+                                Voortgang: {voortgangPct}% afgerond
+                            </div>
+                        )}
                     </div>
                 </div>
 
